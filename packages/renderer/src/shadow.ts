@@ -158,28 +158,20 @@ export function sampleHeightAt(height: HostBuffer, x: number, y: number): number
 }
 
 /**
- * Zero-history summary trace: no per-step allocation. Used by
- * `computeVisibility` (the production hot path) and `traceShadowRay`.
+ * Boolean-only, ZERO-ALLOCATION occlusion test for the production hot path.
+ * Used by `computeVisibility` for every pixel.
  *
- * NOTE: the loop below and the one in `marchWithContext` implement the same
- * traversal; keep the occlusion math in sync.
+ * NOTE: the loop below, `traceWithContext` and `marchWithContext` implement
+ * the same traversal; keep the occlusion math in sync.
  */
-function traceWithContext(
+export function isOccludedWithContext(
   ctx: ShadowContext,
   height: HostBuffer,
   px: number,
   py: number,
-): ShadowRayResult {
+): boolean {
   const { width, height: h } = height.spec;
   const rz0 = Math.fround(sampleHeightAt(height, px, py));
-  let last: ShadowRayResult = {
-    occluded: false,
-    t: 0,
-    sampleX: px,
-    sampleY: py,
-    blockingHeight: rz0,
-    rayZ: rz0,
-  };
   for (let t = ctx.stepSize; t <= ctx.maxDistance; t += ctx.stepSize) {
     const sx = px + ctx.lx * t;
     const sy = py + ctx.ly * t;
@@ -191,13 +183,60 @@ function traceWithContext(
       break;
     }
     const sample = Math.fround(sampleHeightAt(height, sx, sy));
-    const threshold = Math.fround(rayZ + ctx.bias);
-    last = { occluded: false, t, sampleX: sx, sampleY: sy, blockingHeight: sample, rayZ };
-    if (sample > threshold) {
-      return { ...last, occluded: true };
+    if (sample > Math.fround(rayZ + ctx.bias)) {
+      return true;
     }
   }
-  return last;
+  return false;
+}
+
+/**
+ * Summary trace with scalar per-step state: the result object is allocated
+ * exactly once on return. Used by `traceShadowRay`.
+ */
+function traceWithContext(
+  ctx: ShadowContext,
+  height: HostBuffer,
+  px: number,
+  py: number,
+): ShadowRayResult {
+  const { width, height: h } = height.spec;
+  const rz0 = Math.fround(sampleHeightAt(height, px, py));
+  let lastT = 0;
+  let lastX = px;
+  let lastY = py;
+  let lastSample = rz0;
+  let lastRayZ = rz0;
+  let occluded = false;
+  for (let t = ctx.stepSize; t <= ctx.maxDistance; t += ctx.stepSize) {
+    const sx = px + ctx.lx * t;
+    const sy = py + ctx.ly * t;
+    if (sx < 0.5 || sx > width - 0.5 || sy < 0.5 || sy > h - 0.5) {
+      break;
+    }
+    const rayZ = Math.fround(rz0 + ctx.lz * t);
+    if (rayZ > ctx.maxHeight + ctx.bias) {
+      break;
+    }
+    const sample = Math.fround(sampleHeightAt(height, sx, sy));
+    lastT = t;
+    lastX = sx;
+    lastY = sy;
+    lastSample = sample;
+    lastRayZ = rayZ;
+    if (sample > Math.fround(rayZ + ctx.bias)) {
+      occluded = true;
+      break;
+    }
+  }
+  return {
+    occluded,
+    t: lastT,
+    sampleX: lastX,
+    sampleY: lastY,
+    blockingHeight: lastSample,
+    rayZ: lastRayZ,
+  };
 }
 
 /**
@@ -260,8 +299,8 @@ export function marchShadowRay(
  * Hard cast-shadow visibility mask for every pixel: 1 = lit, 0 = occluded.
  * Pixels are sampled at pixel centers `(x + 0.5, y + 0.5)` with the pixel's
  * own height as the receiver z (f32 semantics). Pass-wide state is prepared
- * once and shared by all pixel traces; the zero-history trace keeps the hot
- * path allocation-free.
+ * once and shared by all pixel traces; the boolean-only
+ * `isOccludedWithContext` hot path keeps `computeVisibility` allocation-free.
  */
 export function computeVisibility(
   scene: Scene,
@@ -273,8 +312,8 @@ export function computeVisibility(
   const out = new HostBuffer(VISIBILITY_SPEC(width, h));
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < width; x++) {
-      const blocked = traceWithContext(ctx, height, x + 0.5, y + 0.5);
-      out.set(x, y, 0, blocked.occluded ? 0 : 1);
+      const occluded = isOccludedWithContext(ctx, height, x + 0.5, y + 0.5);
+      out.set(x, y, 0, occluded ? 0 : 1);
     }
   }
   return out;

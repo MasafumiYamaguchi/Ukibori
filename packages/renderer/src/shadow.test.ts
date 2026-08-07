@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { HostBuffer, readElement } from "./buffer";
 import {
   computeVisibility,
+  isOccludedWithContext,
   marchShadowRay,
   prepareShadowContext,
   sampleHeightAt,
@@ -123,6 +124,40 @@ describe("computeVisibility on the two-level fixture", () => {
     for (const s of samples) {
       if (s !== blocking) {
         expect(s.occluded).toBe(false);
+      }
+    }
+  });
+
+  it("parity: summary tracing and marchShadowRay agree on occlusion for every fixture ray", () => {
+    const scene = sceneWithLight(LIGHT_FROM_RIGHT);
+    const height = twoLevelHeight();
+    let blocked = 0;
+    let lit = 0;
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const summary = traceShadowRay(scene, height, x + 0.5, y + 0.5);
+        const samples = marchShadowRay(scene, height, x + 0.5, y + 0.5);
+        expect(summary.occluded).toBe(samples.some((s) => s.occluded));
+        if (summary.occluded) {
+          blocked++;
+        } else {
+          lit++;
+        }
+      }
+    }
+    expect(blocked).toBeGreaterThan(0); // the fixture has both blocked and lit rays
+    expect(lit).toBeGreaterThan(0);
+  });
+
+  it("parity: isOccludedWithContext matches the visibility mask per pixel", () => {
+    const scene = sceneWithLight(LIGHT_FROM_RIGHT);
+    const height = twoLevelHeight();
+    const ctx = prepareShadowContext(scene, height);
+    const vis = computeVisibility(scene, height);
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        const occluded = isOccludedWithContext(ctx, height, x + 0.5, y + 0.5);
+        expect(vis.get(x, y, 0)).toBe(occluded ? 0 : 1);
       }
     }
   });

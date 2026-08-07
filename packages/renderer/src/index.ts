@@ -63,6 +63,7 @@ export { computeNormals, lightScene, shadeHeightField } from "./lighting";
 export type { LightingBuffers, LightingOptions, NormalOptions, ShadeInput } from "./lighting";
 export {
   computeVisibility,
+  isOccludedWithContext,
   marchShadowRay,
   prepareShadowContext,
   sampleHeightAt,
