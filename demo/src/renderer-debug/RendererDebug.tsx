@@ -327,9 +327,11 @@ function glyphScene(): ReturnType<typeof createScene> {
       {
         id: "play",
         position: { x: 20, y: 25 },
-        size: { x: 56, y: 11 },
-        elevation: 6.3,
-        thickness: 0.7,
+        size: { x: 56, y: 11.2 }, // isotropic: 240x48 mask (aspect 5)
+        // #13 elevation semantics: the glyph base z = 6 sits ON the button
+        // top (button top = 4 + 2); thickness is the relief amount (top 6.8)
+        elevation: 6,
+        thickness: 0.8,
         bevelWidth: 1.1,
         shape: { kind: "mask", mask: PLAY_MASK },
         profile: { kind: "bevel" },
@@ -340,8 +342,8 @@ function glyphScene(): ReturnType<typeof createScene> {
       {
         id: "icon",
         position: { x: 66, y: 12 },
-        size: { x: 13, y: 13 },
-        elevation: 6.1,
+        size: { x: 13, y: 13 }, // isotropic: 40x40 mask
+        elevation: 6,
         thickness: 0.5,
         bevelWidth: 0.9,
         shape: { kind: "mask", mask: ICON_MASK },
@@ -520,7 +522,8 @@ export function RendererDebug(): ReactElement {
   useEffect(() => {
     const scene = glyphScene();
     const composed = composeSdfHeightField(scene);
-    const { visibility, color } = lightScene(scene);
+    // thin reliefs need a smaller self-shadow bias to cast a visible shadow
+    const { visibility, color } = lightScene(scene, { shadow: { bias: 0.15 } });
     const playSdf = getMaskSdf(PLAY_MASK);
     const sdfData: BufferData = {
       spec: { width: playSdf.width, height: playSdf.height, channels: 1, format: "f32" },

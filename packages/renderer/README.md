@@ -166,20 +166,28 @@ alpha mask -> binary silhouette (alpha >= 0.5)
 
 - `MaskSource`: a raster of alpha values mapped onto `SurfaceNode.size`;
   `Shape = { kind: "mask", mask }`. Rasterization (canvas text, icons, ...)
-  stays OUTSIDE the renderer.
-- `computeMaskSdf` / `getMaskSdf`: exact EDT signed distances in mask-pixel
-  units (negative inside, positive outside), cached per mask object.
-  Holes/counters are real: empty mask pixels have positive distance and no
-  coverage, so the height field keeps the letter silhouette with its
-  counters.
+  stays OUTSIDE the renderer. `alpha` is IMMUTABLE: the SDF is cached per
+  mask object; do not mutate the array after use.
+- **SDF boundary semantics**: distances are measured to the actual
+  silhouette boundary, not to opposite-class pixel centers. The EDT grid is
+  padded with virtual transparent pixels so ink touching the raster edge has
+  a proper outer boundary, and a half-pixel correction places `d = 0`
+  exactly on the boundary between ink and empty (or on the raster edge).
+- **mapping contract**: the mask mapping must be ISOTROPIC
+  (`size.x / size.y == mask.width / mask.height`, validated by
+  `createScene`) so the SDF scales uniformly into scene units.
 - `maskSurfaceHeight`: maps scene positions to mask pixels, bilinearly
   samples the SDF, and applies the surface profile. Coverage = `distance <
   0`, identical to the rounded-rect path. `surfaceHeight` dispatches on the
   shape kind for composition (SDF + mask in one scene).
+- **elevation semantics (#13)**: glyph `elevation` is the base z. A relief
+  attached to a button whose top is z=6 uses base z=6 with `thickness` as
+  the relief amount (e.g. top z = 6.8).
 - glyph elevation raises the relief above the button top and changes the
   shadow geometry; the cast shadow follows the silhouette (open counters
   show as lit gaps in the shadow; enclosed counters are reflected in the
-  geometry).
+  geometry). Thin reliefs cast short shadows — a smaller shadow `bias` is
+  appropriate for them (the default 0.5 suits taller geometry).
 - the demo renders PLAY text and a ring icon rasterized via canvas on the
   same pipeline.
 

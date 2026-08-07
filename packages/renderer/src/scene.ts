@@ -64,6 +64,13 @@ export type MaterialRef = string;
  * onto `SurfaceNode.size` (the physical footprint) with the mask pixel at
  * (i, j) covering `[i, i+1) x [j, j+1)` in mask pixels. The silhouette is
  * the alpha isophote: `alpha >= 0.5` (`>= 128` for Uint8) is ink.
+ *
+ * Mapping contract: the mask mapping must be ISOTROPIC (aspect preserving)
+ * — `size.x / size.y == mask.width / mask.height`, validated by
+ * `createScene` — so the SDF scales uniformly into scene units.
+ *
+ * IMMUTABLE: the `alpha` array must not be mutated after the mask is used;
+ * the renderer caches the signed distance field by object identity.
  */
 export interface MaskSource {
   /** mask pixel dimensions (positive integers) */
@@ -225,6 +232,17 @@ function validateSurface(node: SurfaceNode): SurfaceNode {
       `${label} shape must be a shape descriptor ({ kind: "roundedRect", radius } | { kind: "mask" })`,
     );
   }
+  if (node.shape.kind === "mask") {
+    // Mask mapping must be isotropic (aspect preserving) so the SDF scales
+    // uniformly into scene units.
+    const sizeAspect = node.size.x / node.size.y;
+    const maskAspect = node.shape.mask.width / node.shape.mask.height;
+    if (Math.abs(sizeAspect - maskAspect) > 1e-6) {
+      throw new TypeError(
+        `${label} mask mapping must be isotropic (surface aspect ${sizeAspect.toFixed(6)} != mask aspect ${maskAspect.toFixed(6)})`,
+      );
+    }
+  }
   return { ...node, thickness: node.thickness ?? 0, bevelWidth: node.bevelWidth ?? 0 };
 }
 
@@ -280,7 +298,8 @@ function isMaskSource(v: unknown): v is MaskSource {
   }
   if (alpha instanceof Float32Array) {
     for (let i = 0; i < alpha.length; i++) {
-      if (!Number.isFinite(alpha[i])) {
+      const a = alpha[i];
+      if (!Number.isFinite(a) || a < 0 || a > 1) {
         return false;
       }
     }

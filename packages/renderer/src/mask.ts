@@ -5,15 +5,28 @@ import type { MaskSource } from "./scene";
  * #19 mask geometry: alpha mask -> signed distance field.
  *
  * The mask's binary silhouette (alpha >= 0.5, i.e. >= 128 for Uint8) is
- * converted to an exact Euclidean signed distance field on the mask pixel
- * grid (Felzenszwalb-Huttenlocher 1D-sweep EDT, applied twice: rows then
- * columns). Distances are in MASK PIXEL units: negative inside the
- * silhouette, positive outside — the same sign convention as the rounded-rect
- * SDF, so profiles and coverage behave identically.
+ * converted to an exact Euclidean signed distance field (Felzenszwalb-
+ * Huttenlocher 1D-sweep EDT, applied twice: rows then columns) with distances
+ * in MASK PIXEL units.
+ *
+ * The distances are measured to the ACTUAL SILHOUETTE BOUNDARY, not to
+ * opposite-class pixel centers:
+ *
+ * - the EDT grid is padded with virtual transparent pixels (1-pixel margin)
+ *   so ink touching the raster edge still has a proper outer boundary (the
+ *   raster edge lies 0.5 from the edge pixel center)
+ * - a half-pixel correction subtracts 0.5 from every center distance, so
+ *   `d = 0` lands exactly on the boundary between an ink pixel and its empty
+ *   neighbor (and on the raster edge for edge-adjacent ink)
+ *
+ * Sign convention matches the rounded-rect SDF: negative inside, positive
+ * outside.
  *
  * A single mask object's SDF is computed once (WeakMap cache) and shared by
- * every geometry evaluation. Rasterization (canvas text, icons, etc.) stays
- * outside the renderer: this module only consumes `MaskSource`.
+ * every geometry evaluation. MaskSource inputs are treated as IMMUTABLE:
+ * do not mutate `alpha` after the mask is used, or the cached SDF will be
+ * stale. Rasterization (canvas text, icons, etc.) stays outside the
+ * renderer: this module only consumes `MaskSource`.
  */
 
 export interface MaskSdf {
@@ -23,12 +36,15 @@ export interface MaskSdf {
   sdf: Float32Array;
 }
 
+/** Virtual transparent margin around the mask for the outside boundary. */
+const PAD = 1;
+
 const maskSdfCache = new WeakMap<MaskSource, MaskSdf>();
 
 /**
  * Signed distance field for a mask (cached per mask object). For masks with
- * no ink the field is far-positive everywhere (no coverage); for fully-inked
- * masks it is far-negative everywhere.
+ * no ink the field is far-positive everywhere (no coverage); fully-inked
+ * masks get distances to the virtual padding (bounded, negative).
  */
 export function getMaskSdf(mask: MaskSource): MaskSdf {
   let sdf = maskSdfCache.get(mask);
@@ -41,28 +57,39 @@ export function getMaskSdf(mask: MaskSource): MaskSdf {
 
 export function computeMaskSdf(mask: MaskSource): MaskSdf {
   const { width, height } = mask;
-  const n = width * height;
-  const inside = new Uint8Array(n);
-  for (let i = 0; i < n; i++) {
-    const a = mask.alpha instanceof Uint8Array ? mask.alpha[i] / 255 : mask.alpha[i];
-    inside[i] = a >= 0.5 ? 1 : 0;
+  const pw = width + 2 * PAD;
+  const ph = height + 2 * PAD;
+  const pn = pw * ph;
+  const inside = new Uint8Array(pn);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = y * width + x;
+      const a = mask.alpha instanceof Uint8Array ? mask.alpha[i] / 255 : mask.alpha[i];
+      inside[(y + PAD) * pw + (x + PAD)] = a >= 0.5 ? 1 : 0;
+    }
   }
   // Squared-distance transform with seeds = background (distances of ink
   // pixels to the nearest background) and seeds = foreground (distances of
-  // background pixels to the nearest ink).
-  const maxDim = Math.max(width, height);
+  // background pixels to the nearest ink). The padding is always background.
+  const maxDim = Math.max(pw, ph);
   const far = 4 * maxDim * maxDim + 1; // beyond any real squared distance
-  const fIn = new Float64Array(n);
-  const fOut = new Float64Array(n);
-  for (let i = 0; i < n; i++) {
+  const fIn = new Float64Array(pn);
+  const fOut = new Float64Array(pn);
+  for (let i = 0; i < pn; i++) {
     fIn[i] = inside[i] ? far : 0;
     fOut[i] = inside[i] ? 0 : far;
   }
-  const dToBg2 = edt2dSquared(fIn, width, height);
-  const dToFg2 = edt2dSquared(fOut, width, height);
-  const sdf = new Float32Array(n);
-  for (let i = 0; i < n; i++) {
-    sdf[i] = inside[i] ? -Math.sqrt(dToBg2[i]) : Math.sqrt(dToFg2[i]);
+  const dToBg2 = edt2dSquared(fIn, pw, ph);
+  const dToFg2 = edt2dSquared(fOut, pw, ph);
+  const sdf = new Float32Array(width * height);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y + PAD) * pw + (x + PAD);
+      // half-pixel correction: the boundary is 0.5 from the nearest
+      // opposite-class pixel center
+      const d = inside[i] ? Math.sqrt(dToBg2[i]) - 0.5 : Math.sqrt(dToFg2[i]) - 0.5;
+      sdf[y * width + x] = inside[i] ? -d : d;
+    }
   }
   return { width, height, sdf };
 }
