@@ -9,7 +9,7 @@ import {
 import { createScene } from "./scene";
 import type { Scene, SurfaceNode } from "./scene";
 
-const flat: SurfaceNode["profile"] = () => 0;
+const flat = { kind: "flat" } as const;
 
 function rectSurface(partial: Partial<SurfaceNode> = {}): SurfaceNode {
   return {
@@ -72,6 +72,27 @@ describe("composeHeightField", () => {
     const result = composeHeightField(scene, () => f64Result);
     expect(result.height.get(2, 2)).toBe(f32);
     expect(result.height.get(2, 2)).not.toBe(f64Result);
+  });
+
+  it("decides ownership ties on f32-rounded heights even when f64 values differ", () => {
+    // Precondition: 0.3 and 0.1 + 0.2 differ in f64 but round to the same f32.
+    expect(0.3).not.toBe(0.1 + 0.2);
+    expect(Math.fround(0.3)).toBe(Math.fround(0.1 + 0.2));
+
+    const scene = sceneWith(
+      rectSurface({ id: "a", position: { x: 0, y: 0 } }),
+      rectSurface({ id: "b", position: { x: 3, y: 3 } }),
+    );
+    // Both surfaces cover every pixel; in f64 "b" is higher, in f32 they tie.
+    const geometry = (surface: SurfaceNode): number =>
+      surface.id === "a" ? 0.3 : 0.1 + 0.2;
+
+    const last = composeHeightField(scene, geometry);
+    expect(last.height.get(5, 5)).toBe(Math.fround(0.3));
+    expect(last.objectId.get(5, 5)).toBe(1);
+
+    const first = composeHeightField(scene, geometry, { tieBreak: "first" });
+    expect(first.objectId.get(5, 5)).toBe(0);
   });
 
   it("assigns ownership to the covering surface, NO_OWNER outside", () => {

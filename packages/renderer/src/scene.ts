@@ -26,23 +26,26 @@ import type { Vec2, Vec3 } from "./types";
  */
 
 /**
- * Local height above the surface base, given the signed distance from the
- * shape boundary (negative inside, zero on boundary, positive outside).
+ * Local height profile of a surface, as a SERIALIZABLE descriptor — plain
+ * data, not a function — so the scene stays backend-agnostic and both CPU and
+ * WebGPU paths interpret the same representation.
  *
- * Returns a value in `[0, thickness]`; the absolute scene z at a point is
- * `elevation + profile(distance, bevelWidth, thickness)`.
+ * Profile semantics (fixed here):
  *
- * The actual profiles are implemented by the geometry issue (#14); this
- * contract only fixes the signature and the meaning of its parameters:
+ * - `evaluateProfile(profile, distance, bevelWidth, thickness)` returns the
+ *   local height above the base, in `[0, thickness]`
+ * - absolute scene z at a point is `elevation + localHeight`
+ * - `distance` is the signed distance from the shape boundary (negative
+ *   inside, zero on boundary, positive outside)
  *
- * - `distance`: signed distance from the shape boundary (scene units)
- * - `bevelWidth`: the surface's edge bevel width (scene units, see
- *   `SurfaceNode.bevelWidth`)
- * - `thickness`: the surface's profile height range (scene units)
+ * Kinds:
  *
- * Profile functions must be finite and return >= 0 for all inputs.
+ * - `"flat"`: constant local height `thickness` wherever the geometry exists
+ *   (coverage is decided by the shape, not by the profile)
+ * - analytic bevel kinds (smooth edge rise) are implemented by the geometry
+ *   issue (#14)
  */
-export type HeightProfile = (distance: number, bevelWidth: number, thickness: number) => number;
+export type HeightProfile = { kind: "flat" };
 
 /**
  * Material is referenced by id. Physical BRDF parameters are fixed by the
@@ -89,7 +92,10 @@ export interface SurfaceNode {
    */
   bevelWidth?: number;
   shape: Shape;
-  /** distance -> local height profile (see HeightProfile) */
+  /**
+   * Local height profile as a serializable descriptor (see HeightProfile).
+   * Evaluated with `evaluateProfile`; analytic kinds are added by #14.
+   */
   profile: HeightProfile;
   material: MaterialRef;
   castsShadow: boolean;
@@ -165,8 +171,10 @@ function validateSurface(node: SurfaceNode): SurfaceNode {
   assertFiniteNonNegative(node.elevation, `${label} elevation`);
   assertFiniteNonNegative(node.thickness ?? 0, `${label} thickness`);
   assertFiniteNonNegative(node.bevelWidth ?? 0, `${label} bevelWidth`);
-  if (typeof node.profile !== "function") {
-    throw new TypeError(`${label} profile must be a function`);
+  if (!isHeightProfile(node.profile)) {
+    throw new TypeError(
+      `${label} profile must be a profile descriptor (kind "flat"; analytic kinds come in #14)`,
+    );
   }
   if (typeof node.material !== "string" || node.material.length === 0) {
     throw new TypeError(`${label} material must be a non-empty string`);
@@ -182,6 +190,10 @@ function validateSurface(node: SurfaceNode): SurfaceNode {
 
 function sanitizeIntensity(v: unknown): number {
   return isFiniteNumber(v) && v >= 0 ? v : 1;
+}
+
+export function isHeightProfile(v: unknown): v is HeightProfile {
+  return typeof v === "object" && v !== null && (v as HeightProfile).kind === "flat";
 }
 
 function assertPositiveInt(v: unknown, label: string): void {

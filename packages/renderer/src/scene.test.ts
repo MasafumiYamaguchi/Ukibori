@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { createScene } from "./scene";
-import type { HeightProfile, SurfaceNode } from "./scene";
+import type { SurfaceNode } from "./scene";
 
-const flat: HeightProfile = () => 0;
+const flat = { kind: "flat" } as const;
 
 function surface(partial: Partial<SurfaceNode> = {}): SurfaceNode {
   return {
@@ -105,6 +105,20 @@ describe("createScene", () => {
     expect(() =>
       createScene({ ...base, surfaces: [surface({ castsShadow: 1 as never })] }),
     ).toThrow(TypeError);
+  });
+
+  it("rejects unknown or non-descriptor profiles", () => {
+    const base = { width: 4, height: 4 };
+    expect(() =>
+      createScene({ ...base, surfaces: [surface({ profile: { kind: "smoothStep" } as never })] }),
+    ).toThrow(TypeError);
+    expect(() =>
+      createScene({ ...base, surfaces: [surface({ profile: (() => 0) as never })] }),
+    ).toThrow(TypeError);
+    expect(() => createScene({ ...base, surfaces: [surface({ profile: null as never })] })).toThrow(
+      TypeError,
+    );
+    expect(() => createScene({ ...base, surfaces: [surface({ profile: flat })] })).not.toThrow();
   });
 
   it("throws on duplicate surface ids", () => {

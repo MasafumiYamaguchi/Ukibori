@@ -42,13 +42,28 @@ direction; invalid input falls back to `+z` (straight at the viewer).
 - `SurfaceNode`: position (top-left), size, absolute `elevation` (z of the
   surface base), optional `thickness` (local profile height range, top z is
   `elevation + localHeight`), optional `bevelWidth` (half-width of the smooth
-  edge rise, passed to the profile), `shape` (roundedRect / mask), `profile`
-  (distance -> height in `[0, thickness]`, implemented in #14), `material` id,
+  edge rise), `shape` (roundedRect / mask), `profile`, `material` id,
   `castsShadow` / `receivesShadow`
 - `Scene`: render region + surfaces + shared `DirectionalLight`
 - `createScene` validates structural invariants (throws on non-finite or
   negative values, empty or duplicate ids, bad flags) and sanitizes light
   direction / intensity (fallback values). See JSDoc for the full policy.
+
+## Profile descriptors
+
+`SurfaceNode.profile` is a **serializable descriptor** — plain data, not a
+function — so the scene stays backend-agnostic and CPU/WebGPU paths interpret
+the same representation.
+
+- `{ kind: "flat" }`: constant local height `thickness` wherever the geometry
+  exists (coverage is decided by the shape)
+- analytic bevel kinds (smooth edge rise) are implemented by the geometry
+  issue (#14)
+
+`evaluateProfile(profile, distance, bevelWidth, thickness)` returns the local
+height above the base in `[0, thickness]`; absolute scene z is
+`elevation + localHeight`. `distance` is the signed distance from the shape
+boundary (negative inside, zero on boundary, positive outside).
 
 ## Buffer contract
 

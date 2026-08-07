@@ -40,7 +40,7 @@ export type {
 } from "./renderer";
 export { toPpmBytes, toRgbaBytes } from "./debug/export";
 export type { DebugMode, RgbaImage, ToRgbaOptions } from "./debug/export";
-export { DEFAULT_LIGHT_DIRECTION, createScene } from "./scene";
+export { DEFAULT_LIGHT_DIRECTION, createScene, isHeightProfile } from "./scene";
 export type {
   DirectionalLight,
   HeightProfile,
@@ -50,6 +50,7 @@ export type {
   Shape,
   SurfaceNode,
 } from "./scene";
+export { evaluateProfile } from "./profile";
 export {
   NO_OWNER,
   composeHeightField,
