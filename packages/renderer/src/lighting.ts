@@ -1,6 +1,6 @@
 import { HostBuffer } from "./buffer";
 import { clamp } from "./math";
-import { composeSdfHeightField } from "./geometry";
+import { composeCasterHeightField, composeSdfHeightField } from "./geometry";
 import { computeVisibility } from "./shadow";
 import { brdfDirect } from "./brdf";
 import { BASE_MATERIAL, resolveMaterial } from "./material";
@@ -214,9 +214,11 @@ export function shadeHeightField(
 /** Compose the SDF height field, ownership, cast shadows and light it. */
 export function lightScene(scene: Scene, options: LightingOptions = {}): LightingBuffers {
   const composed = composeSdfHeightField(scene);
+  const needsCasterField = scene.surfaces.some((s) => !s.castsShadow);
   const visibility = computeVisibility(scene, composed.height, {
     ...options.shadow,
     objectId: composed.objectId,
+    casterHeight: needsCasterField ? composeCasterHeightField(scene) : undefined,
   });
   return shadeHeightField(
     scene,

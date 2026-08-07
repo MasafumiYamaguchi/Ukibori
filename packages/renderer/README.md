@@ -166,11 +166,16 @@ gradients, ...) are NOT part of this model.
   renderer contract (fixed in #13). Parent-relative elevations are an
   API-layer concept (#20/#21) and must be resolved to absolute z before a
   scene reaches the renderer.
-- **castsShadow / receivesShadow**: with an `objectId` buffer in the shadow
-  pass, a surface with `castsShadow = false` is transparent to shadow rays
-  (rays pass through its height field), and a surface with
-  `receivesShadow = false` keeps visibility 1 on its pixels. The base plane
-  always casts and receives.
+- **castsShadow / receivesShadow**: the shadow pass samples a DEDICATED
+  caster-only height field (`composeCasterHeightField`), composed from
+  surfaces with `castsShadow = true` only. Non-casting top surfaces never
+  hide lower casting surfaces at the same (x, y), and caster boundaries
+  follow the bilinear height semantics (a casting/non-casting boundary
+  sampled between texel centers interpolates, it is not owner-classified).
+  Receiver z comes from the full visible height field; receiver ownership
+  from the full objectId buffer, so a surface with `receivesShadow = false`
+  keeps visibility 1 on its pixels. The base plane always casts and
+  receives.
 - **Height-field constraints** (MVP): a single height value per (x, y) cannot
   represent overhangs, caves, or multiple z-surfaces stacked at the same
   position. The topmost surface wins at each pixel; shadow caster/receiver

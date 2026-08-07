@@ -53,6 +53,7 @@ export type {
 } from "./scene";
 export { evaluateProfile } from "./profile";
 export {
+  composeCasterHeightField,
   composeSdfHeightField,
   generateSdfDebug,
   roundedRectSdf,

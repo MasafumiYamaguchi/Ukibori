@@ -74,16 +74,22 @@ export interface ShadowOptions {
   bias?: number;
 }
 
-/** Shadow-pass options including the ownership buffer (#18 castsShadow/receivesShadow). */
+/** Shadow-pass options including the ownership/caster buffers (#18 castsShadow/receivesShadow). */
 export interface VisibilityOptions extends ShadowOptions {
   /**
-   * Ownership buffer (u32, NO_OWNER = base plane). When provided:
-   * - a surface with `castsShadow = false` does not occlude rays (rays pass
-   *   through its height field)
-   * - a surface with `receivesShadow = false` keeps visibility 1 on its
-   *   pixels
+   * Ownership buffer (u32, NO_OWNER = base plane) from the FULL composed
+   * scene. When provided, a pixel owned by a surface with
+   * `receivesShadow = false` keeps visibility 1.
    */
   objectId?: HostBuffer;
+  /**
+   * Caster-only height field (#18): composed from surfaces with
+   * `castsShadow = true` only (see `composeCasterHeightField`). Shadow
+   * occlusion samples this field bilinearly, so non-casting top surfaces
+   * never hide lower casting surfaces and boundaries follow bilinear height
+   * semantics. Defaults to `height` when omitted (all surfaces cast).
+   */
+  casterHeight?: HostBuffer;
 }
 
 export interface ShadowRayResult {
@@ -119,10 +125,10 @@ export interface ShadowContext {
   ly: number;
   lz: number;
   maxHeight: number;
-  /** ownership buffer for castsShadow sampling (null = everything casts) */
+  /** field used for occlusion sampling (caster-only field, or the full height) */
+  sampleHeight: HostBuffer;
+  /** ownership buffer for receivesShadow (null = everything receives) */
   objectId: HostBuffer | null;
-  /** per-surface castsShadow flags (index = surface index); the base plane always casts */
-  castingFlags: boolean[];
 }
 
 const DEFAULT_STEP_SIZE = 0.5;
@@ -147,6 +153,7 @@ export function prepareShadowContext(
     options.maxDistance,
     xyLength > 1e-6 ? diagonal / xyLength : diagonal,
   );
+  const sampleHeight = options.casterHeight ?? height;
   return {
     stepSize,
     bias,
@@ -154,9 +161,9 @@ export function prepareShadowContext(
     lx,
     ly,
     lz,
-    maxHeight: sceneMaxHeight(height),
+    maxHeight: sceneMaxHeight(sampleHeight),
+    sampleHeight,
     objectId: options.objectId ?? null,
-    castingFlags: scene.surfaces.map((s) => s.castsShadow),
   };
 }
 
@@ -185,19 +192,10 @@ export function sampleHeightAt(height: HostBuffer, x: number, y: number): number
 }
 
 /**
- * Nearest-neighbor ownership sample at a continuous scene position (u32
- * buffers are not interpolated). Clamped to the buffer bounds.
- */
-function sampleOwnerAt(objectId: HostBuffer, x: number, y: number): number {
-  const fx = clamp(Math.round(x - 0.5), 0, objectId.spec.width - 1);
-  const fy = clamp(Math.round(y - 0.5), 0, objectId.spec.height - 1);
-  return objectId.get(fx, fy, 0);
-}
-
-/**
  * Boolean-only, ZERO-ALLOCATION occlusion test for the production hot path.
- * Used by `computeVisibility` for every pixel. Samples on surfaces with
- * `castsShadow = false` are transparent to the ray.
+ * Used by `computeVisibility` for every pixel. Occlusion samples the caster
+ * height field (`ctx.sampleHeight`); the receiver z comes from the full
+ * visible height field.
  *
  * NOTE: the loop below, `traceWithContext` and `marchWithContext` implement
  * the same traversal; keep the occlusion math in sync.
@@ -216,17 +214,11 @@ export function isOccludedWithContext(
     if (sx < 0.5 || sx > width - 0.5 || sy < 0.5 || sy > h - 0.5) {
       break;
     }
-    if (ctx.objectId !== null) {
-      const owner = sampleOwnerAt(ctx.objectId, sx, sy);
-      if (owner !== NO_OWNER && !ctx.castingFlags[owner]) {
-        continue; // non-casting surface: the ray passes through
-      }
-    }
     const rayZ = Math.fround(rz0 + ctx.lz * t);
     if (rayZ > ctx.maxHeight + ctx.bias) {
       break;
     }
-    const sample = Math.fround(sampleHeightAt(height, sx, sy));
+    const sample = Math.fround(sampleHeightAt(ctx.sampleHeight, sx, sy));
     if (sample > Math.fround(rayZ + ctx.bias)) {
       return true;
     }
@@ -258,17 +250,11 @@ function traceWithContext(
     if (sx < 0.5 || sx > width - 0.5 || sy < 0.5 || sy > h - 0.5) {
       break;
     }
-    if (ctx.objectId !== null) {
-      const owner = sampleOwnerAt(ctx.objectId, sx, sy);
-      if (owner !== NO_OWNER && !ctx.castingFlags[owner]) {
-        continue; // non-casting surface: the ray passes through
-      }
-    }
     const rayZ = Math.fround(rz0 + ctx.lz * t);
     if (rayZ > ctx.maxHeight + ctx.bias) {
       break;
     }
-    const sample = Math.fround(sampleHeightAt(height, sx, sy));
+    const sample = Math.fround(sampleHeightAt(ctx.sampleHeight, sx, sy));
     lastT = t;
     lastX = sx;
     lastY = sy;
@@ -308,19 +294,12 @@ function marchWithContext(
     if (sx < 0.5 || sx > width - 0.5 || sy < 0.5 || sy > h - 0.5) {
       break;
     }
-    if (ctx.objectId !== null) {
-      const owner = sampleOwnerAt(ctx.objectId, sx, sy);
-      if (owner !== NO_OWNER && !ctx.castingFlags[owner]) {
-        continue; // non-casting surface: the ray passes through
-      }
-    }
     const rayZ = Math.fround(rz0 + ctx.lz * t);
     if (rayZ > ctx.maxHeight + ctx.bias) {
       break;
     }
-    const sample = Math.fround(sampleHeightAt(height, sx, sy));
-    const threshold = Math.fround(rayZ + ctx.bias);
-    const occluded = sample > threshold;
+    const sample = Math.fround(sampleHeightAt(ctx.sampleHeight, sx, sy));
+    const occluded = sample > Math.fround(rayZ + ctx.bias);
     samples.push({ t, sampleX: sx, sampleY: sy, height: sample, rayZ, occluded });
     if (occluded) {
       break;
@@ -354,12 +333,13 @@ export function marchShadowRay(
 /**
  * Hard cast-shadow visibility mask for every pixel: 1 = lit, 0 = occluded.
  * Pixels are sampled at pixel centers `(x + 0.5, y + 0.5)` with the pixel's
- * own height as the receiver z (f32 semantics). Pass-wide state is prepared
- * once and shared by all pixel traces; the boolean-only
- * `isOccludedWithContext` hot path keeps `computeVisibility` allocation-free.
+ * own height from the full visible field as the receiver z (f32 semantics).
+ * Occlusion samples the caster-only height field (`options.casterHeight`,
+ * see #18). Pass-wide state is prepared once and shared by all pixel
+ * traces; the boolean-only `isOccludedWithContext` hot path keeps
+ * `computeVisibility` allocation-free.
  *
- * With an `objectId` buffer (#18): surfaces with `castsShadow = false` do
- * not occlude rays, and a pixel owned by a surface with
+ * With an `objectId` buffer (#18): a pixel owned by a surface with
  * `receivesShadow = false` always keeps visibility 1.
  */
 export function computeVisibility(

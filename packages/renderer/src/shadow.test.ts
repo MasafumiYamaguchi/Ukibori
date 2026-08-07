@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HostBuffer, readElement } from "./buffer";
-import { composeSdfHeightField } from "./geometry";
+import { composeCasterHeightField, composeSdfHeightField } from "./geometry";
 import {
   computeVisibility,
   isOccludedWithContext,
@@ -291,12 +291,96 @@ describe("castsShadow / receivesShadow (#18 multi-surface)", () => {
     const ghost = flatScene({ ...caster, castsShadow: false });
     const visCast = computeVisibility(casting, composed(casting).height, {
       objectId: composed(casting).objectId,
+      casterHeight: composeCasterHeightField(casting),
     });
     const visGhost = computeVisibility(ghost, composed(ghost).height, {
       objectId: composed(ghost).objectId,
+      casterHeight: composeCasterHeightField(ghost),
     });
     expect(visCast.get(1, 5, 0)).toBe(0); // shadow on the base plane left of the button
     expect(visGhost.get(1, 5, 0)).toBe(1); // nothing casts
+  });
+
+  it("a non-casting top surface does not hide a lower casting surface", () => {
+    const caster = flatSurface({
+      id: "caster",
+      position: { x: 3, y: 3 },
+      size: { x: 10, y: 10 },
+      elevation: 4,
+    });
+    const top = flatSurface({
+      id: "top",
+      position: { x: 5, y: 5 },
+      size: { x: 8, y: 8 },
+      elevation: 6,
+      castsShadow: false,
+    });
+    const scene = flatScene(caster, top);
+    const full = composed(scene);
+    const casterField = composeCasterHeightField(scene);
+    expect(full.height.get(7, 7)).toBe(6); // the top surface owns the visible height
+    expect(casterField.get(7, 7)).toBe(4); // the lower caster stays in the caster field
+    const vis = computeVisibility(scene, full.height, {
+      objectId: full.objectId,
+      casterHeight: casterField,
+    });
+    expect(vis.get(1, 5, 0)).toBe(0); // the lower caster still occludes the base
+    // with only the non-casting top, rays pass through
+    const onlyTop = flatScene(top);
+    const fullOnly = composed(onlyTop);
+    const visOnly = computeVisibility(onlyTop, fullOnly.height, {
+      objectId: fullOnly.objectId,
+      casterHeight: composeCasterHeightField(onlyTop),
+    });
+    expect(visOnly.get(1, 5, 0)).toBe(1);
+  });
+
+  it("caster-field occlusion follows bilinear height semantics at casting/non-casting boundaries", () => {
+    // caster texels 3..7 (z=4); adjacent non-casting surface texels 8..11
+    // (z=0), excluded from the caster field
+    const caster = flatSurface({
+      id: "caster",
+      position: { x: 3, y: 3 },
+      size: { x: 5, y: 10 },
+      elevation: 4,
+    });
+    const adjacent = flatSurface({
+      id: "adj",
+      position: { x: 8, y: 3 },
+      size: { x: 4, y: 10 },
+      elevation: 0,
+      castsShadow: false,
+    });
+    const scene = createScene({
+      width: 16,
+      height: 16,
+      surfaces: [caster, adjacent],
+      light: { direction: { x: -0.9, y: 0, z: 0.1 }, intensity: 1 }, // very shallow, from the left
+    });
+    const full = composed(scene);
+    const casterField = composeCasterHeightField(scene);
+    expect(casterField.get(7, 5)).toBe(4); // casting texel
+    expect(casterField.get(8, 5)).toBe(0); // non-casting texel excluded
+    expect(full.height.get(9, 5)).toBe(0); // receiver sits on the adjacent surface
+    // the boundary between the casting texel 7 (center 7.5, height 4) and the
+    // non-casting texel 8 (center 8.5, height 0) interpolates bilinearly
+    expect(sampleHeightAt(casterField, 8.0, 5.5)).toBe(2); // (4 + 0) / 2
+    // A shallow ray from the adjacent receiver (9.5, 5.5) is decided by the
+    // sample at t = 1.5 (x ~ 8.0, between the texel centers): the bilinear
+    // caster height (~1.96) exceeds the f32 threshold and occludes. A
+    // nearest-owner classification would snap to the non-casting texel 8
+    // (height 0) and report lit. The march is bounded so this boundary
+    // sample is the decisive one.
+    const ray = traceShadowRay(scene, full.height, 9.5, 5.5, {
+      casterHeight: casterField,
+      maxDistance: 1.5,
+    });
+    expect(ray.occluded).toBe(true);
+    expect(ray.t).toBeCloseTo(1.5, 6);
+    expect(ray.sampleX).toBeGreaterThan(8.0);
+    expect(ray.sampleX).toBeLessThan(8.5);
+    expect(ray.blockingHeight).toBeGreaterThan(1.5); // on the ramp, not the texel top
+    expect(ray.blockingHeight).toBeLessThan(4);
   });
 
   it("receivesShadow = false keeps the surface lit inside the shadow", () => {

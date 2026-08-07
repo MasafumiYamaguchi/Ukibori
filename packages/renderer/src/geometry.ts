@@ -100,6 +100,26 @@ export function composeSdfHeightField(scene: Scene) {
   return composeHeightField(scene, roundedRectSurfaceHeight);
 }
 
+/**
+ * Caster-only height field (#18): composed from the surfaces with
+ * `castsShadow = true` only, using the same composition rule and geometry.
+ *
+ * This is the shadow occlusion field. Composing only casting surfaces means
+ * a topmost `castsShadow = false` surface NEVER hides a lower casting
+ * surface at the same (x, y), and caster boundaries follow the bilinear
+ * height semantics instead of a per-texel owner classification.
+ *
+ * When every surface casts, the caster field equals the full composed field
+ * (the returned buffer is then the same composition result).
+ */
+export function composeCasterHeightField(scene: Scene): HostBuffer {
+  const casters = scene.surfaces.filter((s) => s.castsShadow);
+  if (casters.length === scene.surfaces.length) {
+    return composeSdfHeightField(scene).height;
+  }
+  return composeHeightField({ ...scene, surfaces: casters }, roundedRectSurfaceHeight).height;
+}
+
 export interface SdfDebugBuffers {
   /**
    * f32: signed distance at pixel centers for `scene.surfaces[0]`
