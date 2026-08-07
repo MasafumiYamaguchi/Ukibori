@@ -1,0 +1,16 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f3f4f6;
+  color: #1f2430;
+}
+
+.stage {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}

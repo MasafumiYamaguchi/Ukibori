@@ -1,0 +1,16 @@
+{
+  "name": "ukibori-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "demo"
+  ],
+  "scripts": {
+    "build": "npm run build -w ukibori && npm run build -w demo",
+    "typecheck": "npm run typecheck -w ukibori && npm run typecheck -w demo",
+    "test": "npm run test -w ukibori",
+    "dev": "npm run dev -w demo",
+    "preview": "npm run preview -w demo"
+  }
+}
