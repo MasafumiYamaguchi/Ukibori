@@ -23,10 +23,27 @@ CP1時点での構成判断を記録します。
 - **ライブラリのビルド: tsup**: ESM(`index.js`)とCJS(`index.cjs`)、および`.d.ts`を一度に生成。peer dependency(`react`, `react-dom`, `react/jsx-runtime`)はexternal化。
 - **テスト: Vitest + jsdom + Testing Library**: 純粋関数(CP2)、コンポーネント/SSR(CP3)を同じランナーで実行。jsdomをデフォルト環境にし、SSRテストはファイル単位でnode環境に切替予定。
 - **デモのimport: Vite aliasでライブラリsrcを直接参照**: `npm run build -w ukibori`を待たずにdemo devでHMRを効かせるため。本番相当のnpm利用経路(exports→dist)は`npm pack`検証(CP6)で確認する。
-- **スタイル合成**: ライブラリが出力するCSSカスタムプロパティとユーザーの`style`を意図的な優先順位で合成する規則をCP3で実装・文書化する。
+- **スタイル合成**: 内部CSSカスタムプロパティとユーザー`style`の優先順位(ユーザー優先)、`box-shadow`の`var()`フォールバックによる意図的な色上書きをCP3で実装し、上記「スタイル合成の規則」に文書化。
 - **色の扱い**: 任意CSS色のJavaScript解析はしない。必要なら`color-mix()`を利用し、フォールバックを文書化する(CP4)。
 - **公開APIの型**: `LightVector`, `MaterialName`, `Variant`などの型を`src/types.ts`に集約。polymorphic `as`の型安全性はCP3で詰める。
 - **core計算のReact分離**: `src/core/light.ts`(光ベクトル正規化)と`src/core/shadow.ts`(影・ハイライト導出)はReact/CSS生成から独立した純粋関数。入力オブジェクトを変異させず、`NaN`/`Infinity`/ゼロベクトル/負値/極端値はすべて決定的なfallbackとclampに落ちる。丸めは`roundTo`(Math.roundベース、pxは2桁・ベクトルは6桁)に統一。
+
+## スタイル合成の規則
+
+`Surface`は内部で次のstyleを計算し、**ユーザーの`style`を最後に展開**します(衝突するプロパティはユーザーが優先)。`className`は連結され失われません。`as="button"`等のpolymorphic要素でもDOM props・イベント・ref・`aria-*`/`data-*`はそのまま透過します。
+
+`Surface`が出力するCSSカスタムプロパティ:
+
+| 変数 | 意味 |
+| --- | --- |
+| `--ukibori-variant` | `raised` / `inset` |
+| `--ukibori-material` | 材質名(CP4で視覚化) |
+| `--ukibori-elevation` | 適用後のelevation(px) |
+| `--ukibori-radius` | 適用後のradius(px) |
+| `--ukibori-shadow-color` | `box-shadow`の`var()`フォールバック。ユーザーstyleでの上書きが意図されたoverride点 |
+| `--ukibori-highlight-color` | ハイライト側の`var()`フォールバック。同上 |
+
+生成される`box-shadow`は影・ハイライトの2段重ねで、色の部分だけが`var()`フォールバック文字列になります(offset/blur/spread/alphaは計算値がpxで直接入ります)。影を丸ごと差し替えたい場合はユーザーstyleの`boxShadow`で上書きできます。
 
 ## 開発コマンド
 

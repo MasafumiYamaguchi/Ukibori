@@ -1,4 +1,4 @@
-import type { CSSProperties, ElementType, HTMLAttributes, ReactNode } from "react";
+import type { ComponentPropsWithRef, ElementType, ReactNode } from "react";
 
 export interface LightVector {
   x: number;
@@ -24,8 +24,13 @@ export interface SurfaceOwnProps {
   radius?: number;
 }
 
-export interface SurfaceProps extends HTMLAttributes<HTMLElement>, SurfaceOwnProps {
-  as?: ElementType;
-  className?: string;
-  style?: CSSProperties;
-}
+/**
+ * Polymorphic props for Surface: DOM props are resolved per element type C,
+ * so `as="button"` accepts button-specific props (type, onClick, ...) and
+ * rejects props of other elements at compile time.
+ */
+export type PolymorphicSurfaceProps<C extends ElementType = "div"> = Omit<
+  ComponentPropsWithRef<C>,
+  keyof SurfaceOwnProps | "as"
+> &
+  SurfaceOwnProps & { as?: C };

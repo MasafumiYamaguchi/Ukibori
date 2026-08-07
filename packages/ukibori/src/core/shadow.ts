@@ -3,6 +3,7 @@ import { clamp, isFiniteNumber, roundTo, sanitizeNumber } from "./math";
 
 export const ELEVATION_MAX = 100;
 export const INTENSITY_MAX = 2;
+export const RADIUS_MAX = 1000;
 export const PX_PRECISION = 2;
 
 export interface ShadowSpec {

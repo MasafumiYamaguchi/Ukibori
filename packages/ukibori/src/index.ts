@@ -1,8 +1,8 @@
 export { Ukibori } from "./components/Ukibori";
 export { Surface } from "./components/Surface";
-export { UkiboriContext, DEFAULT_COLOR } from "./context";
+export { UkiboriContext, DEFAULT_COLOR, DEFAULT_INTENSITY } from "./context";
 export { DEFAULT_LIGHT, isValidVector, normalizeLight } from "./core/light";
-export { ELEVATION_MAX, INTENSITY_MAX, getShadowSpec } from "./core/shadow";
+export { ELEVATION_MAX, INTENSITY_MAX, RADIUS_MAX, getShadowSpec } from "./core/shadow";
 export type { ShadowOptions, ShadowSpec } from "./core/shadow";
 export type {
   LightVector,
@@ -10,5 +10,5 @@ export type {
   Variant,
   UkiboriProps,
   SurfaceOwnProps,
-  SurfaceProps,
+  PolymorphicSurfaceProps,
 } from "./types";
