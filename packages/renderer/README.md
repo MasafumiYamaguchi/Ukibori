@@ -41,8 +41,8 @@ direction; invalid input falls back to `+z` (straight at the viewer).
 
 - `SurfaceNode`: position (top-left), size, absolute `elevation` (z of the
   surface base), optional `thickness` (local profile height range, top z is
-  `elevation + localHeight`), optional `bevelWidth` (half-width of the smooth
-  edge rise), `shape` (roundedRect / mask), `profile`, `material` id,
+  `elevation + localHeight`), optional `bevelWidth` (width of the inward
+  bevel band), `shape` (roundedRect / mask), `profile`, `material` id,
   `castsShadow` / `receivesShadow`
 - `Scene`: render region + surfaces + shared `DirectionalLight`
 - `createScene` validates structural invariants (throws on non-finite or
@@ -100,6 +100,27 @@ underlying base surface at `z = elevation` in the multi-surface scene (#18).
 Debug views: the demo page (`/renderer-debug.html`) shows SDF, mask, height
 map and a height cross-section graph; buffers can also be dumped as PPM from
 tests.
+
+## Normal generation and lighting (#15)
+
+```
+height -> computeNormals (central difference)
+        -> diffuse (N·L) + specular (Blinn-Phong) + ambient
+        -> sRGB RGBA8
+```
+
+- `computeNormals`: central difference over 2px with edge samples clamped
+  (replicate). `N = normalize(-dx * scaleX, -dy * scaleY, normalScale)`;
+  default `scaleX = scaleY = 0.5` converts the 2px difference into the
+  scene-unit slope, so `normalScale = 1` gives the geometrically exact
+  normal. Flat plateaus give `(0, 0, 1)` (+z = viewer).
+- `shadeHeightField` / `lightScene`: shared directional light (direction
+  points toward the light, #13). Diffuse `max(N·L, 0)`, Blinn-Phong specular
+  with `V = (0, 0, 1)`, ambient fill. Lighting is computed in linear space
+  and sRGB-encoded on output. Provisional — the physical material model
+  (#16) replaces this surface response.
+- debug buffers: `normal` (f32 x3), `diffuse` / `specular` (f32 1ch),
+  `color` (RGBA8)
 
 ## Buffer contract
 

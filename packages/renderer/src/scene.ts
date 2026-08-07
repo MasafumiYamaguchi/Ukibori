@@ -88,8 +88,10 @@ export interface SurfaceNode {
    */
   thickness?: number;
   /**
-   * Half-width of the smooth rise at shape edges, in scene units. The
-   * surface's `profile` receives this as its `bevelWidth` argument.
+   * Width of the INWARD bevel band, in scene units: the profile rises from
+   * the nominal boundary (distance 0) to full thickness at distance
+   * `-bevelWidth`. The band never extends outside the shape. The surface's
+   * `profile` receives this as its `bevelWidth` argument.
    * Finite and >= 0; defaults to 0.
    */
   bevelWidth?: number;

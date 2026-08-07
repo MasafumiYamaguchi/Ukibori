@@ -7,6 +7,7 @@ import {
   createScene,
   generateSdfDebug,
   isWebGpuSupported,
+  lightScene,
   readBufferData,
   sampleLine,
   toRgbaBytes,
@@ -107,8 +108,13 @@ export function RendererDebug(): ReactElement {
   const maskCanvas = useRef<HTMLCanvasElement>(null);
   const geometryHeightCanvas = useRef<HTMLCanvasElement>(null);
   const crossSectionCanvas = useRef<HTMLCanvasElement>(null);
+  const normalCanvas = useRef<HTMLCanvasElement>(null);
+  const diffuseCanvas = useRef<HTMLCanvasElement>(null);
+  const specularCanvas = useRef<HTMLCanvasElement>(null);
+  const litColorCanvas = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [light, setLight] = useState({ x: -0.6, y: -0.8 });
 
   useEffect(() => {
     let cancelled = false;
@@ -156,6 +162,21 @@ export function RendererDebug(): ReactElement {
     };
   }, []);
 
+  useEffect(() => {
+    const scene = createScene({ ...SDF_SCENE, light: { direction: { x: light.x, y: light.y, z: 1 }, intensity: 1 } });
+    const { normal, diffuse, specular, color } = lightScene(scene);
+    void (async () => {
+      const normalImg = toRgbaBytes(await readBufferData(normal));
+      const diffuseImg = toRgbaBytes(await readBufferData(diffuse));
+      const specularImg = toRgbaBytes(await readBufferData(specular));
+      const colorImg = toRgbaBytes(await readBufferData(color));
+      draw(normalCanvas.current, normalImg);
+      draw(diffuseCanvas.current, diffuseImg);
+      draw(specularCanvas.current, specularImg);
+      draw(litColorCanvas.current, colorImg);
+    })();
+  }, [light.x, light.y]);
+
   return (
     <main>
       <h1>Ukibori renderer debug</h1>
@@ -201,6 +222,51 @@ export function RendererDebug(): ReactElement {
             </p>
           </section>
           <section>
+            <h2>Lighting #15 — normals and shared-light shading</h2>
+            <p>
+              light x:{" "}
+              <input
+                type="range"
+                min={-1}
+                max={1}
+                step={0.05}
+                value={light.x}
+                onChange={(e) => setLight((l) => ({ ...l, x: Number(e.target.value) }))}
+              />
+              light y:{" "}
+              <input
+                type="range"
+                min={-1}
+                max={1}
+                step={0.05}
+                value={light.y}
+                onChange={(e) => setLight((l) => ({ ...l, y: Number(e.target.value) }))}
+              />
+            </p>
+            <div className="row">
+              <div>
+                <p>normal (xyz → rgb)</p>
+                <canvas ref={normalCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>diffuse only (N·L)</p>
+                <canvas ref={diffuseCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>specular only</p>
+                <canvas ref={specularCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>combined shading</p>
+                <canvas ref={litColorCanvas} width={96} height={60} />
+              </div>
+            </div>
+            <p>
+              Move the light and watch the highlight slide continuously across the bevel —
+              it is driven by the height-gradient normals, not a CSS offset.
+            </p>
+          </section>
+          <section>
             <h2>Verification loop (backend write → readback → RGBA)</h2>
             <div className="row">
               <div>
@@ -214,7 +280,8 @@ export function RendererDebug(): ReactElement {
             </div>
             <p>
               This page proves the verification loop: backend write → readback → debug export
-              (toRgbaBytes) → canvas.
+              (toRgbaBytes) → canvas. Geometry (#14) and lighting (#15) are implemented; cast
+              shadows arrive in the shadow issue (#17).
             </p>
           </section>
         </>

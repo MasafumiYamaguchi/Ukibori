@@ -58,6 +58,14 @@ export {
   roundedRectSurfaceHeight,
 } from "./geometry";
 export type { SdfDebugBuffers } from "./geometry";
+export { computeNormals, lightScene, shadeHeightField } from "./lighting";
+export type {
+  LightingBuffers,
+  LightingOptions,
+  LinearRgb,
+  NormalOptions,
+  ShadingOptions,
+} from "./lighting";
 export {
   NO_OWNER,
   composeHeightField,

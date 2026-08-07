@@ -10,7 +10,8 @@ import type { HeightProfile } from "./scene";
  *
  * - `distance`: signed distance from the shape boundary (negative inside,
  *   zero on boundary, positive outside)
- * - `bevelWidth`: half-width of the smooth edge band (scene units)
+ * - `bevelWidth`: width of the inward bevel band, from the nominal boundary
+ *   (distance 0) to full thickness at distance `-bevelWidth` (scene units)
  * - `thickness`: the surface's profile height range (scene units)
  *
  * This is the CPU reference for the exact formulas the WebGPU/WGSL pipeline
