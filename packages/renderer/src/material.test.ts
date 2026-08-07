@@ -20,12 +20,14 @@ describe("sanitizeMaterial", () => {
     expect(m.ior).toBe(1.5);
   });
 
-  it("sanitizes ior (must be >= 1) and baseColor channels (>= 0)", () => {
+  it("sanitizes ior (must be >= 1) and clamps baseColor to [0, 1]", () => {
     const m = sanitizeMaterial({ baseColor: { r: -1, g: 0.5, b: NaN }, roughness: 0.5, metallic: 0, ior: 0.5 });
     expect(m.ior).toBe(1.5);
     expect(m.baseColor.r).toBe(0);
     expect(m.baseColor.g).toBe(0.5);
     expect(m.baseColor.b).toBe(0.6);
+    const bright = sanitizeMaterial({ baseColor: { r: 2.5, g: 1, b: 0 }, roughness: 0.5, metallic: 0 });
+    expect(bright.baseColor.r).toBe(1); // reflectance/albedo is clamped to [0, 1]
   });
 });
 

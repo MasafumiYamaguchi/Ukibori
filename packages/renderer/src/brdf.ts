@@ -7,20 +7,28 @@ import type { LinearRgb } from "./types";
  * #16 BRDF: Cook-Torrance microfacet model (CPU reference — the formulas the
  * WGSL path will mirror).
  *
- *     f = diffuse + specular
- *     specular = D_GGX * V_Smith * F_Schlick
- *     diffuse  = baseColor * (1 - F) * (1 - metallic) * NdotL
+ * Both BRDFs are evaluated WITHOUT the cosine lighting factor and without
+ * light intensity; the lighting pass applies `NdotL * intensity` to each:
  *
- * - NDF: GGX / Trowbridge-Reitz (`alpha = roughness^2`)
+ *     diffuse_brdf  = baseColor * (1 - F) * (1 - metallic) / PI   (Lambert)
+ *     specular_brdf = D_GGX * V_Smith * F_Schlick                 (Cook-Torrance)
+ *     contribution  = NdotL * intensity * (diffuse_brdf + specular_brdf)
+ *
+ * - NDF: GGX / Trowbridge-Reitz (`alpha = roughness^2`), regularized so
+ *   `roughness = 0` keeps a narrow mirror-like lobe instead of collapsing
  * - Geometry: height-correlated Smith visibility
  *   `V = 0.5 / (GGXV + GGXL)` (includes the 4*NdotV*NdotL denominator)
- * - Fresnel: Schlick; F0 = mix(dielectric IOR F0, baseColor, metallic)
- * - diffuse: energy-conserving (kd = (1 - F) * (1 - metallic)); metals have
- *   no diffuse term
+ * - Fresnel: Schlick at `cosTheta = V·H` (== L·H for a half vector);
+ *   F0 = mix(dielectric IOR F0, baseColor, metallic)
+ * - diffuse: Lambert with 1/PI; metals have no diffuse term
+ *   (kd = (1 - F) * (1 - metallic))
  *
  * All outputs are finite for finite inputs; inputs that fail the
  * NdotL/NdotV > 0 condition yield zero contribution.
  */
+
+/** Minimum alpha for the GGX lobe so roughness = 0 stays mirror-like, not zero. */
+export const GGX_ALPHA_EPS = 1e-4;
 
 /** Dielectric F0 derived from IOR: ((ior - 1) / (ior + 1))^2. */
 export function dielectricF0(ior: number): number {
@@ -38,17 +46,22 @@ export function f0ForMaterial(m: Material): LinearRgb {
   };
 }
 
-/** GGX / Trowbridge-Reitz normal distribution function. */
+/**
+ * GGX / Trowbridge-Reitz normal distribution function.
+ *
+ * `alpha = max(roughness^2, GGX_ALPHA_EPS)`: at roughness 0 the lobe peaks
+ * extremely sharply at NdotH = 1 (mirror-like) instead of collapsing to 0.
+ */
 export function dGgx(nDotH: number, roughness: number): number {
-  const alpha = roughness * roughness;
+  const alpha = Math.max(roughness * roughness, GGX_ALPHA_EPS);
   const a2 = alpha * alpha;
   const denom = Math.max(nDotH * nDotH * (a2 - 1) + 1, 1e-7);
   return a2 / (Math.PI * denom * denom);
 }
 
 /**
- * Height-correlated Smith visibility (UE4 form). Caller guarantees
- * `nDotL > 0` and `nDotV > 0`; otherwise returns 0.
+ * Height-correlated Smith visibility (UE4 form). Returns 0 when either
+ * cosine is <= 0.
  */
 export function smithGgxVisibility(nDotL: number, nDotV: number, roughness: number): number {
   if (nDotL <= 0 || nDotV <= 0) {
@@ -61,7 +74,7 @@ export function smithGgxVisibility(nDotL: number, nDotV: number, roughness: numb
   return denom > 0 ? 0.5 / denom : 0;
 }
 
-/** Schlick Fresnel, per channel. */
+/** Schlick Fresnel, per channel, evaluated at cosTheta = V·H (== L·H). */
 export function fresnelSchlick(cosTheta: number, f0: LinearRgb): LinearRgb {
   const c = clamp(cosTheta, 0, 1);
   const t = Math.pow(1 - c, 5);
@@ -73,17 +86,23 @@ export function fresnelSchlick(cosTheta: number, f0: LinearRgb): LinearRgb {
 }
 
 export interface BrdfResult {
-  /** baseColor * (1 - F) * (1 - metallic) * NdotL (linear) */
+  /** Lambert diffuse BRDF: baseColor * (1 - F) * (1 - metallic) / PI (linear) */
   diffuse: LinearRgb;
-  /** D * V * F (linear, already F0-tinted) */
+  /** Cook-Torrance specular BRDF: D * V * F (linear, already F0-tinted) */
   specular: LinearRgb;
 }
 
+/**
+ * Evaluate both BRDFs at a point. `nDotVH` is `max(V·H, 0)` — the Fresnel
+ * angle (equal to `L·H` for a half vector). The caller applies
+ * `NdotL * lightIntensity` to both outputs.
+ */
 export function brdfDirect(
   m: Material,
   nDotL: number,
   nDotV: number,
   nDotH: number,
+  nDotVH: number,
 ): BrdfResult {
   const l = Math.max(nDotL, 0);
   const v = Math.max(nDotV, 0);
@@ -91,7 +110,7 @@ export function brdfDirect(
   if (l <= 0 || v <= 0) {
     return { diffuse: zero, specular: zero };
   }
-  const f = fresnelSchlick(v, f0ForMaterial(m));
+  const f = fresnelSchlick(nDotVH, f0ForMaterial(m));
   const d = dGgx(nDotH, m.roughness);
   const vis = smithGgxVisibility(l, v, m.roughness);
   const specular = {
@@ -106,9 +125,9 @@ export function brdfDirect(
   };
   return {
     diffuse: {
-      r: m.baseColor.r * kd.r * l,
-      g: m.baseColor.g * kd.g * l,
-      b: m.baseColor.b * kd.b * l,
+      r: (m.baseColor.r * kd.r) / Math.PI,
+      g: (m.baseColor.g * kd.g) / Math.PI,
+      b: (m.baseColor.b * kd.b) / Math.PI,
     },
     specular,
   };

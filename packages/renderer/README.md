@@ -126,16 +126,21 @@ height -> normals -> per-pixel material (objectId -> surface -> MaterialRef)
         -> Cook-Torrance BRDF -> sRGB RGBA8
 ```
 
-Material model (`Material`): `baseColor` (linear), `roughness` (0..1),
-`metallic` (0..1), `ior` (dielectric F0 source, default 1.5). Lighting runs
-in linear space with explicit sRGB encoding. CSS approximation tokens
-(shadowAlpha, gradients, ...) are NOT part of this model.
+Material model (`Material`): `baseColor` (linear reflectance/albedo,
+clamped to [0, 1] — it becomes metallic F0), `roughness` (0..1), `metallic`
+(0..1), `ior` (dielectric F0 source, default 1.5). Lighting runs in linear
+space with explicit sRGB encoding. CSS approximation tokens (shadowAlpha,
+gradients, ...) are NOT part of this model.
 
-- Cook-Torrance: NDF GGX (`alpha = roughness^2`), height-correlated Smith
-  visibility, Schlick Fresnel. `F0 = mix(dielectric IOR F0, baseColor,
-  metallic)`; diffuse is energy-conserving `baseColor * (1 - F) * (1 -
-  metallic) * NdotL` (metals have no diffuse). All terms are finite; the
-  degenerate half-vector `L = -V` resolves specular to 0.
+- Cook-Torrance: NDF GGX (`alpha = max(roughness^2, GGX_ALPHA_EPS)` so
+  roughness 0 keeps a sharp mirror-like lobe instead of collapsing),
+  height-correlated Smith visibility, Schlick Fresnel at **V·H** (== L·H).
+  `F0 = mix(dielectric IOR F0, baseColor, metallic)`.
+- BRDF evaluation is separated from the cosine factor: `brdfDirect` returns
+  the Lambert diffuse BRDF `baseColor * (1 - F) * (1 - metallic) / PI`
+  (metals have no diffuse) and the Cook-Torrance specular BRDF `D * V * F`;
+  the lighting pass applies `NdotL * lightIntensity` to both. All terms are
+  finite; the degenerate half-vector `L = -V` resolves specular to 0.
 - presets: `silicone` (dielectric, medium roughness, IOR 1.45), `matte`
   (dielectric, high roughness), `metal` (metallic 1, roughness controls
   highlight width)

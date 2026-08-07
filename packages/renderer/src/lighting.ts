@@ -172,16 +172,19 @@ export function shadeHeightField(
       let brdf = { diffuse: ZERO_RGB, specular: ZERO_RGB };
       if (nDotL > 0 && nDotV > 0 && hLen > 0) {
         const nDotH = Math.max(nx * hx + ny * hy + nz * hz, 0);
-        brdf = brdfDirect(material, nDotL, nDotV, nDotH);
+        const nDotVH = hz; // V = (0,0,1) -> V·H == H.z
+        brdf = brdfDirect(material, nDotL, nDotV, nDotH, nDotVH);
       }
+      const cosine = nDotL;
 
-      diffuse.set(x, y, 0, nDotL);
-      specular.set(x, y, 0, Math.min(luminance(brdf.specular), 1));
+      diffuse.set(x, y, 0, cosine);
+      specular.set(x, y, 0, Math.min(luminance(brdf.specular) * cosine, 1));
 
       const base = material.baseColor;
-      color.set(x, y, 0, srgbEncodeChannel(base.r * ambient + intensity * (brdf.diffuse.r + brdf.specular.r)));
-      color.set(x, y, 1, srgbEncodeChannel(base.g * ambient + intensity * (brdf.diffuse.g + brdf.specular.g)));
-      color.set(x, y, 2, srgbEncodeChannel(base.b * ambient + intensity * (brdf.diffuse.b + brdf.specular.b)));
+      const direct = intensity * cosine;
+      color.set(x, y, 0, srgbEncodeChannel(base.r * ambient + direct * (brdf.diffuse.r + brdf.specular.r)));
+      color.set(x, y, 1, srgbEncodeChannel(base.g * ambient + direct * (brdf.diffuse.g + brdf.specular.g)));
+      color.set(x, y, 2, srgbEncodeChannel(base.b * ambient + direct * (brdf.diffuse.b + brdf.specular.b)));
       color.set(x, y, 3, 255);
     }
   }

@@ -91,7 +91,8 @@ function sanitizeChannel(v: number | undefined, fallback: number): number {
   if (typeof v !== "number" || !Number.isFinite(v)) {
     return fallback;
   }
-  return v < 0 ? 0 : v;
+  // Reflectance/albedo (and metallic F0): clamp to [0, 1]
+  return clamp(v, 0, 1);
 }
 
 function sanitizeFinite(v: number | undefined, fallback: number): number {
