@@ -111,6 +111,50 @@ describe("computeNormals", () => {
     }
   });
 
+  it("sanitizes normalScale: zero, negative and non-finite fall back to a strictly positive value", () => {
+    const flat = heightFrom(
+      Array.from({ length: 4 }, () => Array(4).fill(0)),
+      4,
+      4,
+    );
+    for (const normalScale of [0, -1, NaN, Infinity, -Infinity]) {
+      const normal = computeNormals(flat, { normalScale });
+      for (let y = 0; y < 4; y++) {
+        for (let x = 0; x < 4; x++) {
+          expect(normal.get(x, y, 0)).toBeCloseTo(0, 6);
+          expect(normal.get(x, y, 1)).toBeCloseTo(0, 6);
+          expect(normal.get(x, y, 2)).toBeCloseTo(1, 6);
+        }
+      }
+    }
+  });
+
+  it("stays finite and unit-length with extreme scale values", () => {
+    const ramp = heightFrom(
+      [
+        [0, 1, 2, 3],
+        [0, 1, 2, 3],
+        [0, 1, 2, 3],
+        [0, 1, 2, 3],
+      ],
+      4,
+      4,
+    );
+    const normal = computeNormals(ramp, { scaleX: 1e200, scaleY: 1e200, normalScale: 1e-200 });
+    const bytes = new Uint8Array(normal.data.buffer);
+    for (let y = 0; y < 4; y++) {
+      for (let x = 0; x < 4; x++) {
+        const nx = readElement(bytes, normal.spec, x, y, 0);
+        const ny = readElement(bytes, normal.spec, x, y, 1);
+        const nz = readElement(bytes, normal.spec, x, y, 2);
+        expect(Number.isFinite(nx)).toBe(true);
+        expect(Number.isFinite(ny)).toBe(true);
+        expect(Number.isFinite(nz)).toBe(true);
+        expect(Math.hypot(nx, ny, nz)).toBeCloseTo(1, 5);
+      }
+    }
+  });
+
   it("keeps the flat plateau interior at +z on a real bevel surface", () => {
     const scene = buttonScene({ x: 0, y: 0 });
     const { height } = lightScene(scene);
@@ -234,5 +278,62 @@ describe("shading", () => {
     });
     const b = shadeHeightField(scene, lightScene(scene).height);
     expect(Array.from(a.color.data)).toEqual(Array.from(b.color.data));
+  });
+
+  it("applies light intensity to direct diffuse/specular lighting", () => {
+    const sceneAt = (intensity: number) =>
+      createScene({
+        ...buttonScene({ x: -0.6, y: -0.8 }),
+        light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity },
+      });
+    const zero = lightScene(sceneAt(0)).color;
+    const half = lightScene(sceneAt(0.5)).color;
+    const full = lightScene(sceneAt(1)).color;
+    const lum = (buf: HostBuffer, x: number, y: number) =>
+      (buf.get(x, y, 0) + buf.get(x, y, 1) + buf.get(x, y, 2)) / 3;
+    const litPixel = { x: 4, y: 8 }; // bright bevel pixel under this light
+    // intensity 0: ambient only -> uniform color, no lighting gradient
+    for (let y = 0; y < zero.spec.height; y++) {
+      for (let x = 0; x < zero.spec.width; x++) {
+        expect(Array.from([zero.get(x, y, 0), zero.get(x, y, 1), zero.get(x, y, 2)])).toEqual([
+          zero.get(litPixel.x, litPixel.y, 0),
+          zero.get(litPixel.x, litPixel.y, 1),
+          zero.get(litPixel.x, litPixel.y, 2),
+        ]);
+      }
+    }
+    // ambient-only baseline is darker than any direct-lit pixel
+    expect(lum(zero, litPixel.x, litPixel.y)).toBeLessThan(lum(full, litPixel.x, litPixel.y));
+    // changing intensity changes the combined result monotonically
+    expect(lum(half, litPixel.x, litPixel.y)).toBeGreaterThan(lum(zero, litPixel.x, litPixel.y));
+    expect(lum(half, litPixel.x, litPixel.y)).toBeLessThan(lum(full, litPixel.x, litPixel.y));
+    // diffuse term scales with intensity
+    const dHalf = lightScene(sceneAt(0.5)).diffuse;
+    const dFull = lightScene(sceneAt(1)).diffuse;
+    expect(dHalf.get(litPixel.x, litPixel.y, 0)).toBe(dFull.get(litPixel.x, litPixel.y, 0));
+  });
+
+  it("resolves the degenerate half-vector L = -V without NaN", () => {
+    const scene = createScene({
+      ...buttonScene({ x: 0, y: 0 }),
+      light: { direction: { x: 0, y: 0, z: -1 }, intensity: 1 },
+    });
+    const { color, diffuse, specular } = lightScene(scene);
+    for (let y = 0; y < color.spec.height; y++) {
+      for (let x = 0; x < color.spec.width; x++) {
+        expect(Number.isFinite(diffuse.get(x, y, 0))).toBe(true);
+        expect(Number.isFinite(specular.get(x, y, 0))).toBe(true);
+        expect(specular.get(x, y, 0)).toBe(0); // no half vector -> no specular
+        for (let c = 0; c < 4; c++) {
+          expect(Number.isFinite(color.get(x, y, c))).toBe(true);
+        }
+      }
+    }
+    // normals point +z, light points -z -> no direct diffuse either
+    for (let y = 0; y < diffuse.spec.height; y++) {
+      for (let x = 0; x < diffuse.spec.width; x++) {
+        expect(diffuse.get(x, y, 0)).toBe(0);
+      }
+    }
   });
 });

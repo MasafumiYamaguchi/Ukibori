@@ -167,8 +167,8 @@ export function RendererDebug(): ReactElement {
     const { normal, diffuse, specular, color } = lightScene(scene);
     void (async () => {
       const normalImg = toRgbaBytes(await readBufferData(normal));
-      const diffuseImg = toRgbaBytes(await readBufferData(diffuse));
-      const specularImg = toRgbaBytes(await readBufferData(specular));
+      const diffuseImg = toRgbaBytes(await readBufferData(diffuse), { min: 0, max: 1 });
+      const specularImg = toRgbaBytes(await readBufferData(specular), { min: 0, max: 1 });
       const colorImg = toRgbaBytes(await readBufferData(color));
       draw(normalCanvas.current, normalImg);
       draw(diffuseCanvas.current, diffuseImg);

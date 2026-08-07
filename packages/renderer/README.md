@@ -113,12 +113,18 @@ height -> computeNormals (central difference)
   (replicate). `N = normalize(-dx * scaleX, -dy * scaleY, normalScale)`;
   default `scaleX = scaleY = 0.5` converts the 2px difference into the
   scene-unit slope, so `normalScale = 1` gives the geometrically exact
-  normal. Flat plateaus give `(0, 0, 1)` (+z = viewer).
+  normal. `normalScale` is sanitized to a finite strictly positive value
+  (zero/negative/non-finite break the unit-normal invariant); normalization
+  is overflow-safe for extreme scale values. Flat plateaus give `(0, 0, 1)`
+  (+z = viewer).
 - `shadeHeightField` / `lightScene`: shared directional light (direction
   points toward the light, #13). Diffuse `max(N·L, 0)`, Blinn-Phong specular
-  with `V = (0, 0, 1)`, ambient fill. Lighting is computed in linear space
-  and sRGB-encoded on output. Provisional — the physical material model
-  (#16) replaces this surface response.
+  with `V = (0, 0, 1)`, ambient fill. `scene.light.intensity` scales the
+  direct (diffuse + specular) terms; intensity 0 leaves ambient only. The
+  degenerate half-vector `L = -V` (direction `{0, 0, -1}`) resolves specular
+  to 0 without NaN. Lighting is computed in linear space and sRGB-encoded on
+  output. Provisional — the physical material model (#16) replaces this
+  surface response.
 - debug buffers: `normal` (f32 x3), `diffuse` / `specular` (f32 1ch),
   `color` (RGBA8)
 

@@ -93,12 +93,17 @@ const DEFAULT_SHADING: Required<ShadingOptions> = {
  * - The default `scaleX = scaleY = 0.5` converts the 2px difference into the
  *   slope per scene unit, so `normalScale = 1` gives the geometrically exact
  *   normal of the height field. Raising the scales exaggerates slopes.
+ * - `normalScale` is sanitized to a finite STRICTLY POSITIVE value (zero or
+ *   negative would break the unit-normal invariant; non-finite too).
+ * - Normalization is overflow-safe: components are scaled by the largest
+ *   component first, so extreme scale values still produce finite, unit
+ *   normals.
  * - On a flat plateau `dx = dy = 0`, so `N = (0, 0, 1)` (+z = viewer).
  */
 export function computeNormals(height: HostBuffer, options: NormalOptions = {}): HostBuffer {
   const scaleX = sanitizeFinite(options.scaleX, DEFAULT_NORMAL.scaleX);
   const scaleY = sanitizeFinite(options.scaleY, DEFAULT_NORMAL.scaleY);
-  const normalScale = sanitizeFinite(options.normalScale, DEFAULT_NORMAL.normalScale);
+  const normalScale = sanitizeStrictPositive(options.normalScale, DEFAULT_NORMAL.normalScale);
   const { width, height: h } = height.spec;
   const normal = new HostBuffer(NORMAL_SPEC(width, h));
   for (let y = 0; y < h; y++) {
@@ -112,10 +117,13 @@ export function computeNormals(height: HostBuffer, options: NormalOptions = {}):
       const nx = -dx * scaleX;
       const ny = -dy * scaleY;
       const nz = normalScale;
-      const len = Math.hypot(nx, ny, nz);
-      normal.set(x, y, 0, nx / len);
-      normal.set(x, y, 1, ny / len);
-      normal.set(x, y, 2, nz / len);
+      // overflow-safe normalize: scale by the largest component first
+      const m = Math.max(Math.abs(nx), Math.abs(ny), Math.abs(nz));
+      const inv = 1 / m;
+      const len = Math.hypot(nx * inv, ny * inv, nz * inv);
+      normal.set(x, y, 0, nx * inv / len);
+      normal.set(x, y, 1, ny * inv / len);
+      normal.set(x, y, 2, nz * inv / len);
     }
   }
   return normal;
@@ -128,7 +136,11 @@ export function computeNormals(height: HostBuffer, options: NormalOptions = {}):
  * - diffuse: `max(N dot L, 0)` (L points toward the light, #13 convention)
  * - specular: Blinn-Phong `pow(max(N dot H, 0), power)` with
  *   `H = normalize(L + V)`, `V = (0, 0, 1)`
- * - color = baseColor * (ambient + diffuseStrength * NdotL) + specular,
+ * - `scene.light.intensity` scales the DIRECT terms (diffuse + specular);
+ *   the ambient fill is unaffected — intensity 0 leaves ambient only
+ * - the degenerate half-vector `L = -V` (direction `{0, 0, -1}`) yields no
+ *   half vector; specular resolves safely to 0 (no NaN)
+ * - color = baseColor * (ambient + intensity * diffuse) + intensity * spec,
  *   encoded to sRGB8. Provisional until the #16 material model.
  */
 export function shadeHeightField(
@@ -138,6 +150,7 @@ export function shadeHeightField(
 ): LightingBuffers {
   const normal = computeNormals(height, options.normal);
   const s = { ...DEFAULT_SHADING, ...normalizeShading(options.shading) };
+  const intensity = sanitizeNonNegative(scene.light.intensity, 1);
   const { width, height: h } = height.spec;
   const diffuse = new HostBuffer({ width, height: h, channels: 1, format: "f32" });
   const specular = new HostBuffer({ width, height: h, channels: 1, format: "f32" });
@@ -157,16 +170,20 @@ export function shadeHeightField(
       const ny = normal.get(x, y, 1);
       const nz = normal.get(x, y, 2);
       const nDotL = Math.max(nx * lx + ny * ly + nz * lz, 0);
-      const nDotH = Math.max(nx * hx + ny * hy + nz * hz, 0);
-      const spec = Math.min(Math.pow(nDotH, s.specularPower) * s.specularStrength, 1);
+      let spec = 0;
+      if (hLen > 0) {
+        const nDotH = Math.max(nx * hx + ny * hy + nz * hz, 0);
+        spec = Math.min(Math.pow(nDotH, s.specularPower) * s.specularStrength, 1);
+      }
 
       diffuse.set(x, y, 0, nDotL);
       specular.set(x, y, 0, spec);
 
-      const light = s.ambient + s.diffuseStrength * nDotL;
-      color.set(x, y, 0, srgbEncodeChannel(s.baseColor.r * light + spec));
-      color.set(x, y, 1, srgbEncodeChannel(s.baseColor.g * light + spec));
-      color.set(x, y, 2, srgbEncodeChannel(s.baseColor.b * light + spec));
+      const directDiffuse = intensity * s.diffuseStrength * nDotL;
+      const directSpecular = intensity * spec;
+      color.set(x, y, 0, srgbEncodeChannel(s.baseColor.r * (s.ambient + directDiffuse) + directSpecular));
+      color.set(x, y, 1, srgbEncodeChannel(s.baseColor.g * (s.ambient + directDiffuse) + directSpecular));
+      color.set(x, y, 2, srgbEncodeChannel(s.baseColor.b * (s.ambient + directDiffuse) + directSpecular));
       color.set(x, y, 3, 255);
     }
   }
@@ -199,6 +216,14 @@ function isFiniteLinearRgb(v: LinearRgb): boolean {
 
 function sanitizeFinite(v: number | undefined, fallback: number): number {
   return typeof v === "number" && Number.isFinite(v) ? v : fallback;
+}
+
+function sanitizeStrictPositive(v: number | undefined, fallback: number): number {
+  return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : fallback;
+}
+
+function sanitizeNonNegative(v: number, fallback: number): number {
+  return Number.isFinite(v) && v >= 0 ? v : fallback;
 }
 
 function sanitizeFiniteNonNegative(v: number | undefined, fallback: number): number {
