@@ -71,6 +71,14 @@ describe("computeVisibility on the two-level fixture", () => {
     expect(vertical.maxDistance).toBeCloseTo(Math.hypot(16, 16), 6);
   });
 
+  it("canonicalizes the sanitized bias to f32 in the prepared context", () => {
+    const ctx = prepareShadowContext(sceneWithLight(LIGHT_FROM_RIGHT), twoLevelHeight(), {
+      bias: 0.1,
+    });
+    expect(ctx.bias).toBe(Math.fround(0.1));
+    expect(ctx.bias).not.toBe(0.1); // f64 differs; the f32 value matches a WGSL uniform
+  });
+
   it("reaches occluders that require t > the scene diagonal (default maxDistance = diagonal / |L.xy|)", () => {
     // tall occluder 13 units from the receiver (0.5, 8.5); |L.xy| = 0.5 so
     // t ≈ 26 at the occluder, beyond the scene diagonal (~22.6)

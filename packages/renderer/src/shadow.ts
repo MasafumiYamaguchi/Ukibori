@@ -118,7 +118,9 @@ export function prepareShadowContext(
 ): ShadowContext {
   const { width, height: h } = height.spec;
   const stepSize = sanitizeStrictPositive(options.stepSize, DEFAULT_STEP_SIZE);
-  const bias = sanitizeNonNegative(options.bias, DEFAULT_BIAS);
+  // Canonicalize the bias to f32 once, so f32(rayZ + bias) matches an f32
+  // WGSL uniform exactly.
+  const bias = Math.fround(sanitizeNonNegative(options.bias, DEFAULT_BIAS));
   const lx = scene.light.direction.x;
   const ly = scene.light.direction.y;
   const lz = scene.light.direction.z;
@@ -155,17 +157,59 @@ export function sampleHeightAt(height: HostBuffer, x: number, y: number): number
   return top + (bottom - top) * ty;
 }
 
-interface MarchResult {
-  samples: ShadowMarchSample[];
-  blocked: ShadowRayResult;
+/**
+ * Zero-history summary trace: no per-step allocation. Used by
+ * `computeVisibility` (the production hot path) and `traceShadowRay`.
+ *
+ * NOTE: the loop below and the one in `marchWithContext` implement the same
+ * traversal; keep the occlusion math in sync.
+ */
+function traceWithContext(
+  ctx: ShadowContext,
+  height: HostBuffer,
+  px: number,
+  py: number,
+): ShadowRayResult {
+  const { width, height: h } = height.spec;
+  const rz0 = Math.fround(sampleHeightAt(height, px, py));
+  let last: ShadowRayResult = {
+    occluded: false,
+    t: 0,
+    sampleX: px,
+    sampleY: py,
+    blockingHeight: rz0,
+    rayZ: rz0,
+  };
+  for (let t = ctx.stepSize; t <= ctx.maxDistance; t += ctx.stepSize) {
+    const sx = px + ctx.lx * t;
+    const sy = py + ctx.ly * t;
+    if (sx < 0.5 || sx > width - 0.5 || sy < 0.5 || sy > h - 0.5) {
+      break;
+    }
+    const rayZ = Math.fround(rz0 + ctx.lz * t);
+    if (rayZ > ctx.maxHeight + ctx.bias) {
+      break;
+    }
+    const sample = Math.fround(sampleHeightAt(height, sx, sy));
+    const threshold = Math.fround(rayZ + ctx.bias);
+    last = { occluded: false, t, sampleX: sx, sampleY: sy, blockingHeight: sample, rayZ };
+    if (sample > threshold) {
+      return { ...last, occluded: true };
+    }
+  }
+  return last;
 }
 
+/**
+ * Sample-collecting march (debug visualization only): returns every marched
+ * sample, including the blocking one. NOT used by `computeVisibility`.
+ */
 function marchWithContext(
   ctx: ShadowContext,
   height: HostBuffer,
   px: number,
   py: number,
-): MarchResult {
+): ShadowMarchSample[] {
   const { width, height: h } = height.spec;
   const rz0 = Math.fround(sampleHeightAt(height, px, py));
   const samples: ShadowMarchSample[] = [];
@@ -184,29 +228,13 @@ function marchWithContext(
     const occluded = sample > threshold;
     samples.push({ t, sampleX: sx, sampleY: sy, height: sample, rayZ, occluded });
     if (occluded) {
-      return {
-        samples,
-        blocked: { occluded: true, t, sampleX: sx, sampleY: sy, blockingHeight: sample, rayZ },
-      };
+      break;
     }
   }
-  const last = samples[samples.length - 1];
-  return {
-    samples,
-    blocked: last
-      ? {
-          occluded: false,
-          t: last.t,
-          sampleX: last.sampleX,
-          sampleY: last.sampleY,
-          blockingHeight: last.height,
-          rayZ: last.rayZ,
-        }
-      : { occluded: false, t: 0, sampleX: px, sampleY: py, blockingHeight: rz0, rayZ: rz0 },
-  };
+  return samples;
 }
 
-/** Trace one shadow ray from a continuous receiver position. */
+/** Trace one shadow ray from a continuous receiver position (zero-history). */
 export function traceShadowRay(
   scene: Scene,
   height: HostBuffer,
@@ -214,7 +242,7 @@ export function traceShadowRay(
   py: number,
   options: ShadowOptions = {},
 ): ShadowRayResult {
-  return marchWithContext(prepareShadowContext(scene, height, options), height, px, py).blocked;
+  return traceWithContext(prepareShadowContext(scene, height, options), height, px, py);
 }
 
 /** All marched samples of one ray (including the blocking sample, if any). */
@@ -225,14 +253,15 @@ export function marchShadowRay(
   py: number,
   options: ShadowOptions = {},
 ): ShadowMarchSample[] {
-  return marchWithContext(prepareShadowContext(scene, height, options), height, px, py).samples;
+  return marchWithContext(prepareShadowContext(scene, height, options), height, px, py);
 }
 
 /**
  * Hard cast-shadow visibility mask for every pixel: 1 = lit, 0 = occluded.
  * Pixels are sampled at pixel centers `(x + 0.5, y + 0.5)` with the pixel's
  * own height as the receiver z (f32 semantics). Pass-wide state is prepared
- * once and shared by all pixel traces.
+ * once and shared by all pixel traces; the zero-history trace keeps the hot
+ * path allocation-free.
  */
 export function computeVisibility(
   scene: Scene,
@@ -244,7 +273,7 @@ export function computeVisibility(
   const out = new HostBuffer(VISIBILITY_SPEC(width, h));
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < width; x++) {
-      const blocked = marchWithContext(ctx, height, x + 0.5, y + 0.5).blocked;
+      const blocked = traceWithContext(ctx, height, x + 0.5, y + 0.5);
       out.set(x, y, 0, blocked.occluded ? 0 : 1);
     }
   }
