@@ -116,8 +116,9 @@ tests.
   terms; intensity 0 leaves ambient only. The degenerate half-vector
   `L = -V` (direction `{0, 0, -1}`) resolves specular to 0 without NaN.
   Lighting is computed in linear space and sRGB-encoded on output.
-- debug buffers: `normal` (f32 x3), `diffuse` (raw N·L) / `specular` (f32
-  1ch), `color` (RGBA8)
+- debug buffers: `normal` (f32 x3), `diffuse` (raw N·L) / `specular`
+  (specular direct contribution: `luminance(Fr) * NdotL`, before light
+  intensity, f32 1ch), `color` (RGBA8)
 
 ## Material / BRDF (#16)
 
@@ -132,10 +133,12 @@ clamped to [0, 1] — it becomes metallic F0), `roughness` (0..1), `metallic`
 space with explicit sRGB encoding. CSS approximation tokens (shadowAlpha,
 gradients, ...) are NOT part of this model.
 
-- Cook-Torrance: NDF GGX (`alpha = max(roughness^2, GGX_ALPHA_EPS)` so
-  roughness 0 keeps a sharp mirror-like lobe instead of collapsing),
-  height-correlated Smith visibility, Schlick Fresnel at **V·H** (== L·H).
-  `F0 = mix(dielectric IOR F0, baseColor, metallic)`.
+- Cook-Torrance: NDF GGX and height-correlated Smith visibility share one
+  regularized alpha (`ggxAlpha(roughness) = max(roughness^2,
+  GGX_ALPHA_EPS)`), so they describe the same microfacet distribution —
+  roughness 0 keeps a sharp mirror-like lobe instead of collapsing. Schlick
+  Fresnel evaluates at **V·H** (== L·H). `F0 = mix(dielectric IOR F0,
+  baseColor, metallic)`.
 - BRDF evaluation is separated from the cosine factor: `brdfDirect` returns
   the Lambert diffuse BRDF `baseColor * (1 - F) * (1 - metallic) / PI`
   (metals have no diffuse) and the Cook-Torrance specular BRDF `D * V * F`;
@@ -150,8 +153,9 @@ gradients, ...) are NOT part of this model.
 - debug buffers: `diffuse` (raw N·L, material-independent), `specular`
   (BRDF specular luminance), `color` (full BRDF output)
 
-The demo page renders silicone / matte / metal side by side under the same
-geometry and light, with the interactive light direction sliders.
+The demo page renders roughness low/high, metallic 0/1 and the
+silicone / matte / metal presets side by side under identical geometry and
+light, with the interactive light direction sliders.
 
 ## Buffer contract
 

@@ -76,6 +76,7 @@ export {
   dielectricF0,
   f0ForMaterial,
   fresnelSchlick,
+  ggxAlpha,
   smithGgxVisibility,
 } from "./brdf";
 export type { BrdfResult } from "./brdf";

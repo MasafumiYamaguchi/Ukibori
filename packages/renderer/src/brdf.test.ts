@@ -6,6 +6,7 @@ import {
   dielectricF0,
   f0ForMaterial,
   fresnelSchlick,
+  ggxAlpha,
   smithGgxVisibility,
 } from "./brdf";
 import { MATERIAL_PRESETS, sanitizeMaterial } from "./material";
@@ -71,6 +72,17 @@ describe("dGgx", () => {
     expect(peak).toBeGreaterThan(dGgx(1, 0.2)); // stronger than any rough lobe
     expect(dGgx(0.95, 0)).toBeLessThan(peak / 100); // extremely narrow
     expect(GGX_ALPHA_EPS).toBeGreaterThan(0);
+  });
+
+  it("shares one regularized alpha with Smith across the microfacet model", () => {
+    expect(ggxAlpha(0)).toBe(GGX_ALPHA_EPS);
+    expect(ggxAlpha(0.5)).toBeCloseTo(0.25, 12); // ordinary roughness: alpha = r^2
+    // roughness 0: BOTH D and V use a2 = GGX_ALPHA_EPS^2
+    const a2 = GGX_ALPHA_EPS * GGX_ALPHA_EPS;
+    const denom = Math.max(a2, 1e-7); // dGgx's denominator eps clamp
+    expect(dGgx(1, 0)).toBeCloseTo(a2 / (Math.PI * denom * denom), 12);
+    const gv = 1 * Math.sqrt(1 * (1 - a2) + a2); // nDotL = nDotV = 1
+    expect(smithGgxVisibility(1, 1, 0)).toBeCloseTo(0.5 / (gv + gv), 12);
   });
 
   it("is finite for all finite inputs", () => {

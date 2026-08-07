@@ -30,6 +30,16 @@ import type { LinearRgb } from "./types";
 /** Minimum alpha for the GGX lobe so roughness = 0 stays mirror-like, not zero. */
 export const GGX_ALPHA_EPS = 1e-4;
 
+/**
+ * Shared regularized GGX alpha for the whole microfacet model. Both `dGgx`
+ * and `smithGgxVisibility` use `a2 = ggxAlpha(roughness)^2`, so NDF and
+ * geometry describe the SAME microfacet distribution, including at
+ * `roughness = 0`.
+ */
+export function ggxAlpha(roughness: number): number {
+  return Math.max(roughness * roughness, GGX_ALPHA_EPS);
+}
+
 /** Dielectric F0 derived from IOR: ((ior - 1) / (ior + 1))^2. */
 export function dielectricF0(ior: number): number {
   const v = (ior - 1) / (ior + 1);
@@ -49,25 +59,24 @@ export function f0ForMaterial(m: Material): LinearRgb {
 /**
  * GGX / Trowbridge-Reitz normal distribution function.
  *
- * `alpha = max(roughness^2, GGX_ALPHA_EPS)`: at roughness 0 the lobe peaks
- * extremely sharply at NdotH = 1 (mirror-like) instead of collapsing to 0.
+ * `alpha = ggxAlpha(roughness)`; at roughness 0 the lobe peaks extremely
+ * sharply at NdotH = 1 (mirror-like) instead of collapsing to 0.
  */
 export function dGgx(nDotH: number, roughness: number): number {
-  const alpha = Math.max(roughness * roughness, GGX_ALPHA_EPS);
-  const a2 = alpha * alpha;
+  const a2 = ggxAlpha(roughness) * ggxAlpha(roughness);
   const denom = Math.max(nDotH * nDotH * (a2 - 1) + 1, 1e-7);
   return a2 / (Math.PI * denom * denom);
 }
 
 /**
- * Height-correlated Smith visibility (UE4 form). Returns 0 when either
- * cosine is <= 0.
+ * Height-correlated Smith visibility (UE4 form), using the SAME regularized
+ * alpha as `dGgx`. Returns 0 when either cosine is <= 0.
  */
 export function smithGgxVisibility(nDotL: number, nDotV: number, roughness: number): number {
   if (nDotL <= 0 || nDotV <= 0) {
     return 0;
   }
-  const a2 = roughness ** 4;
+  const a2 = ggxAlpha(roughness) * ggxAlpha(roughness);
   const gv = nDotL * Math.sqrt(nDotV * nDotV * (1 - a2) + a2);
   const gl = nDotV * Math.sqrt(nDotL * nDotL * (1 - a2) + a2);
   const denom = gv + gl;

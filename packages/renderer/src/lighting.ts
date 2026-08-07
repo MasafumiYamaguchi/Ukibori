@@ -46,7 +46,7 @@ export interface LightingBuffers {
   normal: HostBuffer;
   /** f32 scalar: raw N dot L, 0..1 (material-independent light response) */
   diffuse: HostBuffer;
-  /** f32 scalar: luminance of the BRDF specular term, clamped 0..1 */
+  /** f32 scalar: specular direct contribution, luminance(Fr) * NdotL, clamped 0..1 (before light intensity) */
   specular: HostBuffer;
   /** RGBA8: combined lit color, sRGB-encoded */
   color: HostBuffer;

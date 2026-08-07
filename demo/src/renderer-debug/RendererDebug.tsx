@@ -98,6 +98,14 @@ const SDF_SCENE = {
       receivesShadow: true,
     },
   ],
+  materials: {
+    // identical baseColor/metallic/ior — only roughness differs
+    "custom-glossy": { baseColor: { r: 0.6, g: 0.6, b: 0.6 }, roughness: 0.12, metallic: 0, ior: 1.5 },
+    "custom-rough": { baseColor: { r: 0.6, g: 0.6, b: 0.6 }, roughness: 0.9, metallic: 0, ior: 1.5 },
+    // identical baseColor/roughness/ior — only metallic differs
+    "custom-dielectric": { baseColor: { r: 0.6, g: 0.6, b: 0.6 }, roughness: 0.4, metallic: 0, ior: 1.5 },
+    "custom-metallic": { baseColor: { r: 0.6, g: 0.6, b: 0.6 }, roughness: 0.4, metallic: 1, ior: 1.5 },
+  },
   light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
 };
 
@@ -115,6 +123,10 @@ export function RendererDebug(): ReactElement {
   const siliconeCanvas = useRef<HTMLCanvasElement>(null);
   const matteCanvas = useRef<HTMLCanvasElement>(null);
   const metalCanvas = useRef<HTMLCanvasElement>(null);
+  const glossyCanvas = useRef<HTMLCanvasElement>(null);
+  const roughCanvas = useRef<HTMLCanvasElement>(null);
+  const dielectricCanvas = useRef<HTMLCanvasElement>(null);
+  const metallicCanvas = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [light, setLight] = useState({ x: -0.6, y: -0.8 });
@@ -177,15 +189,20 @@ export function RendererDebug(): ReactElement {
       draw(diffuseCanvas.current, diffuseImg);
       draw(specularCanvas.current, specularImg);
       draw(litColorCanvas.current, colorImg);
-      // #16: same geometry/light, only the material preset changes
-      for (const [name, canvas] of [
-        ["silicone", siliconeCanvas],
-        ["matte", matteCanvas],
-        ["metal", metalCanvas],
-      ] as const) {
+      // #16: identical geometry/light; only material parameters differ
+      const comparisons = [
+        ["roughness low (0.12)", "custom-glossy", glossyCanvas],
+        ["roughness high (0.9)", "custom-rough", roughCanvas],
+        ["metallic 0", "custom-dielectric", dielectricCanvas],
+        ["metallic 1", "custom-metallic", metallicCanvas],
+        ["silicone", "silicone", siliconeCanvas],
+        ["matte", "matte", matteCanvas],
+        ["metal", "metal", metalCanvas],
+      ] as const;
+      for (const [, ref, canvas] of comparisons) {
         const presetScene = createScene({
           ...SDF_SCENE,
-          surfaces: [{ ...SDF_SCENE.surfaces[0], material: name }],
+          surfaces: [{ ...SDF_SCENE.surfaces[0], material: ref }],
           light: { direction: { x: light.x, y: light.y, z: 1 }, intensity: 1 },
         });
         const presetColor = lightScene(presetScene).color;
@@ -284,7 +301,30 @@ export function RendererDebug(): ReactElement {
             </p>
           </section>
           <section>
-            <h2>Materials #16 — BRDF presets (same geometry and light)</h2>
+            <h2>Materials #16 — BRDF comparisons (same geometry and light)</h2>
+            <p>Roughness (only roughness differs)</p>
+            <div className="row">
+              <div>
+                <p>low 0.12</p>
+                <canvas ref={glossyCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>high 0.9</p>
+                <canvas ref={roughCanvas} width={96} height={60} />
+              </div>
+            </div>
+            <p>Metallic workflow (only metallic differs)</p>
+            <div className="row">
+              <div>
+                <p>metallic 0</p>
+                <canvas ref={dielectricCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>metallic 1</p>
+                <canvas ref={metallicCanvas} width={96} height={60} />
+              </div>
+            </div>
+            <p>Presets</p>
             <div className="row">
               <div>
                 <p>silicone</p>
