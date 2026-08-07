@@ -26,6 +26,7 @@ CP1時点での構成判断を記録します。
 - **スタイル合成**: ライブラリが出力するCSSカスタムプロパティとユーザーの`style`を意図的な優先順位で合成する規則をCP3で実装・文書化する。
 - **色の扱い**: 任意CSS色のJavaScript解析はしない。必要なら`color-mix()`を利用し、フォールバックを文書化する(CP4)。
 - **公開APIの型**: `LightVector`, `MaterialName`, `Variant`などの型を`src/types.ts`に集約。polymorphic `as`の型安全性はCP3で詰める。
+- **core計算のReact分離**: `src/core/light.ts`(光ベクトル正規化)と`src/core/shadow.ts`(影・ハイライト導出)はReact/CSS生成から独立した純粋関数。入力オブジェクトを変異させず、`NaN`/`Infinity`/ゼロベクトル/負値/極端値はすべて決定的なfallbackとclampに落ちる。丸めは`roundTo`(Math.roundベース、pxは2桁・ベクトルは6桁)に統一。
 
 ## 開発コマンド
 

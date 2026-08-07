@@ -1,4 +1,5 @@
-import { UkiboriContext, DEFAULT_COLOR, DEFAULT_LIGHT } from "../context";
+import { UkiboriContext, DEFAULT_COLOR } from "../context";
+import { DEFAULT_LIGHT } from "../core/light";
 import type { UkiboriProps } from "../types";
 
 export function Ukibori({

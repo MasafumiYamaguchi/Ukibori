@@ -1,7 +1,6 @@
 import { createContext } from "react";
 import type { LightVector } from "./types";
-
-export const DEFAULT_LIGHT: LightVector = { x: -0.6, y: -0.8, z: 1 };
+import { DEFAULT_LIGHT } from "./core/light";
 
 export const DEFAULT_COLOR = "#e4e8ef";
 
