@@ -40,3 +40,20 @@ export type {
 } from "./renderer";
 export { toPpmBytes, toRgbaBytes } from "./debug/export";
 export type { DebugMode, RgbaImage, ToRgbaOptions } from "./debug/export";
+export { DEFAULT_LIGHT_DIRECTION, createScene } from "./scene";
+export type {
+  DirectionalLight,
+  HeightProfile,
+  MaterialRef,
+  Scene,
+  SceneInput,
+  Shape,
+  SurfaceNode,
+} from "./scene";
+export {
+  NO_OWNER,
+  composeHeightField,
+  flatRoundedRectHeight,
+  sceneMaterials,
+} from "./compose";
+export type { ComposeOptions, ComposeResult, SurfaceHeightAt, TieBreak } from "./compose";
