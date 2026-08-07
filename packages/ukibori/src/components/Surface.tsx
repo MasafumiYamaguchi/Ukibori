@@ -40,10 +40,11 @@ export type SurfaceType = <C extends ElementType = "div">(
  * `className` is never lost.
  *
  * Material handling: unknown material names normalize to silicone, and
- * `materialOverrides` lets users override individual tokens type-safely.
- * glass uses `color-mix()` for its translucent background with an opaque
- * `var(--ukibori-color)` fallback, so content stays readable in browsers
- * without color-mix/backdrop-filter.
+ * `materialOverrides` lets users override individual tokens type-safely
+ * (runtime values are sanitized). Materials with a fixed `surfaceColor`
+ * (e.g. glass's translucent white) always paint that background — the
+ * readable background does not depend on backdrop-filter or color-mix
+ * support. Materials with `surfaceColor: null` use `var(--ukibori-color)`.
  */
 export const Surface = forwardRef<HTMLElement, SurfaceInnerProps>(function Surface(
   { as = "div", className, style, material = "silicone", variant = "raised", elevation = ELEVATION_DEFAULT, radius = RADIUS_DEFAULT, materialOverrides, ...rest },
@@ -54,7 +55,6 @@ export const Surface = forwardRef<HTMLElement, SurfaceInnerProps>(function Surfa
   const normalizedVariant: Variant = variant === "inset" ? "inset" : "raised";
   const normalizedMaterial = normalizeMaterialName(material);
   const tokens = resolveMaterialTokens(normalizedMaterial, materialOverrides);
-  const translucent = tokens.surfaceAlpha < 1;
 
   const safeElevation = sanitizeNumber(elevation, ELEVATION_DEFAULT, 0, ELEVATION_MAX);
   const safeRadius = sanitizeNumber(radius, RADIUS_DEFAULT, 0, RADIUS_MAX);
@@ -66,7 +66,6 @@ export const Surface = forwardRef<HTMLElement, SurfaceInnerProps>(function Surfa
   const internalStyle: CSSProperties = {
     "--ukibori-variant": normalizedVariant,
     "--ukibori-material": normalizedMaterial,
-    "--ukibori-surface-alpha": String(tokens.surfaceAlpha),
     "--ukibori-elevation": `${safeElevation}px`,
     "--ukibori-radius": `${safeRadius}px`,
     "--ukibori-color": color,
@@ -79,14 +78,7 @@ export const Surface = forwardRef<HTMLElement, SurfaceInnerProps>(function Surfa
     "--ukibori-highlight-y": `${scaled.highlightDy}px`,
     "--ukibori-highlight-blur": `${scaled.highlightBlur}px`,
     "--ukibori-highlight-alpha": `${scaled.highlightAlpha}`,
-    ...(translucent
-      ? {
-          "--ukibori-material-bg": `color-mix(in srgb, var(--ukibori-color) ${Math.round(tokens.surfaceAlpha * 100)}%, transparent)`,
-        }
-      : {}),
-    backgroundColor: translucent
-      ? "var(--ukibori-material-bg, var(--ukibori-color))"
-      : "var(--ukibori-color)",
+    backgroundColor: tokens.surfaceColor ?? "var(--ukibori-color)",
     borderRadius: "var(--ukibori-radius)",
     boxShadow:
       `${insetKeyword}var(--ukibori-shadow-x) var(--ukibori-shadow-y) var(--ukibori-shadow-blur) var(--ukibori-shadow-spread) var(--ukibori-shadow-color, rgba(0, 0, 0, var(--ukibori-shadow-alpha))), ` +

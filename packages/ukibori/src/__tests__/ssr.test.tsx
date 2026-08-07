@@ -41,7 +41,7 @@ describe("SSR rendering (node environment, no window/document)", () => {
     expect(html).toContain("box-shadow");
   });
 
-  it("renders glass with its translucent background and fallback chain", () => {
+  it("renders glass with its fixed translucent background", () => {
     const html = renderToString(
       createElement(
         Ukibori,
@@ -50,9 +50,9 @@ describe("SSR rendering (node environment, no window/document)", () => {
       ),
     );
     expect(html).toContain("--ukibori-material:glass");
-    expect(html).toContain("color-mix(in srgb, var(--ukibori-color) 38%, transparent)");
-    expect(html).toContain("background-color:var(--ukibori-material-bg, var(--ukibori-color))");
+    expect(html).toContain("background-color:rgba(255, 255, 255, 0.32)");
     expect(html).toContain("backdrop-filter:blur(10px) saturate(1.15)");
+    expect(html).not.toContain("color-mix");
   });
 
   it("normalizes unknown materials during SSR", () => {

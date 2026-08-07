@@ -6,6 +6,7 @@ import {
   isMaterialName,
   normalizeMaterialName,
   resolveMaterialTokens,
+  sanitizeMaterialOverrides,
 } from "./materials";
 import type { MaterialTokens } from "./materials";
 import { getShadowSpec } from "./shadow";
@@ -32,7 +33,7 @@ describe("material presets", () => {
       highlightAlpha: 1,
       blurScale: 1,
       spreadScale: 1,
-      surfaceAlpha: 1,
+      surfaceColor: null,
       backgroundImage: null,
       borderWidth: 0,
       borderColor: null,
@@ -40,18 +41,19 @@ describe("material presets", () => {
     });
   });
 
-  it("glass is translucent with a backdrop filter and border", () => {
+  it("glass has a fixed translucent surface color, backdrop filter and border", () => {
     const glass = MATERIAL_PRESETS.glass;
-    expect(glass.surfaceAlpha).toBeLessThan(1);
+    expect(glass.surfaceColor).toContain("rgba(");
+    expect(glass.surfaceColor).not.toBeNull();
     expect(glass.backdropFilter).toContain("blur(");
     expect(glass.borderWidth).toBeGreaterThan(0);
     expect(glass.borderColor).not.toBeNull();
     expect(glass.backgroundImage).not.toBeNull();
   });
 
-  it("metal has gloss, border and stronger highlights, no translucency", () => {
+  it("metal has gloss, border and stronger highlights, no fixed surface color", () => {
     const metal = MATERIAL_PRESETS.metal;
-    expect(metal.surfaceAlpha).toBe(1);
+    expect(metal.surfaceColor).toBeNull();
     expect(metal.backgroundImage).toContain("linear-gradient");
     expect(metal.highlightAlpha).toBeGreaterThan(1);
     expect(metal.backdropFilter).toBeNull();
@@ -69,6 +71,13 @@ describe("material name normalization", () => {
   it("accepts known names", () => {
     expect(isMaterialName("glass")).toBe(true);
     expect(normalizeMaterialName("metal")).toBe("metal");
+  });
+
+  it("rejects prototype-chain names with own-property-only matching", () => {
+    for (const protoName of ["toString", "constructor", "__proto__", "hasOwnProperty", "valueOf"]) {
+      expect(isMaterialName(protoName)).toBe(false);
+      expect(normalizeMaterialName(protoName)).toBe(DEFAULT_MATERIAL);
+    }
   });
 
   it("normalizes unknown values to silicone without throwing", () => {
@@ -103,13 +112,73 @@ describe("resolveMaterialTokens", () => {
   it("applies overrides on a non-default preset", () => {
     const resolved = resolveMaterialTokens("glass", { backdropFilter: null });
     expect(resolved.backdropFilter).toBeNull();
-    expect(resolved.surfaceAlpha).toBe(MATERIAL_PRESETS.glass.surfaceAlpha);
+    expect(resolved.surfaceColor).toBe(MATERIAL_PRESETS.glass.surfaceColor);
   });
 
   it("does not mutate the preset table", () => {
     const before = JSON.stringify(MATERIAL_PRESETS.silicone);
     resolveMaterialTokens("silicone", { shadowAlpha: 0.1 });
     expect(JSON.stringify(MATERIAL_PRESETS.silicone)).toBe(before);
+  });
+});
+
+describe("sanitizeMaterialOverrides", () => {
+  it("clamps out-of-range numeric overrides", () => {
+    expect(sanitizeMaterialOverrides({ shadowAlpha: 99 })).toEqual({ shadowAlpha: 2 });
+    expect(sanitizeMaterialOverrides({ highlightAlpha: -5 })).toEqual({ highlightAlpha: 0 });
+    expect(sanitizeMaterialOverrides({ borderWidth: 1e9 })).toEqual({ borderWidth: 100 });
+    expect(sanitizeMaterialOverrides({ borderWidth: -3 })).toEqual({ borderWidth: 0 });
+  });
+
+  it("drops NaN/Infinity numeric overrides", () => {
+    expect(sanitizeMaterialOverrides({ shadowAlpha: NaN })).toEqual({});
+    expect(sanitizeMaterialOverrides({ blurScale: Infinity })).toEqual({});
+    expect(sanitizeMaterialOverrides({ spreadScale: -Infinity })).toEqual({});
+  });
+
+  it("drops wrongly-typed overrides", () => {
+    expect(sanitizeMaterialOverrides({ shadowAlpha: "1" })).toEqual({});
+    expect(sanitizeMaterialOverrides({ borderWidth: "2px" })).toEqual({});
+    expect(sanitizeMaterialOverrides({ backgroundImage: 42 })).toEqual({});
+    expect(sanitizeMaterialOverrides({ borderColor: [] })).toEqual({});
+    expect(sanitizeMaterialOverrides({ surfaceColor: { color: "red" } })).toEqual({});
+    expect(sanitizeMaterialOverrides({ backdropFilter: ["blur(1px)"] })).toEqual({});
+  });
+
+  it("keeps valid string and null overrides, drops empty strings", () => {
+    expect(sanitizeMaterialOverrides({ surfaceColor: "rgba(1, 2, 3, 0.5)" })).toEqual({
+      surfaceColor: "rgba(1, 2, 3, 0.5)",
+    });
+    expect(sanitizeMaterialOverrides({ backdropFilter: null })).toEqual({ backdropFilter: null });
+    expect(sanitizeMaterialOverrides({ borderColor: "" })).toEqual({});
+    expect(sanitizeMaterialOverrides({ backgroundImage: "   " })).toEqual({});
+  });
+
+  it("ignores non-object overrides entirely", () => {
+    for (const junk of [42, "x", true, null, undefined, []]) {
+      expect(sanitizeMaterialOverrides(junk)).toEqual({});
+    }
+  });
+
+  it("never lets non-finite values pass through resolveMaterialTokens", () => {
+    const resolved = resolveMaterialTokens("silicone", {
+      shadowAlpha: NaN,
+      highlightAlpha: Infinity,
+      blurScale: -5,
+      spreadScale: 1e9,
+      borderWidth: "thick",
+      backgroundImage: 42,
+      surfaceColor: null,
+    } as never);
+    expect(resolved.shadowAlpha).toBe(1);
+    expect(resolved.highlightAlpha).toBe(1);
+    expect(resolved.blurScale).toBe(0);
+    expect(resolved.spreadScale).toBe(2);
+    expect(resolved.borderWidth).toBe(0);
+    expect(resolved.backgroundImage).toBeNull();
+    expect(resolved.surfaceColor).toBeNull();
+    const clamped = resolveMaterialTokens("metal", { shadowAlpha: 99 } as never);
+    expect(clamped.shadowAlpha).toBe(2);
   });
 });
 
@@ -120,7 +189,7 @@ describe("applyMaterialScales", () => {
       highlightAlpha: 2,
       blurScale: 1.5,
       spreadScale: 0.5,
-      surfaceAlpha: 1,
+      surfaceColor: null,
       backgroundImage: null,
       borderWidth: 0,
       borderColor: null,

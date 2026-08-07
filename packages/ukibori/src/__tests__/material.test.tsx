@@ -22,14 +22,11 @@ describe("Surface material presets", () => {
     expect(el.style.getPropertyValue("backdrop-filter")).toBe("");
   });
 
-  it("applies glass tokens: translucent bg with readable fallback, border, backdrop blur", () => {
+  it("applies glass tokens: fixed translucent bg, border, backdrop blur", () => {
     renderSurface(<Surface material="glass" elevation={4}>Hello</Surface>);
     const el = screen.getByText("Hello");
-    expect(el.style.getPropertyValue("--ukibori-surface-alpha")).toBe("0.38");
-    expect(el.style.getPropertyValue("--ukibori-material-bg")).toBe(
-      "color-mix(in srgb, var(--ukibori-color) 38%, transparent)",
-    );
-    expect(el.style.backgroundColor).toBe("var(--ukibori-material-bg, var(--ukibori-color))");
+    expect(el.style.getPropertyValue("--ukibori-material")).toBe("glass");
+    expect(el.style.backgroundColor).toBe("rgba(255, 255, 255, 0.32)");
     expect(el.style.backdropFilter).toBe("blur(10px) saturate(1.15)");
     expect(el.style.borderWidth).toBe("1px");
     expect(el.style.borderStyle).toBe("solid");
@@ -79,15 +76,30 @@ describe("Surface material overrides", () => {
 
   it("allows combining several overridden tokens", () => {
     renderSurface(
-      <Surface material="glass" materialOverrides={{ surfaceAlpha: 0.6, backdropFilter: null }}>
+      <Surface material="glass" materialOverrides={{ surfaceColor: "rgba(255, 255, 255, 0.5)", backdropFilter: null }}>
         Hello
       </Surface>,
     );
     const el = screen.getByText("Hello");
-    expect(el.style.getPropertyValue("--ukibori-surface-alpha")).toBe("0.6");
-    expect(el.style.getPropertyValue("--ukibori-material-bg")).toContain("60%");
-    expect(el.style.backgroundColor).toBe("var(--ukibori-material-bg, var(--ukibori-color))");
+    expect(el.style.backgroundColor).toBe("rgba(255, 255, 255, 0.5)");
     expect(el.style.getPropertyValue("backdrop-filter")).toBe("");
+    expect(el.style.borderWidth).toBe("1px");
+  });
+
+  it("sanitizes runtime junk in materialOverrides without emitting invalid CSS", () => {
+    renderSurface(
+      <Surface
+        material="silicone"
+        materialOverrides={{ shadowAlpha: NaN, borderWidth: -5, backgroundImage: 42 } as never}
+        elevation={4}
+      >
+        Hello
+      </Surface>,
+    );
+    const el = screen.getByText("Hello");
+    expect(el.style.getPropertyValue("--ukibori-shadow-alpha")).toBe("0.3");
+    expect(el.style.borderWidth).toBe("");
+    expect(el.style.backgroundImage).toBe("");
   });
 
   it("keeps the user style winning over material rendering", () => {
@@ -122,14 +134,14 @@ describe("Surface material accessibility", () => {
     expect(button.style.outlineStyle).toBe("");
   });
 
-  it("keeps glass readable: opaque var() fallback structure and no focus interference", () => {
+  it("keeps glass readable: fixed translucent background and no focus interference", () => {
     renderSurface(
       <Surface as="button" material="glass">
         Go
       </Surface>,
     );
     const button = screen.getByRole("button");
-    expect(button.style.backgroundColor).toBe("var(--ukibori-material-bg, var(--ukibori-color))");
+    expect(button.style.backgroundColor).toBe("rgba(255, 255, 255, 0.32)");
     expect(button.style.outlineStyle).toBe("");
     button.focus();
     expect(button).toBe(document.activeElement);

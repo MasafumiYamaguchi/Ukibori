@@ -58,23 +58,23 @@ CP1時点での構成判断を記録します。
 | `highlightAlpha` | ハイライトの強さ倍率 | 1 | 0.35 | 1.35 | 1.7 |
 | `blurScale` | 影の柔らかさ倍率 | 1 | 1.35 | 1.15 | 0.8 |
 | `spreadScale` | 影の広がり倍率 | 1 | 0.5 | 0.5 | 1.25 |
-| `surfaceAlpha` | 表面の透明度(1=不透明) | 1 | 1 | 0.38 | 1 |
+| `surfaceColor` | 表面の背景色(null=`var(--ukibori-color)`を使用) | null | null | `rgba(255,255,255,0.32)` | null |
 | `backgroundImage` | 光沢・ヴェール(background-image) | null | null | 白ヴェール | 145degグロス |
 | `borderWidth` / `borderColor` | 縁 | なし | なし | 1px白 | 1px白 |
 | `backdropFilter` | 背面のぼかし | null | null | `blur(10px) saturate(1.15)` | null |
 
-利用者は`Surface`の`materialOverrides` propでトークンを**型安全に部分上書き**できます。例:
+利用者は`Surface`の`materialOverrides` propでトークンを**型安全に部分上書き**できます。ランタイムの不正値(NaN/Infinity/負値/巨大値/誤型)は`sanitizeMaterialOverrides`が除去またはclampし、非有限のCSS値が生成されることはありません。例:
 
 ```tsx
-<Surface material="glass" materialOverrides={{ surfaceAlpha: 0.6, backdropFilter: null }}>
+<Surface material="glass" materialOverrides={{ surfaceColor: "rgba(255, 255, 255, 0.5)", backdropFilter: null }}>
   Frosted but more opaque
 </Surface>
 ```
 
 ## ブラウザ制約
 
-- **glassの透過背景は`color-mix()`を使用**: 非対応ブラウザでは`--ukibori-material-bg`が無効値になり、`background-color: var(--ukibori-material-bg, var(--ukibori-color))`のフォールバックにより**不透明で可読性の高い背景**に落ちます
-- **`backdrop-filter`非対応**: 同様にフォールバック背景が有効になり、内容は読み取れます(ガラス効果は失われます)
+- **glassの背景は固定の半透明白(`rgba(255, 255, 255, 0.32)`)**: どのブラウザでも必ずこの背景が描画され、透明になることはありません。`color-mix()`には依存しません。`backdrop-filter`未対応ブラウザではぼかし効果だけが失われ、読みやすさは変わりません。背景色を変えたい場合は`materialOverrides={{ surfaceColor: ... }}`またはユーザーstyleの`backgroundColor`で上書きします(ユーザー最優先)
+- **`backdrop-filter`非対応**: glassの背面ぼかしが失われるだけ。背景・枠・影は変わりません
 - `box-shadow`の`var()`参照はペイント時に解決されます(jsdom等のテスト環境では解決されません)
 - このライブラリは物理シミュレーションではなく、`box-shadow` / `background` / `border` / `backdrop-filter`による**近似**です。WebGLやCanvasは使いません
 - 装飾は要素そのもののCSSのみで構成され、focus表示の除去・要素のラップ・セマンティクス変更は行いません

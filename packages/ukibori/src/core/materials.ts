@@ -1,6 +1,6 @@
 import type { MaterialName } from "../types";
 import type { ShadowSpec } from "./shadow";
-import { clamp, roundTo } from "./math";
+import { clamp, isFiniteNumber, roundTo } from "./math";
 
 export interface MaterialTokens {
   /** multiplier applied to the spec shadow alpha */
@@ -11,8 +11,13 @@ export interface MaterialTokens {
   blurScale: number;
   /** multiplier applied to shadow spread */
   spreadScale: number;
-  /** surface translucency: 1 = opaque, <1 = translucent background */
-  surfaceAlpha: number;
+  /**
+   * surface background color. null = use `var(--ukibori-color)` (the
+   * provider color). A fixed value (e.g. glass's translucent white) is used
+   * as-is so the background is always painted, even without backdrop-filter
+   * or color-mix support.
+   */
+  surfaceColor: string | null;
   /** gloss/veil overlay (CSS background-image) or null */
   backgroundImage: string | null;
   /** border width in px (0 = no border) */
@@ -31,7 +36,7 @@ export const DEFAULT_MATERIAL: MaterialName = "silicone";
 /**
  * Restrained, physical-approximation presets. Every material differs in
  * several dimensions: shadow/highlight strength, softness, surface
- * translucency, gloss overlay, border and (for glass) backdrop blur.
+ * background, gloss overlay, border and (for glass) backdrop blur.
  */
 export const MATERIAL_PRESETS: Record<MaterialName, MaterialTokens> = {
   silicone: {
@@ -39,7 +44,7 @@ export const MATERIAL_PRESETS: Record<MaterialName, MaterialTokens> = {
     highlightAlpha: 1,
     blurScale: 1,
     spreadScale: 1,
-    surfaceAlpha: 1,
+    surfaceColor: null,
     backgroundImage: null,
     borderWidth: 0,
     borderColor: null,
@@ -50,7 +55,7 @@ export const MATERIAL_PRESETS: Record<MaterialName, MaterialTokens> = {
     highlightAlpha: 0.35,
     blurScale: 1.35,
     spreadScale: 0.5,
-    surfaceAlpha: 1,
+    surfaceColor: null,
     backgroundImage: null,
     borderWidth: 0,
     borderColor: null,
@@ -61,10 +66,12 @@ export const MATERIAL_PRESETS: Record<MaterialName, MaterialTokens> = {
     highlightAlpha: 1.35,
     blurScale: 1.15,
     spreadScale: 0.5,
-    surfaceAlpha: 0.38,
+    // Fixed translucent white: painted on every browser. Readability does
+    // not depend on backdrop-filter or color-mix support.
+    surfaceColor: "rgba(255, 255, 255, 0.32)",
     backgroundImage: "linear-gradient(rgba(255,255,255,0.14), rgba(255,255,255,0.14))",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.4)",
+    borderColor: "rgba(255, 255, 255, 0.4)",
     backdropFilter: "blur(10px) saturate(1.15)",
   },
   metal: {
@@ -72,17 +79,20 @@ export const MATERIAL_PRESETS: Record<MaterialName, MaterialTokens> = {
     highlightAlpha: 1.7,
     blurScale: 0.8,
     spreadScale: 1.25,
-    surfaceAlpha: 1,
+    surfaceColor: null,
     backgroundImage:
       "linear-gradient(145deg, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.06) 45%, rgba(255,255,255,0) 70%)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.22)",
+    borderColor: "rgba(255, 255, 255, 0.22)",
     backdropFilter: null,
   },
 };
 
 export function isMaterialName(value: unknown): value is MaterialName {
-  return typeof value === "string" && value in MATERIAL_PRESETS;
+  return (
+    typeof value === "string" &&
+    Object.prototype.hasOwnProperty.call(MATERIAL_PRESETS, value)
+  );
 }
 
 /** Unknown material values are normalized to the silicone default. */
@@ -90,15 +100,60 @@ export function normalizeMaterialName(material: unknown): MaterialName {
   return isMaterialName(material) ? material : DEFAULT_MATERIAL;
 }
 
+const NUMERIC_TOKEN_RANGES: ReadonlyArray<{ key: keyof MaterialTokens; min: number; max: number }> = [
+  { key: "shadowAlpha", min: 0, max: 2 },
+  { key: "highlightAlpha", min: 0, max: 2 },
+  { key: "blurScale", min: 0, max: 2 },
+  { key: "spreadScale", min: 0, max: 2 },
+  { key: "borderWidth", min: 0, max: 100 },
+];
+
+const STRING_OR_NULL_TOKENS: ReadonlyArray<keyof MaterialTokens> = [
+  "surfaceColor",
+  "backgroundImage",
+  "borderColor",
+  "backdropFilter",
+];
+
 /**
- * Resolves a material name (with optional typed partial overrides) into a
- * full token set. Never throws; unknown names fall back to DEFAULT_MATERIAL.
+ * Runtime sanitization of user-provided token overrides. Invalid fields are
+ * dropped (the preset value is kept), so no NaN/Infinity/negative/huge or
+ * wrongly-typed value can ever reach the CSS output. Never throws.
+ */
+export function sanitizeMaterialOverrides(overrides: unknown): MaterialTokensOverride {
+  if (typeof overrides !== "object" || overrides === null || Array.isArray(overrides)) {
+    return {};
+  }
+  const source = overrides as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+  for (const { key, min, max } of NUMERIC_TOKEN_RANGES) {
+    const value = source[key];
+    if (isFiniteNumber(value)) {
+      result[key] = clamp(value, min, max);
+    }
+  }
+  for (const key of STRING_OR_NULL_TOKENS) {
+    const value = source[key];
+    if (value === null || (typeof value === "string" && value.trim().length > 0)) {
+      result[key] = value;
+    }
+  }
+  return result as MaterialTokensOverride;
+}
+
+/**
+ * Resolves a material name (with optional partial overrides) into a full
+ * token set. Never throws; unknown names fall back to DEFAULT_MATERIAL and
+ * overrides are runtime-sanitized.
  */
 export function resolveMaterialTokens(
   material: unknown,
   overrides?: MaterialTokensOverride,
 ): MaterialTokens {
-  return { ...MATERIAL_PRESETS[normalizeMaterialName(material)], ...(overrides ?? {}) };
+  return {
+    ...MATERIAL_PRESETS[normalizeMaterialName(material)],
+    ...sanitizeMaterialOverrides(overrides),
+  };
 }
 
 /**
