@@ -39,7 +39,7 @@ export type {
   Quality,
   RendererOptions,
 } from "./renderer";
-export { toPpmBytes, toRgbaBytes } from "./debug/export";
+export { toCategoryRgba, toPpmBytes, toRgbaBytes } from "./debug/export";
 export type { DebugMode, RgbaImage, ToRgbaOptions } from "./debug/export";
 export { DEFAULT_LIGHT_DIRECTION, createScene, isHeightProfile, isShape } from "./scene";
 export type {
@@ -69,7 +69,7 @@ export {
   sampleHeightAt,
   traceShadowRay,
 } from "./shadow";
-export type { ShadowContext, ShadowMarchSample, ShadowOptions, ShadowRayResult } from "./shadow";
+export type { ShadowContext, ShadowMarchSample, ShadowOptions, ShadowRayResult, VisibilityOptions } from "./shadow";
 export {
   BASE_MATERIAL,
   DEFAULT_IOR,

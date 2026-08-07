@@ -155,6 +155,31 @@ gradients, ...) are NOT part of this model.
   (specular direct contribution `luminance(Fr) * NdotL * visibility`, before
   light intensity), `color` (full BRDF output)
 
+## Multi-surface scenes (#18)
+
+- `composeHeightField` / `composeSdfHeightField` merge any number of
+  surfaces into one height field: `Hscene = max(0, max_i H_i)` with the
+  topmost owner recorded in `objectId` (surface index) and `materialId`
+  (material index); exact f32 ties go to the later surface (DOM-like paint
+  order, `tieBreak: "first"` inverts).
+- **Elevation policy**: `SurfaceNode.elevation` is ABSOLUTE scene z in the
+  renderer contract (fixed in #13). Parent-relative elevations are an
+  API-layer concept (#20/#21) and must be resolved to absolute z before a
+  scene reaches the renderer.
+- **castsShadow / receivesShadow**: with an `objectId` buffer in the shadow
+  pass, a surface with `castsShadow = false` is transparent to shadow rays
+  (rays pass through its height field), and a surface with
+  `receivesShadow = false` keeps visibility 1 on its pixels. The base plane
+  always casts and receives.
+- **Height-field constraints** (MVP): a single height value per (x, y) cannot
+  represent overhangs, caves, or multiple z-surfaces stacked at the same
+  position. The topmost surface wins at each pixel; shadow caster/receiver
+  information is derived from the topmost height field. These geometries are
+  documented as unsupported.
+- debug views: composed height, object/material ownership
+  (`toCategoryRgba`), shadow mask, final color. The demo page renders a
+  panel / button / badge three-layer scene.
+
 ## Cast shadows (#17)
 
 ```

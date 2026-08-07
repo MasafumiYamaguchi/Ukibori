@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { HostBuffer, sampleLine } from "../buffer";
-import { toPpmBytes, toRgbaBytes } from "./export";
+import { NO_OWNER } from "../compose";
+import { toCategoryRgba, toPpmBytes, toRgbaBytes } from "./export";
 import type { BufferData, BufferSpec } from "../types";
 
 function dataFrom(spec: BufferSpec, values: number[]): BufferData {
@@ -81,6 +82,30 @@ describe("toPpmBytes", () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+});
+
+describe("toCategoryRgba", () => {
+  it("maps distinct values to distinct palette colors deterministically", () => {
+    const spec: BufferSpec = { width: 3, height: 1, channels: 1, format: "u32" };
+    const buf = new HostBuffer(spec);
+    buf.set(0, 0, 0, 0);
+    buf.set(1, 0, 0, 1);
+    buf.set(2, 0, 0, 2);
+    const a = toCategoryRgba({ spec, bytes: new Uint8Array(buf.data.buffer) });
+    const b = toCategoryRgba({ spec, bytes: new Uint8Array(buf.data.buffer) });
+    expect(Array.from(a.data)).toEqual(Array.from(b.data));
+    expect(Array.from(a.data.slice(0, 4))).not.toEqual(Array.from(a.data.slice(4, 8)));
+    expect(Array.from(a.data.slice(4, 8))).not.toEqual(Array.from(a.data.slice(8, 12)));
+    expect(a.data[3]).toBe(255);
+  });
+
+  it("renders NO_OWNER as dark", () => {
+    const spec: BufferSpec = { width: 1, height: 1, channels: 1, format: "u32" };
+    const buf = new HostBuffer(spec);
+    buf.set(0, 0, 0, NO_OWNER);
+    const img = toCategoryRgba({ spec, bytes: new Uint8Array(buf.data.buffer) });
+    expect(Array.from(img.data.slice(0, 3))).toEqual([20, 20, 20]);
   });
 });
 

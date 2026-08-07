@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HostBuffer, readElement } from "./buffer";
+import { composeSdfHeightField } from "./geometry";
 import {
   computeVisibility,
   isOccludedWithContext,
@@ -9,7 +10,7 @@ import {
   traceShadowRay,
 } from "./shadow";
 import { createScene } from "./scene";
-import type { Scene } from "./scene";
+import type { Scene, SurfaceNode } from "./scene";
 
 /**
  * Synthetic two-level height field (the #17 verification fixture):
@@ -247,6 +248,102 @@ describe("computeVisibility on the two-level fixture", () => {
     const a = computeVisibility(sceneWithLight(LIGHT_FROM_RIGHT), twoLevelHeight());
     const b = computeVisibility(sceneWithLight(LIGHT_FROM_RIGHT), twoLevelHeight());
     expect(Array.from(a.data)).toEqual(Array.from(b.data));
+  });
+});
+
+describe("castsShadow / receivesShadow (#18 multi-surface)", () => {
+  function flatSurface(partial: Partial<SurfaceNode> = {}): SurfaceNode {
+    return {
+      id: "s",
+      position: { x: 0, y: 0 },
+      size: { x: 10, y: 10 },
+      elevation: 0,
+      shape: { kind: "roundedRect", radius: 0 },
+      profile: { kind: "flat" },
+      material: "silicone",
+      castsShadow: true,
+      receivesShadow: true,
+      ...partial,
+    };
+  }
+
+  function flatScene(...surfaces: SurfaceNode[]): Scene {
+    return createScene({
+      width: 16,
+      height: 16,
+      surfaces,
+      light: { direction: LIGHT_FROM_RIGHT, intensity: 1 },
+    });
+  }
+
+  function composed(scene: Scene) {
+    return composeSdfHeightField(scene);
+  }
+
+  it("castsShadow = false removes the surface as an occluder", () => {
+    const caster = flatSurface({
+      id: "btn",
+      position: { x: 3, y: 3 },
+      size: { x: 10, y: 10 },
+      elevation: 4,
+    });
+    const casting = flatScene(caster);
+    const ghost = flatScene({ ...caster, castsShadow: false });
+    const visCast = computeVisibility(casting, composed(casting).height, {
+      objectId: composed(casting).objectId,
+    });
+    const visGhost = computeVisibility(ghost, composed(ghost).height, {
+      objectId: composed(ghost).objectId,
+    });
+    expect(visCast.get(1, 5, 0)).toBe(0); // shadow on the base plane left of the button
+    expect(visGhost.get(1, 5, 0)).toBe(1); // nothing casts
+  });
+
+  it("receivesShadow = false keeps the surface lit inside the shadow", () => {
+    const panel = flatSurface({ id: "panel", size: { x: 16, y: 16 } });
+    const button = flatSurface({
+      id: "btn",
+      position: { x: 3, y: 3 },
+      size: { x: 10, y: 10 },
+      elevation: 4,
+    });
+    const receiving = flatScene(panel, button);
+    const shielded = flatScene({ ...panel, receivesShadow: false }, button);
+    const visRecv = computeVisibility(receiving, composed(receiving).height, {
+      objectId: composed(receiving).objectId,
+    });
+    const visShielded = computeVisibility(shielded, composed(shielded).height, {
+      objectId: composed(shielded).objectId,
+    });
+    expect(visRecv.get(1, 5, 0)).toBe(0); // panel pixel in the button's shadow
+    expect(visShielded.get(1, 5, 0)).toBe(1); // panel ignores cast shadows
+  });
+
+  it("a badge on a button casts its shadow onto the button top", () => {
+    const panel = flatSurface({ id: "panel", size: { x: 16, y: 16 } });
+    const button = flatSurface({
+      id: "btn",
+      position: { x: 3, y: 3 },
+      size: { x: 10, y: 10 },
+      elevation: 4,
+    });
+    const badge = flatSurface({
+      id: "badge",
+      position: { x: 6, y: 6 },
+      size: { x: 4, y: 4 },
+      elevation: 6,
+    });
+    const scene = flatScene(panel, button, badge);
+    const composedScene = composed(scene);
+    expect(composedScene.height.get(7, 7)).toBe(6); // badge on top
+    expect(composedScene.height.get(4, 7)).toBe(4); // button around it
+    expect(composedScene.height.get(1, 1)).toBe(0); // panel outside
+    const vis = computeVisibility(scene, composedScene.height, {
+      objectId: composedScene.objectId,
+    });
+    expect(vis.get(5, 7, 0)).toBe(0); // button top in the badge's shadow
+    expect(vis.get(4, 7, 0)).toBe(1); // button top clear of the badge
+    expect(vis.get(7, 7, 0)).toBe(1); // badge top is lit
   });
 });
 

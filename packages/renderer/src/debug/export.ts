@@ -1,4 +1,5 @@
 import { readElement } from "../buffer";
+import { NO_OWNER } from "../compose";
 import type { BufferData } from "../types";
 
 export interface RgbaImage {
@@ -135,4 +136,49 @@ export function toPpmBytes(image: RgbaImage): Uint8Array {
   out.set(head, 0);
   out.set(body, head.byteLength);
   return out;
+}
+
+const CATEGORY_PALETTE = [
+  [31, 119, 180],
+  [255, 127, 14],
+  [44, 160, 44],
+  [214, 39, 40],
+  [148, 103, 189],
+  [140, 86, 75],
+  [227, 119, 194],
+  [127, 127, 127],
+] as const;
+
+/**
+ * Categorical visualization for objectId / materialId buffers (#18 debug
+ * views): each distinct value maps to a palette color in first-appearance
+ * order; `NO_OWNER` (base plane) renders dark.
+ */
+export function toCategoryRgba(data: BufferData): RgbaImage {
+  const { width, height } = data.spec;
+  const out = new Uint8ClampedArray(width * height * 4);
+  const index = new Map<number, number>();
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const v = readElement(data.bytes, data.spec, x, y, 0);
+      let i = index.get(v);
+      if (i === undefined) {
+        i = index.size;
+        index.set(v, i);
+      }
+      const p = (y * width + x) * 4;
+      if (v === NO_OWNER) {
+        out[p] = 20;
+        out[p + 1] = 20;
+        out[p + 2] = 20;
+      } else {
+        const c = CATEGORY_PALETTE[i % CATEGORY_PALETTE.length];
+        out[p] = c[0];
+        out[p + 1] = c[1];
+        out[p + 2] = c[2];
+      }
+      out[p + 3] = 255;
+    }
+  }
+  return { width, height, data: out };
 }

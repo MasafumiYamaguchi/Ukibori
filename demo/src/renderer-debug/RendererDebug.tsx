@@ -3,6 +3,7 @@ import type { ReactElement } from "react";
 import {
   COLOR_SPEC,
   HEIGHT_SPEC,
+  composeSdfHeightField,
   createRenderer,
   createScene,
   generateSdfDebug,
@@ -11,6 +12,7 @@ import {
   marchShadowRay,
   readBufferData,
   sampleLine,
+  toCategoryRgba,
   toRgbaBytes,
 } from "ukibori-renderer";
 import type { BufferData, RgbaImage, ShadowMarchSample } from "ukibori-renderer";
@@ -201,6 +203,53 @@ const SHADOW_SCENE = {
   light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
 };
 
+const MULTI_SCENE = {
+  width: 96,
+  height: 60,
+  surfaces: [
+    // three layers: panel (base) <- button <- badge
+    {
+      id: "panel",
+      position: { x: 6, y: 4 },
+      size: { x: 84, y: 52 },
+      elevation: 0,
+      thickness: 0,
+      shape: { kind: "roundedRect", radius: 8 } as const,
+      profile: { kind: "flat" } as const,
+      material: "matte",
+      castsShadow: true,
+      receivesShadow: true,
+    },
+    {
+      id: "button",
+      position: { x: 30, y: 14 },
+      size: { x: 36, y: 32 },
+      elevation: 4,
+      thickness: 2,
+      bevelWidth: 3,
+      shape: { kind: "roundedRect", radius: 8 } as const,
+      profile: { kind: "bevel" } as const,
+      material: "silicone",
+      castsShadow: true,
+      receivesShadow: true,
+    },
+    {
+      id: "badge",
+      position: { x: 54, y: 26 },
+      size: { x: 10, y: 8 },
+      elevation: 8,
+      thickness: 2,
+      bevelWidth: 1,
+      shape: { kind: "roundedRect", radius: 3 } as const,
+      profile: { kind: "bevel" } as const,
+      material: "metal",
+      castsShadow: true,
+      receivesShadow: true,
+    },
+  ],
+  light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+};
+
 export function RendererDebug(): ReactElement {
   const heightCanvas = useRef<HTMLCanvasElement>(null);
   const colorCanvas = useRef<HTMLCanvasElement>(null);
@@ -223,6 +272,11 @@ export function RendererDebug(): ReactElement {
   const shadowMaskCanvas = useRef<HTMLCanvasElement>(null);
   const shadowColorCanvas = useRef<HTMLCanvasElement>(null);
   const shadowRayCanvas = useRef<HTMLCanvasElement>(null);
+  const multiHeightCanvas = useRef<HTMLCanvasElement>(null);
+  const multiObjectCanvas = useRef<HTMLCanvasElement>(null);
+  const multiMaterialCanvas = useRef<HTMLCanvasElement>(null);
+  const multiMaskCanvas = useRef<HTMLCanvasElement>(null);
+  const multiColorCanvas = useRef<HTMLCanvasElement>(null);
   const [rayInfo, setRayInfo] = useState<{ x: number; y: number; occluded: boolean } | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -335,6 +389,22 @@ export function RendererDebug(): ReactElement {
       } else {
         setRayInfo(null);
       }
+    })();
+  }, [light.x, light.y]);
+
+  useEffect(() => {
+    const scene = createScene({
+      ...MULTI_SCENE,
+      light: { direction: { x: light.x, y: light.y, z: 1 }, intensity: 1 },
+    });
+    const composed = composeSdfHeightField(scene);
+    const { visibility, color } = lightScene(scene);
+    void (async () => {
+      draw(multiHeightCanvas.current, toRgbaBytes(await readBufferData(composed.height), { min: 0, max: 10 }));
+      draw(multiObjectCanvas.current, toCategoryRgba(await readBufferData(composed.objectId)));
+      draw(multiMaterialCanvas.current, toCategoryRgba(await readBufferData(composed.materialId)));
+      draw(multiMaskCanvas.current, toRgbaBytes(await readBufferData(visibility!), { min: 0, max: 1 }));
+      draw(multiColorCanvas.current, toRgbaBytes(await readBufferData(color)));
     })();
   }, [light.x, light.y]);
 
@@ -499,6 +569,37 @@ export function RendererDebug(): ReactElement {
               blue = ray z, gray = height samples, red = blocking sample
             </p>
             <canvas ref={shadowRayCanvas} width={320} height={150} />
+          </section>
+          <section>
+            <h2>Scene #18 — three layers in one height field</h2>
+            <div className="row">
+              <div>
+                <p>composed height (panel 0 / button 6 / badge 10)</p>
+                <canvas ref={multiHeightCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>object ownership (per surface)</p>
+                <canvas ref={multiObjectCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>material ownership</p>
+                <canvas ref={multiMaterialCanvas} width={96} height={60} />
+              </div>
+            </div>
+            <div className="row">
+              <div>
+                <p>shadow visibility mask</p>
+                <canvas ref={multiMaskCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>final color (button + badge cast onto lower layers)</p>
+                <canvas ref={multiColorCanvas} width={96} height={60} />
+              </div>
+            </div>
+            <p>
+              The badge (z=10) and button (z=6) share the panel's height field and cast hard
+              shadows onto the layers below through the same light/material pipeline.
+            </p>
           </section>
           <section>
             <h2>Verification loop (backend write → readback → RGBA)</h2>

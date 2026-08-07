@@ -214,7 +214,10 @@ export function shadeHeightField(
 /** Compose the SDF height field, ownership, cast shadows and light it. */
 export function lightScene(scene: Scene, options: LightingOptions = {}): LightingBuffers {
   const composed = composeSdfHeightField(scene);
-  const visibility = computeVisibility(scene, composed.height, options.shadow);
+  const visibility = computeVisibility(scene, composed.height, {
+    ...options.shadow,
+    objectId: composed.objectId,
+  });
   return shadeHeightField(
     scene,
     { height: composed.height, objectId: composed.objectId, visibility },

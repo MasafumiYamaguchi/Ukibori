@@ -1,5 +1,6 @@
 import { HostBuffer } from "./buffer";
 import { clamp } from "./math";
+import { NO_OWNER } from "./compose";
 import { VISIBILITY_SPEC } from "./types";
 import type { Scene } from "./scene";
 
@@ -73,6 +74,18 @@ export interface ShadowOptions {
   bias?: number;
 }
 
+/** Shadow-pass options including the ownership buffer (#18 castsShadow/receivesShadow). */
+export interface VisibilityOptions extends ShadowOptions {
+  /**
+   * Ownership buffer (u32, NO_OWNER = base plane). When provided:
+   * - a surface with `castsShadow = false` does not occlude rays (rays pass
+   *   through its height field)
+   * - a surface with `receivesShadow = false` keeps visibility 1 on its
+   *   pixels
+   */
+  objectId?: HostBuffer;
+}
+
 export interface ShadowRayResult {
   occluded: boolean;
   /** march distance of the last evaluated sample */
@@ -106,6 +119,10 @@ export interface ShadowContext {
   ly: number;
   lz: number;
   maxHeight: number;
+  /** ownership buffer for castsShadow sampling (null = everything casts) */
+  objectId: HostBuffer | null;
+  /** per-surface castsShadow flags (index = surface index); the base plane always casts */
+  castingFlags: boolean[];
 }
 
 const DEFAULT_STEP_SIZE = 0.5;
@@ -114,7 +131,7 @@ const DEFAULT_BIAS = 0.5;
 export function prepareShadowContext(
   scene: Scene,
   height: HostBuffer,
-  options: ShadowOptions = {},
+  options: VisibilityOptions = {},
 ): ShadowContext {
   const { width, height: h } = height.spec;
   const stepSize = sanitizeStrictPositive(options.stepSize, DEFAULT_STEP_SIZE);
@@ -130,7 +147,17 @@ export function prepareShadowContext(
     options.maxDistance,
     xyLength > 1e-6 ? diagonal / xyLength : diagonal,
   );
-  return { stepSize, bias, maxDistance, lx, ly, lz, maxHeight: sceneMaxHeight(height) };
+  return {
+    stepSize,
+    bias,
+    maxDistance,
+    lx,
+    ly,
+    lz,
+    maxHeight: sceneMaxHeight(height),
+    objectId: options.objectId ?? null,
+    castingFlags: scene.surfaces.map((s) => s.castsShadow),
+  };
 }
 
 /**
@@ -158,8 +185,19 @@ export function sampleHeightAt(height: HostBuffer, x: number, y: number): number
 }
 
 /**
+ * Nearest-neighbor ownership sample at a continuous scene position (u32
+ * buffers are not interpolated). Clamped to the buffer bounds.
+ */
+function sampleOwnerAt(objectId: HostBuffer, x: number, y: number): number {
+  const fx = clamp(Math.round(x - 0.5), 0, objectId.spec.width - 1);
+  const fy = clamp(Math.round(y - 0.5), 0, objectId.spec.height - 1);
+  return objectId.get(fx, fy, 0);
+}
+
+/**
  * Boolean-only, ZERO-ALLOCATION occlusion test for the production hot path.
- * Used by `computeVisibility` for every pixel.
+ * Used by `computeVisibility` for every pixel. Samples on surfaces with
+ * `castsShadow = false` are transparent to the ray.
  *
  * NOTE: the loop below, `traceWithContext` and `marchWithContext` implement
  * the same traversal; keep the occlusion math in sync.
@@ -177,6 +215,12 @@ export function isOccludedWithContext(
     const sy = py + ctx.ly * t;
     if (sx < 0.5 || sx > width - 0.5 || sy < 0.5 || sy > h - 0.5) {
       break;
+    }
+    if (ctx.objectId !== null) {
+      const owner = sampleOwnerAt(ctx.objectId, sx, sy);
+      if (owner !== NO_OWNER && !ctx.castingFlags[owner]) {
+        continue; // non-casting surface: the ray passes through
+      }
     }
     const rayZ = Math.fround(rz0 + ctx.lz * t);
     if (rayZ > ctx.maxHeight + ctx.bias) {
@@ -213,6 +257,12 @@ function traceWithContext(
     const sy = py + ctx.ly * t;
     if (sx < 0.5 || sx > width - 0.5 || sy < 0.5 || sy > h - 0.5) {
       break;
+    }
+    if (ctx.objectId !== null) {
+      const owner = sampleOwnerAt(ctx.objectId, sx, sy);
+      if (owner !== NO_OWNER && !ctx.castingFlags[owner]) {
+        continue; // non-casting surface: the ray passes through
+      }
     }
     const rayZ = Math.fround(rz0 + ctx.lz * t);
     if (rayZ > ctx.maxHeight + ctx.bias) {
@@ -258,6 +308,12 @@ function marchWithContext(
     if (sx < 0.5 || sx > width - 0.5 || sy < 0.5 || sy > h - 0.5) {
       break;
     }
+    if (ctx.objectId !== null) {
+      const owner = sampleOwnerAt(ctx.objectId, sx, sy);
+      if (owner !== NO_OWNER && !ctx.castingFlags[owner]) {
+        continue; // non-casting surface: the ray passes through
+      }
+    }
     const rayZ = Math.fround(rz0 + ctx.lz * t);
     if (rayZ > ctx.maxHeight + ctx.bias) {
       break;
@@ -279,7 +335,7 @@ export function traceShadowRay(
   height: HostBuffer,
   px: number,
   py: number,
-  options: ShadowOptions = {},
+  options: VisibilityOptions = {},
 ): ShadowRayResult {
   return traceWithContext(prepareShadowContext(scene, height, options), height, px, py);
 }
@@ -290,7 +346,7 @@ export function marchShadowRay(
   height: HostBuffer,
   px: number,
   py: number,
-  options: ShadowOptions = {},
+  options: VisibilityOptions = {},
 ): ShadowMarchSample[] {
   return marchWithContext(prepareShadowContext(scene, height, options), height, px, py);
 }
@@ -301,19 +357,34 @@ export function marchShadowRay(
  * own height as the receiver z (f32 semantics). Pass-wide state is prepared
  * once and shared by all pixel traces; the boolean-only
  * `isOccludedWithContext` hot path keeps `computeVisibility` allocation-free.
+ *
+ * With an `objectId` buffer (#18): surfaces with `castsShadow = false` do
+ * not occlude rays, and a pixel owned by a surface with
+ * `receivesShadow = false` always keeps visibility 1.
  */
 export function computeVisibility(
   scene: Scene,
   height: HostBuffer,
-  options: ShadowOptions = {},
+  options: VisibilityOptions = {},
 ): HostBuffer {
   const ctx = prepareShadowContext(scene, height, options);
   const { width, height: h } = height.spec;
   const out = new HostBuffer(VISIBILITY_SPEC(width, h));
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < width; x++) {
-      const occluded = isOccludedWithContext(ctx, height, x + 0.5, y + 0.5);
-      out.set(x, y, 0, occluded ? 0 : 1);
+      let vis = 1;
+      if (ctx.objectId !== null) {
+        const ownOwner = ctx.objectId.get(x, y, 0);
+        const receives = ownOwner === NO_OWNER
+          ? true
+          : (scene.surfaces[ownOwner]?.receivesShadow ?? true);
+        if (receives && isOccludedWithContext(ctx, height, x + 0.5, y + 0.5)) {
+          vis = 0;
+        }
+      } else if (isOccludedWithContext(ctx, height, x + 0.5, y + 0.5)) {
+        vis = 0;
+      }
+      out.set(x, y, 0, vis);
     }
   }
   return out;
