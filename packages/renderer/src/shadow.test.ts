@@ -302,6 +302,13 @@ describe("castsShadow / receivesShadow (#18 multi-surface)", () => {
   });
 
   it("a non-casting top surface does not hide a lower casting surface", () => {
+    // The non-casting top (4.5) FULLY covers the lower casting surface (4)
+    // with the same footprint, so every sample along the tested ray inside
+    // the overlap is owned by the top. Under the old owner-skip
+    // implementation the ray passes through (the owner is non-casting
+    // everywhere in the overlap) and the pixel stays LIT; with the caster-
+    // only height field the lower caster still occludes. The top's own ramp
+    // is low enough (elevation 4.5) that it does not occlude the approach.
     const caster = flatSurface({
       id: "caster",
       position: { x: 3, y: 3 },
@@ -310,21 +317,36 @@ describe("castsShadow / receivesShadow (#18 multi-surface)", () => {
     });
     const top = flatSurface({
       id: "top",
-      position: { x: 5, y: 5 },
-      size: { x: 8, y: 8 },
-      elevation: 6,
+      position: { x: 3, y: 3 },
+      size: { x: 10, y: 10 },
+      elevation: 4.5,
       castsShadow: false,
     });
     const scene = flatScene(caster, top);
     const full = composed(scene);
     const casterField = composeCasterHeightField(scene);
-    expect(full.height.get(7, 7)).toBe(6); // the top surface owns the visible height
-    expect(casterField.get(7, 7)).toBe(4); // the lower caster stays in the caster field
+    expect(full.height.get(5, 5)).toBe(4.5); // the top surface owns the visible height
+    expect(full.objectId.get(5, 5)).toBe(1); // ... over the whole caster area
+    expect(casterField.get(5, 5)).toBe(4); // the lower caster stays in the caster field
     const vis = computeVisibility(scene, full.height, {
       objectId: full.objectId,
       casterHeight: casterField,
     });
-    expect(vis.get(1, 5, 0)).toBe(0); // the lower caster still occludes the base
+    expect(vis.get(1, 5, 0)).toBe(0); // the lower caster occludes, even under the top
+    // the decisive sample lands INSIDE the overlap: t = 2.5 at x ~ 3.27
+    // (the caster's first texel, fully covered by the top)
+    const ray = traceShadowRay(scene, full.height, 1.5, 5.5, {
+      casterHeight: casterField,
+      maxDistance: 2.5,
+    });
+    expect(ray.occluded).toBe(true);
+    expect(ray.t).toBeCloseTo(2.5, 6);
+    expect(ray.sampleX).toBeGreaterThan(3);
+    expect(ray.sampleX).toBeLessThan(13);
+    // the blocking height is the CASTER's field (on its left-edge bilinear
+    // ramp here), not the top surface's height of 4.5
+    expect(ray.blockingHeight).toBeGreaterThan(2.5);
+    expect(ray.blockingHeight).toBeLessThan(4.5);
     // with only the non-casting top, rays pass through
     const onlyTop = flatScene(top);
     const fullOnly = composed(onlyTop);
