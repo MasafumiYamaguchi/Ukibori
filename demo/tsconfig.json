@@ -3,7 +3,8 @@
   "compilerOptions": {
     "types": ["vite/client", "node"],
     "paths": {
-      "ukibori": ["../packages/ukibori/src/index.ts"]
+      "ukibori": ["../packages/ukibori/src/index.ts"],
+      "ukibori-renderer": ["../packages/renderer/src/index.ts"]
     }
   },
   "include": ["src", "vite.config.ts"]
