@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { HostBuffer, readElement } from "./buffer";
-import { computeVisibility, sampleHeightAt, traceShadowRay } from "./shadow";
+import {
+  computeVisibility,
+  marchShadowRay,
+  prepareShadowContext,
+  sampleHeightAt,
+  traceShadowRay,
+} from "./shadow";
 import { createScene } from "./scene";
 import type { Scene } from "./scene";
 
@@ -54,6 +60,65 @@ describe("sampleHeightAt", () => {
 });
 
 describe("computeVisibility on the two-level fixture", () => {
+  it("prepares pass-wide context: maxDistance scales with 1/|L.xy|", () => {
+    const ctx = prepareShadowContext(sceneWithLight({ x: 0.5, y: 0, z: 0.8660254 }), twoLevelHeight());
+    expect(ctx.maxDistance).toBeCloseTo(Math.hypot(16, 16) / 0.5, 6);
+    expect(ctx.bias).toBe(0.5);
+    expect(ctx.stepSize).toBe(0.5);
+    expect(ctx.maxHeight).toBe(6);
+    // near-vertical light: no horizontal travel, diagonal is a harmless cap
+    const vertical = prepareShadowContext(sceneWithLight({ x: 0, y: 0, z: 1 }), twoLevelHeight());
+    expect(vertical.maxDistance).toBeCloseTo(Math.hypot(16, 16), 6);
+  });
+
+  it("reaches occluders that require t > the scene diagonal (default maxDistance = diagonal / |L.xy|)", () => {
+    // tall occluder 13 units from the receiver (0.5, 8.5); |L.xy| = 0.5 so
+    // t ≈ 26 at the occluder, beyond the scene diagonal (~22.6)
+    const height = new HostBuffer({ width: 16, height: 16, channels: 1, format: "f32" });
+    height.set(13, 8, 0, 24);
+    const scene = sceneWithLight({ x: 0.5, y: 0, z: 0.8660254 });
+    const vis = computeVisibility(scene, height);
+    expect(vis.get(0, 8, 0)).toBe(0); // occluded: the ray travels the full distance
+    expect(vis.get(15, 8, 0)).toBe(1); // light side: ray moves away from the occluder
+    // with an explicit cap below the required t, the occluder is never reached
+    const capped = computeVisibility(scene, height, { maxDistance: 20 });
+    expect(capped.get(0, 8, 0)).toBe(1);
+  });
+
+  it("uses f32(rayZ + bias) thresholds consistent with the f32 height samples", () => {
+    // Precondition: 0.3 and 0.1 + 0.2 differ in f64 but round to the same f32.
+    expect(0.3).not.toBe(0.1 + 0.2);
+    expect(Math.fround(0.3)).toBe(Math.fround(0.1 + 0.2));
+    // height pixel (1, 0) stores f32(0.1 + 0.2); light travels +x at z = 0 so
+    // rayZ stays 0 and the threshold is f32(0 + 0.3) — the sample is exactly
+    // ON the f32 threshold (not above it), so the pixel is NOT occluded.
+    // A naive f64 comparison (0.30000001192092896 > 0.3) would say occluded.
+    const height = new HostBuffer({ width: 16, height: 16, channels: 1, format: "f32" });
+    height.set(1, 0, 0, 0.1 + 0.2);
+    const scene = sceneWithLight({ x: 1, y: 0, z: 0 });
+    const ray = traceShadowRay(scene, height, 0.5, 0.5, { bias: 0.3, stepSize: 0.5 });
+    expect(ray.occluded).toBe(false);
+  });
+
+  it("marchShadowRay exposes the blocking sample for ray visualization", () => {
+    const samples = marchShadowRay(
+      sceneWithLight(LIGHT_FROM_RIGHT),
+      twoLevelHeight(),
+      5.5,
+      3.5,
+    );
+    expect(samples.length).toBeGreaterThan(0);
+    const blocking = samples.find((s) => s.occluded);
+    expect(blocking).toBeDefined();
+    expect(blocking!.height).toBeGreaterThan(blocking!.rayZ + 0.5 - 1e-6);
+    // samples before the block are not occluded
+    for (const s of samples) {
+      if (s !== blocking) {
+        expect(s.occluded).toBe(false);
+      }
+    }
+  });
+
   it("occludes pixels between the caster and the light", () => {
     const vis = computeVisibility(sceneWithLight(LIGHT_FROM_RIGHT), twoLevelHeight());
     const row = rowVisibility(vis, 3); // through the caster's row

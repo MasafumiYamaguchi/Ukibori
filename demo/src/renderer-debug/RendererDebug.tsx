@@ -8,11 +8,12 @@ import {
   generateSdfDebug,
   isWebGpuSupported,
   lightScene,
+  marchShadowRay,
   readBufferData,
   sampleLine,
   toRgbaBytes,
 } from "ukibori-renderer";
-import type { BufferData, RgbaImage } from "ukibori-renderer";
+import type { BufferData, RgbaImage, ShadowMarchSample } from "ukibori-renderer";
 
 interface Status {
   webgpu: boolean;
@@ -75,6 +76,75 @@ function drawLineGraph(
     }
   });
   ctx.stroke();
+}
+
+function drawRayPlot(canvas: HTMLCanvasElement | null, samples: ShadowMarchSample[], receiverZ: number): void {
+  if (!canvas) {
+    return;
+  }
+  canvas.width = 320;
+  canvas.height = 150;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    return;
+  }
+  const pad = 12;
+  const tMax = Math.max(samples[samples.length - 1]?.t ?? 1, 1);
+  let zMax = receiverZ;
+  for (const s of samples) {
+    zMax = Math.max(zMax, s.height, s.rayZ);
+  }
+  const span = Math.max(zMax, 1);
+  const px = (t: number) => pad + (t / tMax) * (canvas.width - pad * 2);
+  const py = (z: number) => pad + (1 - z / span) * (canvas.height - pad * 2);
+
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = "#99a";
+  ctx.beginPath();
+  for (let x = 0; x <= canvas.width; x += 32) {
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, canvas.height);
+  }
+  ctx.stroke();
+
+  // height samples along the ray (gray)
+  ctx.strokeStyle = "#888";
+  ctx.beginPath();
+  samples.forEach((s, i) => {
+    if (i === 0) {
+      ctx.moveTo(px(s.t), py(s.height));
+    } else {
+      ctx.lineTo(px(s.t), py(s.height));
+    }
+  });
+  ctx.stroke();
+
+  // ray z (blue)
+  ctx.strokeStyle = "#1a5fb4";
+  ctx.beginPath();
+  ctx.moveTo(px(0), py(receiverZ));
+  for (const s of samples) {
+    ctx.lineTo(px(s.t), py(s.rayZ));
+  }
+  ctx.stroke();
+
+  // receiver (green) and blocking sample (red)
+  ctx.fillStyle = "#26a269";
+  ctx.beginPath();
+  ctx.arc(px(0), py(receiverZ), 3, 0, Math.PI * 2);
+  ctx.fill();
+  const blocking = samples.find((s) => s.occluded);
+  if (blocking) {
+    ctx.fillStyle = "#e01b24";
+    ctx.beginPath();
+    ctx.arc(px(blocking.t), py(blocking.rayZ), 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(px(blocking.t), py(blocking.height), 4, 0, Math.PI * 2);
+    ctx.strokeStyle = "#e01b24";
+    ctx.stroke();
+  }
 }
 
 const SDF_SCENE = {
@@ -152,6 +222,8 @@ export function RendererDebug(): ReactElement {
   const shadowHeightCanvas = useRef<HTMLCanvasElement>(null);
   const shadowMaskCanvas = useRef<HTMLCanvasElement>(null);
   const shadowColorCanvas = useRef<HTMLCanvasElement>(null);
+  const shadowRayCanvas = useRef<HTMLCanvasElement>(null);
+  const [rayInfo, setRayInfo] = useState<{ x: number; y: number; occluded: boolean } | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [light, setLight] = useState({ x: -0.6, y: -0.8 });
@@ -246,6 +318,23 @@ export function RendererDebug(): ReactElement {
       draw(shadowHeightCanvas.current, toRgbaBytes(await readBufferData(height), { min: 0, max: 6 }));
       draw(shadowMaskCanvas.current, toRgbaBytes(await readBufferData(visibility!), { min: 0, max: 1 }));
       draw(shadowColorCanvas.current, toRgbaBytes(await readBufferData(color)));
+      // ray debug: receiver = first shadowed pixel on the center row
+      const row = Math.floor(shadowMaskCanvas.current ? 60 / 2 : 30);
+      let rx = -1;
+      for (let x = 0; x < 96; x++) {
+        if (visibility!.get(x, row, 0) === 0) {
+          rx = x;
+          break;
+        }
+      }
+      if (rx >= 0) {
+        const samples = marchShadowRay(scene, height, rx + 0.5, row + 0.5);
+        const receiverZ = height.get(rx, row, 0);
+        drawRayPlot(shadowRayCanvas.current, samples, receiverZ);
+        setRayInfo({ x: rx, y: row, occluded: samples.some((s) => s.occluded) });
+      } else {
+        setRayInfo(null);
+      }
     })();
   }, [light.x, light.y]);
 
@@ -403,6 +492,13 @@ export function RendererDebug(): ReactElement {
               casts its shadow on the base plane through real visibility tests, not a CSS
               offset/blur. Move the light sliders to see the shadow slide.
             </p>
+            <p>
+              Ray debug — receiver at the first shadowed pixel
+              {rayInfo !== null ? ` (${rayInfo.x}, ${rayInfo.y})` : " (no shadow in the center row)"}
+              , occluded: {rayInfo === null ? "n/a" : String(rayInfo.occluded)} — green = receiver,
+              blue = ray z, gray = height samples, red = blocking sample
+            </p>
+            <canvas ref={shadowRayCanvas} width={320} height={150} />
           </section>
           <section>
             <h2>Verification loop (backend write → readback → RGBA)</h2>

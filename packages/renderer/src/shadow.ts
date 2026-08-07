@@ -14,11 +14,26 @@ import type { Scene } from "./scene";
  *     for t = step .. maxDistance:
  *         sampleXY = P.xy + L.xy * t
  *         rayZ     = P.z  + L.z  * t
- *         if H(sampleXY) > rayZ + bias:  occluded
+ *         if H(sampleXY) > f32(rayZ + bias):  occluded
  *
  * This is NOT a CSS offset/blur or a translated silhouette: occlusion is a
  * real visibility test on the height field. `box-shadow` / `drop-shadow` are
  * never used.
+ *
+ * Resolution / devicePixelRatio contract:
+ *
+ * This CPU reference assumes **1 texel = 1 CSS scene unit**: texel (x, y)
+ * samples the height field at scene position `(x + 0.5, y + 0.5)`. A
+ * DPR-scaled backend renders into a buffer of `width = floor(sceneWidth *
+ * dpr)` texels and maps texel centers to scene coordinates via
+ *
+ *     sceneX = (texelX + 0.5) / dpr
+ *     sceneY = (texelY + 0.5) / dpr
+ *     receiverZ = heightAt(texel)          (unchanged scene units)
+ *
+ * `stepSize`, `bias` and `maxDistance` stay in SCENE units (CSS pixels), so
+ * the shadow result is resolution-independent — only the sampling density
+ * changes with dpr.
  *
  * Design decisions (fixed here):
  *
@@ -27,23 +42,32 @@ import type { Scene } from "./scene";
  * - step size: default 0.5 scene units; smaller = more accurate, slower
  * - bias: self-shadow acne bias, default 0.5 scene units; larger suppresses
  *   self-shadowing on shallow slopes
+ * - the occlusion comparison is f32-consistent: the height sample is stored
+ *   f32 and the threshold `f32(rayZ + bias)` is rounded to f32 before the
+ *   comparison, matching the WebGPU pipeline
  * - termination: marching stops when the sample leaves the scene rectangle,
- *   or when the ray rises above the scene's maximum height + bias (nothing
- *   can occlude it anymore), or at `maxDistance` (default: the scene
- *   diagonal) as a safety cap
- * - grazing stability: the early exit on `maxHeight + bias` and the
- *   bounds check keep near-horizontal rays from marching forever
- * - values are rounded to f32 at the comparison point, matching the WebGPU
- *   pipeline semantics
+ *   when the ray rises above `maxHeight + bias` (nothing can occlude it
+ *   anymore), or at `maxDistance`
+ * - default `maxDistance = sceneDiagonal / |L.xy|`: t advances along the
+ *   NORMALIZED 3D light vector while XY advances by only `|L.xy| * t`, so a
+ *   scene-diagonal XY traversal needs `sceneDiagonal / |L.xy|`. For a
+ *   (near-)vertical light (`|L.xy| ~ 0`) there is no horizontal travel —
+ *   the maxHeight early exit terminates upward rays and the scene diagonal
+ *   is a harmless cap for downward ones
+ * - grazing stability: the early exit on `maxHeight + bias` and the bounds
+ *   check keep near-horizontal rays from marching forever
  *
  * The result is a hard 0/1 visibility mask; soft shadows are a future
  * extension on top of this mask.
+ *
+ * Pass-wide state (maxHeight, sanitized options, light data) is prepared
+ * ONCE in `prepareShadowContext` and shared by every pixel trace.
  */
 
 export interface ShadowOptions {
   /** ray march step in scene units (default 0.5, must be > 0) */
   stepSize?: number;
-  /** maximum march distance in scene units (default: scene diagonal) */
+  /** maximum march distance in scene units (default: sceneDiagonal / |L.xy|) */
   maxDistance?: number;
   /** self-shadow acne bias in scene units (default 0.5, must be >= 0) */
   bias?: number;
@@ -61,8 +85,51 @@ export interface ShadowRayResult {
   rayZ: number;
 }
 
+export interface ShadowMarchSample {
+  t: number;
+  sampleX: number;
+  sampleY: number;
+  /** f32 height at the sample */
+  height: number;
+  /** f32 ray z at the sample */
+  rayZ: number;
+  /** true for the blocking sample (the march stops there) */
+  occluded: boolean;
+}
+
+/** Pass-wide shadow state, prepared once per `computeVisibility` call. */
+export interface ShadowContext {
+  stepSize: number;
+  bias: number;
+  maxDistance: number;
+  lx: number;
+  ly: number;
+  lz: number;
+  maxHeight: number;
+}
+
 const DEFAULT_STEP_SIZE = 0.5;
 const DEFAULT_BIAS = 0.5;
+
+export function prepareShadowContext(
+  scene: Scene,
+  height: HostBuffer,
+  options: ShadowOptions = {},
+): ShadowContext {
+  const { width, height: h } = height.spec;
+  const stepSize = sanitizeStrictPositive(options.stepSize, DEFAULT_STEP_SIZE);
+  const bias = sanitizeNonNegative(options.bias, DEFAULT_BIAS);
+  const lx = scene.light.direction.x;
+  const ly = scene.light.direction.y;
+  const lz = scene.light.direction.z;
+  const xyLength = Math.hypot(lx, ly);
+  const diagonal = Math.hypot(width, h);
+  const maxDistance = sanitizeStrictPositive(
+    options.maxDistance,
+    xyLength > 1e-6 ? diagonal / xyLength : diagonal,
+  );
+  return { stepSize, bias, maxDistance, lx, ly, lz, maxHeight: sceneMaxHeight(height) };
+}
 
 /**
  * Bilinear sample of the height field at a CONTINUOUS scene position.
@@ -88,6 +155,57 @@ export function sampleHeightAt(height: HostBuffer, x: number, y: number): number
   return top + (bottom - top) * ty;
 }
 
+interface MarchResult {
+  samples: ShadowMarchSample[];
+  blocked: ShadowRayResult;
+}
+
+function marchWithContext(
+  ctx: ShadowContext,
+  height: HostBuffer,
+  px: number,
+  py: number,
+): MarchResult {
+  const { width, height: h } = height.spec;
+  const rz0 = Math.fround(sampleHeightAt(height, px, py));
+  const samples: ShadowMarchSample[] = [];
+  for (let t = ctx.stepSize; t <= ctx.maxDistance; t += ctx.stepSize) {
+    const sx = px + ctx.lx * t;
+    const sy = py + ctx.ly * t;
+    if (sx < 0.5 || sx > width - 0.5 || sy < 0.5 || sy > h - 0.5) {
+      break;
+    }
+    const rayZ = Math.fround(rz0 + ctx.lz * t);
+    if (rayZ > ctx.maxHeight + ctx.bias) {
+      break;
+    }
+    const sample = Math.fround(sampleHeightAt(height, sx, sy));
+    const threshold = Math.fround(rayZ + ctx.bias);
+    const occluded = sample > threshold;
+    samples.push({ t, sampleX: sx, sampleY: sy, height: sample, rayZ, occluded });
+    if (occluded) {
+      return {
+        samples,
+        blocked: { occluded: true, t, sampleX: sx, sampleY: sy, blockingHeight: sample, rayZ },
+      };
+    }
+  }
+  const last = samples[samples.length - 1];
+  return {
+    samples,
+    blocked: last
+      ? {
+          occluded: false,
+          t: last.t,
+          sampleX: last.sampleX,
+          sampleY: last.sampleY,
+          blockingHeight: last.height,
+          rayZ: last.rayZ,
+        }
+      : { occluded: false, t: 0, sampleX: px, sampleY: py, blockingHeight: rz0, rayZ: rz0 },
+  };
+}
+
 /** Trace one shadow ray from a continuous receiver position. */
 export function traceShadowRay(
   scene: Scene,
@@ -96,62 +214,38 @@ export function traceShadowRay(
   py: number,
   options: ShadowOptions = {},
 ): ShadowRayResult {
-  const { width, height: h } = height.spec;
-  const stepSize = sanitizeStrictPositive(options.stepSize, DEFAULT_STEP_SIZE);
-  const bias = sanitizeNonNegative(options.bias, DEFAULT_BIAS);
-  const maxDistance = sanitizeStrictPositive(
-    options.maxDistance,
-    Math.hypot(width, h),
-  );
-  const maxHeight = sceneMaxHeight(height);
-  const lx = scene.light.direction.x;
-  const ly = scene.light.direction.y;
-  const lz = scene.light.direction.z;
-  const rz0 = Math.fround(sampleHeightAt(height, px, py));
+  return marchWithContext(prepareShadowContext(scene, height, options), height, px, py).blocked;
+}
 
-  let last: ShadowRayResult = {
-    occluded: false,
-    t: 0,
-    sampleX: px,
-    sampleY: py,
-    blockingHeight: rz0,
-    rayZ: rz0,
-  };
-  for (let t = stepSize; t <= maxDistance; t += stepSize) {
-    const sx = px + lx * t;
-    const sy = py + ly * t;
-    if (sx < 0.5 || sx > width - 0.5 || sy < 0.5 || sy > h - 0.5) {
-      break;
-    }
-    const rayZ = Math.fround(rz0 + lz * t);
-    if (rayZ > maxHeight + bias) {
-      break;
-    }
-    const sample = Math.fround(sampleHeightAt(height, sx, sy));
-    last = { occluded: false, t, sampleX: sx, sampleY: sy, blockingHeight: sample, rayZ };
-    if (sample > rayZ + bias) {
-      return { ...last, occluded: true };
-    }
-  }
-  return last;
+/** All marched samples of one ray (including the blocking sample, if any). */
+export function marchShadowRay(
+  scene: Scene,
+  height: HostBuffer,
+  px: number,
+  py: number,
+  options: ShadowOptions = {},
+): ShadowMarchSample[] {
+  return marchWithContext(prepareShadowContext(scene, height, options), height, px, py).samples;
 }
 
 /**
  * Hard cast-shadow visibility mask for every pixel: 1 = lit, 0 = occluded.
  * Pixels are sampled at pixel centers `(x + 0.5, y + 0.5)` with the pixel's
- * own height as the receiver z (f32 semantics).
+ * own height as the receiver z (f32 semantics). Pass-wide state is prepared
+ * once and shared by all pixel traces.
  */
 export function computeVisibility(
   scene: Scene,
   height: HostBuffer,
   options: ShadowOptions = {},
 ): HostBuffer {
+  const ctx = prepareShadowContext(scene, height, options);
   const { width, height: h } = height.spec;
   const out = new HostBuffer(VISIBILITY_SPEC(width, h));
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < width; x++) {
-      const ray = traceShadowRay(scene, height, x + 0.5, y + 0.5, options);
-      out.set(x, y, 0, ray.occluded ? 0 : 1);
+      const blocked = marchWithContext(ctx, height, x + 0.5, y + 0.5).blocked;
+      out.set(x, y, 0, blocked.occluded ? 0 : 1);
     }
   }
   return out;

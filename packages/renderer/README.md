@@ -163,17 +163,35 @@ height -> per-pixel ray march toward the light -> hard 0/1 visibility mask
 
 - `computeVisibility`: from each pixel center, march `P.xy + L.xy * t` while
   the ray stays inside the scene and below `maxHeight + bias`; the pixel is
-  occluded when a bilinear height sample exceeds `rayZ + bias`. Sampling is
-  bilinear with clamped (replicate) texture-boundary policy; comparisons are
-  rounded to f32. Defaults: `stepSize = 0.5`, `bias = 0.5` (self-shadow
-  acne), `maxDistance = scene diagonal`.
-- `traceShadowRay`: single-ray form for tests/debug (returns the blocking
-  sample).
+  occluded when a bilinear height sample exceeds the f32 threshold
+  `f32(rayZ + bias)`. Sampling is bilinear with clamped (replicate)
+  texture-boundary policy. Defaults: `stepSize = 0.5`, `bias = 0.5`
+  (self-shadow acne).
+- `prepareShadowContext` computes the pass-wide state (maxHeight, sanitized
+  options, light data) once; every pixel trace shares it.
+- default `maxDistance = sceneDiagonal / |L.xy|`: `t` advances along the
+  normalized 3D light vector while XY advances by only `|L.xy| * t`, so a
+  scene-diagonal XY traversal needs `sceneDiagonal / |L.xy|`. A near-vertical
+  light falls back to the scene diagonal (its rays terminate via the
+  maxHeight early exit or the bounds check).
+- `traceShadowRay` (single ray summary) and `marchShadowRay` (all marched
+  samples, including the blocking one) power tests and the demo ray
+  visualization.
 - visibility scales the direct (diffuse + specular) terms in the lighting
   pass; fully shadowed pixels keep only their ambient base color.
 - This is a real visibility test on the height field — `box-shadow` /
   `drop-shadow` / translated silhouettes are never used. Soft shadows are a
   future extension on top of the hard mask.
+
+### Resolution / devicePixelRatio contract
+
+This CPU reference assumes **1 texel = 1 CSS scene unit**: texel `(x, y)`
+samples the height field at scene position `(x + 0.5, y + 0.5)`. A DPR-scaled
+backend renders into a buffer of `width = floor(sceneWidth * dpr)` texels and
+maps texel centers to scene coordinates via `sceneX = (texelX + 0.5) / dpr`,
+`sceneY = (texelY + 0.5) / dpr`, with the receiver z unchanged (scene units).
+`stepSize`, `bias` and `maxDistance` stay in scene units, so the shadow result
+is resolution-independent — only the sampling density changes with dpr.
 
 The demo page renders roughness low/high, metallic 0/1 and the
 silicone / matte / metal presets side by side under identical geometry and
