@@ -87,7 +87,9 @@ describe("maskSurfaceHeight", () => {
     // every ink pixel of this thin mask is within 0.5 of a boundary
     // (including the raster edge via the virtual padding), so the maximum
     // relief depth is 0.5 -> height 6.4
-    expect(maskSurfaceHeight(s, 5, 8)).toBeCloseTo(6.4, 4);
+    expect(maskSurfaceHeight(s, 5.5, 8)).toBeCloseTo(6.4, 4);
+    // the raster edge itself samples d = 0 -> no coverage
+    expect(maskSurfaceHeight(s, 5, 8)).toBe(-Infinity);
     // inside the stem's bevel band (mask px = 0.75, d ~ -0.5): the relief is
     // between the base and the deepest point
     const mid = maskSurfaceHeight(s, 5.9, 6.5);
@@ -173,6 +175,57 @@ describe("glyph cast shadows", () => {
       return n;
     };
     expect(countShadowed(high)).toBeGreaterThan(countShadowed(low));
+  });
+
+  it("changing the light direction moves the glyph shadow", () => {
+    // the C icon on the button; only the light direction changes
+    const icon = glyphSurface({
+      id: "icon",
+      position: { x: 5, y: 6 },
+      size: { x: 5, y: 3 },
+      elevation: 6,
+      thickness: 1.5,
+      bevelWidth: 0.4,
+      shape: { kind: "mask", mask: C_MASK },
+    });
+    const sceneAt = (lx: number): Scene =>
+      createScene({
+        width: 16,
+        height: 16,
+        surfaces: [
+          {
+            id: "btn",
+            position: { x: 3, y: 3 },
+            size: { x: 10, y: 10 },
+            elevation: 4,
+            thickness: 2,
+            shape: { kind: "roundedRect", radius: 0 },
+            profile: { kind: "flat" },
+            material: "silicone",
+            castsShadow: true,
+            receivesShadow: true,
+          },
+          icon,
+        ],
+        light: { direction: { x: lx, y: 0, z: 0.70710678 }, intensity: 1 },
+      });
+    const shadowVis = (scene: Scene) => {
+      const c = composeSdfHeightField(scene);
+      return computeVisibility(scene, c.height, {
+        objectId: c.objectId,
+        casterHeight: c.height,
+        bias: 0.2,
+      });
+    };
+    const fromRight = shadowVis(sceneAt(0.70710678));
+    const fromLeft = shadowVis(sceneAt(-0.70710678));
+    // with the light on the right the pixel left of the icon (at the arm row)
+    // is in the shadow and the pixel right of it is lit; with the light on
+    // the left the shadow appears on the other side
+    expect(fromRight.get(4, 6, 0)).toBe(0);
+    expect(fromRight.get(9, 6, 0)).toBe(1);
+    expect(fromLeft.get(4, 6, 0)).toBe(1);
+    expect(fromLeft.get(9, 6, 0)).toBe(0);
   });
 
   it("the P counter is reflected in the glyph geometry (not a filled box)", () => {

@@ -319,9 +319,10 @@ function ringIconMask(width: number, height: number): MaskSource {
 const PLAY_MASK = maskFromText("PLAY", 240, 48);
 const ICON_MASK = ringIconMask(40, 40);
 
-function glyphScene(): ReturnType<typeof createScene> {
+function glyphScene(lx: number, ly: number): ReturnType<typeof createScene> {
   return createScene({
     ...GLYPH_SCENE,
+    light: { direction: { x: lx, y: ly, z: 1 }, intensity: 1 },
     surfaces: [
       ...GLYPH_SCENE.surfaces,
       {
@@ -520,7 +521,7 @@ export function RendererDebug(): ReactElement {
   }, [light.x, light.y]);
 
   useEffect(() => {
-    const scene = glyphScene();
+    const scene = glyphScene(light.x, light.y);
     const composed = composeSdfHeightField(scene);
     // thin reliefs need a smaller self-shadow bias to cast a visible shadow
     const { visibility, color } = lightScene(scene, { shadow: { bias: 0.15 } });

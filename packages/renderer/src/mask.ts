@@ -5,19 +5,22 @@ import type { MaskSource } from "./scene";
  * #19 mask geometry: alpha mask -> signed distance field.
  *
  * The mask's binary silhouette (alpha >= 0.5, i.e. >= 128 for Uint8) is
- * converted to an exact Euclidean signed distance field (Felzenszwalb-
- * Huttenlocher 1D-sweep EDT, applied twice: rows then columns) with distances
- * in MASK PIXEL units.
+ * converted to a signed distance field in MASK PIXEL units, measured to the
+ * ACTUAL SILHOUETTE BOUNDARY GEOMETRY (the axis-aligned unit segments
+ * separating ink cells from empty cells), not to opposite-class pixel
+ * centers:
  *
- * The distances are measured to the ACTUAL SILHOUETTE BOUNDARY, not to
- * opposite-class pixel centers:
- *
- * - the EDT grid is padded with virtual transparent pixels (1-pixel margin)
- *   so ink touching the raster edge still has a proper outer boundary (the
- *   raster edge lies 0.5 from the edge pixel center)
- * - a half-pixel correction subtracts 0.5 from every center distance, so
- *   `d = 0` lands exactly on the boundary between an ink pixel and its empty
- *   neighbor (and on the raster edge for edge-adjacent ink)
+ * - the EDT domain is padded with virtual transparent pixels so ink touching
+ *   the raster edge has a proper outer boundary; the padded grid is kept in
+ *   the result and the continuous sampler interpolates within it, so the
+ *   raster edge samples `d = 0` exactly
+ * - the exact distance from a pixel center to the boundary segment set is
+ *   the minimum of: the perpendicular distance to a vertical segment in the
+ *   same row band, the perpendicular distance to a horizontal segment in the
+ *   same column band, and the distance to the nearest segment endpoint
+ *   (corner point). All three are computed exactly on a 2x grid: 1D
+ *   Felzenszwalb-Huttenlocher per row/column band for the perpendiculars and
+ *   a 2D FH EDT with the corner points as seeds.
  *
  * Sign convention matches the rounded-rect SDF: negative inside, positive
  * outside.
@@ -32,7 +35,9 @@ import type { MaskSource } from "./scene";
 export interface MaskSdf {
   width: number;
   height: number;
-  /** signed distance per mask pixel, row-major, in mask-pixel units */
+  /** virtual transparent margin (the grid is `width + 2*pad` wide) */
+  pad: number;
+  /** signed distance per PADDED-grid pixel, row-major, in mask-pixel units */
   sdf: Float32Array;
 }
 
@@ -59,55 +64,129 @@ export function computeMaskSdf(mask: MaskSource): MaskSdf {
   const { width, height } = mask;
   const pw = width + 2 * PAD;
   const ph = height + 2 * PAD;
-  const pn = pw * ph;
-  const inside = new Uint8Array(pn);
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const i = y * width + x;
-      const a = mask.alpha instanceof Uint8Array ? mask.alpha[i] / 255 : mask.alpha[i];
-      inside[(y + PAD) * pw + (x + PAD)] = a >= 0.5 ? 1 : 0;
+  // Everything runs on a 2x-scaled grid so pixel centers (odd) and boundary
+  // features (even) are separate cells.
+  const w2 = 2 * pw;
+  const h2 = 2 * ph;
+  const n2 = w2 * h2;
+  const inside2 = new Uint8Array(n2);
+  for (let c = 0; c < pw; c++) {
+    for (let r = 0; r < ph; r++) {
+      let ink = false;
+      if (r >= PAD && r < PAD + height && c >= PAD && c < PAD + width) {
+        const i = (r - PAD) * width + (c - PAD);
+        const a = mask.alpha instanceof Uint8Array ? mask.alpha[i] / 255 : mask.alpha[i];
+        ink = a >= 0.5;
+      }
+      const v = ink ? 1 : 0;
+      const base = 2 * r * w2 + 2 * c;
+      inside2[base] = v;
+      inside2[base + 1] = v;
+      inside2[base + w2] = v;
+      inside2[base + w2 + 1] = v;
     }
   }
-  // Squared-distance transform with seeds = background (distances of ink
-  // pixels to the nearest background) and seeds = foreground (distances of
-  // background pixels to the nearest ink). The padding is always background.
-  const maxDim = Math.max(pw, ph);
-  const far = 4 * maxDim * maxDim + 1; // beyond any real squared distance
-  const fIn = new Float64Array(pn);
-  const fOut = new Float64Array(pn);
-  for (let i = 0; i < pn; i++) {
-    fIn[i] = inside[i] ? far : 0;
-    fOut[i] = inside[i] ? 0 : far;
-  }
-  const dToBg2 = edt2dSquared(fIn, pw, ph);
-  const dToFg2 = edt2dSquared(fOut, pw, ph);
-  const sdf = new Float32Array(width * height);
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const i = (y + PAD) * pw + (x + PAD);
-      // half-pixel correction: the boundary is 0.5 from the nearest
-      // opposite-class pixel center
-      const d = inside[i] ? Math.sqrt(dToBg2[i]) - 0.5 : Math.sqrt(dToFg2[i]) - 0.5;
-      sdf[y * width + x] = inside[i] ? -d : d;
+
+  const maxDim2 = Math.max(w2, h2);
+  const far = 4 * maxDim2 * maxDim2 + 1;
+  const lineCap = Math.max(w2, h2);
+  const v = new Int32Array(lineCap);
+  const z = new Float64Array(lineCap + 1);
+  const line = new Float64Array(lineCap);
+
+  // Boundary segments (2x units) and their endpoints (corners).
+  const vertByRow: number[][] = Array.from({ length: h2 }, () => []);
+  const horByCol: number[][] = Array.from({ length: w2 }, () => []);
+  const corners: number[] = [];
+  for (let c = 0; c < pw; c++) {
+    for (let r = 0; r < ph; r++) {
+      const x0 = 2 * c;
+      const y0 = 2 * r;
+      if (c + 1 < pw) {
+        // vertical segment at x = 2c + 2 spanning rows [2r, 2r + 2]
+        if (inside2[y0 * w2 + (2 * c + 1)] !== inside2[y0 * w2 + (2 * c + 2)]) {
+          vertByRow[2 * r + 1].push(2 * c + 2);
+          corners.push(2 * c + 2, y0, 2 * c + 2, y0 + 2);
+        }
+      }
+      if (r + 1 < ph) {
+        // horizontal segment at y = 2r + 2 spanning cols [2c, 2c + 2]
+        if (inside2[(2 * r + 1) * w2 + x0] !== inside2[(2 * r + 2) * w2 + x0]) {
+          horByCol[2 * c + 1].push(2 * r + 2);
+          corners.push(x0, 2 * r + 2, x0 + 2, 2 * r + 2);
+        }
+      }
     }
   }
-  return { width, height, sdf };
+
+  // Perpendicular distances: 1D FH per row band (vertical segments) and per
+  // column band (horizontal segments), queried at every 2x cell.
+  const vert2 = new Float64Array(n2);
+  for (let r = 0; r < ph; r++) {
+    const band = 2 * r + 1;
+    line.fill(far);
+    for (const sx of vertByRow[band]) {
+      line[sx] = 0;
+    }
+    edt1d(line, w2, v, z);
+    for (let x = 0; x < w2; x++) {
+      vert2[band * w2 + x] = line[x];
+    }
+  }
+  const hor2 = new Float64Array(n2);
+  for (let c = 0; c < pw; c++) {
+    const band = 2 * c + 1;
+    line.fill(far);
+    for (const sy of horByCol[band]) {
+      line[sy] = 0;
+    }
+    edt1d(line, h2, v, z);
+    for (let y = 0; y < h2; y++) {
+      hor2[y * w2 + band] = line[y];
+    }
+  }
+
+  // Corner points: exact 2D EDT with the segment endpoints as seeds.
+  const f = new Float64Array(n2);
+  f.fill(far);
+  for (let i = 0; i < corners.length; i += 2) {
+    f[corners[i + 1] * w2 + corners[i]] = 0;
+  }
+  const corner2 = edt2dSquared(f, w2, h2);
+
+  const sdf = new Float32Array(pw * ph);
+  for (let r = 0; r < ph; r++) {
+    for (let c = 0; c < pw; c++) {
+      const idx = (2 * r + 1) * w2 + (2 * c + 1);
+      const d2 = Math.min(vert2[idx], hor2[idx], corner2[idx]);
+      const d = Math.sqrt(d2) / 2;
+      sdf[r * pw + c] = inside2[idx] ? -d : d;
+    }
+  }
+  return { width, height, pad: PAD, sdf };
 }
 
-/** Bilinear sample of the SDF at CONTINUOUS mask-pixel coordinates (clamped). */
+/**
+ * Bilinear sample of the SDF at CONTINUOUS mask-pixel coordinates. The
+ * virtual transparent padding is part of the sampled domain, so the raster
+ * edge (mask-px 0 / width) interpolates to `d = 0` exactly. Clamped to the
+ * padded grid.
+ */
 export function sampleMaskSdfAt(sdf: MaskSdf, px: number, py: number): number {
-  const fx = clamp(px - 0.5, 0, sdf.width - 1);
-  const fy = clamp(py - 0.5, 0, sdf.height - 1);
+  const pw = sdf.width + 2 * sdf.pad;
+  const ph = sdf.height + 2 * sdf.pad;
+  const fx = clamp(px + sdf.pad - 0.5, 0, pw - 1);
+  const fy = clamp(py + sdf.pad - 0.5, 0, ph - 1);
   const x0 = Math.floor(fx);
   const y0 = Math.floor(fy);
-  const x1 = Math.min(x0 + 1, sdf.width - 1);
-  const y1 = Math.min(y0 + 1, sdf.height - 1);
+  const x1 = Math.min(x0 + 1, pw - 1);
+  const y1 = Math.min(y0 + 1, ph - 1);
   const tx = fx - x0;
   const ty = fy - y0;
-  const v00 = sdf.sdf[y0 * sdf.width + x0];
-  const v10 = sdf.sdf[y0 * sdf.width + x1];
-  const v01 = sdf.sdf[y1 * sdf.width + x0];
-  const v11 = sdf.sdf[y1 * sdf.width + x1];
+  const v00 = sdf.sdf[y0 * pw + x0];
+  const v10 = sdf.sdf[y0 * pw + x1];
+  const v01 = sdf.sdf[y1 * pw + x0];
+  const v11 = sdf.sdf[y1 * pw + x1];
   const top = v00 + (v10 - v00) * tx;
   const bottom = v01 + (v11 - v01) * tx;
   return top + (bottom - top) * ty;

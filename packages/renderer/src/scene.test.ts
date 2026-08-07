@@ -169,6 +169,39 @@ describe("createScene", () => {
     expect(() => createScene({ ...base, surfaces: [surface({ shape: { kind: "mask", mask: maskFromAscii(["#"]) } })] })).not.toThrow();
   });
 
+  it("rejects out-of-range Float32 alpha values", () => {
+    const base = { width: 4, height: 4 };
+    expect(() =>
+      createScene({
+        ...base,
+        surfaces: [surface({ shape: { kind: "mask", mask: { width: 1, height: 1, alpha: new Float32Array([1.5]) } } })],
+      }),
+    ).toThrow(TypeError);
+    expect(() =>
+      createScene({
+        ...base,
+        surfaces: [surface({ shape: { kind: "mask", mask: { width: 1, height: 1, alpha: new Float32Array([-0.1]) } } })],
+      }),
+    ).toThrow(TypeError);
+  });
+
+  it("rejects non-isotropic mask mappings", () => {
+    const base = { width: 4, height: 4 };
+    // 2x2 mask mapped onto a 10x5 surface: aspect 1 != 2
+    expect(() =>
+      createScene({
+        ...base,
+        surfaces: [surface({ shape: { kind: "mask", mask: maskFromAscii(["##", "##"]) }, size: { x: 10, y: 5 } })],
+      }),
+    ).toThrow(/isotropic/);
+    expect(() =>
+      createScene({
+        ...base,
+        surfaces: [surface({ shape: { kind: "mask", mask: maskFromAscii(["##", "##"]) }, size: { x: 10, y: 10 } })],
+      }),
+    ).not.toThrow();
+  });
+
   it("rejects unknown material references", () => {
     expect(() =>
       createScene({
