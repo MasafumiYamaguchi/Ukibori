@@ -1,4 +1,5 @@
 import type { ComponentPropsWithRef, ElementType, ReactNode } from "react";
+import type { MaterialTokensOverride } from "./core/materials";
 
 export interface LightVector {
   x: number;
@@ -22,6 +23,8 @@ export interface SurfaceOwnProps {
   variant?: Variant;
   elevation?: number;
   radius?: number;
+  /** Type-safe partial override of the material token set. */
+  materialOverrides?: MaterialTokensOverride;
 }
 
 /**

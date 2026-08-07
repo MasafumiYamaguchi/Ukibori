@@ -48,6 +48,37 @@ CP1時点での構成判断を記録します。
 
 `box-shadow`は影・ハイライトの2段重ねで、offset/blur/spread/alphaと色のすべてが`var()`参照(色は`var(--ukibori-shadow-color, rgba(0, 0, 0, var(--ukibori-shadow-alpha)))`形式)。ユーザーstyleの`boxShadow` / `backgroundColor`で全面上書きも可能です。
 
+## 材質(material)
+
+`material`は`Surface`のオプションで、`silicone` / `matte` / `glass` / `metal`を選べます。未知の値は`silicone`に正規化されます。各材質は以下のトークンで抑制された実質的な差を持ちます(プレセットは`resolveMaterialTokens`の純粋関数で解決):
+
+| トークン | 意味 | silicone | matte | glass | metal |
+| --- | --- | --- | --- | --- | --- |
+| `shadowAlpha` | 影の濃さ倍率 | 1 | 0.8 | 0.7 | 1.15 |
+| `highlightAlpha` | ハイライトの強さ倍率 | 1 | 0.35 | 1.35 | 1.7 |
+| `blurScale` | 影の柔らかさ倍率 | 1 | 1.35 | 1.15 | 0.8 |
+| `spreadScale` | 影の広がり倍率 | 1 | 0.5 | 0.5 | 1.25 |
+| `surfaceAlpha` | 表面の透明度(1=不透明) | 1 | 1 | 0.38 | 1 |
+| `backgroundImage` | 光沢・ヴェール(background-image) | null | null | 白ヴェール | 145degグロス |
+| `borderWidth` / `borderColor` | 縁 | なし | なし | 1px白 | 1px白 |
+| `backdropFilter` | 背面のぼかし | null | null | `blur(10px) saturate(1.15)` | null |
+
+利用者は`Surface`の`materialOverrides` propでトークンを**型安全に部分上書き**できます。例:
+
+```tsx
+<Surface material="glass" materialOverrides={{ surfaceAlpha: 0.6, backdropFilter: null }}>
+  Frosted but more opaque
+</Surface>
+```
+
+## ブラウザ制約
+
+- **glassの透過背景は`color-mix()`を使用**: 非対応ブラウザでは`--ukibori-material-bg`が無効値になり、`background-color: var(--ukibori-material-bg, var(--ukibori-color))`のフォールバックにより**不透明で可読性の高い背景**に落ちます
+- **`backdrop-filter`非対応**: 同様にフォールバック背景が有効になり、内容は読み取れます(ガラス効果は失われます)
+- `box-shadow`の`var()`参照はペイント時に解決されます(jsdom等のテスト環境では解決されません)
+- このライブラリは物理シミュレーションではなく、`box-shadow` / `background` / `border` / `backdrop-filter`による**近似**です。WebGLやCanvasは使いません
+- 装飾は要素そのもののCSSのみで構成され、focus表示の除去・要素のラップ・セマンティクス変更は行いません
+
 ## 開発コマンド
 
 ```sh

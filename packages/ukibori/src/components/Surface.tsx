@@ -2,6 +2,8 @@ import { createElement, forwardRef, useContext } from "react";
 import type { CSSProperties, ElementType, ReactNode } from "react";
 import { UkiboriContext } from "../context";
 import { ELEVATION_MAX, RADIUS_MAX, getShadowSpec } from "../core/shadow";
+import { applyMaterialScales, normalizeMaterialName, resolveMaterialTokens } from "../core/materials";
+import type { MaterialTokensOverride } from "../core/materials";
 import { sanitizeNumber } from "../core/math";
 import type { MaterialName, PolymorphicSurfaceProps, Variant } from "../types";
 
@@ -16,6 +18,7 @@ interface SurfaceInnerProps {
   variant?: Variant;
   elevation?: number;
   radius?: number;
+  materialOverrides?: MaterialTokensOverride;
 }
 
 export type SurfaceType = <C extends ElementType = "div">(
@@ -35,43 +38,68 @@ export type SurfaceType = <C extends ElementType = "div">(
  * the actual rendered output without touching the concrete properties.
  * The user can still fully replace backgroundColor / boxShadow / etc.
  * `className` is never lost.
+ *
+ * Material handling: unknown material names normalize to silicone, and
+ * `materialOverrides` lets users override individual tokens type-safely.
+ * glass uses `color-mix()` for its translucent background with an opaque
+ * `var(--ukibori-color)` fallback, so content stays readable in browsers
+ * without color-mix/backdrop-filter.
  */
 export const Surface = forwardRef<HTMLElement, SurfaceInnerProps>(function Surface(
-  { as = "div", className, style, material = "silicone", variant = "raised", elevation = ELEVATION_DEFAULT, radius = RADIUS_DEFAULT, ...rest },
+  { as = "div", className, style, material = "silicone", variant = "raised", elevation = ELEVATION_DEFAULT, radius = RADIUS_DEFAULT, materialOverrides, ...rest },
   ref,
 ) {
   const { light, intensity, color } = useContext(UkiboriContext);
 
-  // Unknown variants are normalized to "raised" consistently for the spec,
-  // the box-shadow keyword and the --ukibori-variant variable.
   const normalizedVariant: Variant = variant === "inset" ? "inset" : "raised";
+  const normalizedMaterial = normalizeMaterialName(material);
+  const tokens = resolveMaterialTokens(normalizedMaterial, materialOverrides);
+  const translucent = tokens.surfaceAlpha < 1;
 
   const safeElevation = sanitizeNumber(elevation, ELEVATION_DEFAULT, 0, ELEVATION_MAX);
   const safeRadius = sanitizeNumber(radius, RADIUS_DEFAULT, 0, RADIUS_MAX);
   const spec = getShadowSpec({ light, elevation: safeElevation, intensity, variant: normalizedVariant });
+  const scaled = applyMaterialScales(spec, tokens);
 
   const insetKeyword = normalizedVariant === "inset" ? "inset " : "";
 
   const internalStyle: CSSProperties = {
     "--ukibori-variant": normalizedVariant,
-    "--ukibori-material": material,
+    "--ukibori-material": normalizedMaterial,
+    "--ukibori-surface-alpha": String(tokens.surfaceAlpha),
     "--ukibori-elevation": `${safeElevation}px`,
     "--ukibori-radius": `${safeRadius}px`,
     "--ukibori-color": color,
-    "--ukibori-shadow-x": `${spec.shadowDx}px`,
-    "--ukibori-shadow-y": `${spec.shadowDy}px`,
-    "--ukibori-shadow-blur": `${spec.shadowBlur}px`,
-    "--ukibori-shadow-spread": `${spec.shadowSpread}px`,
-    "--ukibori-shadow-alpha": `${spec.shadowAlpha}`,
-    "--ukibori-highlight-x": `${spec.highlightDx}px`,
-    "--ukibori-highlight-y": `${spec.highlightDy}px`,
-    "--ukibori-highlight-blur": `${spec.highlightBlur}px`,
-    "--ukibori-highlight-alpha": `${spec.highlightAlpha}`,
-    backgroundColor: "var(--ukibori-color)",
+    "--ukibori-shadow-x": `${scaled.shadowDx}px`,
+    "--ukibori-shadow-y": `${scaled.shadowDy}px`,
+    "--ukibori-shadow-blur": `${scaled.shadowBlur}px`,
+    "--ukibori-shadow-spread": `${scaled.shadowSpread}px`,
+    "--ukibori-shadow-alpha": `${scaled.shadowAlpha}`,
+    "--ukibori-highlight-x": `${scaled.highlightDx}px`,
+    "--ukibori-highlight-y": `${scaled.highlightDy}px`,
+    "--ukibori-highlight-blur": `${scaled.highlightBlur}px`,
+    "--ukibori-highlight-alpha": `${scaled.highlightAlpha}`,
+    ...(translucent
+      ? {
+          "--ukibori-material-bg": `color-mix(in srgb, var(--ukibori-color) ${Math.round(tokens.surfaceAlpha * 100)}%, transparent)`,
+        }
+      : {}),
+    backgroundColor: translucent
+      ? "var(--ukibori-material-bg, var(--ukibori-color))"
+      : "var(--ukibori-color)",
     borderRadius: "var(--ukibori-radius)",
     boxShadow:
       `${insetKeyword}var(--ukibori-shadow-x) var(--ukibori-shadow-y) var(--ukibori-shadow-blur) var(--ukibori-shadow-spread) var(--ukibori-shadow-color, rgba(0, 0, 0, var(--ukibori-shadow-alpha))), ` +
       `${insetKeyword}var(--ukibori-highlight-x) var(--ukibori-highlight-y) var(--ukibori-highlight-blur) 0 var(--ukibori-highlight-color, rgba(255, 255, 255, var(--ukibori-highlight-alpha)))`,
+    ...(tokens.borderWidth > 0 && tokens.borderColor
+      ? {
+          borderWidth: tokens.borderWidth,
+          borderStyle: "solid",
+          borderColor: tokens.borderColor,
+        }
+      : {}),
+    ...(tokens.backgroundImage ? { backgroundImage: tokens.backgroundImage } : {}),
+    ...(tokens.backdropFilter ? { backdropFilter: tokens.backdropFilter } : {}),
   } as CSSProperties;
 
   const mergedStyle = { ...internalStyle, ...style };

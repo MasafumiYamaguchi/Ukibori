@@ -27,6 +27,13 @@ export const invalidMaterial: ReactNode = <Surface material="plastic">x</Surface
 // @ts-expect-error unknown variant value
 export const invalidVariant: ReactNode = <Surface variant="embossed">x</Surface>;
 
+// @ts-expect-error material override values must match token types
+export const invalidOverride: ReactNode = <Surface materialOverrides={{ shadowAlpha: "0.5" }}>x</Surface>;
+
+export const validOverride: ReactNode = (
+  <Surface materialOverrides={{ shadowAlpha: 0.5, borderWidth: 2, backdropFilter: null }}>x</Surface>
+);
+
 export const buttonProps: PolymorphicSurfaceProps<"button"> = { as: "button", type: "submit" };
 
 export default valid;
