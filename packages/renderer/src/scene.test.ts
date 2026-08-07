@@ -34,11 +34,21 @@ describe("createScene", () => {
     expect(Math.hypot(d.x, d.y, d.z)).toBeCloseTo(1, 12);
   });
 
-  it("defaults thickness, light direction and intensity", () => {
+  it("defaults thickness, bevelWidth, light direction and intensity", () => {
     const scene = createScene({ width: 4, height: 4, surfaces: [surface()] });
     expect(scene.surfaces[0].thickness).toBe(0);
+    expect(scene.surfaces[0].bevelWidth).toBe(0);
     expect(scene.light.direction).toEqual({ x: 0, y: 0, z: 1 });
     expect(scene.light.intensity).toBe(1);
+  });
+
+  it("keeps a provided bevelWidth", () => {
+    const scene = createScene({
+      width: 4,
+      height: 4,
+      surfaces: [surface({ bevelWidth: 2.5 })],
+    });
+    expect(scene.surfaces[0].bevelWidth).toBe(2.5);
   });
 
   it("normalizes the light direction toward the light", () => {
@@ -82,6 +92,8 @@ describe("createScene", () => {
     expect(() => createScene({ ...base, surfaces: [surface({ elevation: -1 })] })).toThrow(TypeError);
     expect(() => createScene({ ...base, surfaces: [surface({ elevation: NaN })] })).toThrow(TypeError);
     expect(() => createScene({ ...base, surfaces: [surface({ thickness: -0.5 })] })).toThrow(TypeError);
+    expect(() => createScene({ ...base, surfaces: [surface({ bevelWidth: -1 })] })).toThrow(TypeError);
+    expect(() => createScene({ ...base, surfaces: [surface({ bevelWidth: NaN })] })).toThrow(TypeError);
     expect(() => createScene({ ...base, surfaces: [surface({ size: { x: 0, y: 10 } })] })).toThrow(
       RangeError,
     );
@@ -93,6 +105,12 @@ describe("createScene", () => {
     expect(() =>
       createScene({ ...base, surfaces: [surface({ castsShadow: 1 as never })] }),
     ).toThrow(TypeError);
+  });
+
+  it("throws on duplicate surface ids", () => {
+    expect(() =>
+      createScene({ width: 4, height: 4, surfaces: [surface(), surface({ position: { x: 5, y: 5 } })] }),
+    ).toThrow(/duplicate surface id "a"/);
   });
 
   it("accepts mask shapes and returns normalized surfaces with thickness", () => {

@@ -38,9 +38,9 @@ function compose(...surfaces: SurfaceNode[]) {
 describe("sceneMaterials", () => {
   it("lists unique materials in first-appearance order", () => {
     const scene = sceneWith(
-      rectSurface({ material: "silicone" }),
-      rectSurface({ material: "metal" }),
-      rectSurface({ material: "silicone" }),
+      rectSurface({ id: "s1", material: "silicone" }),
+      rectSurface({ id: "s2", material: "metal" }),
+      rectSurface({ id: "s3", material: "silicone" }),
     );
     expect(sceneMaterials(scene)).toEqual(["silicone", "metal"]);
   });
@@ -53,6 +53,25 @@ describe("composeHeightField", () => {
     expect(result.height.spec.height).toBe(16);
     expect(result.height.get(3, 3)).toBe(6);
     expect(result.height.get(13, 13)).toBe(0);
+  });
+
+  it("samples the height field at pixel centers (x + 0.5, y + 0.5)", () => {
+    // Rect [0, 10) x [0, 10): pixel 9 center (9.5) is inside, pixel 10 center (10.5) is outside.
+    const result = compose(rectSurface({ id: "s", position: { x: 0, y: 0 }, size: { x: 10, y: 10 } }));
+    expect(result.height.get(9, 9)).toBe(5);
+    expect(result.objectId.get(9, 9)).toBe(0);
+    expect(result.height.get(10, 10)).toBe(0);
+    expect(result.objectId.get(10, 10)).toBe(NO_OWNER);
+  });
+
+  it("rounds heights to f32 before comparison and storage", () => {
+    const scene = sceneWith(rectSurface({ id: "s", position: { x: 0, y: 0 } }));
+    const f64Result = 0.1 + 0.2; // 0.30000000000000004
+    const f32 = Math.fround(f64Result);
+    expect(f32).not.toBe(f64Result);
+    const result = composeHeightField(scene, () => f64Result);
+    expect(result.height.get(2, 2)).toBe(f32);
+    expect(result.height.get(2, 2)).not.toBe(f64Result);
   });
 
   it("assigns ownership to the covering surface, NO_OWNER outside", () => {

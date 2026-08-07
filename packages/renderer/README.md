@@ -27,6 +27,8 @@ core. They are only a possible future fallback layer.
 - `devicePixelRatio` is a render-target concern and is never mixed into scene
   units
 - scene `width` / `height` are positive integers (CSS-pixel render region)
+- **pixel sampling**: render-target pixel `(x, y)` samples the height field at
+  the continuous position `(x + 0.5, y + 0.5)` (pixel centers)
 
 ## Light direction
 
@@ -37,13 +39,16 @@ direction; invalid input falls back to `+z` (straight at the viewer).
 
 ## Scene model
 
-- `SurfaceNode`: position (top-left), size, absolute `elevation`, optional
-  `thickness`, `shape` (roundedRect / mask), `profile` (distance -> height,
-  implemented in #14), `material` id, `castsShadow` / `receivesShadow`
+- `SurfaceNode`: position (top-left), size, absolute `elevation` (z of the
+  surface base), optional `thickness` (local profile height range, top z is
+  `elevation + localHeight`), optional `bevelWidth` (half-width of the smooth
+  edge rise, passed to the profile), `shape` (roundedRect / mask), `profile`
+  (distance -> height in `[0, thickness]`, implemented in #14), `material` id,
+  `castsShadow` / `receivesShadow`
 - `Scene`: render region + surfaces + shared `DirectionalLight`
 - `createScene` validates structural invariants (throws on non-finite or
-  negative values, empty ids, bad flags) and sanitizes light direction /
-  intensity (fallback values). See JSDoc for the full policy.
+  negative values, empty or duplicate ids, bad flags) and sanitizes light
+  direction / intensity (fallback values). See JSDoc for the full policy.
 
 ## Buffer contract
 
@@ -65,9 +70,15 @@ channels + c]`. The WebGPU backend pads rows only inside its transfer layer.
 Hscene(x, y) = max(0, max_i surfaceHeightAt_i(x, y))
 ```
 
-- objectId is the surface providing the maximum height
-- exact float-equality ties: the later surface (higher index) wins by
-  default (DOM-like paint order); `tieBreak: "first"` inverts this
+- `surfaceHeightAt` is evaluated at pixel centers `(x + 0.5, y + 0.5)`
+- heights are rounded to f32 (`Math.fround`) before the max/equality
+  comparison, so the CPU reference makes the same decisions as the f32
+  WebGPU pipeline
+- objectId is the INDEX into `scene.surfaces` of the surface providing the
+  maximum height (not the surface `id` string); `NO_OWNER` when nothing
+  covers the pixel
+- exact f32-equality ties: the later surface (higher index) wins by default
+  (DOM-like paint order); `tieBreak: "first"` inverts this
 - geometry contract: a surface returns `-Infinity` where it has no geometry,
   finite `>= 0` absolute z where it does; any non-finite value is treated as
   no geometry

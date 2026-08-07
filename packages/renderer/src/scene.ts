@@ -14,6 +14,8 @@ import type { Vec2, Vec3 } from "./types";
  * - elevation is absolute scene-space z (not parent-relative, not z-index)
  * - `devicePixelRatio` is a render-target concern and is never mixed into
  *   scene units; scene geometry stays in CSS-pixel space
+ * - render-target pixel (x, y) samples the height field at the CONTINUOUS
+ *   position `(x + 0.5, y + 0.5)` (pixel-center convention, fixed here)
  *
  * Light direction sign convention:
  *
@@ -27,9 +29,18 @@ import type { Vec2, Vec3 } from "./types";
  * Local height above the surface base, given the signed distance from the
  * shape boundary (negative inside, zero on boundary, positive outside).
  *
+ * Returns a value in `[0, thickness]`; the absolute scene z at a point is
+ * `elevation + profile(distance, bevelWidth, thickness)`.
+ *
  * The actual profiles are implemented by the geometry issue (#14); this
- * contract only fixes the signature. Profile functions must be finite and
- * return >= 0 for all inputs.
+ * contract only fixes the signature and the meaning of its parameters:
+ *
+ * - `distance`: signed distance from the shape boundary (scene units)
+ * - `bevelWidth`: the surface's edge bevel width (scene units, see
+ *   `SurfaceNode.bevelWidth`)
+ * - `thickness`: the surface's profile height range (scene units)
+ *
+ * Profile functions must be finite and return >= 0 for all inputs.
  */
 export type HeightProfile = (distance: number, bevelWidth: number, thickness: number) => number;
 
@@ -48,16 +59,35 @@ export type MaterialRef = string;
 export type Shape = { kind: "roundedRect"; radius: number } | { kind: "mask" };
 
 export interface SurfaceNode {
-  /** unique within the scene; used as the object/owner id in debug views */
+  /**
+   * Unique string identifying the surface for debugging and user code.
+   *
+   * NOTE: the objectId buffer stores the surface INDEX into
+   * `scene.surfaces`, not this string. `id` is not written to any buffer.
+   */
   id: string;
   /** top-left corner in scene units (CSS pixels) */
   position: Vec2;
   /** width/height in scene units, > 0 */
   size: Vec2;
-  /** absolute scene-space z, finite and >= 0 */
+  /**
+   * Absolute scene-space z of the surface BASE (the bottom of the surface's
+   * solid). The top of the surface at a point is `elevation + localHeight`,
+   * so the whole surface sits at z >= elevation. Finite and >= 0.
+   */
   elevation: number;
-  /** profile height range, finite and >= 0; defaults to 0 */
+  /**
+   * Vertical extent of the local height profile above the base, i.e. the
+   * maximum possible `localHeight`. Profile output is in `[0, thickness]`.
+   * Finite and >= 0; defaults to 0.
+   */
   thickness?: number;
+  /**
+   * Half-width of the smooth rise at shape edges, in scene units. The
+   * surface's `profile` receives this as its `bevelWidth` argument.
+   * Finite and >= 0; defaults to 0.
+   */
+  bevelWidth?: number;
   shape: Shape;
   /** distance -> local height profile (see HeightProfile) */
   profile: HeightProfile;
@@ -95,7 +125,7 @@ export const DEFAULT_LIGHT_DIRECTION: Vec3 = { x: 0, y: 0, z: 1 };
  *
  * - structural invariants (dimensions, sizes, elevations, ids, flags) are
  *   programmer errors and THROW, so a bad scene cannot silently produce
- *   wrong shadows or ownership
+ *   wrong shadows or ownership. Duplicate `SurfaceNode.id` values throw.
  * - `light.direction` and `light.intensity` are SANITIZED: invalid direction
  *   falls back to +z, invalid intensity falls back to 1
  */
@@ -103,6 +133,13 @@ export function createScene(input: SceneInput): Scene {
   assertPositiveInt(input.width, "scene width");
   assertPositiveInt(input.height, "scene height");
   const surfaces = (input.surfaces ?? []).map(validateSurface);
+  const seenIds = new Set<string>();
+  for (const surface of surfaces) {
+    if (seenIds.has(surface.id)) {
+      throw new TypeError(`duplicate surface id "${surface.id}"`);
+    }
+    seenIds.add(surface.id);
+  }
   const direction = normalizeVec3(input.light?.direction ?? DEFAULT_LIGHT_DIRECTION);
   const intensity = sanitizeIntensity(input.light?.intensity);
   return {
@@ -127,6 +164,7 @@ function validateSurface(node: SurfaceNode): SurfaceNode {
   }
   assertFiniteNonNegative(node.elevation, `${label} elevation`);
   assertFiniteNonNegative(node.thickness ?? 0, `${label} thickness`);
+  assertFiniteNonNegative(node.bevelWidth ?? 0, `${label} bevelWidth`);
   if (typeof node.profile !== "function") {
     throw new TypeError(`${label} profile must be a function`);
   }
@@ -139,7 +177,7 @@ function validateSurface(node: SurfaceNode): SurfaceNode {
   if (node.shape.kind === "roundedRect") {
     assertFiniteNonNegative(node.shape.radius, `${label} radius`);
   }
-  return { ...node, thickness: node.thickness ?? 0 };
+  return { ...node, thickness: node.thickness ?? 0, bevelWidth: node.bevelWidth ?? 0 };
 }
 
 function sanitizeIntensity(v: unknown): number {
