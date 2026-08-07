@@ -182,8 +182,10 @@ function validateSurface(node: SurfaceNode): SurfaceNode {
   if (typeof node.castsShadow !== "boolean" || typeof node.receivesShadow !== "boolean") {
     throw new TypeError(`${label} castsShadow/receivesShadow must be booleans`);
   }
-  if (node.shape.kind === "roundedRect") {
-    assertFiniteNonNegative(node.shape.radius, `${label} radius`);
+  if (!isShape(node.shape)) {
+    throw new TypeError(
+      `${label} shape must be a shape descriptor ({ kind: "roundedRect", radius } | { kind: "mask" })`,
+    );
   }
   return { ...node, thickness: node.thickness ?? 0, bevelWidth: node.bevelWidth ?? 0 };
 }
@@ -194,6 +196,26 @@ function sanitizeIntensity(v: unknown): number {
 
 export function isHeightProfile(v: unknown): v is HeightProfile {
   return typeof v === "object" && v !== null && (v as HeightProfile).kind === "flat";
+}
+
+/**
+ * Runtime shape validation: `{ kind: "roundedRect", radius: finite >= 0 }` or
+ * `{ kind: "mask" }`. Rejects unknown kinds, null, functions and malformed
+ * objects, mirroring `isHeightProfile` for profiles.
+ */
+export function isShape(v: unknown): v is Shape {
+  if (typeof v !== "object" || v === null) {
+    return false;
+  }
+  const shape = v as Shape;
+  if (shape.kind === "mask") {
+    return true;
+  }
+  if (shape.kind === "roundedRect") {
+    const radius = (shape as { kind: "roundedRect"; radius: unknown }).radius;
+    return isFiniteNumber(radius) && radius >= 0;
+  }
+  return false;
 }
 
 function assertPositiveInt(v: unknown, label: string): void {

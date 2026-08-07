@@ -46,8 +46,9 @@ direction; invalid input falls back to `+z` (straight at the viewer).
   `castsShadow` / `receivesShadow`
 - `Scene`: render region + surfaces + shared `DirectionalLight`
 - `createScene` validates structural invariants (throws on non-finite or
-  negative values, empty or duplicate ids, bad flags) and sanitizes light
-  direction / intensity (fallback values). See JSDoc for the full policy.
+  negative values, empty or duplicate ids, bad flags, unknown shape/profile
+  kinds) and sanitizes light direction / intensity (fallback values). See
+  JSDoc for the full policy.
 
 ## Profile descriptors
 

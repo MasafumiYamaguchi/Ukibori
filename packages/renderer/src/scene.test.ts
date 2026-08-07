@@ -127,6 +127,26 @@ describe("createScene", () => {
     ).toThrow(/duplicate surface id "a"/);
   });
 
+  it("rejects unknown or malformed shapes", () => {
+    const base = { width: 4, height: 4 };
+    expect(() =>
+      createScene({ ...base, surfaces: [surface({ shape: { kind: "polygon" } as never })] }),
+    ).toThrow(TypeError);
+    expect(() => createScene({ ...base, surfaces: [surface({ shape: null as never })] })).toThrow(
+      TypeError,
+    );
+    expect(() =>
+      createScene({ ...base, surfaces: [surface({ shape: (() => 0) as never })] }),
+    ).toThrow(TypeError);
+    expect(() =>
+      createScene({ ...base, surfaces: [surface({ shape: { kind: "roundedRect" } as never })] }),
+    ).toThrow(TypeError);
+    expect(() =>
+      createScene({ ...base, surfaces: [surface({ shape: { kind: "roundedRect", radius: NaN } })] }),
+    ).toThrow(TypeError);
+    expect(() => createScene({ ...base, surfaces: [surface({ shape: { kind: "mask" } })] })).not.toThrow();
+  });
+
   it("accepts mask shapes and returns normalized surfaces with thickness", () => {
     const scene = createScene({
       width: 4,
