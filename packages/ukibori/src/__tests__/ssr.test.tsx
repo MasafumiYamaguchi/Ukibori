@@ -21,6 +21,9 @@ describe("SSR rendering (node environment, no window/document)", () => {
     expect(html).toContain("user-class");
     expect(html).toContain("Hello");
     expect(html).toContain("box-shadow");
+    expect(html).toContain("var(--ukibori-shadow-x)");
+    expect(html).toContain("background-color:var(--ukibori-color)");
+    expect(html).toContain("--ukibori-color:#e4e8ef");
     expect(html).toContain("var(--ukibori-shadow-color");
     expect(html).toContain("--ukibori-elevation:6px");
     expect(html).toContain("--ukibori-radius:20px");

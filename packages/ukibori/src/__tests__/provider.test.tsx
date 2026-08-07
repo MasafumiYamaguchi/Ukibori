@@ -122,6 +122,24 @@ describe("Ukibori provider", () => {
       </Ukibori>,
     );
     const el = screen.getByText("Hello");
-    expect(el.style.boxShadow).toContain("rgba(0, 0, 0, 0.3)");
+    expect(el.style.getPropertyValue("--ukibori-shadow-alpha")).toBe("0.3");
+    expect(el.style.getPropertyValue("--ukibori-highlight-alpha")).toBe("0.4");
+  });
+
+  it("updates the surface background when the provider color changes", () => {
+    const { rerender } = render(
+      <Ukibori color="#112233">
+        <Surface>Hello</Surface>
+      </Ukibori>,
+    );
+    expect(screen.getByText("Hello").style.getPropertyValue("--ukibori-color")).toBe("#112233");
+    rerender(
+      <Ukibori color="#334455">
+        <Surface>Hello</Surface>
+      </Ukibori>,
+    );
+    const el = screen.getByText("Hello");
+    expect(el.style.getPropertyValue("--ukibori-color")).toBe("#334455");
+    expect(el.style.backgroundColor).toBe("var(--ukibori-color)");
   });
 });

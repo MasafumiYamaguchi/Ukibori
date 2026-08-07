@@ -32,18 +32,21 @@ CP1時点での構成判断を記録します。
 
 `Surface`は内部で次のstyleを計算し、**ユーザーの`style`を最後に展開**します(衝突するプロパティはユーザーが優先)。`className`は連結され失われません。`as="button"`等のpolymorphic要素でもDOM props・イベント・ref・`aria-*`/`data-*`はそのまま透過します。
 
+**計算値はすべてCSSカスタムプロパティ化され、`borderRadius`/`backgroundColor`/`boxShadow`は`var()`でそれらを参照します。** ユーザーがstyleでCSS変数を上書きすると、参照する描画が実際に変わります。
+
 `Surface`が出力するCSSカスタムプロパティ:
 
 | 変数 | 意味 |
 | --- | --- |
-| `--ukibori-variant` | `raised` / `inset` |
+| `--ukibori-color` | `Ukibori`のcolor(背景色)。`backgroundColor: var(--ukibori-color)`で参照 |
+| `--ukibori-variant` | `raised` / `inset`(未知値は`raised`に正規化) |
 | `--ukibori-material` | 材質名(CP4で視覚化) |
-| `--ukibori-elevation` | 適用後のelevation(px) |
-| `--ukibori-radius` | 適用後のradius(px) |
-| `--ukibori-shadow-color` | `box-shadow`の`var()`フォールバック。ユーザーstyleでの上書きが意図されたoverride点 |
-| `--ukibori-highlight-color` | ハイライト側の`var()`フォールバック。同上 |
+| `--ukibori-elevation` / `--ukibori-radius` | 適用後のelevation / radius(px)。`borderRadius: var(--ukibori-radius)`で参照 |
+| `--ukibori-shadow-x/y/blur/spread/alpha` | 影の計算値 |
+| `--ukibori-highlight-x/y/blur/alpha` | ハイライトの計算値 |
+| `--ukibori-shadow-color` / `--ukibori-highlight-color` | 影色の`var()`フォールバック(既定はalpha入りrgba)。上書き推奨のoverride点 |
 
-生成される`box-shadow`は影・ハイライトの2段重ねで、色の部分だけが`var()`フォールバック文字列になります(offset/blur/spread/alphaは計算値がpxで直接入ります)。影を丸ごと差し替えたい場合はユーザーstyleの`boxShadow`で上書きできます。
+`box-shadow`は影・ハイライトの2段重ねで、offset/blur/spread/alphaと色のすべてが`var()`参照(色は`var(--ukibori-shadow-color, rgba(0, 0, 0, var(--ukibori-shadow-alpha)))`形式)。ユーザーstyleの`boxShadow` / `backgroundColor`で全面上書きも可能です。
 
 ## 開発コマンド
 

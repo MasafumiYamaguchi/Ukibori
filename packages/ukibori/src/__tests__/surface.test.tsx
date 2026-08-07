@@ -3,13 +3,13 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Surface, Ukibori } from "../index";
 
-const RAISED_EXPECTED =
-  "-4px 0px 5.76px 0.4px var(--ukibori-shadow-color, rgba(0, 0, 0, 0.3)), " +
-  "1.6px 0px 2.16px 0 var(--ukibori-highlight-color, rgba(255, 255, 255, 0.4))";
+const RAISED_SHADOW =
+  "var(--ukibori-shadow-x) var(--ukibori-shadow-y) var(--ukibori-shadow-blur) var(--ukibori-shadow-spread) var(--ukibori-shadow-color, rgba(0, 0, 0, var(--ukibori-shadow-alpha))), " +
+  "var(--ukibori-highlight-x) var(--ukibori-highlight-y) var(--ukibori-highlight-blur) 0 var(--ukibori-highlight-color, rgba(255, 255, 255, var(--ukibori-highlight-alpha)))";
 
-const INSET_EXPECTED =
-  "inset 4px 0px 4.9px -0.2px var(--ukibori-shadow-color, rgba(0, 0, 0, 0.3)), " +
-  "inset -1.6px 0px 1.84px 0 var(--ukibori-highlight-color, rgba(255, 255, 255, 0.4))";
+const INSET_SHADOW =
+  "inset var(--ukibori-shadow-x) var(--ukibori-shadow-y) var(--ukibori-shadow-blur) var(--ukibori-shadow-spread) var(--ukibori-shadow-color, rgba(0, 0, 0, var(--ukibori-shadow-alpha))), " +
+  "inset var(--ukibori-highlight-x) var(--ukibori-highlight-y) var(--ukibori-highlight-blur) 0 var(--ukibori-highlight-color, rgba(255, 255, 255, var(--ukibori-highlight-alpha)))";
 
 const DEFAULT_LIGHT_PROPS = { x: 1, y: 0, z: 0 } as const;
 
@@ -71,13 +71,27 @@ describe("Surface style composition", () => {
     const el = screen.getByText("Hello");
     expect(el.style.color).toBe("red");
     expect(el.style.getPropertyValue("--ukibori-radius")).toBe("99px");
-    expect(el.style.borderRadius).toBe("12px");
+    expect(el.style.borderRadius).toBe("var(--ukibori-radius)");
     expect(el.style.getPropertyValue("--ukibori-elevation")).toBe("4px");
   });
 
   it("lets a user boxShadow fully replace the internal shadow", () => {
     renderSurface(<Surface style={{ boxShadow: "none" }}>Hello</Surface>);
     expect(screen.getByText("Hello").style.boxShadow).toBe("none");
+  });
+
+  it("lets a user backgroundColor fully replace the internal background", () => {
+    renderSurface(<Surface style={{ backgroundColor: "rebeccapurple" }}>Hello</Surface>);
+    expect(screen.getByText("Hello").style.backgroundColor).toBe("rebeccapurple");
+  });
+
+  it("keeps the var() structure while a user override changes the referenced value", () => {
+    renderSurface(
+      <Surface elevation={4} style={{ "--ukibori-shadow-blur": "10px" } as React.CSSProperties}>Hello</Surface>,
+    );
+    const el = screen.getByText("Hello");
+    expect(el.style.getPropertyValue("--ukibori-shadow-blur")).toBe("10px");
+    expect(el.style.boxShadow).toBe(RAISED_SHADOW);
   });
 
   it("allows intentional override of shadow colors via CSS variables", () => {
@@ -90,33 +104,62 @@ describe("Surface style composition", () => {
     );
     const el = screen.getByText("Hello");
     expect(el.style.getPropertyValue("--ukibori-shadow-color")).toBe("rgba(255, 0, 0, 0.9)");
-    expect(el.style.boxShadow).toContain("var(--ukibori-shadow-color, rgba(0, 0, 0, 0.3))");
+    expect(el.style.boxShadow).toContain(
+      "var(--ukibori-shadow-color, rgba(0, 0, 0, var(--ukibori-shadow-alpha)))",
+    );
   });
 });
 
 describe("Surface shadow output", () => {
-  it("emits the expected raised box-shadow for known inputs", () => {
+  it("emits a var()-based box-shadow referencing computed variables", () => {
     renderSurface(<Surface elevation={4} variant="raised">Hello</Surface>);
-    expect(screen.getByText("Hello").style.boxShadow).toBe(RAISED_EXPECTED);
+    const el = screen.getByText("Hello");
+    expect(el.style.boxShadow).toBe(RAISED_SHADOW);
+    expect(el.style.getPropertyValue("--ukibori-shadow-x")).toBe("-4px");
+    expect(el.style.getPropertyValue("--ukibori-shadow-y")).toBe("0px");
+    expect(el.style.getPropertyValue("--ukibori-shadow-blur")).toBe("5.76px");
+    expect(el.style.getPropertyValue("--ukibori-shadow-spread")).toBe("0.4px");
+    expect(el.style.getPropertyValue("--ukibori-shadow-alpha")).toBe("0.3");
+    expect(el.style.getPropertyValue("--ukibori-highlight-x")).toBe("1.6px");
+    expect(el.style.getPropertyValue("--ukibori-highlight-y")).toBe("0px");
+    expect(el.style.getPropertyValue("--ukibori-highlight-blur")).toBe("2.16px");
+    expect(el.style.getPropertyValue("--ukibori-highlight-alpha")).toBe("0.4");
   });
 
-  it("emits an inset box-shadow for the inset variant", () => {
+  it("emits an inset box-shadow with inset keyword and mirrored variables", () => {
     renderSurface(<Surface elevation={4} variant="inset">Hello</Surface>);
-    expect(screen.getByText("Hello").style.boxShadow).toBe(INSET_EXPECTED);
+    const el = screen.getByText("Hello");
+    expect(el.style.boxShadow).toBe(INSET_SHADOW);
+    expect(el.style.getPropertyValue("--ukibori-variant")).toBe("inset");
+    expect(el.style.getPropertyValue("--ukibori-shadow-x")).toBe("4px");
+    expect(el.style.getPropertyValue("--ukibori-shadow-spread")).toBe("-0.2px");
+    expect(el.style.getPropertyValue("--ukibori-highlight-x")).toBe("-1.6px");
   });
 
-  it("reflects elevation and radius props in CSS variables and borderRadius", () => {
+  it("reflects elevation and radius props in CSS variables and var() references", () => {
     renderSurface(<Surface elevation={6} radius={20}>Hello</Surface>);
     const el = screen.getByText("Hello");
     expect(el.style.getPropertyValue("--ukibori-elevation")).toBe("6px");
     expect(el.style.getPropertyValue("--ukibori-radius")).toBe("20px");
-    expect(el.style.borderRadius).toBe("20px");
+    expect(el.style.borderRadius).toBe("var(--ukibori-radius)");
   });
 
-  it("treats an unknown variant as raised", () => {
+  it("connects the context color to backgroundColor via --ukibori-color", () => {
+    render(
+      <Ukibori color="#112233">
+        <Surface>Hello</Surface>
+      </Ukibori>,
+    );
+    const el = screen.getByText("Hello");
+    expect(el.style.getPropertyValue("--ukibori-color")).toBe("#112233");
+    expect(el.style.backgroundColor).toBe("var(--ukibori-color)");
+  });
+
+  it("normalizes an unknown variant to raised everywhere", () => {
     renderSurface(<Surface variant={"embossed" as never}>Hello</Surface>);
     const el = screen.getByText("Hello");
-    expect(el.style.boxShadow).toBe(RAISED_EXPECTED);
+    expect(el.style.getPropertyValue("--ukibori-variant")).toBe("raised");
+    expect(el.style.boxShadow).toBe(RAISED_SHADOW);
     expect(el.style.boxShadow).not.toContain("inset");
   });
 
@@ -124,18 +167,18 @@ describe("Surface shadow output", () => {
     renderSurface(<Surface elevation={NaN}>Hello</Surface>);
     const el = screen.getByText("Hello");
     expect(el.style.getPropertyValue("--ukibori-elevation")).toBe("4px");
-    expect(Number.isFinite(Number.parseFloat(el.style.boxShadow))).toBe(true);
+    expect(el.style.boxShadow).toBe(RAISED_SHADOW);
   });
 });
 
 describe("Surface outside a provider", () => {
-  it("renders with safe defaults and deterministic shadows", () => {
+  it("renders with safe defaults and deterministic var-based output", () => {
     render(<Surface elevation={4}>Hello</Surface>);
     const el = screen.getByText("Hello");
-    const expected =
-      "1.7px 2.26px 3.72px 0.4px var(--ukibori-shadow-color, rgba(0, 0, 0, 0.3)), " +
-      "-0.68px -0.91px 1.4px 0 var(--ukibori-highlight-color, rgba(255, 255, 255, 0.4))";
-    expect(el.style.boxShadow).toBe(expected);
+    expect(el.style.boxShadow).toBe(RAISED_SHADOW);
+    expect(el.style.getPropertyValue("--ukibori-shadow-x")).toBe("1.7px");
+    expect(el.style.getPropertyValue("--ukibori-shadow-y")).toBe("2.26px");
+    expect(el.style.getPropertyValue("--ukibori-color")).toBe("#e4e8ef");
     expect(el.style.getPropertyValue("--ukibori-elevation")).toBe("4px");
   });
 });
