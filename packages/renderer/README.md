@@ -117,8 +117,9 @@ tests.
   `L = -V` (direction `{0, 0, -1}`) resolves specular to 0 without NaN.
   Lighting is computed in linear space and sRGB-encoded on output.
 - debug buffers: `normal` (f32 x3), `diffuse` (raw N·L) / `specular`
-  (specular direct contribution: `luminance(Fr) * NdotL`, before light
-  intensity, f32 1ch), `color` (RGBA8)
+  (specular direct contribution: `luminance(Fr) * NdotL * visibility`,
+  before light intensity, f32 1ch), `color` (RGBA8), `visibility` (0/1 hard
+  shadow mask, f32 1ch, present when a shadow pass ran)
 
 ## Material / BRDF (#16)
 
@@ -151,7 +152,28 @@ gradients, ...) are NOT part of this model.
   then presets; unknown refs throw at `createScene`. Table values are
   sanitized (roughness/metallic clamped, ior >= 1).
 - debug buffers: `diffuse` (raw N·L, material-independent), `specular`
-  (BRDF specular luminance), `color` (full BRDF output)
+  (specular direct contribution `luminance(Fr) * NdotL * visibility`, before
+  light intensity), `color` (full BRDF output)
+
+## Cast shadows (#17)
+
+```
+height -> per-pixel ray march toward the light -> hard 0/1 visibility mask
+```
+
+- `computeVisibility`: from each pixel center, march `P.xy + L.xy * t` while
+  the ray stays inside the scene and below `maxHeight + bias`; the pixel is
+  occluded when a bilinear height sample exceeds `rayZ + bias`. Sampling is
+  bilinear with clamped (replicate) texture-boundary policy; comparisons are
+  rounded to f32. Defaults: `stepSize = 0.5`, `bias = 0.5` (self-shadow
+  acne), `maxDistance = scene diagonal`.
+- `traceShadowRay`: single-ray form for tests/debug (returns the blocking
+  sample).
+- visibility scales the direct (diffuse + specular) terms in the lighting
+  pass; fully shadowed pixels keep only their ambient base color.
+- This is a real visibility test on the height field — `box-shadow` /
+  `drop-shadow` / translated silhouettes are never used. Soft shadows are a
+  future extension on top of the hard mask.
 
 The demo page renders roughness low/high, metallic 0/1 and the
 silicone / matte / metal presets side by side under identical geometry and

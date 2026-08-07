@@ -1,12 +1,14 @@
 import { HostBuffer } from "./buffer";
 import { clamp } from "./math";
 import { composeSdfHeightField } from "./geometry";
+import { computeVisibility } from "./shadow";
 import { brdfDirect } from "./brdf";
 import { BASE_MATERIAL, resolveMaterial } from "./material";
 import type { Material } from "./material";
 import { NO_OWNER } from "./compose";
 import { COLOR_SPEC, NORMAL_SPEC } from "./types";
 import type { LinearRgb } from "./types";
+import type { ShadowOptions } from "./shadow";
 import type { Scene } from "./scene";
 
 /**
@@ -37,6 +39,17 @@ export interface LightingOptions {
   normal?: NormalOptions;
   /** ambient fill strength (default 0.08); scales baseColor, unaffected by light intensity */
   ambient?: number;
+  /** cast-shadow pass options (#17) */
+  shadow?: ShadowOptions;
+}
+
+export interface ShadeInput {
+  /** f32 scalar: the composed height field */
+  height: HostBuffer;
+  /** u32 scalar: owning surface index per pixel (NO_OWNER = base plane) */
+  objectId: HostBuffer;
+  /** f32 scalar: hard cast-shadow visibility 0..1; omit to skip shadows (treated as 1) */
+  visibility?: HostBuffer;
 }
 
 export interface LightingBuffers {
@@ -46,8 +59,10 @@ export interface LightingBuffers {
   normal: HostBuffer;
   /** f32 scalar: raw N dot L, 0..1 (material-independent light response) */
   diffuse: HostBuffer;
-  /** f32 scalar: specular direct contribution, luminance(Fr) * NdotL, clamped 0..1 (before light intensity) */
+  /** f32 scalar: specular direct contribution, luminance(Fr) * NdotL * visibility, clamped 0..1 (before light intensity) */
   specular: HostBuffer;
+  /** f32 scalar: hard cast-shadow visibility, 0 or 1 (present when a shadow pass ran) */
+  visibility?: HostBuffer;
   /** RGBA8: combined lit color, sRGB-encoded */
   color: HostBuffer;
 }
@@ -119,19 +134,23 @@ export function computeNormals(height: HostBuffer, options: NormalOptions = {}):
  * - BRDF: Cook-Torrance with the owning surface's material per pixel
  *   (`objectId` -> `scene.surfaces[i].material`); pixels without an owner
  *   use the base-plane material
- * - `scene.light.intensity` scales the DIRECT terms (diffuse + specular);
- *   the ambient fill is unaffected — intensity 0 leaves ambient only
+ * - cast-shadow visibility (#17) scales the DIRECT terms (diffuse +
+ *   specular + the final direct contribution); the ambient fill is
+ *   unaffected — a fully shadowed pixel keeps its ambient base color
+ * - `scene.light.intensity` scales the direct terms as well; intensity 0
+ *   leaves ambient only
  * - the degenerate half-vector `L = -V` (direction `{0, 0, -1}`) yields no
  *   half vector; specular resolves safely to 0 (no NaN)
- * - color = baseColor * ambient + intensity * (diffuse + specular), encoded
- *   to sRGB8
+ * - color = baseColor * ambient + visibility * intensity * NdotL *
+ *   (diffuse + specular), encoded to sRGB8
  */
 export function shadeHeightField(
   scene: Scene,
-  height: HostBuffer,
-  objectId: HostBuffer,
+  input: ShadeInput,
   options: LightingOptions = {},
 ): LightingBuffers {
+  const { height, objectId } = input;
+  const visibility = input.visibility ?? null;
   const normal = computeNormals(height, options.normal);
   const ambient = clamp(sanitizeFinite(options.ambient, DEFAULT_AMBIENT), 0, 1);
   const intensity = sanitizeNonNegative(scene.light.intensity, 1);
@@ -169,6 +188,7 @@ export function shadeHeightField(
       const nDotL = Math.max(nx * lx + ny * ly + nz * lz, 0);
       const nDotV = Math.max(nz, 0);
       const material = materialFor(objectId.get(x, y, 0));
+      const vis = visibility === null ? 1 : clamp(visibility.get(x, y, 0), 0, 1);
       let brdf = { diffuse: ZERO_RGB, specular: ZERO_RGB };
       if (nDotL > 0 && nDotV > 0 && hLen > 0) {
         const nDotH = Math.max(nx * hx + ny * hy + nz * hz, 0);
@@ -178,23 +198,28 @@ export function shadeHeightField(
       const cosine = nDotL;
 
       diffuse.set(x, y, 0, cosine);
-      specular.set(x, y, 0, Math.min(luminance(brdf.specular) * cosine, 1));
+      specular.set(x, y, 0, Math.min(luminance(brdf.specular) * cosine * vis, 1));
 
       const base = material.baseColor;
-      const direct = intensity * cosine;
+      const direct = intensity * cosine * vis;
       color.set(x, y, 0, srgbEncodeChannel(base.r * ambient + direct * (brdf.diffuse.r + brdf.specular.r)));
       color.set(x, y, 1, srgbEncodeChannel(base.g * ambient + direct * (brdf.diffuse.g + brdf.specular.g)));
       color.set(x, y, 2, srgbEncodeChannel(base.b * ambient + direct * (brdf.diffuse.b + brdf.specular.b)));
       color.set(x, y, 3, 255);
     }
   }
-  return { height, normal, diffuse, specular, color };
+  return { height, normal, diffuse, specular, color, visibility: visibility ?? undefined };
 }
 
-/** Compose the SDF height field, ownership and light it in one call. */
+/** Compose the SDF height field, ownership, cast shadows and light it. */
 export function lightScene(scene: Scene, options: LightingOptions = {}): LightingBuffers {
   const composed = composeSdfHeightField(scene);
-  return shadeHeightField(scene, composed.height, composed.objectId, options);
+  const visibility = computeVisibility(scene, composed.height, options.shadow);
+  return shadeHeightField(
+    scene,
+    { height: composed.height, objectId: composed.objectId, visibility },
+    options,
+  );
 }
 
 const ZERO_RGB: LinearRgb = { r: 0, g: 0, b: 0 };

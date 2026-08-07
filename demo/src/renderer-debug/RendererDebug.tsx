@@ -109,6 +109,28 @@ const SDF_SCENE = {
   light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
 };
 
+const SHADOW_SCENE = {
+  width: 96,
+  height: 60,
+  surfaces: [
+    {
+      // Raised button (top z = 4 + 2) casting a hard shadow on the base plane.
+      id: "button",
+      position: { x: 30, y: 8 },
+      size: { x: 36, y: 44 },
+      elevation: 4,
+      thickness: 2,
+      bevelWidth: 3,
+      shape: { kind: "roundedRect", radius: 8 } as const,
+      profile: { kind: "bevel" } as const,
+      material: "silicone",
+      castsShadow: true,
+      receivesShadow: true,
+    },
+  ],
+  light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+};
+
 export function RendererDebug(): ReactElement {
   const heightCanvas = useRef<HTMLCanvasElement>(null);
   const colorCanvas = useRef<HTMLCanvasElement>(null);
@@ -127,6 +149,9 @@ export function RendererDebug(): ReactElement {
   const roughCanvas = useRef<HTMLCanvasElement>(null);
   const dielectricCanvas = useRef<HTMLCanvasElement>(null);
   const metallicCanvas = useRef<HTMLCanvasElement>(null);
+  const shadowHeightCanvas = useRef<HTMLCanvasElement>(null);
+  const shadowMaskCanvas = useRef<HTMLCanvasElement>(null);
+  const shadowColorCanvas = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [light, setLight] = useState({ x: -0.6, y: -0.8 });
@@ -208,6 +233,19 @@ export function RendererDebug(): ReactElement {
         const presetColor = lightScene(presetScene).color;
         draw(canvas.current, toRgbaBytes(await readBufferData(presetColor)));
       }
+    })();
+  }, [light.x, light.y]);
+
+  useEffect(() => {
+    const scene = createScene({
+      ...SHADOW_SCENE,
+      light: { direction: { x: light.x, y: light.y, z: 1 }, intensity: 1 },
+    });
+    const { height, visibility, color } = lightScene(scene);
+    void (async () => {
+      draw(shadowHeightCanvas.current, toRgbaBytes(await readBufferData(height), { min: 0, max: 6 }));
+      draw(shadowMaskCanvas.current, toRgbaBytes(await readBufferData(visibility!), { min: 0, max: 1 }));
+      draw(shadowColorCanvas.current, toRgbaBytes(await readBufferData(color)));
     })();
   }, [light.x, light.y]);
 
@@ -342,6 +380,28 @@ export function RendererDebug(): ReactElement {
             <p>
               Cook-Torrance (GGX/Smith/Schlick) with the metallic workflow: dielectric F0 from
               IOR, metal uses baseColor as F0 with no diffuse term.
+            </p>
+          </section>
+          <section>
+            <h2>Cast shadows #17 — height-field ray traversal</h2>
+            <div className="row">
+              <div>
+                <p>height (two-level: button on base)</p>
+                <canvas ref={shadowHeightCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>shadow visibility mask (hard, 0/1)</p>
+                <canvas ref={shadowMaskCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>combined shading with cast shadow</p>
+                <canvas ref={shadowColorCanvas} width={96} height={60} />
+              </div>
+            </div>
+            <p>
+              Rays march from each pixel toward the light over the height field — the button
+              casts its shadow on the base plane through real visibility tests, not a CSS
+              offset/blur. Move the light sliders to see the shadow slide.
             </p>
           </section>
           <section>

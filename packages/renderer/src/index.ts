@@ -60,7 +60,9 @@ export {
 } from "./geometry";
 export type { SdfDebugBuffers } from "./geometry";
 export { computeNormals, lightScene, shadeHeightField } from "./lighting";
-export type { LightingBuffers, LightingOptions, NormalOptions } from "./lighting";
+export type { LightingBuffers, LightingOptions, NormalOptions, ShadeInput } from "./lighting";
+export { computeVisibility, sampleHeightAt, traceShadowRay } from "./shadow";
+export type { ShadowOptions, ShadowRayResult } from "./shadow";
 export {
   BASE_MATERIAL,
   DEFAULT_IOR,
