@@ -9,12 +9,34 @@ function magnitude(v: LightVector): number {
 }
 
 describe("isValidVector", () => {
-  it("accepts finite triples and rejects NaN/Infinity/undefined", () => {
+  it("accepts finite triples", () => {
     expect(isValidVector({ x: 1, y: 2, z: 3 })).toBe(true);
+    expect(isValidVector({ x: -0.6, y: -0.8, z: 1 })).toBe(true);
+    expect(isValidVector({ x: 1e308, y: -1e308, z: 1e-308 })).toBe(true);
+  });
+
+  it("rejects non-object junk without throwing", () => {
+    const junk = [null, undefined, 42, "vector", true, Symbol("v"), () => 1, []];
+    for (const value of junk) {
+      expect(() => isValidVector(value)).not.toThrow();
+      expect(isValidVector(value)).toBe(false);
+    }
+  });
+
+  it("rejects partial and malformed objects", () => {
+    expect(isValidVector({})).toBe(false);
+    expect(isValidVector({ x: 1 })).toBe(false);
+    expect(isValidVector({ x: 1, y: 2 })).toBe(false);
+    expect(isValidVector({ x: 1, y: 2, z: undefined })).toBe(false);
     expect(isValidVector({ x: NaN, y: 2, z: 3 })).toBe(false);
     expect(isValidVector({ x: 1, y: Infinity, z: 3 })).toBe(false);
     expect(isValidVector({ x: 1, y: 2, z: -Infinity })).toBe(false);
-    expect(isValidVector({ x: 1, y: 2, z: undefined } as unknown as LightVector)).toBe(false);
+    expect(isValidVector({ x: 1, y: 2, z: "3" })).toBe(false);
+    expect(isValidVector({ x: 1, y: null, z: 3 })).toBe(false);
+  });
+
+  it("accepts a valid triple among extra properties", () => {
+    expect(isValidVector({ x: 1, y: 2, z: 3, intensity: 2 })).toBe(true);
   });
 });
 
@@ -49,8 +71,26 @@ describe("normalizeLight", () => {
     expect(normalizeLight({ x: 1, y: 0 } as unknown as LightVector)).toEqual(NORMALIZED_DEFAULT);
   });
 
-  it("falls back for extreme components that overflow the length", () => {
-    expect(normalizeLight({ x: 1e308, y: 1e308, z: 1e308 })).toEqual(NORMALIZED_DEFAULT);
+  it("always falls back for runtime junk input without throwing", () => {
+    const junk = [null, undefined, 42, "vector", true, [], {}, { x: 1 }, { x: 1, y: 2, z: "3" }, [0, 0, 1]];
+    for (const value of junk) {
+      expect(() => normalizeLight(value)).not.toThrow();
+      expect(normalizeLight(value)).toEqual(NORMALIZED_DEFAULT);
+    }
+  });
+
+  it("preserves direction for huge finite vectors without overflow", () => {
+    expect(normalizeLight({ x: 1e308, y: 1e308, z: 1e308 })).toEqual({
+      x: 0.57735,
+      y: 0.57735,
+      z: 0.57735,
+    });
+    expect(normalizeLight({ x: 3e307, y: -4e307, z: 12e307 })).toEqual({
+      x: 0.230769,
+      y: -0.307692,
+      z: 0.923077,
+    });
+    expect(magnitude(normalizeLight({ x: 1e308, y: -1e308, z: 1e308 }))).toBeCloseTo(1, 4);
   });
 
   it("uses the provided fallback when input is invalid or degenerate", () => {
