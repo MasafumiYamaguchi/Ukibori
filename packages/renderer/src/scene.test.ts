@@ -119,6 +119,9 @@ describe("createScene", () => {
       TypeError,
     );
     expect(() => createScene({ ...base, surfaces: [surface({ profile: flat })] })).not.toThrow();
+    expect(() =>
+      createScene({ ...base, surfaces: [surface({ profile: { kind: "bevel" } })] }),
+    ).not.toThrow();
   });
 
   it("throws on duplicate surface ids", () => {

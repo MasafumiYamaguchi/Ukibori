@@ -56,15 +56,41 @@ direction; invalid input falls back to `+z` (straight at the viewer).
 function — so the scene stays backend-agnostic and CPU/WebGPU paths interpret
 the same representation.
 
-- `{ kind: "flat" }`: constant local height `thickness` wherever the geometry
-  exists (coverage is decided by the shape)
-- analytic bevel kinds (smooth edge rise) are implemented by the geometry
-  issue (#14)
+- `{ kind: "flat" }`: step at the shape boundary — full thickness inside, 0 at
+  the boundary and outside
+- `{ kind: "bevel" }`: silicone-like smooth edge rise over the
+  `[-bevelWidth, +bevelWidth]` band around the boundary, using a C1
+  smoothstep falloff (full thickness at `-bevelWidth`, half at the boundary,
+  0 at `+bevelWidth`)
 
 `evaluateProfile(profile, distance, bevelWidth, thickness)` returns the local
 height above the base in `[0, thickness]`; absolute scene z is
 `elevation + localHeight`. `distance` is the signed distance from the shape
-boundary (negative inside, zero on boundary, positive outside).
+boundary (negative inside, zero on boundary, positive outside). This is the
+CPU reference that the WebGPU/WGSL pipeline mirrors — the math is not buried
+in shaders.
+
+## SDF → height pipeline (#14)
+
+```
+shape -> roundedRectSdf (signed distance)
+       -> evaluateProfile (local height)
+       -> elevation + localHeight = absolute scene z H(x, y)
+```
+
+- `roundedRectSdf`: analytic rounded-box SDF (iq sdRoundBox, with the
+  `min(max(q), 0)` interior term), sampled at pixel centers. Sign: negative
+  inside, zero on the boundary, positive outside. `radius > halfExtent`
+  morphs toward a circle.
+- `roundedRectSurfaceHeight`: per-surface geometry for `composeHeightField`;
+  `-Infinity` where the profile produces no local height
+- `composeSdfHeightField`: full-scene height composition through the SDF
+  geometry
+- `generateSdfDebug`: sdf / mask / height buffers for human inspection
+
+Debug views: the demo page (`/renderer-debug.html`) shows SDF, mask, height
+map and a height cross-section graph; buffers can also be dumped as PPM from
+tests.
 
 ## Buffer contract
 

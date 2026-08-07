@@ -40,12 +40,13 @@ import type { Vec2, Vec3 } from "./types";
  *
  * Kinds:
  *
- * - `"flat"`: constant local height `thickness` wherever the geometry exists
- *   (coverage is decided by the shape, not by the profile)
- * - analytic bevel kinds (smooth edge rise) are implemented by the geometry
- *   issue (#14)
+ * - `"flat"`: step at the shape boundary — local height `thickness` where the
+ *   signed distance is negative (inside), `0` at/outside the boundary
+ * - `"bevel"`: silicone-like smooth edge rise over the `[-bevelWidth,
+ *   +bevelWidth]` band around the boundary, using a C1 smoothstep falloff
+ *   (implemented by the geometry issue #14)
  */
-export type HeightProfile = { kind: "flat" };
+export type HeightProfile = { kind: "flat" } | { kind: "bevel" };
 
 /**
  * Material is referenced by id. Physical BRDF parameters are fixed by the
@@ -195,7 +196,11 @@ function sanitizeIntensity(v: unknown): number {
 }
 
 export function isHeightProfile(v: unknown): v is HeightProfile {
-  return typeof v === "object" && v !== null && (v as HeightProfile).kind === "flat";
+  if (typeof v !== "object" || v === null) {
+    return false;
+  }
+  const kind = (v as HeightProfile).kind;
+  return kind === "flat" || kind === "bevel";
 }
 
 /**

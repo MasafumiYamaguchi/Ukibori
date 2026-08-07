@@ -52,6 +52,13 @@ export type {
 } from "./scene";
 export { evaluateProfile } from "./profile";
 export {
+  composeSdfHeightField,
+  generateSdfDebug,
+  roundedRectSdf,
+  roundedRectSurfaceHeight,
+} from "./geometry";
+export type { SdfDebugBuffers } from "./geometry";
+export {
   NO_OWNER,
   composeHeightField,
   flatRoundedRectHeight,
