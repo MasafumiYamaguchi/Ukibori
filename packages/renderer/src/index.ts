@@ -45,6 +45,7 @@ export { DEFAULT_LIGHT_DIRECTION, createScene, isHeightProfile, isShape } from "
 export type {
   DirectionalLight,
   HeightProfile,
+  MaskSource,
   MaterialRef,
   Scene,
   SceneInput,
@@ -56,10 +57,14 @@ export {
   composeCasterHeightField,
   composeSdfHeightField,
   generateSdfDebug,
+  maskSurfaceHeight,
   roundedRectSdf,
   roundedRectSurfaceHeight,
+  surfaceHeight,
 } from "./geometry";
 export type { SdfDebugBuffers } from "./geometry";
+export { computeMaskSdf, getMaskSdf, maskFromAscii, sampleMaskSdfAt } from "./mask";
+export type { MaskSdf } from "./mask";
 export { computeNormals, lightScene, shadeHeightField } from "./lighting";
 export type { LightingBuffers, LightingOptions, NormalOptions, ShadeInput } from "./lighting";
 export {

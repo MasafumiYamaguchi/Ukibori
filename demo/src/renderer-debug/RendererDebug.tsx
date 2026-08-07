@@ -7,6 +7,7 @@ import {
   createRenderer,
   createScene,
   generateSdfDebug,
+  getMaskSdf,
   isWebGpuSupported,
   lightScene,
   marchShadowRay,
@@ -15,7 +16,7 @@ import {
   toCategoryRgba,
   toRgbaBytes,
 } from "ukibori-renderer";
-import type { BufferData, RgbaImage, ShadowMarchSample } from "ukibori-renderer";
+import type { BufferData, MaskSource, RgbaImage, ShadowMarchSample } from "ukibori-renderer";
 
 interface Status {
   webgpu: boolean;
@@ -250,6 +251,109 @@ const MULTI_SCENE = {
   light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
 };
 
+const GLYPH_SCENE = {
+  width: 96,
+  height: 60,
+  surfaces: [
+    {
+      id: "button",
+      position: { x: 12, y: 8 },
+      size: { x: 72, y: 44 },
+      elevation: 4,
+      thickness: 2,
+      bevelWidth: 3,
+      shape: { kind: "roundedRect", radius: 10 } as const,
+      profile: { kind: "bevel" } as const,
+      material: "silicone",
+      castsShadow: true,
+      receivesShadow: true,
+    },
+  ],
+  light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+};
+
+// #19: text and icon rasterization stays DEMO-side; the renderer only
+// consumes the alpha MaskSource.
+function maskFromText(text: string, width: number, height: number): MaskSource {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("canvas 2d unavailable");
+  }
+  ctx.fillStyle = "#fff";
+  ctx.font = `bold ${Math.floor(height * 0.82)}px system-ui, sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(text, width / 2, height / 2 + 1);
+  const data = ctx.getImageData(0, 0, width, height).data;
+  const alpha = new Float32Array(width * height);
+  for (let i = 0; i < alpha.length; i++) {
+    alpha[i] = data[i * 4 + 3] / 255;
+  }
+  return { width, height, alpha };
+}
+
+function ringIconMask(width: number, height: number): MaskSource {
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("canvas 2d unavailable");
+  }
+  ctx.strokeStyle = "#fff";
+  ctx.lineWidth = Math.floor(height / 5);
+  ctx.beginPath();
+  ctx.arc(width / 2, height / 2, Math.floor(height / 3), 0, Math.PI * 2);
+  ctx.stroke();
+  const data = ctx.getImageData(0, 0, width, height).data;
+  const alpha = new Float32Array(width * height);
+  for (let i = 0; i < alpha.length; i++) {
+    alpha[i] = data[i * 4 + 3] / 255;
+  }
+  return { width, height, alpha };
+}
+
+const PLAY_MASK = maskFromText("PLAY", 240, 48);
+const ICON_MASK = ringIconMask(40, 40);
+
+function glyphScene(): ReturnType<typeof createScene> {
+  return createScene({
+    ...GLYPH_SCENE,
+    surfaces: [
+      ...GLYPH_SCENE.surfaces,
+      {
+        id: "play",
+        position: { x: 20, y: 25 },
+        size: { x: 56, y: 11 },
+        elevation: 6.3,
+        thickness: 0.7,
+        bevelWidth: 1.1,
+        shape: { kind: "mask", mask: PLAY_MASK },
+        profile: { kind: "bevel" },
+        material: "metal",
+        castsShadow: true,
+        receivesShadow: true,
+      },
+      {
+        id: "icon",
+        position: { x: 66, y: 12 },
+        size: { x: 13, y: 13 },
+        elevation: 6.1,
+        thickness: 0.5,
+        bevelWidth: 0.9,
+        shape: { kind: "mask", mask: ICON_MASK },
+        profile: { kind: "bevel" },
+        material: "metal",
+        castsShadow: true,
+        receivesShadow: true,
+      },
+    ],
+  });
+}
+
 export function RendererDebug(): ReactElement {
   const heightCanvas = useRef<HTMLCanvasElement>(null);
   const colorCanvas = useRef<HTMLCanvasElement>(null);
@@ -277,6 +381,11 @@ export function RendererDebug(): ReactElement {
   const multiMaterialCanvas = useRef<HTMLCanvasElement>(null);
   const multiMaskCanvas = useRef<HTMLCanvasElement>(null);
   const multiColorCanvas = useRef<HTMLCanvasElement>(null);
+  const glyphMaskCanvas = useRef<HTMLCanvasElement>(null);
+  const glyphSdfCanvas = useRef<HTMLCanvasElement>(null);
+  const glyphHeightCanvas = useRef<HTMLCanvasElement>(null);
+  const glyphShadowCanvas = useRef<HTMLCanvasElement>(null);
+  const glyphColorCanvas = useRef<HTMLCanvasElement>(null);
   const [rayInfo, setRayInfo] = useState<{ x: number; y: number; occluded: boolean } | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -405,6 +514,41 @@ export function RendererDebug(): ReactElement {
       draw(multiMaterialCanvas.current, toCategoryRgba(await readBufferData(composed.materialId)));
       draw(multiMaskCanvas.current, toRgbaBytes(await readBufferData(visibility!), { min: 0, max: 1 }));
       draw(multiColorCanvas.current, toRgbaBytes(await readBufferData(color)));
+    })();
+  }, [light.x, light.y]);
+
+  useEffect(() => {
+    const scene = glyphScene();
+    const composed = composeSdfHeightField(scene);
+    const { visibility, color } = lightScene(scene);
+    const playSdf = getMaskSdf(PLAY_MASK);
+    const sdfData: BufferData = {
+      spec: { width: playSdf.width, height: playSdf.height, channels: 1, format: "f32" },
+      bytes: new Uint8Array(playSdf.sdf.buffer),
+    };
+    void (async () => {
+      // the raw PLAY alpha mask
+      const glyphCanvasEl = glyphMaskCanvas.current;
+      if (glyphCanvasEl) {
+        glyphCanvasEl.width = PLAY_MASK.width;
+        glyphCanvasEl.height = PLAY_MASK.height;
+        const ctx = glyphCanvasEl.getContext("2d");
+        if (ctx) {
+          const img = ctx.createImageData(PLAY_MASK.width, PLAY_MASK.height);
+          for (let i = 0; i < PLAY_MASK.width * PLAY_MASK.height; i++) {
+            const a = Math.round((PLAY_MASK.alpha[i] ?? 0) * 255);
+            img.data[i * 4] = a;
+            img.data[i * 4 + 1] = a;
+            img.data[i * 4 + 2] = a;
+            img.data[i * 4 + 3] = 255;
+          }
+          ctx.putImageData(img, 0, 0);
+        }
+      }
+      draw(glyphSdfCanvas.current, toRgbaBytes(sdfData, { min: -4, max: 4 }));
+      draw(glyphHeightCanvas.current, toRgbaBytes(await readBufferData(composed.height), { min: 0, max: 7 }));
+      draw(glyphShadowCanvas.current, toRgbaBytes(await readBufferData(visibility!), { min: 0, max: 1 }));
+      draw(glyphColorCanvas.current, toRgbaBytes(await readBufferData(color)));
     })();
   }, [light.x, light.y]);
 
@@ -599,6 +743,39 @@ export function RendererDebug(): ReactElement {
             <p>
               The badge (z=10) and button (z=6) share the panel's height field and cast hard
               shadows onto the layers below through the same light/material pipeline.
+            </p>
+          </section>
+          <section>
+            <h2>Glyph #19 — PLAY relief and icon mask</h2>
+            <div className="row">
+              <div>
+                <p>PLAY alpha mask (canvas rasterization)</p>
+                <canvas ref={glyphMaskCanvas} width={240} height={48} />
+              </div>
+              <div>
+                <p>mask SDF (signed distance)</p>
+                <canvas ref={glyphSdfCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>composed height (button + PLAY + ring icon)</p>
+                <canvas ref={glyphHeightCanvas} width={96} height={60} />
+              </div>
+            </div>
+            <div className="row">
+              <div>
+                <p>shadow visibility mask</p>
+                <canvas ref={glyphShadowCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>final color — glyph relief casts silhouette shadow</p>
+                <canvas ref={glyphColorCanvas} width={96} height={60} />
+              </div>
+            </div>
+            <p>
+              The letters are real mask geometry: counters (holes) in P / A and the ring icon's
+              inner hole are reflected in the height field, and the glyph relief casts a shadow
+              shaped by its silhouette onto the button. The rasterization (canvas text/icon) is
+              separate from the renderer geometry.
             </p>
           </section>
           <section>

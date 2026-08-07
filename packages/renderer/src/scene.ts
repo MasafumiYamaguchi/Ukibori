@@ -58,12 +58,27 @@ export type HeightProfile = { kind: "flat" } | { kind: "bevel" };
 export type MaterialRef = string;
 
 /**
- * Shape source for a surface.
+ * Arbitrary alpha-mask shape source (#19): glyph or icon silhouettes.
  *
- * `mask` is a future-compatible source (text/icon silhouettes, #19); the
- * scene contract does not define its fields yet.
+ * The mask is a raster of alpha values in the surface's LOCAL space; it maps
+ * onto `SurfaceNode.size` (the physical footprint) with the mask pixel at
+ * (i, j) covering `[i, i+1) x [j, j+1)` in mask pixels. The silhouette is
+ * the alpha isophote: `alpha >= 0.5` (`>= 128` for Uint8) is ink.
  */
-export type Shape = { kind: "roundedRect"; radius: number } | { kind: "mask" };
+export interface MaskSource {
+  /** mask pixel dimensions (positive integers) */
+  width: number;
+  height: number;
+  /** alpha per pixel, row-major; Float32Array 0..1 or Uint8Array 0..255 */
+  alpha: Float32Array | Uint8Array;
+}
+
+/**
+ * Shape source for a surface.
+ */
+export type Shape =
+  | { kind: "roundedRect"; radius: number }
+  | { kind: "mask"; mask: MaskSource };
 
 export interface SurfaceNode {
   /**
@@ -227,8 +242,8 @@ export function isHeightProfile(v: unknown): v is HeightProfile {
 
 /**
  * Runtime shape validation: `{ kind: "roundedRect", radius: finite >= 0 }` or
- * `{ kind: "mask" }`. Rejects unknown kinds, null, functions and malformed
- * objects, mirroring `isHeightProfile` for profiles.
+ * `{ kind: "mask", mask }`. Rejects unknown kinds, null, functions and
+ * malformed objects, mirroring `isHeightProfile` for profiles.
  */
 export function isShape(v: unknown): v is Shape {
   if (typeof v !== "object" || v === null) {
@@ -236,13 +251,41 @@ export function isShape(v: unknown): v is Shape {
   }
   const shape = v as Shape;
   if (shape.kind === "mask") {
-    return true;
+    return isMaskSource((shape as { mask: unknown }).mask);
   }
   if (shape.kind === "roundedRect") {
     const radius = (shape as { kind: "roundedRect"; radius: unknown }).radius;
     return isFiniteNumber(radius) && radius >= 0;
   }
   return false;
+}
+
+function isMaskSource(v: unknown): v is MaskSource {
+  if (typeof v !== "object" || v === null) {
+    return false;
+  }
+  const mask = v as MaskSource;
+  if (!Number.isInteger(mask.width) || mask.width <= 0) {
+    return false;
+  }
+  if (!Number.isInteger(mask.height) || mask.height <= 0) {
+    return false;
+  }
+  const alpha = mask.alpha;
+  if (!(alpha instanceof Float32Array || alpha instanceof Uint8Array)) {
+    return false;
+  }
+  if (alpha.length !== mask.width * mask.height) {
+    return false;
+  }
+  if (alpha instanceof Float32Array) {
+    for (let i = 0; i < alpha.length; i++) {
+      if (!Number.isFinite(alpha[i])) {
+        return false;
+      }
+    }
+  }
+  return true;
 }
 
 function assertPositiveInt(v: unknown, label: string): void {

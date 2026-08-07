@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { maskFromAscii } from "./mask";
 import { createScene } from "./scene";
 import type { SurfaceNode } from "./scene";
 
@@ -147,7 +148,25 @@ describe("createScene", () => {
     expect(() =>
       createScene({ ...base, surfaces: [surface({ shape: { kind: "roundedRect", radius: NaN } })] }),
     ).toThrow(TypeError);
-    expect(() => createScene({ ...base, surfaces: [surface({ shape: { kind: "mask" } })] })).not.toThrow();
+    // mask without a source, and malformed mask sources
+    expect(() => createScene({ ...base, surfaces: [surface({ shape: { kind: "mask" } as never })] })).toThrow(TypeError);
+    expect(() =>
+      createScene({
+        ...base,
+        surfaces: [
+          surface({
+            shape: { kind: "mask", mask: { width: 2, height: 2, alpha: new Float32Array(3) } },
+          }),
+        ],
+      }),
+    ).toThrow(TypeError);
+    expect(() =>
+      createScene({
+        ...base,
+        surfaces: [surface({ shape: { kind: "mask", mask: { width: 0, height: 2, alpha: new Float32Array(0) } } })],
+      }),
+    ).toThrow(TypeError);
+    expect(() => createScene({ ...base, surfaces: [surface({ shape: { kind: "mask", mask: maskFromAscii(["#"]) } })] })).not.toThrow();
   });
 
   it("rejects unknown material references", () => {
@@ -178,7 +197,7 @@ describe("createScene", () => {
     const scene = createScene({
       width: 4,
       height: 4,
-      surfaces: [surface({ shape: { kind: "mask" }, thickness: 3 })],
+      surfaces: [surface({ shape: { kind: "mask", mask: maskFromAscii(["##", "##"]) }, thickness: 3 })],
     });
     expect(scene.surfaces[0].shape.kind).toBe("mask");
     expect(scene.surfaces[0].thickness).toBe(3);

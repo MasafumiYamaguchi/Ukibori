@@ -125,8 +125,11 @@ describe("roundedRectSurfaceHeight", () => {
     expect(result.objectId.get(15, 15)).toBe(NO_OWNER);
   });
 
-  it("returns -Infinity for mask shapes", () => {
-    expect(roundedRectSurfaceHeight(surface({ shape: { kind: "mask" } }), 5, 5)).toBe(-Infinity);
+  it("returns -Infinity for mask shapes (rounded-rect path does not handle them)", () => {
+    const s = surface({
+      shape: { kind: "mask", mask: { width: 1, height: 1, alpha: new Float32Array([1]) } },
+    });
+    expect(roundedRectSurfaceHeight(s, 5, 5)).toBe(-Infinity);
   });
 });
 

@@ -155,6 +155,34 @@ gradients, ...) are NOT part of this model.
   (specular direct contribution `luminance(Fr) * NdotL * visibility`, before
   light intensity), `color` (full BRDF output)
 
+## Mask / glyph geometry (#19)
+
+```
+alpha mask -> binary silhouette (alpha >= 0.5)
+           -> exact Euclidean signed distance field (Felzenszwalb-Huttenlocher)
+           -> glyph height via the same profile semantics as the SDF path
+           -> normals/lighting/caster field/cast shadows
+```
+
+- `MaskSource`: a raster of alpha values mapped onto `SurfaceNode.size`;
+  `Shape = { kind: "mask", mask }`. Rasterization (canvas text, icons, ...)
+  stays OUTSIDE the renderer.
+- `computeMaskSdf` / `getMaskSdf`: exact EDT signed distances in mask-pixel
+  units (negative inside, positive outside), cached per mask object.
+  Holes/counters are real: empty mask pixels have positive distance and no
+  coverage, so the height field keeps the letter silhouette with its
+  counters.
+- `maskSurfaceHeight`: maps scene positions to mask pixels, bilinearly
+  samples the SDF, and applies the surface profile. Coverage = `distance <
+  0`, identical to the rounded-rect path. `surfaceHeight` dispatches on the
+  shape kind for composition (SDF + mask in one scene).
+- glyph elevation raises the relief above the button top and changes the
+  shadow geometry; the cast shadow follows the silhouette (open counters
+  show as lit gaps in the shadow; enclosed counters are reflected in the
+  geometry).
+- the demo renders PLAY text and a ring icon rasterized via canvas on the
+  same pipeline.
+
 ## Multi-surface scenes (#18)
 
 - `composeHeightField` / `composeSdfHeightField` merge any number of

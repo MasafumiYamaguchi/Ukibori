@@ -1,5 +1,6 @@
 import { HostBuffer } from "./buffer";
 import { composeHeightField } from "./compose";
+import { getMaskSdf, sampleMaskSdfAt } from "./mask";
 import { evaluateProfile } from "./profile";
 import type { Scene, SurfaceNode } from "./scene";
 import type { Vec2 } from "./types";
@@ -95,9 +96,62 @@ export function roundedRectSurfaceHeight(surface: SurfaceNode, x: number, y: num
   return surface.elevation + local;
 }
 
-/** Compose the full scene height field through the SDF geometry. */
+/**
+ * Mask (glyph/icon) surface height at a continuous scene position (#19).
+ *
+ * The mask pixel grid maps onto `SurfaceNode.size` (the physical footprint):
+ * mask pixel (i, j) covers `[i, i+1) x [j, j+1)` and its center sits at
+ * scene position `position + ((i + 0.5) / mask.width * size.x, ...)`. The
+ * signed distance is bilinearly sampled from the mask's SDF (mask-pixel
+ * units) and scaled to scene units; coverage and profile semantics are
+ * identical to the rounded-rect path (negative inside, `-Infinity` outside).
+ *
+ * Outside the surface footprint the height is `-Infinity` (the mask does
+ * not extend beyond its mapped rectangle).
+ */
+export function maskSurfaceHeight(surface: SurfaceNode, x: number, y: number): number {
+  const shape = surface.shape;
+  if (shape.kind !== "mask") {
+    return -Infinity;
+  }
+  const mask = shape.mask;
+  const { size } = surface;
+  if (
+    x < surface.position.x ||
+    x > surface.position.x + size.x ||
+    y < surface.position.y ||
+    y > surface.position.y + size.y
+  ) {
+    return -Infinity;
+  }
+  const sdf = getMaskSdf(mask);
+  const px = ((x - surface.position.x) / size.x) * mask.width;
+  const py = ((y - surface.position.y) / size.y) * mask.height;
+  // scene units per mask pixel (x-axis; masks should map isotropically)
+  const scale = size.x / mask.width;
+  const distance = sampleMaskSdfAt(sdf, px, py) * scale;
+  if (distance >= 0) {
+    return -Infinity;
+  }
+  const local = evaluateProfile(
+    surface.profile,
+    distance,
+    surface.bevelWidth ?? 0,
+    surface.thickness ?? 0,
+  );
+  return surface.elevation + local;
+}
+
+/** Per-shape dispatch for the scene composition geometry. */
+export function surfaceHeight(surface: SurfaceNode, x: number, y: number): number {
+  return surface.shape.kind === "mask"
+    ? maskSurfaceHeight(surface, x, y)
+    : roundedRectSurfaceHeight(surface, x, y);
+}
+
+/** Compose the full scene height field through the shape geometry (SDF + mask). */
 export function composeSdfHeightField(scene: Scene) {
-  return composeHeightField(scene, roundedRectSurfaceHeight);
+  return composeHeightField(scene, surfaceHeight);
 }
 
 /**
@@ -117,7 +171,7 @@ export function composeCasterHeightField(scene: Scene): HostBuffer {
   if (casters.length === scene.surfaces.length) {
     return composeSdfHeightField(scene).height;
   }
-  return composeHeightField({ ...scene, surfaces: casters }, roundedRectSurfaceHeight).height;
+  return composeHeightField({ ...scene, surfaces: casters }, surfaceHeight).height;
 }
 
 export interface SdfDebugBuffers {
