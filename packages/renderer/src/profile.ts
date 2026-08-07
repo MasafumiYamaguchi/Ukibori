@@ -27,16 +27,18 @@ export function evaluateProfile(
       // Step at the shape boundary: full height inside, zero at/outside it.
       return distance < 0 ? thickness : 0;
     case "bevel": {
-      // Silicone-like rise over [-bevelWidth, +bevelWidth]:
+      // Inward silicone-like rise over the band [-bevelWidth, 0]:
       //   distance = -bevelWidth -> thickness (plateau inside)
-      //   distance = 0          -> thickness / 2 (boundary)
-      //   distance = +bevelWidth -> 0 (base outside)
+      //   distance = -bevelWidth/2 -> thickness / 2
+      //   distance = 0 (nominal boundary) -> 0 (surface base)
+      // The bevel never extends outside the shape, so SurfaceNode.size is
+      // the physical footprint (DOM rounded-rect semantics).
       // smoothstep is C1 (value and derivative match at both ends), so the
-      // surface has no visible fold at the plateau or the base.
+      // surface has no visible fold at the plateau or the boundary.
       if (bevelWidth <= 0) {
         return distance < 0 ? thickness : 0;
       }
-      const u = clamp((distance + bevelWidth) / (2 * bevelWidth), 0, 1);
+      const u = clamp((distance + bevelWidth) / bevelWidth, 0, 1);
       const falloff = u * u * (3 - 2 * u);
       return thickness * (1 - falloff);
     }

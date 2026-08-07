@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HostBuffer, readElement, sampleLine } from "./buffer";
+import { NO_OWNER } from "./compose";
 import {
   composeSdfHeightField,
   generateSdfDebug,
@@ -59,11 +60,29 @@ describe("roundedRectSdf", () => {
     expect(r5).toBeGreaterThan(r1);
   });
 
-  it("morphs toward a circle when radius exceeds half extents", () => {
-    // Standard formula behavior: d = length((half, half)) - radius at center.
-    const d = roundedRectSdf(position, size, 10, 5, 5);
-    expect(d).toBeCloseTo(Math.hypot(5, 5) - 10);
-    expect(d).toBeLessThan(0);
+  it("clamps radius to min(radius, half extents) like CSS rounded rects", () => {
+    // radius 100 behaves exactly like radius 5 (= min(100, 5, 5))
+    for (const [x, y] of [
+      [5, 5],
+      [10, 5],
+      [0, 5],
+      [9, 7],
+      [2, 2],
+    ]) {
+      expect(roundedRectSdf(position, size, 100, x, y)).toBe(
+        roundedRectSdf(position, size, 5, x, y),
+      );
+    }
+    // radius == half makes an exact circle: d = |p - center| - half
+    const circle = (x: number, y: number) => Math.hypot(x - 5, y - 5) - 5;
+    for (const [x, y] of [
+      [5, 5],
+      [10, 5],
+      [0, 5],
+      [9, 7],
+    ]) {
+      expect(roundedRectSdf(position, size, 100, x, y)).toBeCloseTo(circle(x, y), 12);
+    }
   });
 
   it("is finite everywhere in the scene", () => {
@@ -83,15 +102,27 @@ describe("roundedRectSurfaceHeight", () => {
     expect(roundedRectSurfaceHeight(s, 15, 15)).toBe(-Infinity);
   });
 
-  it("rises smoothly across the bevel band for the bevel profile", () => {
+  it("rises smoothly across the inward bevel band", () => {
     const s = surface();
-    const center = roundedRectSurfaceHeight(s, 5, 5);
-    const boundary = roundedRectSurfaceHeight(s, 13, 5);
+    const center = roundedRectSurfaceHeight(s, 5, 5); // d = -2 = -bevelWidth -> plateau
+    const midBand = roundedRectSurfaceHeight(s, 12, 5); // d = -1 -> half thickness
+    const boundary = roundedRectSurfaceHeight(s, 13, 5); // d = 0 -> outside footprint
     const outside = roundedRectSurfaceHeight(s, 15, 15);
     expect(center).toBeCloseTo(8);
-    expect(boundary).toBeCloseTo(7);
+    expect(midBand).toBeCloseTo(7);
+    expect(boundary).toBe(-Infinity);
     expect(outside).toBe(-Infinity);
-    expect(boundary).toBeLessThan(center);
+  });
+
+  it("keeps a zero-thickness surface alive at H = elevation inside its coverage", () => {
+    const s = surface({ elevation: 6, thickness: 0 });
+    expect(roundedRectSurfaceHeight(s, 5, 5)).toBe(6);
+    expect(roundedRectSurfaceHeight(s, 13, 5)).toBe(-Infinity);
+    const result = composeSdfHeightField(sceneWith(s));
+    expect(result.height.get(5, 5)).toBe(6);
+    expect(result.objectId.get(5, 5)).toBe(0);
+    expect(result.height.get(15, 15)).toBe(0);
+    expect(result.objectId.get(15, 15)).toBe(NO_OWNER);
   });
 
   it("returns -Infinity for mask shapes", () => {
@@ -106,8 +137,8 @@ describe("composeSdfHeightField", () => {
     expect(height.spec.width).toBe(16);
     // deep inside the button: plateau at elevation + thickness
     expect(height.get(5, 5)).toBeCloseTo(8);
-    // boundary region: pixel (12,5) center (12.5, 5.5), d = -0.5 -> 6 + 2*(1 - smoothstep(0.375))
-    expect(height.get(12, 5)).toBeCloseTo(7.3671875, 6);
+    // boundary region: pixel (12,5) center (12.5, 5.5), d = -0.5 -> 6 + 2*(1 - smoothstep(0.75))
+    expect(height.get(12, 5)).toBeCloseTo(6.3125, 6);
     // far outside: base plane 0, no owner
     expect(height.get(15, 15)).toBe(0);
     expect(result.objectId.get(5, 5)).toBe(0);
@@ -141,30 +172,27 @@ describe("composeSdfHeightField", () => {
     expect(highEdge - 6).toBeLessThan(lowEdge);
   });
 
-  it("shows a smooth, step-free cross-section through the surface center", () => {
-    const height = composeSdfHeightField(sceneWith(surface())).height;
+  it("shows a step-free continuous cross-section at elevation 0", () => {
+    // Standalone smooth-profile PoC: elevation 0 so the bevel rises
+    // continuously from the base plane (0) to the plateau (thickness).
+    const height = composeSdfHeightField(
+      sceneWith(surface({ elevation: 0, thickness: 2, bevelWidth: 4 })),
+    ).height;
     const bytes = new Uint8Array(height.data.buffer);
-    const line = sampleLine({ spec: height.spec, bytes }, 0, 5, 15, 5, 16);
+    const line = sampleLine({ spec: height.spec, bytes }, 0, 8, 15, 8, 16);
     const values = line.map((s) => s.value);
-    expect(values[0]).toBe(0); // outside left
-    expect(values[15]).toBe(0); // outside right
-    const peak = Math.max(...values);
-    expect(peak).toBeCloseTo(8, 1);
-    const firstPeak = values.indexOf(peak);
-    const lastPeak = values.lastIndexOf(peak);
-    const firstPositive = values.findIndex((v) => v > 0);
-    const lastPositive = values.length - 1 - [...values].reverse().findIndex((v) => v > 0);
-    expect(firstPositive).toBeGreaterThan(0);
-    expect(firstPeak).toBeGreaterThan(firstPositive);
-    // strictly rising edge into the plateau
-    for (let i = firstPositive + 1; i <= firstPeak; i++) {
-      expect(values[i]).toBeGreaterThan(values[i - 1]);
-    }
-    // strictly falling edge out of the plateau
-    for (let i = lastPeak + 1; i <= lastPositive; i++) {
-      expect(values[i]).toBeLessThan(values[i - 1]);
+    expect(values[0]).toBe(0); // base plane outside
+    expect(values[15]).toBe(0);
+    expect(Math.max(...values)).toBeCloseTo(2, 1); // plateau == thickness
+    // Discontinuity detection: a step would jump by ~thickness (or elevation)
+    // between adjacent pixels. The C1 smoothstep slope is bounded by
+    // 1.5 * thickness / bevelWidth = 0.75 per pixel here.
+    for (let i = 1; i < values.length; i++) {
+      expect(Math.abs(values[i] - values[i - 1])).toBeLessThan(1);
     }
     // the edge is a smooth slope, not a step: several distinct intermediate heights
+    const firstPositive = values.findIndex((v) => v > 0);
+    const lastPositive = values.length - 1 - [...values].reverse().findIndex((v) => v > 0);
     const distinct = new Set(
       values.slice(firstPositive, lastPositive + 1).map((v) => Math.round(v * 100) / 100),
     ).size;

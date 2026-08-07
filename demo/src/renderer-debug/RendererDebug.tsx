@@ -84,7 +84,10 @@ const SDF_SCENE = {
       id: "button",
       position: { x: 18, y: 10 },
       size: { x: 60, y: 40 },
-      elevation: 6,
+      // elevation 0: standalone smooth-profile PoC — the bevel rises
+      // continuously from the base plane to the plateau (raised surfaces
+      // with a side wall belong to the multi-surface scene, #18).
+      elevation: 0,
       thickness: 2,
       bevelWidth: 4,
       shape: { kind: "roundedRect", radius: 10 } as const,
@@ -142,8 +145,8 @@ export function RendererDebug(): ReactElement {
         }
         draw(sdfCanvas.current, toRgbaBytes(sdfData, { min: -4, max: 4 }));
         draw(maskCanvas.current, toRgbaBytes(maskData));
-        draw(geometryHeightCanvas.current, toRgbaBytes(geoData, { min: 0, max: 8 }));
-        drawLineGraph(crossSectionCanvas.current, geoData, 0, 8);
+        draw(geometryHeightCanvas.current, toRgbaBytes(geoData, { min: 0, max: 3 }));
+        drawLineGraph(crossSectionCanvas.current, geoData, 0, 3);
       } catch (e) {
         setError(e instanceof Error ? e.message : String(e));
       }
@@ -186,11 +189,11 @@ export function RendererDebug(): ReactElement {
                 <canvas ref={maskCanvas} width={96} height={60} />
               </div>
               <div>
-                <p>height / bump map ([0, 8])</p>
+                <p>height / bump map ([0, 3])</p>
                 <canvas ref={geometryHeightCanvas} width={96} height={60} />
               </div>
             </div>
-            <p>Height cross-section through the surface center (0 → 8)</p>
+            <p>Height cross-section through the surface center (0 → 3)</p>
             <canvas ref={crossSectionCanvas} width={96} height={120} />
             <p>
               SDF (inside negative / boundary zero / outside positive) → bevel profile →

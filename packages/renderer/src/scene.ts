@@ -42,9 +42,10 @@ import type { Vec2, Vec3 } from "./types";
  *
  * - `"flat"`: step at the shape boundary — local height `thickness` where the
  *   signed distance is negative (inside), `0` at/outside the boundary
- * - `"bevel"`: silicone-like smooth edge rise over the `[-bevelWidth,
- *   +bevelWidth]` band around the boundary, using a C1 smoothstep falloff
- *   (implemented by the geometry issue #14)
+ * - `"bevel"`: silicone-like smooth edge rise over the INWARD band
+ *   `[-bevelWidth, 0]` (C1 smoothstep): full thickness at `-bevelWidth`,
+ *   zero at the nominal boundary. The bevel never extends outside the shape,
+ *   so `SurfaceNode.size` describes the physical footprint (DOM semantics)
  */
 export type HeightProfile = { kind: "flat" } | { kind: "bevel" };
 

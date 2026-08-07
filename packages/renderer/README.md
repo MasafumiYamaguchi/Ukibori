@@ -58,10 +58,11 @@ the same representation.
 
 - `{ kind: "flat" }`: step at the shape boundary — full thickness inside, 0 at
   the boundary and outside
-- `{ kind: "bevel" }`: silicone-like smooth edge rise over the
-  `[-bevelWidth, +bevelWidth]` band around the boundary, using a C1
-  smoothstep falloff (full thickness at `-bevelWidth`, half at the boundary,
-  0 at `+bevelWidth`)
+- `{ kind: "bevel" }`: silicone-like smooth edge rise over the **inward** band
+  `[-bevelWidth, 0]` (C1 smoothstep): full thickness at `-bevelWidth`, half at
+  the mid-band, zero at the nominal boundary. The bevel never extends outside
+  the shape, so `SurfaceNode.size` describes the **physical footprint**
+  (DOM rounded-rect semantics).
 
 `evaluateProfile(profile, distance, bevelWidth, thickness)` returns the local
 height above the base in `[0, thickness]`; absolute scene z is
@@ -80,13 +81,21 @@ shape -> roundedRectSdf (signed distance)
 
 - `roundedRectSdf`: analytic rounded-box SDF (iq sdRoundBox, with the
   `min(max(q), 0)` interior term), sampled at pixel centers. Sign: negative
-  inside, zero on the boundary, positive outside. `radius > halfExtent`
-  morphs toward a circle.
-- `roundedRectSurfaceHeight`: per-surface geometry for `composeHeightField`;
-  `-Infinity` where the profile produces no local height
+  inside, zero on the boundary, positive outside. `radius` is clamped to
+  `min(radius, width/2, height/2)` like CSS rounded rects (radius == half
+  extent is an exact circle).
+- `roundedRectSurfaceHeight`: per-surface geometry for `composeHeightField`.
+  **Coverage is the shape interior (`distance < 0`), independent of local
+  height** — a surface with `thickness = 0` still exists at `H = elevation`
+  inside its footprint. Outside the footprint it is `-Infinity`.
 - `composeSdfHeightField`: full-scene height composition through the SDF
   geometry
 - `generateSdfDebug`: sdf / mask / height buffers for human inspection
+
+Note: a standalone surface at `elevation > 0` shows a vertical side wall at
+its footprint (H drops from `elevation` to the base plane 0). The smooth
+profile is best inspected with `elevation = 0`; raised surfaces get an
+underlying base surface at `z = elevation` in the multi-surface scene (#18).
 
 Debug views: the demo page (`/renderer-debug.html`) shows SDF, mask, height
 map and a height cross-section graph; buffers can also be dumped as PPM from

@@ -13,25 +13,26 @@ describe("evaluateProfile: flat", () => {
   });
 });
 
-describe("evaluateProfile: bevel", () => {
+describe("evaluateProfile: bevel (inward band [-bevelWidth, 0])", () => {
   const profile: HeightProfile = { kind: "bevel" };
 
-  it("plateaus at full thickness deep inside", () => {
+  it("plateaus at full thickness inside the band", () => {
     expect(evaluateProfile(profile, -100, 2, 3)).toBe(3);
     expect(evaluateProfile(profile, -2, 2, 3)).toBe(3);
   });
 
-  it("reaches half thickness at the boundary", () => {
-    expect(evaluateProfile(profile, 0, 2, 3)).toBe(1.5);
+  it("reaches half thickness at the mid-band", () => {
+    expect(evaluateProfile(profile, -1, 2, 3)).toBe(1.5);
   });
 
-  it("falls to zero at the band edge and beyond", () => {
-    expect(evaluateProfile(profile, 2, 2, 3)).toBe(0);
+  it("is zero at the nominal boundary and outside", () => {
+    expect(evaluateProfile(profile, 0, 2, 3)).toBe(0);
+    expect(evaluateProfile(profile, 1, 2, 3)).toBe(0);
     expect(evaluateProfile(profile, 5, 2, 3)).toBe(0);
   });
 
-  it("is monotone non-increasing from inside to outside", () => {
-    const samples = [-2, -1.5, -1, -0.5, 0, 0.5, 1, 1.5, 2].map((d) =>
+  it("is monotone non-increasing from inside to the boundary", () => {
+    const samples = [-2, -1.5, -1, -0.5, 0].map((d) =>
       evaluateProfile(profile, d, 2, 3),
     );
     for (let i = 1; i < samples.length; i++) {
@@ -43,8 +44,8 @@ describe("evaluateProfile: bevel", () => {
     const eps = 1e-9;
     expect(evaluateProfile(profile, -2 - eps, 2, 3)).toBeCloseTo(evaluateProfile(profile, -2, 2, 3), 6);
     expect(evaluateProfile(profile, -2 + eps, 2, 3)).toBeCloseTo(evaluateProfile(profile, -2, 2, 3), 6);
-    expect(evaluateProfile(profile, 2 - eps, 2, 3)).toBeCloseTo(0, 6);
-    expect(evaluateProfile(profile, 2 + eps, 2, 3)).toBeCloseTo(0, 6);
+    expect(evaluateProfile(profile, 0 - eps, 2, 3)).toBeCloseTo(0, 6);
+    expect(evaluateProfile(profile, 0 + eps, 2, 3)).toBeCloseTo(0, 6);
   });
 
   it("returns the flat step when bevelWidth is 0", () => {

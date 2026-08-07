@@ -27,14 +27,16 @@ import type { Vec2 } from "./types";
  * Analytic signed distance of the standard rounded box (Inigo Quilez
  * sdRoundBox), at a continuous scene position:
  *
- *     q = abs(p - center) - halfExtent + radius
- *     d = length(max(q, 0)) + min(max(q.x, q.y), 0) - radius
+ *     r = min(radius, halfW, halfH)
+ *     q = abs(p - center) - halfExtent + r
+ *     d = length(max(q, 0)) + min(max(q.x, q.y), 0) - r
  *
- * The `min(max(q), 0)` term is required so interior points near flat edges
- * get the correct distance to the edge (the naive `length(max(q,0)) - r`
- * underestimates interior distances). `radius > halfExtent` morphs the shape
- * toward a circle (standard behavior, exact only in the radius -> halfExtent
- * limit). The result is finite for all finite inputs.
+ * `radius` is clamped to `min(radius, width/2, height/2)`, matching CSS
+ * rounded-rect / border-radius behavior and the `flatRoundedRectHeight`
+ * fixture. The `min(max(q), 0)` term is required so interior points near flat
+ * edges get the correct distance to the edge (the naive `length(max(q,0)) -
+ * r` underestimates interior distances). The result is finite for all finite
+ * inputs.
  */
 export function roundedRectSdf(
   position: Vec2,
@@ -45,22 +47,27 @@ export function roundedRectSdf(
 ): number {
   const halfW = size.x / 2;
   const halfH = size.y / 2;
+  const r = Math.min(radius, halfW, halfH);
   const px = x - (position.x + halfW);
   const py = y - (position.y + halfH);
-  const qx = Math.abs(px) - halfW + radius;
-  const qy = Math.abs(py) - halfH + radius;
+  const qx = Math.abs(px) - halfW + r;
+  const qy = Math.abs(py) - halfH + r;
   const outer = Math.hypot(Math.max(qx, 0), Math.max(qy, 0));
   const inner = Math.min(Math.max(qx, qy), 0);
-  return outer + inner - radius;
+  return outer + inner - r;
 }
 
 /**
  * Surface height at a continuous scene position (CPU reference geometry for
  * `composeHeightField`).
  *
- * Returns `elevation + localHeight` where the profile produces positive
- * local height, and `-Infinity` where the surface has no geometry (the
- * scene composition contract from #13).
+ * Coverage is the SHAPE INTERIOR `distance < 0` and is independent of local
+ * height: a surface with `thickness = 0` still exists at `H = elevation`
+ * inside its footprint. The footprint equals `SurfaceNode.position/size`
+ * (the bevel rises inward, it never extends outside the shape).
+ *
+ * Returns `elevation + localHeight` inside the coverage and `-Infinity`
+ * outside (the scene composition contract from #13).
  *
  * Only `roundedRect` shapes are supported; `mask` shapes return `-Infinity`
  * (they arrive in the glyph issue #19).
@@ -76,15 +83,15 @@ export function roundedRectSurfaceHeight(surface: SurfaceNode, x: number, y: num
     x,
     y,
   );
+  if (distance >= 0) {
+    return -Infinity;
+  }
   const local = evaluateProfile(
     surface.profile,
     distance,
     surface.bevelWidth ?? 0,
     surface.thickness ?? 0,
   );
-  if (!(local > 0)) {
-    return -Infinity;
-  }
   return surface.elevation + local;
 }
 
