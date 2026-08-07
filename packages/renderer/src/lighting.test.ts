@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { HostBuffer, readElement } from "./buffer";
+import { NO_OWNER } from "./compose";
 import { lightScene, computeNormals, shadeHeightField } from "./lighting";
 import { createScene } from "./scene";
 import type { Scene, SurfaceNode } from "./scene";
@@ -11,6 +12,12 @@ function heightFrom(values: number[][], width: number, height: number): HostBuff
       buf.set(x, y, 0, values[y][x]);
     }
   }
+  return buf;
+}
+
+function noOwnerObjectId(width: number, height: number): HostBuffer {
+  const buf = new HostBuffer({ width, height, channels: 1, format: "u32" });
+  buf.fill(NO_OWNER);
   return buf;
 }
 
@@ -189,7 +196,7 @@ describe("shading", () => {
       4,
       4,
     );
-    const { diffuse } = shadeHeightField(scene, flat);
+    const { diffuse } = shadeHeightField(scene, flat, noOwnerObjectId(4, 4));
     expect(diffuse.get(1, 1)).toBeCloseTo(1, 12);
   });
 
@@ -204,7 +211,7 @@ describe("shading", () => {
       4,
       4,
     );
-    const { diffuse } = shadeHeightField(scene, flat);
+    const { diffuse } = shadeHeightField(scene, flat, noOwnerObjectId(4, 4));
     expect(diffuse.get(1, 1)).toBeCloseTo(0.8, 6);
   });
 
@@ -266,18 +273,85 @@ describe("shading", () => {
     expect(lum(right, 12, 8)).toBeGreaterThan(lum(right, 4, 8));
   });
 
-  it("sanitizes invalid shading options", () => {
-    const scene = buttonScene({ x: 0, y: 0 });
-    const a = shadeHeightField(scene, lightScene(scene).height, {
-      shading: {
-        baseColor: { r: NaN, g: 0.5, b: 0.5 },
-        ambient: -1,
-        diffuseStrength: Infinity,
-        specularPower: -5,
-      },
+  it("uses the owning surface's material: unknown refs throw at creation", () => {
+    expect(() =>
+      createScene({
+        width: 4,
+        height: 4,
+        surfaces: [
+          {
+            id: "s",
+            position: { x: 0, y: 0 },
+            size: { x: 2, y: 2 },
+            elevation: 0,
+            shape: { kind: "roundedRect", radius: 0 },
+            profile: { kind: "bevel" },
+            material: "nope",
+            castsShadow: true,
+            receivesShadow: true,
+          },
+        ],
+      }),
+    ).toThrow(/unknown material "nope"/);
+  });
+
+  it("applies scene material overrides to the combined color", () => {
+    const scene = (material: string) =>
+      createScene({
+        ...buttonScene({ x: -0.6, y: 0 }),
+        surfaces: [{ ...buttonScene({ x: 0, y: 0 }).surfaces[0], material }],
+      });
+    const lum = (buf: HostBuffer, x: number, y: number) =>
+      (buf.get(x, y, 0) + buf.get(x, y, 1) + buf.get(x, y, 2)) / 3;
+    const silicone = lightScene(scene("silicone")).color;
+    const matte = lightScene(scene("matte")).color;
+    const metal = lightScene(scene("metal")).color;
+    const p = { x: 4, y: 8 }; // lit bevel pixel
+    expect(lum(silicone, p.x, p.y)).not.toBe(lum(matte, p.x, p.y));
+    expect(lum(matte, p.x, p.y)).not.toBe(lum(metal, p.x, p.y));
+  });
+
+  it("roughness changes the BRDF specular response", () => {
+    const scene = (roughness: number) =>
+      createScene({
+        ...buttonScene({ x: 0, y: 0 }),
+        materials: {
+          custom: {
+            baseColor: { r: 0.6, g: 0.6, b: 0.6 },
+            roughness,
+            metallic: 0,
+            ior: 1.5,
+          },
+        },
+        surfaces: [{ ...buttonScene({ x: 0, y: 0 }).surfaces[0], material: "custom" }],
+      });
+    const glossy = lightScene(scene(0.15)).specular;
+    const rough = lightScene(scene(0.9)).specular;
+    const peak = (buf: HostBuffer): number => {
+      let best = -Infinity;
+      for (let y = 0; y < buf.spec.height; y++) {
+        for (let x = 0; x < buf.spec.width; x++) {
+          const v = buf.get(x, y, 0);
+          if (v > best) best = v;
+        }
+      }
+      return best;
+    };
+    expect(peak(glossy)).toBeGreaterThan(peak(rough));
+  });
+
+  it("metals have no diffuse: metal output differs structurally from dielectric", () => {
+    const metalScene = createScene({
+      ...buttonScene({ x: 0, y: 0 }),
+      surfaces: [{ ...buttonScene({ x: 0, y: 0 }).surfaces[0], material: "metal" }],
     });
-    const b = shadeHeightField(scene, lightScene(scene).height);
-    expect(Array.from(a.color.data)).toEqual(Array.from(b.color.data));
+    const dielectricScene = buttonScene({ x: 0, y: 0 });
+    const metal = lightScene(metalScene);
+    const dielectric = lightScene(dielectricScene);
+    // base plane (no owner) uses the same base material in both scenes
+    expect(metal.color.get(0, 0, 0)).toBe(dielectric.color.get(0, 0, 0));
+    // on the button, metallic F0 vs dielectric diffuse produce different colors
+    expect(metal.color.get(8, 8, 0)).not.toBe(dielectric.color.get(8, 8, 0));
   });
 
   it("applies light intensity to direct diffuse/specular lighting", () => {
@@ -292,16 +366,19 @@ describe("shading", () => {
     const lum = (buf: HostBuffer, x: number, y: number) =>
       (buf.get(x, y, 0) + buf.get(x, y, 1) + buf.get(x, y, 2)) / 3;
     const litPixel = { x: 4, y: 8 }; // bright bevel pixel under this light
-    // intensity 0: ambient only -> uniform color, no lighting gradient
-    for (let y = 0; y < zero.spec.height; y++) {
-      for (let x = 0; x < zero.spec.width; x++) {
-        expect(Array.from([zero.get(x, y, 0), zero.get(x, y, 1), zero.get(x, y, 2)])).toEqual([
-          zero.get(litPixel.x, litPixel.y, 0),
-          zero.get(litPixel.x, litPixel.y, 1),
-          zero.get(litPixel.x, litPixel.y, 2),
-        ]);
-      }
-    }
+    // intensity 0: ambient only -> no lighting gradient (button is symmetric
+    // left/right, so both bevel edges must be identical; base plane differs
+    // only because it uses the base-plane material)
+    expect(Array.from([zero.get(4, 8, 0), zero.get(4, 8, 1), zero.get(4, 8, 2)])).toEqual([
+      zero.get(12, 8, 0),
+      zero.get(12, 8, 1),
+      zero.get(12, 8, 2),
+    ]);
+    expect(Array.from([zero.get(0, 0, 0), zero.get(0, 0, 1), zero.get(0, 0, 2)])).toEqual([
+      zero.get(15, 15, 0),
+      zero.get(15, 15, 1),
+      zero.get(15, 15, 2),
+    ]);
     // ambient-only baseline is darker than any direct-lit pixel
     expect(lum(zero, litPixel.x, litPixel.y)).toBeLessThan(lum(full, litPixel.x, litPixel.y));
     // changing intensity changes the combined result monotonically

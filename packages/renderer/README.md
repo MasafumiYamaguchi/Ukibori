@@ -101,13 +101,7 @@ Debug views: the demo page (`/renderer-debug.html`) shows SDF, mask, height
 map and a height cross-section graph; buffers can also be dumped as PPM from
 tests.
 
-## Normal generation and lighting (#15)
-
-```
-height -> computeNormals (central difference)
-        -> diffuse (N·L) + specular (Blinn-Phong) + ambient
-        -> sRGB RGBA8
-```
+## Normals and lighting (#15)
 
 - `computeNormals`: central difference over 2px with edge samples clamped
   (replicate). `N = normalize(-dx * scaleX, -dy * scaleY, normalScale)`;
@@ -118,15 +112,41 @@ height -> computeNormals (central difference)
   is overflow-safe for extreme scale values. Flat plateaus give `(0, 0, 1)`
   (+z = viewer).
 - `shadeHeightField` / `lightScene`: shared directional light (direction
-  points toward the light, #13). Diffuse `max(N·L, 0)`, Blinn-Phong specular
-  with `V = (0, 0, 1)`, ambient fill. `scene.light.intensity` scales the
-  direct (diffuse + specular) terms; intensity 0 leaves ambient only. The
-  degenerate half-vector `L = -V` (direction `{0, 0, -1}`) resolves specular
-  to 0 without NaN. Lighting is computed in linear space and sRGB-encoded on
-  output. Provisional — the physical material model (#16) replaces this
-  surface response.
-- debug buffers: `normal` (f32 x3), `diffuse` / `specular` (f32 1ch),
-  `color` (RGBA8)
+  points toward the light, #13). `scene.light.intensity` scales the direct
+  terms; intensity 0 leaves ambient only. The degenerate half-vector
+  `L = -V` (direction `{0, 0, -1}`) resolves specular to 0 without NaN.
+  Lighting is computed in linear space and sRGB-encoded on output.
+- debug buffers: `normal` (f32 x3), `diffuse` (raw N·L) / `specular` (f32
+  1ch), `color` (RGBA8)
+
+## Material / BRDF (#16)
+
+```
+height -> normals -> per-pixel material (objectId -> surface -> MaterialRef)
+        -> Cook-Torrance BRDF -> sRGB RGBA8
+```
+
+Material model (`Material`): `baseColor` (linear), `roughness` (0..1),
+`metallic` (0..1), `ior` (dielectric F0 source, default 1.5). Lighting runs
+in linear space with explicit sRGB encoding. CSS approximation tokens
+(shadowAlpha, gradients, ...) are NOT part of this model.
+
+- Cook-Torrance: NDF GGX (`alpha = roughness^2`), height-correlated Smith
+  visibility, Schlick Fresnel. `F0 = mix(dielectric IOR F0, baseColor,
+  metallic)`; diffuse is energy-conserving `baseColor * (1 - F) * (1 -
+  metallic) * NdotL` (metals have no diffuse). All terms are finite; the
+  degenerate half-vector `L = -V` resolves specular to 0.
+- presets: `silicone` (dielectric, medium roughness, IOR 1.45), `matte`
+  (dielectric, high roughness), `metal` (metallic 1, roughness controls
+  highlight width)
+- scenes resolve `MaterialRef` through `Scene.materials` overrides first,
+  then presets; unknown refs throw at `createScene`. Table values are
+  sanitized (roughness/metallic clamped, ior >= 1).
+- debug buffers: `diffuse` (raw N·L, material-independent), `specular`
+  (BRDF specular luminance), `color` (full BRDF output)
+
+The demo page renders silicone / matte / metal side by side under the same
+geometry and light, with the interactive light direction sliders.
 
 ## Buffer contract
 

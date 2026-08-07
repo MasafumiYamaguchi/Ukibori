@@ -1,4 +1,6 @@
 import { isFiniteNumber, normalizeVec3 } from "./math";
+import { resolveMaterial, sanitizeMaterialTable } from "./material";
+import type { Material } from "./material";
 import type { Vec2, Vec3 } from "./types";
 
 /**
@@ -119,6 +121,12 @@ export interface Scene {
   height: number;
   surfaces: SurfaceNode[];
   light: DirectionalLight;
+  /**
+   * Material overrides keyed by `MaterialRef`; built-in presets
+   * (silicone / matte / metal) fill the gaps. Values are sanitized on
+   * creation. A surface referencing an unknown material throws.
+   */
+  materials?: Record<string, Material>;
 }
 
 export interface SceneInput {
@@ -126,6 +134,7 @@ export interface SceneInput {
   height: number;
   surfaces?: SurfaceNode[];
   light?: Partial<DirectionalLight>;
+  materials?: Record<string, Material>;
 }
 
 export const DEFAULT_LIGHT_DIRECTION: Vec3 = { x: 0, y: 0, z: 1 };
@@ -136,6 +145,9 @@ export const DEFAULT_LIGHT_DIRECTION: Vec3 = { x: 0, y: 0, z: 1 };
  * - structural invariants (dimensions, sizes, elevations, ids, flags) are
  *   programmer errors and THROW, so a bad scene cannot silently produce
  *   wrong shadows or ownership. Duplicate `SurfaceNode.id` values throw.
+ * - material references must resolve (scene override table or built-in
+ *   preset); unknown refs throw. Table values are sanitized (finite,
+ *   clamped roughness/metallic).
  * - `light.direction` and `light.intensity` are SANITIZED: invalid direction
  *   falls back to +z, invalid intensity falls back to 1
  */
@@ -143,12 +155,18 @@ export function createScene(input: SceneInput): Scene {
   assertPositiveInt(input.width, "scene width");
   assertPositiveInt(input.height, "scene height");
   const surfaces = (input.surfaces ?? []).map(validateSurface);
+  const materials = sanitizeMaterialTable(input.materials);
   const seenIds = new Set<string>();
   for (const surface of surfaces) {
     if (seenIds.has(surface.id)) {
       throw new TypeError(`duplicate surface id "${surface.id}"`);
     }
     seenIds.add(surface.id);
+    try {
+      resolveMaterial(materials, surface.material);
+    } catch {
+      throw new TypeError(`surface "${surface.id}" references unknown material "${surface.material}"`);
+    }
   }
   const direction = normalizeVec3(input.light?.direction ?? DEFAULT_LIGHT_DIRECTION);
   const intensity = sanitizeIntensity(input.light?.intensity);
@@ -156,6 +174,7 @@ export function createScene(input: SceneInput): Scene {
     width: input.width,
     height: input.height,
     surfaces,
+    materials,
     light: { direction, intensity },
   };
 }

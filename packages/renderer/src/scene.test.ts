@@ -150,6 +150,30 @@ describe("createScene", () => {
     expect(() => createScene({ ...base, surfaces: [surface({ shape: { kind: "mask" } })] })).not.toThrow();
   });
 
+  it("rejects unknown material references", () => {
+    expect(() =>
+      createScene({
+        width: 4,
+        height: 4,
+        surfaces: [surface({ material: "nope" })],
+      }),
+    ).toThrow(/unknown material "nope"/);
+  });
+
+  it("accepts scene material overrides and sanitizes them", () => {
+    const scene = createScene({
+      width: 4,
+      height: 4,
+      surfaces: [surface({ material: "custom" })],
+      materials: {
+        custom: { baseColor: { r: 0.1, g: 0.2, b: 0.3 }, roughness: 5, metallic: -1 },
+      },
+    });
+    expect(scene.materials?.["custom"].roughness).toBe(1);
+    expect(scene.materials?.["custom"].metallic).toBe(0);
+    expect(scene.materials?.["custom"].baseColor.r).toBe(0.1);
+  });
+
   it("accepts mask shapes and returns normalized surfaces with thickness", () => {
     const scene = createScene({
       width: 4,

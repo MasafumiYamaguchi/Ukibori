@@ -3,6 +3,7 @@ export type {
   BufferData,
   BufferFormat,
   BufferSpec,
+  LinearRgb,
   RenderBackend,
   RenderBuffer,
   Vec2,
@@ -59,13 +60,25 @@ export {
 } from "./geometry";
 export type { SdfDebugBuffers } from "./geometry";
 export { computeNormals, lightScene, shadeHeightField } from "./lighting";
-export type {
-  LightingBuffers,
-  LightingOptions,
-  LinearRgb,
-  NormalOptions,
-  ShadingOptions,
-} from "./lighting";
+export type { LightingBuffers, LightingOptions, NormalOptions } from "./lighting";
+export {
+  BASE_MATERIAL,
+  DEFAULT_IOR,
+  MATERIAL_PRESETS,
+  resolveMaterial,
+  sanitizeMaterial,
+  sanitizeMaterialTable,
+} from "./material";
+export type { Material } from "./material";
+export {
+  brdfDirect,
+  dGgx,
+  dielectricF0,
+  f0ForMaterial,
+  fresnelSchlick,
+  smithGgxVisibility,
+} from "./brdf";
+export type { BrdfResult } from "./brdf";
 export {
   NO_OWNER,
   composeHeightField,

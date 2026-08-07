@@ -9,6 +9,13 @@ export interface Vec3 {
   z: number;
 }
 
+/** Linear-space color, channels >= 0 (not clamped to 1; encoding clamps) */
+export interface LinearRgb {
+  r: number;
+  g: number;
+  b: number;
+}
+
 export const BUFFER_FORMATS = ["f32", "u16", "u32", "u8"] as const;
 
 export type BufferFormat = (typeof BUFFER_FORMATS)[number];

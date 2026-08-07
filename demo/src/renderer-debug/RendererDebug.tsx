@@ -112,6 +112,9 @@ export function RendererDebug(): ReactElement {
   const diffuseCanvas = useRef<HTMLCanvasElement>(null);
   const specularCanvas = useRef<HTMLCanvasElement>(null);
   const litColorCanvas = useRef<HTMLCanvasElement>(null);
+  const siliconeCanvas = useRef<HTMLCanvasElement>(null);
+  const matteCanvas = useRef<HTMLCanvasElement>(null);
+  const metalCanvas = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [light, setLight] = useState({ x: -0.6, y: -0.8 });
@@ -174,6 +177,20 @@ export function RendererDebug(): ReactElement {
       draw(diffuseCanvas.current, diffuseImg);
       draw(specularCanvas.current, specularImg);
       draw(litColorCanvas.current, colorImg);
+      // #16: same geometry/light, only the material preset changes
+      for (const [name, canvas] of [
+        ["silicone", siliconeCanvas],
+        ["matte", matteCanvas],
+        ["metal", metalCanvas],
+      ] as const) {
+        const presetScene = createScene({
+          ...SDF_SCENE,
+          surfaces: [{ ...SDF_SCENE.surfaces[0], material: name }],
+          light: { direction: { x: light.x, y: light.y, z: 1 }, intensity: 1 },
+        });
+        const presetColor = lightScene(presetScene).color;
+        draw(canvas.current, toRgbaBytes(await readBufferData(presetColor)));
+      }
     })();
   }, [light.x, light.y]);
 
@@ -264,6 +281,27 @@ export function RendererDebug(): ReactElement {
             <p>
               Move the light and watch the highlight slide continuously across the bevel —
               it is driven by the height-gradient normals, not a CSS offset.
+            </p>
+          </section>
+          <section>
+            <h2>Materials #16 — BRDF presets (same geometry and light)</h2>
+            <div className="row">
+              <div>
+                <p>silicone</p>
+                <canvas ref={siliconeCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>matte</p>
+                <canvas ref={matteCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>metal</p>
+                <canvas ref={metalCanvas} width={96} height={60} />
+              </div>
+            </div>
+            <p>
+              Cook-Torrance (GGX/Smith/Schlick) with the metallic workflow: dielectric F0 from
+              IOR, metal uses baseColor as F0 with no diffuse term.
             </p>
           </section>
           <section>
