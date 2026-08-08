@@ -201,3 +201,130 @@ describe("capability resolution and retained provider", () => {
     expect(setDprSpy).toHaveBeenCalled();
   });
 });
+
+describe("provider option reset and identity semantics", () => {
+  it("resets shadow/margin/compositing to defaults when props become undefined", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    let layer: UkiboriDom | null = null;
+    const tree = (withOptions: boolean) => (
+      <Ukibori
+        schedule={(cb) => cb()}
+        onReady={(l) => (layer = l)}
+        {...(withOptions
+          ? {
+              shadow: { bias: 0.4, maxDistance: 120 },
+              margin: 32,
+              compositing: { shadowAlpha: 0.5 },
+            }
+          : {})}
+      >
+        <Surface sceneId="a" elevation={2} thickness={1}>
+          A
+        </Surface>
+      </Ukibori>
+    );
+    const { rerender } = render(tree(true));
+    await flushAsync();
+    const current = layer!;
+    const setShadowSpy = vi.spyOn(current, "setShadow");
+    const setMarginSpy = vi.spyOn(current, "setMargin");
+    const setCompositingSpy = vi.spyOn(current, "setCompositing");
+
+    // Removing the props must RESET the options through the setters — full
+    // replacement, not a skipped no-op.
+    rerender(tree(false));
+    await flushAsync();
+    expect(setShadowSpy).toHaveBeenLastCalledWith({});
+    expect(setMarginSpy).toHaveBeenLastCalledWith(undefined);
+    expect(setCompositingSpy).toHaveBeenLastCalledWith({});
+    // Same layer retained throughout.
+    expect(layer).toBe(current);
+  });
+
+  it("a shadow change removes fields not present in the new value", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    let layer: UkiboriDom | null = null;
+    const tree = (shadow: { bias: number; maxDistance?: number } | undefined) => (
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} shadow={shadow}>
+        <Surface sceneId="a" elevation={2} thickness={1}>
+          A
+        </Surface>
+      </Ukibori>
+    );
+    const { rerender } = render(tree({ bias: 0.4, maxDistance: 120 }));
+    await flushAsync();
+    const current = layer!;
+    expect(current.debugShadowOptions()).toEqual({ bias: 0.4, maxDistance: 120 });
+
+    // {bias,maxDistance} -> {bias}: maxDistance must be REMOVED, not merged.
+    rerender(tree({ bias: 0.2 }));
+    await flushAsync();
+    expect(current.debugShadowOptions()).toEqual({ bias: 0.2 });
+  });
+
+  it("switching the stage element recreates the layer on the new stage", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    const stageA = document.createElement("section");
+    const stageB = document.createElement("main");
+    document.body.appendChild(stageA);
+    document.body.appendChild(stageB);
+    let layer: UkiboriDom | null = null;
+    const tree = (stage: HTMLElement) => (
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} stage={stage}>
+        <Surface sceneId="a" elevation={2} thickness={1}>
+          A
+        </Surface>
+      </Ukibori>
+    );
+    const { rerender } = render(tree(stageA));
+    await flushAsync();
+    const first = layer!;
+    expect(first.debugState().region).not.toBeNull();
+    // Canvas attached to stageA (inside the wrapper? no — the explicit stage).
+    expect(stageA.querySelector("canvas")).not.toBeNull();
+    expect(stageA.getAttribute("data-ukibori-stage")).toBe("");
+
+    // Switching to stageB must recreate the layer and re-attach the overlay
+    // (the elements stringify identically — only identity works).
+    rerender(tree(stageB));
+    await flushAsync();
+    expect(layer).not.toBe(first);
+    expect(stageA.querySelector("canvas")).toBeNull();
+    expect(stageA.getAttribute("data-ukibori-stage")).toBeNull();
+    expect(stageB.querySelector("canvas")).not.toBeNull();
+    expect(stageB.getAttribute("data-ukibori-stage")).toBe("");
+    document.body.removeChild(stageA);
+    document.body.removeChild(stageB);
+  });
+
+  it("a changed dpr provider function (identical source) is pushed to the layer", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    let layer: UkiboriDom | null = null;
+    // Two functions with IDENTICAL source text capturing different state.
+    const state = { v: 1 };
+    const fn1 = () => state.v;
+    const tree = (fn: () => number) => (
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} dpr={fn}>
+        <Surface sceneId="a" elevation={2} thickness={1}>
+          A
+        </Surface>
+      </Ukibori>
+    );
+    const { rerender } = render(tree(fn1));
+    await flushAsync();
+    const current = layer!;
+    expect(String(fn1)).toBe(String(() => state.v)); // same-source trap
+    const setDprSpy = vi.spyOn(current, "setDpr");
+    state.v = 2;
+    const fn2 = () => state.v;
+    rerender(tree(fn2));
+    await flushAsync();
+    // Identity-based: the new function (same source, new closure) is pushed.
+    expect(setDprSpy).toHaveBeenCalledWith(fn2);
+    expect(layer).toBe(current);
+  });
+});

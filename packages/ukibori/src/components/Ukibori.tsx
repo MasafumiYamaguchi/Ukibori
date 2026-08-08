@@ -138,18 +138,11 @@ export function Ukibori({
 
   const physicalRequested = backend !== "css" && !highContrastEnabled;
 
-  // STRUCTURAL key: recreation of the layer requires one of these to change.
-  const structuralKey = `${backend}|${stage ?? ""}|${highContrastEnabled}`;
-  // UPDATE key: ordinary physical props pushed through the layer setters.
-  const updateKey = [
-    cssEnv.key,
-    JSON.stringify(shadow),
-    String(dpr),
-    quality,
-    margin ?? "",
-    JSON.stringify(compositing),
-  ].join("|");
-
+  // STRUCTURAL effect dependencies are IDENTITY-based: `stage` is a DOM
+  // Element and `backend`/`highContrastEnabled` are primitives. Elements must
+  // never be serialized into a string key (two different elements can
+  // stringify identically), so a stage switch always recreates the layer on
+  // the new stage.
   useEffect(() => {
     if (backend === "css" || highContrastEnabled) {
       setLayer(null);
@@ -199,11 +192,25 @@ export function Ukibori({
       created.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [structuralKey, backend, canvas2dAvailable, reportError]);
+  }, [backend, stage, highContrastEnabled, canvas2dAvailable, reportError]);
 
-  // Retained physical updates: push changes through the EXISTING layer's
-  // setters so the layer and every retained registration survive ordinary
-  // light/intensity/shadow/DPR/quality/margin/compositing changes.
+  // Ordinary value props (light/intensity/shadow/margin/compositing/quality)
+  // are plain data and are serialized for a stable update key; `dpr` may be
+  // a FUNCTION and is keyed by IDENTITY so a changed provider function (even
+  // with identical source text) is always pushed to the layer.
+  const updateDataKey = [
+    cssEnv.key,
+    JSON.stringify(shadow),
+    JSON.stringify(compositing),
+    margin ?? "",
+    quality,
+  ].join("|");
+
+  // Retained physical updates: FULL replacement through the EXISTING layer's
+  // setters. Removing a React prop resets the corresponding option to its
+  // default (setShadow({}) / setMargin(undefined) / setCompositing({})), and
+  // nothing is merged — stale fields never survive a later call. The layer
+  // and every retained registration survive ordinary prop changes.
   useEffect(() => {
     if (layer === null) {
       return;
@@ -213,18 +220,12 @@ export function Ukibori({
       { x: cssEnv.light.x, y: cssEnv.light.y, z: cssEnv.light.z },
       cssEnv.intensity,
     );
-    if (shadow !== undefined) {
-      current.setShadow(shadow);
-    }
-    if (margin !== undefined) {
-      current.setMargin(margin);
-    }
-    if (compositing !== undefined) {
-      current.setCompositing(compositing);
-    }
+    current.setShadow(shadow ?? {});
+    current.setMargin(margin);
+    current.setCompositing(compositing ?? {});
     current.setDpr(dpr ?? (() => (window.devicePixelRatio ?? 1) * QUALITY_DPR[quality]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layer, updateKey]);
+  }, [layer, updateDataKey, dpr]);
 
   const mode: UkiboriMode =
     backend === "css"

@@ -18,10 +18,15 @@ import type { UkiboriTextProps } from "../types";
  *
  * Sizing policy (valid in bare usage, no demo CSS required): the element's
  * measured box is rounded to integer pixel dimensions, the glyph is
- * rasterized at exactly those dimensions, and the span's inline box is then
- * fixed to them (`width`/`height`). The mask aspect therefore equals the
- * span's box aspect EXACTLY — the #19 isotropic mapping contract holds even
- * for fractional initial text dimensions (the rounding is the policy).
+ * rasterized at exactly those dimensions, and the span's box is then fixed
+ * to them via an explicit layout policy (`display: inline-block` by default
+ * so `width`/`height` actually apply in real browser layout). The mask
+ * aspect therefore equals the span's box aspect EXACTLY — the #19 isotropic
+ * mapping contract holds even for fractional initial text dimensions (the
+ * rounding is the policy). The INTEGER mask dimensions are authoritative for
+ * the final footprint: a user-supplied `width`/`height` may influence the
+ * INITIAL measurement, but the final DOM box always equals the mask
+ * dimensions, so the aspects can never diverge.
  *
  * Before a valid mask exists — or if rasterization fails — the component
  * stays PLAIN DOM TEXT: `shape` is `null`, nothing is registered, and no
@@ -61,11 +66,18 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
       };
     }, [text, font]);
 
-    // Fix the span's box to the rasterized pixel size so the mask mapping is
-    // isotropic; the user's own width/height win when provided.
+    // Layout policy: the span must honor width/height (inline-block default;
+    // a user `display` that does not honor width/height breaks the contract),
+    // and the INTEGER mask dimensions are authoritative for the physical
+    // footprint — the final DOM box always equals the mask dimensions.
     const fixedStyle: CSSProperties | undefined =
-      mask !== null && surfaceProps.style?.width === undefined && surfaceProps.style?.height === undefined
-        ? { ...surfaceProps.style, width: mask.width, height: mask.height }
+      mask !== null
+        ? {
+            ...surfaceProps.style,
+            display: surfaceProps.style?.display ?? "inline-block",
+            width: mask.width,
+            height: mask.height,
+          }
         : surfaceProps.style;
 
     return (

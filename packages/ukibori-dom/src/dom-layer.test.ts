@@ -445,6 +445,34 @@ describe("UkiboriDom — DOM integration", () => {
     layer.dispose();
   });
 
+  it("setShadow fully replaces the option state (no stale merged fields)", () => {
+    const layer = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
+    layer.setShadow({ stepSize: 0.5, bias: 0.4, maxDistance: 120 });
+    expect(layer.debugShadowOptions()).toEqual({ stepSize: 0.5, bias: 0.4, maxDistance: 120 });
+    // A later call WITHOUT maxDistance must remove it — nothing is merged.
+    layer.setShadow({ bias: 0.2 });
+    expect(layer.debugShadowOptions()).toEqual({ bias: 0.2 });
+    // `{}` resets every option to its default (handled by the render path).
+    layer.setShadow({});
+    expect(layer.debugShadowOptions()).toEqual({});
+    layer.dispose();
+  });
+
+  it("setMargin resets to the default when given undefined", () => {
+    const layer = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
+    layer.setMargin(32);
+    expect(layer.debugState().region).toBeNull();
+    layer.register(button, BUTTON_OPTIONS);
+    layer.render();
+    const withMargin = layer.debugState().region;
+    layer.setMargin(undefined);
+    layer.render();
+    const withDefault = layer.debugState().region;
+    expect(withDefault!.x).toBeLessThan(withMargin!.x);
+    expect(withDefault!.w).toBeGreaterThan(withMargin!.w);
+    layer.dispose();
+  });
+
   it("produces the same CSS-space shadow geometry at dpr 1 and dpr 2", () => {
     // A rounded-rect button plus a mask glyph, with an explicitly configured
     // bias so the scaled shadow options are exercised end-to-end. A diagonal

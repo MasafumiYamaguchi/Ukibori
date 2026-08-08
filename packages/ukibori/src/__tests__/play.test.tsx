@@ -147,3 +147,62 @@ describe("UkiboriText sizing policy (bare usage)", () => {
     expect(layer!.registry.size).toBe(0);
   });
 });
+
+describe("UkiboriText layout policy", () => {
+  it("uses inline-block so width/height apply in real browser layout", async () => {
+    // A bare span (no demo CSS): the default display must make the fixed
+    // width/height take effect, otherwise the DOM footprint could diverge
+    // from the mask footprint (inline spans ignore width/height).
+    stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
+    stubCanvas2d();
+    let layer: UkiboriDom | null = null;
+    const errors: unknown[] = [];
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} onError={(e) => errors.push(e)}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(errors).toHaveLength(0);
+    const span = screen.getByText("PLAY");
+    expect(span.style.display).toBe("inline-block");
+    expect(span.style.width).toBe("120px");
+    expect(span.style.height).toBe("40px");
+    const entry = layer!.registry.get("play")!;
+    const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
+    // The mask footprint and the DOM box are the same integer dimensions.
+    expect(mask.width).toBe(120);
+    expect(mask.height).toBe(40);
+  });
+
+  it("user width/height influence the initial measurement but the mask dims stay authoritative", async () => {
+    stubElementRects({ left: 10, top: 20, width: 80.4, height: 39.6 });
+    stubCanvas2d();
+    let layer: UkiboriDom | null = null;
+    const errors: unknown[] = [];
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} onError={(e) => errors.push(e)}>
+        <UkiboriText
+          sceneId="play"
+          text="PLAY"
+          elevation={3}
+          thickness={0.8}
+          style={{ width: "80.4px", height: "39.6px" }}
+        />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(errors).toHaveLength(0);
+    const span = screen.getByText("PLAY");
+    // The final DOM box equals the integer mask footprint — the aspects can
+    // never diverge, and no scene error occurs.
+    expect(span.style.width).toBe("80px");
+    expect(span.style.height).toBe("40px");
+    expect(span.style.display).toBe("inline-block");
+    const entry = layer!.registry.get("play")!;
+    const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
+    expect(mask.width).toBe(80);
+    expect(mask.height).toBe(40);
+    expect(layer!.debugBuffers()).not.toBeNull();
+  });
+});

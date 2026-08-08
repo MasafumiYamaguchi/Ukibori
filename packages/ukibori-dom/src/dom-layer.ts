@@ -111,7 +111,7 @@ export class UkiboriDom {
   private margin: number;
   private dprSource: number | (() => number) | undefined;
   private compositeOptions: CompositeOptions;
-  private readonly shadowOptions: DomShadowOptions;
+  private shadowOptions: DomShadowOptions;
 
   private light: DomLightState;
   private materials: Record<string, Material> | undefined;
@@ -315,10 +315,12 @@ export class UkiboriDom {
     this.scheduleRender();
   }
 
-  /** Replace the cast-shadow pass options (#17). */
+  /** Replace the cast-shadow pass options (#17). FULL replacement: fields
+   * absent from `options` (including on later calls) resolve to their
+   * defaults; nothing is merged, so removed options never stay stale. */
   setShadow(options: DomShadowOptions): void {
     this.throwIfDisposed();
-    Object.assign(this.shadowOptions, options);
+    this.shadowOptions = { ...options };
     this.sceneDirty = true;
     this.scheduleRender();
   }
@@ -331,15 +333,20 @@ export class UkiboriDom {
     this.scheduleRender();
   }
 
-  /** Replace the scene-region shadow margin (CSS px). */
-  setMargin(margin: number): void {
+  /** Replace the scene-region shadow margin (CSS px). `undefined` resets to
+   * the default (64). */
+  setMargin(margin: number | undefined): void {
     this.throwIfDisposed();
-    this.margin = Number.isFinite(margin) && margin >= 0 ? margin : DEFAULT_MARGIN;
+    this.margin =
+      typeof margin === "number" && Number.isFinite(margin) && margin >= 0
+        ? margin
+        : DEFAULT_MARGIN;
     this.sceneDirty = true;
     this.scheduleRender();
   }
 
-  /** Replace the compositor mapping options. */
+  /** Replace the compositor mapping options (absent fields resolve to their
+   * defaults — full replacement, nothing merged). */
   setCompositing(options: CompositeOptions): void {
     this.throwIfDisposed();
     this.compositeOptions = options;
@@ -483,6 +490,11 @@ export class UkiboriDom {
   /** Owning-surface buffer (#18 objectId) from the last render (debug views). */
   debugObjectId(): HostBuffer | null {
     return this.lastObjectId;
+  }
+
+  /** Current shadow pass options (debug views / tests). */
+  debugShadowOptions(): Readonly<DomShadowOptions> {
+    return this.shadowOptions;
   }
 
   debugState(): DomDebugState {
