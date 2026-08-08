@@ -196,7 +196,7 @@ describe("shading", () => {
       4,
       4,
     );
-    const { diffuse } = shadeHeightField(scene, flat, noOwnerObjectId(4, 4));
+    const { diffuse } = shadeHeightField(scene, { height: flat, objectId: noOwnerObjectId(4, 4) });
     expect(diffuse.get(1, 1)).toBeCloseTo(1, 12);
   });
 
@@ -211,7 +211,7 @@ describe("shading", () => {
       4,
       4,
     );
-    const { diffuse } = shadeHeightField(scene, flat, noOwnerObjectId(4, 4));
+    const { diffuse } = shadeHeightField(scene, { height: flat, objectId: noOwnerObjectId(4, 4) });
     expect(diffuse.get(1, 1)).toBeCloseTo(0.8, 6);
   });
 

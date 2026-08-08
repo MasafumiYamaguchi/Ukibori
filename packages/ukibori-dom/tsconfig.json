@@ -1,0 +1,9 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "ukibori-renderer": ["../renderer/src/index.ts"]
+    }
+  },
+  "include": ["src", "tsup.config.ts", "vitest.config.ts"]
+}

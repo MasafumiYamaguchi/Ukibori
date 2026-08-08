@@ -10,6 +10,7 @@ export default defineConfig({
     alias: {
       ukibori: resolve("../packages/ukibori/src/index.ts"),
       "ukibori-renderer": resolve("../packages/renderer/src/index.ts"),
+      "ukibori-dom": resolve("../packages/ukibori-dom/src/index.ts"),
     },
   },
   build: {
@@ -17,6 +18,7 @@ export default defineConfig({
       input: {
         main: resolve("./index.html"),
         "renderer-debug": resolve("./renderer-debug.html"),
+        "dom-debug": resolve("./dom-debug.html"),
       },
     },
   },

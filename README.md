@@ -79,6 +79,20 @@ CP1時点での構成判断を記録します。
 - このライブラリは物理シミュレーションではなく、`box-shadow` / `background` / `border` / `backdrop-filter`による**近似**です。WebGLやCanvasは使いません
 - 装飾は要素そのもののCSSのみで構成され、focus表示の除去・要素のラップ・セマンティクス変更は行いません
 
+## 物理レンダラー基盤 (`ukibori-renderer` / `ukibori-dom`)
+
+上記のCSS近似とは別に、#12以降は物理的に一貫した2.5Dレンダラー基盤を別パッケージで開発しています。
+
+- **`packages/renderer` (`ukibori-renderer`)**: React/DOM非依存のレンダラーコア。SDF / height field / normal / BRDF / cast shadow / mask(glyph)の各パイプライン(#13–#19)。詳細は `packages/renderer/README.md`
+- **`packages/ukibori-dom` (`ukibori-dom`)**: #20のDOM統合層。retained DOM registry + 観測ベースのdirty updateでDOM geometryをrenderer sceneに同期し、`pointer-events: none`のoverlay canvasへcompositeします。DOMのlayout/semantics/accessibility/focus/eventsは一切置き換えません。詳細は `packages/ukibori-dom/README.md`
+- 最終的なReact公開APIは#21で `ukibori` に追加予定です(未実装)
+
+デモページ:
+
+- `/` — CSS近似の旧デモ
+- `/renderer-debug.html` — レンダラー中間bufferのデバッグ(#14–#19)
+- `/dom-debug.html` — #20のDOM統合デモ(実DOM button + text、overlay composite、resize/scroll追従、mount/unmount)
+
 ## 開発コマンド
 
 ```sh
@@ -91,4 +105,4 @@ npm run dev        # デモを起動
 
 ## ステータス
 
-CP1完了。実装は [DEEPSEEK_IMPLEMENTATION_BRIEF.md](./DEEPSEEK_IMPLEMENTATION_BRIEF.md) のチェックポイント方式に従って進めています。
+#20(DOM統合層)実装済み。進行は [DEEPSEEK_IMPLEMENTATION_BRIEF.md](./DEEPSEEK_IMPLEMENTATION_BRIEF.md) のチェックポイント方式とGitHub Issue(#12〜)に従っています。

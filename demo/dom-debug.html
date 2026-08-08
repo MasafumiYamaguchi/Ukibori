@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ukibori DOM Integration Debug (#20)</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font: 14px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: #1f2430;
+        background:
+          radial-gradient(1200px 600px at 20% -10%, #dfe6f2 0%, transparent 60%),
+          linear-gradient(160deg, #eef1f6 0%, #e6eaf2 100%);
+      }
+      .wrap {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 1.5rem 1rem 4rem;
+      }
+      h1 {
+        font-size: clamp(1.5rem, 3.5vw, 2.1rem);
+        margin: 0 0 0.25rem;
+      }
+      .sub {
+        color: #5b6577;
+        font-size: 0.95rem;
+        margin: 0 0 1.2rem;
+      }
+      .status {
+        font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+        font-size: 0.8rem;
+        color: #3a4356;
+        background: rgba(255, 255, 255, 0.6);
+        border: 1px solid rgba(31, 36, 48, 0.12);
+        border-radius: 10px;
+        padding: 0.5rem 0.8rem;
+        margin: 0 0 1.2rem;
+      }
+      .layout {
+        display: grid;
+        grid-template-columns: 300px minmax(0, 1fr);
+        gap: 1.5rem;
+        align-items: start;
+      }
+      .controls {
+        background: rgba(255, 255, 255, 0.65);
+        border: 1px solid rgba(31, 36, 48, 0.1);
+        border-radius: 16px;
+        padding: 1rem 1.25rem 1.25rem;
+        position: sticky;
+        top: 1rem;
+      }
+      .controls h2 {
+        font-size: 1rem;
+        margin: 0 0 0.9rem;
+        color: #2a3347;
+      }
+      .field {
+        margin-bottom: 0.8rem;
+      }
+      .field-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.5rem;
+        margin-bottom: 0.25rem;
+        font-size: 0.85rem;
+        color: #3a4356;
+      }
+      .field-head output {
+        font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+        font-size: 0.8rem;
+        background: rgba(31, 36, 48, 0.08);
+        padding: 0.1em 0.45em;
+        border-radius: 4px;
+        min-width: 3.5em;
+        text-align: right;
+      }
+      .field input[type="range"] {
+        width: 100%;
+        accent-color: #2f6feb;
+      }
+      .field select {
+        width: 100%;
+        font: inherit;
+        padding: 0.4rem 0.5rem;
+        border: 1px solid rgba(31, 36, 48, 0.25);
+        border-radius: 8px;
+        background: #fff;
+        color: inherit;
+      }
+      .btn-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.2rem;
+      }
+      .btn {
+        font: inherit;
+        font-size: 0.85rem;
+        padding: 0.4rem 0.7rem;
+        border: 1px solid rgba(31, 36, 48, 0.25);
+        border-radius: 8px;
+        background: #fff;
+        cursor: pointer;
+      }
+      .btn:focus-visible {
+        outline: 2px solid #2f6feb;
+        outline-offset: 2px;
+      }
+      main {
+        min-width: 0;
+      }
+      .stage {
+        position: relative;
+        min-height: 320px;
+        padding: 1rem;
+      }
+      .panel {
+        max-width: 620px;
+        border-radius: 18px;
+        padding: 1.1rem 1.2rem 1.4rem;
+        color: #20293a;
+      }
+      .panel h3 {
+        margin: 0 0 0.6rem;
+        font-size: 1rem;
+      }
+      .panel-body {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .play {
+        font: inherit;
+        font-weight: 650;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.7rem 1.2rem;
+        border: 0;
+        cursor: pointer;
+        color: #1f2430;
+      }
+      .play:focus-visible {
+        outline: 2px solid #2f6feb;
+        outline-offset: 2px;
+      }
+      .icon {
+        display: block;
+        width: 28px;
+        height: 28px;
+        flex: 0 0 auto;
+      }
+      .badge {
+        position: absolute;
+        top: -10px;
+        right: -8px;
+        padding: 0.35rem 0.7rem;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #fff;
+        border-radius: 999px;
+      }
+      .plain {
+        margin: 0;
+        color: #465066;
+        font-size: 0.9rem;
+        flex: 1 1 200px;
+        min-width: 180px;
+      }
+      .note {
+        color: #5b6577;
+        font-size: 0.9rem;
+        max-width: 60ch;
+      }
+      .buffers h2 {
+        font-size: 1rem;
+        margin: 1.6rem 0 0.5rem;
+        color: #2a3347;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+      .row figure {
+        margin: 0;
+      }
+      .row canvas {
+        border: 1px solid #ccc;
+        image-rendering: pixelated;
+        background: #fff;
+        max-width: 100%;
+      }
+      .row figcaption {
+        font-size: 0.78rem;
+        color: #5b6577;
+        margin-top: 0.2rem;
+      }
+      .tall {
+        height: 40vh;
+      }
+      .hint {
+        font-size: 0.85rem;
+        color: #5b6577;
+      }
+      @media (max-width: 900px) {
+        .layout {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .controls {
+          position: static;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header>
+        <h1>Ukibori DOM integration <span class="sub">#20 — DOM stays authoritative, Ukibori adds the physical layer</span></h1>
+        <p class="sub">
+          The button below is a real DOM <code>&lt;button&gt;</code>: focusable, clickable, ARIA intact.
+          The panel, button and badge are rendered by the renderer onto a <code>pointer-events: none</code>
+          overlay that follows resize and scroll. Move the light/elevation sliders; toggle surfaces to
+          see mount/unmount update the retained scene.
+        </p>
+      </header>
+
+      <div class="status" id="status">initializing…</div>
+
+      <div class="layout">
+        <aside class="controls" aria-label="Physical layer controls">
+          <h2>Physical layer</h2>
+          <div class="field">
+            <div class="field-head"><label for="lx">Light x</label><output id="o-lx"></output></div>
+            <input id="lx" type="range" min="-1" max="1" step="0.05" value="-0.6" />
+          </div>
+          <div class="field">
+            <div class="field-head"><label for="ly">Light y</label><output id="o-ly"></output></div>
+            <input id="ly" type="range" min="-1" max="1" step="0.05" value="-0.8" />
+          </div>
+          <div class="field">
+            <div class="field-head"><label for="lz">Light z (height)</label><output id="o-lz"></output></div>
+            <input id="lz" type="range" min="0" max="1" step="0.05" value="1" />
+          </div>
+          <div class="field">
+            <div class="field-head"><label for="intensity">Intensity</label><output id="o-intensity"></output></div>
+            <input id="intensity" type="range" min="0" max="2" step="0.05" value="1" />
+          </div>
+          <div class="field">
+            <div class="field-head"><label for="elevation">Button elevation</label><output id="o-elevation"></output></div>
+            <input id="elevation" type="range" min="0" max="30" step="1" value="7" />
+          </div>
+          <div class="field">
+            <div class="field-head"><label for="thickness">Button thickness</label><output id="o-thickness"></output></div>
+            <input id="thickness" type="range" min="0" max="10" step="0.5" value="2.5" />
+          </div>
+          <div class="field">
+            <div class="field-head"><label for="radius">Button radius</label><output id="o-radius"></output></div>
+            <input id="radius" type="range" min="0" max="60" step="1" value="12" />
+          </div>
+          <div class="field">
+            <div class="field-head"><label for="bias">Shadow bias</label><output id="o-bias"></output></div>
+            <input id="bias" type="range" min="0" max="2" step="0.05" value="0.5" />
+          </div>
+          <div class="field">
+            <div class="field-head"><label for="dpr">Render DPR</label><output id="o-dpr"></output></div>
+            <select id="dpr">
+              <option value="1">1x (fast)</option>
+              <option value="2">2x</option>
+            </select>
+          </div>
+          <div class="field">
+            <div class="field-head"><label for="material">Material</label></div>
+            <select id="material">
+              <option value="silicone">silicone</option>
+              <option value="matte">matte</option>
+              <option value="metal">metal</option>
+            </select>
+          </div>
+          <div class="field">
+            <div class="btn-row">
+              <button id="toggle-icon" class="btn" type="button">Toggle icon relief</button>
+              <button id="toggle-badge" class="btn" type="button">Toggle badge</button>
+            </div>
+          </div>
+        </aside>
+
+        <main>
+          <section class="stage" aria-label="Ukibori stage">
+            <h2>Stage — DOM content, physical layer on the overlay</h2>
+            <div class="stage" id="stage">
+              <div id="panel" class="panel">
+                <h3>Panel — DOM text on a rendered surface</h3>
+                <div class="panel-body">
+                  <button id="play" class="play" type="button">
+                    <span id="icon" class="icon" aria-hidden="true"></span>
+                    <span id="play-label" class="label">Press me — real DOM button</span>
+                  </button>
+                  <p class="plain">
+                    This paragraph is not a surface: its DOM background and text are untouched by the
+                    renderer. Click the button — events, focus and the ARIA tree stay DOM-owned.
+                  </p>
+                </div>
+                <div id="badge" class="badge" hidden>LIVE</div>
+              </div>
+            </div>
+            <p class="note" id="scroll-note">
+              The page scrolls: the overlay is positioned at the document origin and follows the
+              surfaces (scene coordinates are document-relative, so ordinary scroll skips re-render).
+            </p>
+          </section>
+
+          <section class="buffers">
+            <h2>Intermediate buffers — real renderer output (not CSS)</h2>
+            <div class="row">
+              <figure>
+                <canvas id="buf-height" width="300" height="150"></canvas>
+                <figcaption>height (absolute z)</figcaption>
+              </figure>
+              <figure>
+                <canvas id="buf-object" width="300" height="150"></canvas>
+                <figcaption>object ownership (#18)</figcaption>
+              </figure>
+              <figure>
+                <canvas id="buf-vis" width="300" height="150"></canvas>
+                <figcaption>cast-shadow visibility (#17)</figcaption>
+              </figure>
+              <figure>
+                <canvas id="buf-color" width="300" height="150"></canvas>
+                <figcaption>final lit color</figcaption>
+              </figure>
+            </div>
+            <p class="hint">
+              Buffers are the <code>debugBuffers()</code> of the last render pass, drawn with the
+              renderer's <code>toRgbaBytes</code> / <code>toCategoryRgba</code> exporters.
+            </p>
+          </section>
+          <div class="tall"></div>
+        </main>
+      </div>
+    </div>
+    <script type="module" src="/src/dom-debug/main.ts"></script>
+  </body>
+</html>
