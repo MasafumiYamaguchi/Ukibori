@@ -13,12 +13,20 @@ import type { DomLightState, Region } from "./types";
  * - `devicePixelRatio` is applied ONLY here: the grid is
  *   `floor(region.w * dpr)` texels and every surface coordinate is scaled by
  *   `dpr` (positions/sizes/radius/bevel/thickness/elevation). The light
- *   direction is dimensionless and is NOT scaled.
+ *   direction is dimensionless and is NOT scaled. Length-valued shadow
+ *   parameters are mapped through the same transform by `scaleShadowOptions`.
  * - surface `elevation` stays ABSOLUTE scene z (no parent-relative
  *   resolution, no z-index); the DOM layer does not reinterpret it
  * - mask shapes keep their `MaskSource` identity so the renderer's per-mask
  *   SDF cache (#19) still hits
  * - shadow flags are passed through unchanged (#18)
+ *
+ * Non-renderable nodes: a registered element whose measured footprint has
+ * zero / non-positive width or height (e.g. `display: none`, detached, or
+ * still laying out) is a TEMPORARILY NON-RENDERABLE scene node — it is
+ * skipped here (and by `computeRegion`), it never reaches the renderer, and
+ * it rejoins the scene as soon as it becomes measurable again. It does not
+ * abort the render of the visible surfaces.
  *
  * `createScene` re-validates structural invariants (duplicate ids, isotropic
  * masks, unknown materials, finite non-negative values) and throws on
@@ -42,6 +50,11 @@ export function buildScene(input: BuildSceneInput): Scene {
       continue;
     }
     const geo = entry.geometry;
+    // Zero / non-positive footprint: temporarily non-renderable (hidden or
+    // detached element), not a fatal surface — skip until it measures again.
+    if (!(geo.w > 0) || !(geo.h > 0)) {
+      continue;
+    }
     const options = entry.options;
     surfaces.push({
       id: options.id,

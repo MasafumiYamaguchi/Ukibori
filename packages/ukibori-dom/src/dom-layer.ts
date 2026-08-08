@@ -5,7 +5,7 @@ import {
   normalizeVec3,
 } from "ukibori-renderer";
 import type { HostBuffer, LightingBuffers, Material } from "ukibori-renderer";
-import { computeRegion, sanitizeDpr } from "./coords";
+import { computeRegion, sanitizeDpr, scaleShadowOptions } from "./coords";
 import { compositeSurfaceImage } from "./compositor";
 import { geometriesEqual, measureSurfaceElement } from "./measure";
 import { OverlayCanvas, applySuppression, restoreSavedStyles } from "./overlay";
@@ -60,9 +60,8 @@ export interface UkiboriDomOptions {
   /** fixed device-pixel-ratio, or a provider; default `window.devicePixelRatio` */
   dpr?: number | (() => number);
   overlay?: {
-    /** host the overlay canvas is inserted into (default `document.body`) */
-    host?: Element;
-    /** overlay z-index (default 0; surfaces must paint above it) */
+    /** overlay z-index (default -1: below in-flow content; the document-origin
+     * stacking contract applies unless changed deliberately) */
     zIndex?: number;
     /** test seam: supply a fake overlay instead of a real canvas */
     factory?: () => Overlay;
@@ -71,7 +70,8 @@ export interface UkiboriDomOptions {
   schedule?: (cb: () => void) => void;
   /** error reporter (default `console.error`); render failures do not throw */
   onError?: (error: unknown) => void;
-  /** wire DOM observers (default true; disable for controlled tests) */
+  /** wire DOM observers (default true; `false` also skips creating the
+   * ResizeObserver / MutationObserver instances) */
   observe?: boolean;
 }
 
@@ -140,10 +140,11 @@ export class UkiboriDom {
     this.overlay =
       options.overlay?.factory !== undefined
         ? options.overlay.factory()
-        : new OverlayCanvas(options.overlay?.host ?? document.body, options.overlay?.zIndex ?? 0);
+        : new OverlayCanvas(options.overlay?.zIndex ?? -1);
 
+    const observe = options.observe !== false;
     this.resizeObserver =
-      typeof ResizeObserver === "function"
+      observe && typeof ResizeObserver === "function"
         ? new ResizeObserver((entries) => {
             let changed = false;
             for (const entry of entries) {
@@ -160,7 +161,7 @@ export class UkiboriDom {
         : null;
 
     this.mutationObserver =
-      typeof MutationObserver === "function"
+      observe && typeof MutationObserver === "function"
         ? new MutationObserver((mutations) => {
             let changed = false;
             for (const mutation of mutations) {
@@ -176,7 +177,7 @@ export class UkiboriDom {
           })
         : null;
 
-    if (options.observe !== false) {
+    if (observe) {
       if (typeof window !== "undefined") {
         window.addEventListener("resize", this.onViewportChange);
       }
@@ -191,20 +192,36 @@ export class UkiboriDom {
   /**
    * Register a DOM element as a Ukibori surface (mount). The element's own
    * background/shadow are suppressed inline and restored on `unregister`.
+   *
+   * Atomic: duplicate ids / already-registered elements are rejected BEFORE
+   * any inline style is touched, so a failed registration never leaves
+   * suppression behind.
    */
   register(element: HTMLElement, options: DomSurfaceOptions): void {
     this.throwIfDisposed();
     assertValidId(options.id);
+    if (this.registry.has(options.id)) {
+      throw new TypeError(`duplicate surface id "${options.id}"`);
+    }
+    const existing = this.registry.idFor(element);
+    if (existing !== undefined) {
+      throw new TypeError(`element already registered as "${existing}"`);
+    }
     const savedStyles = applySuppression(element);
-    const entry = {
-      id: options.id,
-      element,
-      options: { ...options },
-      geometry: null,
-      dirty: true,
-      savedStyles,
-    };
-    this.registry.add(entry);
+    try {
+      const entry = {
+        id: options.id,
+        element,
+        options: { ...options },
+        geometry: null,
+        dirty: true,
+        savedStyles,
+      };
+      this.registry.add(entry);
+    } catch (error) {
+      restoreSavedStyles(element, savedStyles);
+      throw error;
+    }
     this.resizeObserver?.observe(element);
     this.mutationObserver?.observe(element, MUTATION_CONFIG);
     this.sceneDirty = true;
@@ -226,14 +243,38 @@ export class UkiboriDom {
     this.scheduleRender();
   }
 
-  /** Merge a patch into a surface's options and invalidate it. */
+  /**
+   * Merge a patch into a surface's options and invalidate it.
+   *
+   * Changing `id` is an ATOMIC rename: validated up front (duplicate ids are
+   * rejected before anything mutates), then both registry maps and the scene
+   * identity move together to the new id. Any other patch path keeps the id
+   * unchanged, so an options merge can never silently change scene identity.
+   */
   updateSurface(id: string, patch: Partial<DomSurfaceOptions>): void {
     this.throwIfDisposed();
     const entry = this.registry.get(id);
     if (entry === undefined) {
       return;
     }
-    entry.options = { ...entry.options, ...patch };
+    const nextId = patch.id;
+    if (nextId !== undefined && nextId !== entry.options.id) {
+      assertValidId(nextId);
+      if (this.registry.has(nextId)) {
+        throw new TypeError(`duplicate surface id "${nextId}"`);
+      }
+      // Atomic rename: remove the old key, move entry + options under the new
+      // id, re-insert. The element maps are carried over by the entry.
+      this.registry.remove(id);
+      entry.id = nextId;
+      entry.options = { ...entry.options, ...patch, id: nextId };
+      this.registry.add(entry);
+      this.registry.markDirty(nextId);
+      this.sceneDirty = true;
+      this.scheduleRender();
+      return;
+    }
+    entry.options = { ...entry.options, ...patch, id: entry.options.id };
     // Any option change feeds the scene (geometry, elevation, material...).
     this.sceneDirty = true;
     this.registry.markDirty(id);
@@ -379,7 +420,12 @@ export class UkiboriDom {
       // passes, so the two are guaranteed consistent. This CPU double-compose
       // is the reference implementation cost; a backend (#21) can merge them.
       const composed = composeSdfHeightField(scene);
-      buffers = lightScene(scene, { shadow: this.shadowOptions });
+      // The scene is the dpr-scaled similarity image of the CSS-space scene;
+      // shadow lengths must be mapped through the same transform (the
+      // renderer defaults for step/bias are materialized at 0.5 CSS px).
+      buffers = lightScene(scene, {
+        shadow: scaleShadowOptions(this.shadowOptions, dpr),
+      });
       this.lastObjectId = composed.objectId;
     } catch (error) {
       this.onError(error);

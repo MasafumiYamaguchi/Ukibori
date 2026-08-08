@@ -50,6 +50,14 @@ scroll offsets. Consequences:
   when the scene is built; the light direction is dimensionless and is not
   scaled. The color buffer is drawn into a canvas whose backing store equals
   the texel size and whose CSS size equals the region size (DPR-crisp);
+- **DPR invariance of the shadow pass**: the scene is the dpr-scaled
+  similarity image of the CSS-space scene, so every length-valued shadow
+  parameter (#17 `stepSize` / `bias` / `maxDistance`) is mapped through the
+  same transform (`scaleShadowOptions`). The renderer's step/bias defaults
+  are materialized at 0.5 CSS px so they cannot silently shrink with dpr;
+  `maxDistance` is forwarded only when configured (the renderer default is
+  derived from the already-scaled scene diagonal). A dpr 1 vs dpr 2
+  regression proves the same CSS-space shadow geometry;
 - the scene region is the union of all registered rects inflated by `margin`
   (default 64 CSS px), reserving room for cast shadows. Shadowed base-plane
   pixels are clipped at the region boundary.
@@ -83,16 +91,23 @@ region-scoped target updates without changing the registry/observer API.
 
 ## Compositing
 
-The overlay is one `<canvas>` inserted as the **first child of the host**
-(`document.body` by default):
+The overlay is one `<canvas>` inserted as the **first child of
+`document.body`** — the public host contract is a **true document-origin
+overlay** (the containing block must be the initial containing block; a
+positioned/transformed host is out of contract, use the `factory` seam for a
+custom overlay):
 
-- `position: absolute` at the document origin, sized to the scene region → it
-  scrolls with the page and clips cast shadows at the region boundary;
+- `position: absolute` at the region's DOCUMENT coordinates, sized to the
+  scene region → it scrolls with the page and clips cast shadows at the
+  region boundary;
 - `pointer-events: none` → hit-testing, focus, keyboard and pointer events
   are never captured (verified by test);
-- `z-index: 0` + inserted before the page content → it paints above the host
-  background (so cast shadows on the base plane are visible) and below any
-  later positioned content, including the registered surfaces;
+- **`z-index: -1`** → it paints above the page background (so cast shadows on
+  the base plane are visible) and below every in-flow element, including the
+  registered surfaces. Their DOM text is therefore visible WITHOUT any
+  `position` change: registered elements keep their positioning semantics, so
+  absolutely positioned descendants keep their containing block (regression:
+  an absolute child's layout is untouched by register/unregister);
 - `aria-hidden="true"`, `role="presentation"`, `tabindex="-1"` → inert to the
   accessibility tree and to focus.
 
@@ -105,15 +120,19 @@ generated unchanged by the #13–#19 pipeline and exposed via
 - surface pixels (owner != NO_OWNER): renderer color, opaque
 - lit base-plane pixels: fully transparent — the page IS the base plane
 - shadowed base-plane pixels: a translucent dark overlay (`shadowColor` at
-  `shadowAlpha`, configurable) approximating the hard #17 visibility mask.
+  `shadowAlpha`, configurable — `shadowAlpha: 0` disables it) approximating
+  the hard #17 visibility mask.
 
 ## Double-rendering policy
 
 To prevent the original DOM background/shadow from painting a second, unlit
 copy under the physical layer, `register` saves and overrides the element's
 inline `background` and `box-shadow` (`transparent` / `none`, with
-`!important`) and `unregister` restores them. The element is also forced to
-`position: relative` so its DOM content paints above the overlay.
+`!important`) and `unregister` restores them. Registration is **atomic**: a
+duplicate-id / already-registered element is rejected BEFORE any inline style
+is touched, so a failed registration never leaves suppression behind.
+`updateSurface` can only change `id` through an atomic rename that moves both
+registry maps and the scene identity together.
 
 Everything else stays DOM-owned: text color and content, borders, the
 `:focus-visible` ring, `cursor`, `aria-*`, `data-*`, form behavior, events.
@@ -121,13 +140,19 @@ DOM text is **not** moved to the canvas; a glyph relief participates in the
 physical scene as a separate `mask` surface (#19) whose rasterization stays
 on the application side.
 
+A registered element that measures to zero / non-positive size (e.g.
+`display: none`, detached, still laying out) is a **temporarily
+non-renderable scene node**: it is excluded from the scene and region while
+the visible surfaces keep rendering, and it rejoins automatically when it
+becomes measurable again.
+
 ## Limits
 
 - The scene is a single height field: overhangs, stacked surfaces at the same
   pixel and carving (inset) are out of scope (#18 height-field constraints).
-- The overlay assumes the host element establishes the document origin with
-  no ancestor transforms; transformed ancestors and iframes are documented
-  limitations (#20 non-goals).
+- The overlay is a document-origin element: a positioned/transformed
+  `body`/`html` (or iframes) is out of contract — use the `overlay.factory`
+  seam for a custom overlay.
 - The initial implementation renders the full scene on the CPU backend;
   WebGPU / region-scoped updates are backend work (#21).
 

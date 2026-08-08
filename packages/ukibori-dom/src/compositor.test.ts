@@ -82,6 +82,19 @@ describe("compositeSurfaceImage", () => {
     expect(image.data[3]).toBe(128);
   });
 
+  it("honors shadowAlpha 0 (no shadow overlay)", () => {
+    const image = compositeSurfaceImage(
+      {
+        color: colorBuffer(1, 1),
+        objectId: ownerBuffer(1, 1, NO_OWNER),
+        visibility: visibilityBuffer(1, 1, 0),
+      },
+      { shadowAlpha: 0 },
+    );
+    expect(image.data[0]).toBe(12);
+    expect(image.data[3]).toBe(0);
+  });
+
   it("defaults surface pixels when no visibility buffer is given", () => {
     const color = colorBuffer(1, 1);
     color.set(0, 0, 0, 9);

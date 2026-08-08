@@ -176,13 +176,46 @@ describe("UkiboriDom — DOM integration", () => {
     expect(button.style.getPropertyValue("background")).toBe("transparent");
     expect(button.style.getPropertyPriority("background")).toBe("important");
     expect(button.style.getPropertyValue("box-shadow")).toBe("none");
-    // Forced positioned so the DOM text paints above the overlay.
-    expect(button.style.position).toBe("relative");
+    // Positioning semantics are NEVER changed (the overlay paints at
+    // z-index -1, so the DOM text stays above it without position:relative).
+    expect(button.style.position).toBe("static");
 
     layer.unregister("primary");
     expect(button.style.getPropertyValue("background")).toBe("red");
     expect(button.style.getPropertyValue("box-shadow")).toBe("1px 2px 3px black");
     expect(button.style.position).toBe("static");
+    layer.dispose();
+  });
+
+  it("leaves absolutely positioned descendants' layout untouched by register/unregister", () => {
+    // A surface with an absolutely positioned child: the child's containing
+    // block must not change when the surface is registered (no
+    // position:relative forcing) or unregistered.
+    const surface = document.createElement("div");
+    surface.style.width = "160px";
+    surface.style.height = "44px";
+    const child = document.createElement("div");
+    child.style.position = "absolute";
+    child.style.left = "11px";
+    child.style.top = "7px";
+    surface.appendChild(child);
+    host.appendChild(surface);
+    stubRectFor(surface, { left: 100, top: 200, width: 160, height: 44 });
+    const childRect = { left: 111, top: 207, width: 20, height: 12 };
+    stubRectFor(child, childRect);
+
+    const layer = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
+    const measure = () => child.getBoundingClientRect();
+    const before = { ...measure() };
+    layer.register(surface, BUTTON_OPTIONS);
+    layer.render();
+    const during = { ...measure() };
+    expect(surface.style.position).toBe("");
+    layer.unregister("primary");
+    const after = { ...measure() };
+    expect(during).toEqual(before);
+    expect(after).toEqual(before);
+    expect(surface.style.position).toBe("");
     layer.dispose();
   });
 
@@ -198,7 +231,12 @@ describe("UkiboriDom — DOM integration", () => {
     expect(canvas.getAttribute("aria-hidden")).toBe("true");
     expect(canvas.getAttribute("role")).toBe("presentation");
     expect(canvas.tabIndex).toBe(-1);
+    // Document-origin contract: always a direct child of document.body,
+    // positioned at the region's DOCUMENT coordinates.
     expect(canvas.parentElement).toBe(document.body);
+    expect(canvas.style.zIndex).toBe("-1");
+    expect(canvas.style.left).toBe("36px");
+    expect(canvas.style.top).toBe("136px");
     layer.dispose();
     expect(document.body.contains(canvas)).toBe(false);
   });
@@ -313,6 +351,327 @@ describe("UkiboriDom — DOM integration", () => {
     layer.setShadow({ bias: 0.9 });
     layer.render();
     expect(fake.calls.filter((c) => c.type === "paint").length).toBe(paintsBefore + 1);
+    layer.dispose();
+  });
+
+  it("produces the same CSS-space shadow geometry at dpr 1 and dpr 2", () => {
+    // A rounded-rect button plus a mask glyph, with an explicitly configured
+    // bias so the scaled shadow options are exercised end-to-end. A diagonal
+    // light is required for cast shadows to exist at all.
+    const mask = {
+      width: 20,
+      height: 8,
+      alpha: new Float32Array(160).fill(1),
+    };
+    const render = (dpr: number) => {
+      const layer = new UkiboriDom({
+        schedule: (cb) => cb(),
+        observe: false,
+        dpr,
+        margin: 16,
+        light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+        shadow: { bias: 0.4 },
+      });
+      layer.register(button, BUTTON_OPTIONS);
+      const glyph = document.createElement("div");
+      glyph.style.width = "20px";
+      glyph.style.height = "8px";
+      host.appendChild(glyph);
+      stubRectFor(glyph, { left: 110, top: 210, width: 20, height: 8 });
+      layer.register(glyph, {
+        id: "glyph",
+        shape: { kind: "mask", mask },
+        elevation: 6,
+        thickness: 1,
+        bevelWidth: 1,
+        material: "metal",
+      });
+      layer.render();
+      const buffers = layer.debugBuffers();
+      const objectId = layer.debugObjectId();
+      if (buffers === null || objectId === null || buffers.visibility === undefined) {
+        throw new Error("expected a render with a shadow pass");
+      }
+      const out = { height: buffers.height, visibility: buffers.visibility, objectId };
+      layer.dispose();
+      return out;
+    };
+
+    const at1 = render(1);
+    const at2 = render(2);
+    const { width: w1, height: h1 } = at1.height.spec;
+
+    // The dpr-2 scene is the exact 2x similarity image of the dpr-1 scene and
+    // every length-valued shadow parameter was scaled by the same transform.
+    // The two texel grids sample different CSS centers, so the comparison is:
+    //
+    //  (a) heights: on texels with a FLAT 3x3 neighborhood the underlying
+    //      field is constant, and the dpr-2 texel that covers the same area
+    //      must store exactly 2x the dpr-1 value;
+    //  (b) visibility: on texels with a UNIFORM 3x3 visibility neighborhood
+    //      (away from the shadow boundary) all four dpr-2 texels of the
+    //      covering 2x2 block must match the dpr-1 decision;
+    //  (c) the shadowed texel count at dpr 2 must be 4x the dpr-1 count up to
+    //      the boundary band (perimeter of the region);
+    //  (d) the per-row shadow boundary positions in CSS px must agree within
+    //      the dpr-1 texel quantization.
+    const isFlat = (x: number, y: number): boolean => {
+      let min = Infinity;
+      let max = -Infinity;
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w1 || ny >= h1) {
+            return false;
+          }
+          const v = at1.height.get(nx, ny, 0);
+          if (v < min) min = v;
+          if (v > max) max = v;
+        }
+      }
+      return max - min < 1e-9;
+    };
+    const visUniform = (x: number, y: number): boolean => {
+      const center = at1.visibility.get(x, y, 0);
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w1 || ny >= h1) {
+            return false;
+          }
+          if (at1.visibility.get(nx, ny, 0) !== center) {
+            return false;
+          }
+        }
+      }
+      return true;
+    };
+    const ownerUniform = (x: number, y: number): boolean => {
+      const center = at1.objectId.get(x, y, 0);
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= w1 || ny >= h1) {
+            return false;
+          }
+          if (at1.objectId.get(nx, ny, 0) !== center) {
+            return false;
+          }
+        }
+      }
+      return true;
+    };
+
+    let shadowed1 = 0;
+    let boundaryBand = 0;
+    for (let y = 0; y < h1; y++) {
+      for (let x = 0; x < w1; x++) {
+        if (at1.visibility.get(x, y, 0) === 0) {
+          shadowed1++;
+        }
+        if (!visUniform(x, y)) {
+          boundaryBand++;
+          continue;
+        }
+        // (b) uniform visibility interior: the whole 2x2 block agrees.
+        for (let dy = 0; dy < 2; dy++) {
+          for (let dx = 0; dx < 2; dx++) {
+            expect(at2.visibility.get(2 * x + dx, 2 * y + dy, 0)).toBe(
+              at1.visibility.get(x, y, 0),
+            );
+          }
+        }
+        // (a) flat height interior: exact 2x similarity.
+        if (isFlat(x, y)) {
+          for (let dy = 0; dy < 2; dy++) {
+            for (let dx = 0; dx < 2; dx++) {
+              expect(at2.height.get(2 * x + dx, 2 * y + dy, 0)).toBe(
+                2 * at1.height.get(x, y, 0),
+              );
+            }
+          }
+        }
+      }
+    }
+
+    // (b2) ownership interior (surface boundaries are a different set of
+    // boundaries than shadow boundaries): the 2x2 block must be owned by the
+    // same surface.
+    for (let y = 0; y < h1; y++) {
+      for (let x = 0; x < w1; x++) {
+        if (!ownerUniform(x, y)) {
+          continue;
+        }
+        for (let dy = 0; dy < 2; dy++) {
+          for (let dx = 0; dx < 2; dx++) {
+            expect(at2.objectId.get(2 * x + dx, 2 * y + dy, 0)).toBe(
+              at1.objectId.get(x, y, 0),
+            );
+          }
+        }
+      }
+    }
+
+    // The scene must actually contain cast-shadowed pixels.
+    expect(shadowed1).toBeGreaterThan(0);
+
+    // (c) dpr-2 shadowed count matches 4x the dpr-1 count within the band.
+    let shadowed2 = 0;
+    for (let v = 0; v < at2.visibility.spec.height; v++) {
+      for (let u = 0; u < at2.visibility.spec.width; u++) {
+        if (at2.visibility.get(u, v, 0) === 0) {
+          shadowed2++;
+        }
+      }
+    }
+    const band = 8 * (w1 + h1);
+    expect(shadowed2).toBeGreaterThanOrEqual(4 * shadowed1 - band);
+    expect(shadowed2).toBeLessThanOrEqual(4 * shadowed1 + band);
+
+    // (d) the cast-shadow region's CSS-space bounding box agrees within the
+    // dpr-1 texel quantization (thin per-row bands make per-row boundary
+    // positions unstable between the two grids; the region bounds are not).
+    const bbox = (
+      vis: typeof at1.visibility,
+      toCssX: (u: number) => number,
+      toCssY: (v: number) => number,
+    ) => {
+      let minX = Infinity;
+      let maxX = -Infinity;
+      let minY = Infinity;
+      let maxY = -Infinity;
+      for (let v = 0; v < vis.spec.height; v++) {
+        for (let u = 0; u < vis.spec.width; u++) {
+          if (vis.get(u, v, 0) !== 0) {
+            continue;
+          }
+          const x = toCssX(u);
+          const y = toCssY(v);
+          if (x < minX) minX = x;
+          if (x > maxX) maxX = x;
+          if (y < minY) minY = y;
+          if (y > maxY) maxY = y;
+        }
+      }
+      return { minX, maxX, minY, maxY };
+    };
+    const box1 = bbox(at1.visibility, (x) => x + 0.5, (y) => y + 0.5);
+    const box2 = bbox(at2.visibility, (u) => (u + 0.5) / 2, (v) => (v + 0.5) / 2);
+    for (const key of ["minX", "maxX", "minY", "maxY"] as const) {
+      expect(Math.abs(box1[key] - box2[key])).toBeLessThanOrEqual(2);
+    }
+  });
+
+  it("registration is atomic: a failed duplicate register leaves no suppression behind", () => {
+    const other = document.createElement("div");
+    other.style.background = "blue";
+    host.appendChild(other);
+    stubRectFor(other, { left: 400, top: 200, width: 60, height: 20 });
+    const layer = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
+    layer.register(button, BUTTON_OPTIONS);
+    // Same element re-registered under another id.
+    expect(() => layer.register(button, { ...BUTTON_OPTIONS, id: "again" })).toThrow(
+      /already registered/,
+    );
+    // Same id on a fresh element.
+    expect(() => layer.register(other, BUTTON_OPTIONS)).toThrow(/duplicate surface id/);
+    // The failed registrations must not have touched the DOM styles.
+    expect(other.style.getPropertyValue("background")).toBe("blue");
+    expect(other.style.getPropertyValue("box-shadow")).toBe("");
+    expect(button.style.getPropertyValue("background")).toBe("transparent");
+    expect(layer.registry.size).toBe(1);
+    layer.dispose();
+    expect(other.style.getPropertyValue("background")).toBe("blue");
+    expect(button.style.getPropertyValue("background")).toBe("");
+  });
+
+  it("updateSurface renames atomically across registry maps and scene identity", () => {
+    const fake = makeFakeOverlay();
+    const layer = new UkiboriDom({
+      overlay: { factory: () => fake.overlay },
+      schedule: (cb) => cb(),
+      observe: false,
+    });
+    layer.register(button, BUTTON_OPTIONS);
+    layer.updateSurface("primary", { id: "renamed", elevation: 9 });
+    expect(layer.registry.has("primary")).toBe(false);
+    expect(layer.registry.has("renamed")).toBe(true);
+    expect(layer.registry.get("renamed")?.element).toBe(button);
+    expect(layer.registry.get("renamed")?.options.id).toBe("renamed");
+    // The scene identity moves with the registry.
+    layer.render();
+    const objectId = layer.debugObjectId();
+    expect(objectId).not.toBeNull();
+    // Renaming onto an existing id is rejected BEFORE any state changes.
+    layer.register(document.createElement("div"), {
+      ...BUTTON_OPTIONS,
+      id: "taken",
+      shape: { kind: "roundedRect", radius: 2 },
+    });
+    expect(() => layer.updateSurface("renamed", { id: "taken" })).toThrow(
+      /duplicate surface id/,
+    );
+    expect(layer.registry.has("renamed")).toBe(true);
+    expect(layer.registry.get("renamed")?.options.elevation).toBe(9);
+    layer.dispose();
+  });
+
+  it("treats hidden/zero-size registered surfaces as temporarily non-renderable", () => {
+    const fake = makeFakeOverlay();
+    const layer = new UkiboriDom({
+      overlay: { factory: () => fake.overlay },
+      schedule: (cb) => cb(),
+      observe: false,
+      margin: 16,
+    });
+    const hidden = document.createElement("div");
+    hidden.style.display = "none";
+    host.appendChild(hidden);
+    stubRectFor(hidden, { left: 0, top: 0, width: 0, height: 0 });
+    layer.register(button, BUTTON_OPTIONS);
+    layer.register(hidden, {
+      id: "hidden",
+      shape: { kind: "roundedRect", radius: 4 },
+      elevation: 0,
+      thickness: 1,
+      material: "silicone",
+    });
+    // The visible surface must render while the hidden one is registered.
+    layer.render();
+    const paint1 = fake.calls.find((c) => c.type === "paint");
+    expect(paint1?.image?.width).toBe(192);
+    expect(layer.registry.size).toBe(2);
+    expect(layer.debugState().nodeCount).toBe(2);
+
+    // When the hidden element becomes measurable again it rejoins the scene.
+    hidden.style.display = "block";
+    stubRectFor(hidden, { left: 300, top: 200, width: 60, height: 20 });
+    layer.invalidate("hidden");
+    layer.render();
+    const resizes = fake.calls.filter((c) => c.type === "resize");
+    const last = resizes[resizes.length - 1];
+    // Region now covers both surfaces (button 100..260 x 200..244, badge
+    // 300..360 x 200..220) inflated by the 16px margin.
+    expect(last?.region).toEqual({ x: 84, y: 184, w: 292, h: 76 });
+    layer.dispose();
+  });
+
+  it("observe:false does not wire MutationObserver-driven renders", () => {
+    let scheduled = 0;
+    const layer = new UkiboriDom({
+      schedule: () => {
+        scheduled++;
+      },
+      observe: false,
+    });
+    layer.register(button, BUTTON_OPTIONS);
+    const scheduledAfterRegister = scheduled;
+    // A text change inside the surface must NOT invalidate when observe:false.
+    button.textContent = "changed text";
+    expect(scheduled).toBe(scheduledAfterRegister);
     layer.dispose();
   });
 });

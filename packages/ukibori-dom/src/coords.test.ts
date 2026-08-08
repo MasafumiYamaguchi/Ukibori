@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { computeRegion, renderTargetSize, sanitizeDpr, viewportRectToDocument } from "./coords";
+import {
+  DEFAULT_SHADOW_BIAS,
+  DEFAULT_SHADOW_STEP_SIZE,
+  computeRegion,
+  renderTargetSize,
+  sanitizeDpr,
+  scaleShadowOptions,
+  viewportRectToDocument,
+} from "./coords";
 
 describe("viewportRectToDocument", () => {
   it("adds page scroll offsets to a viewport rect", () => {
@@ -64,5 +72,36 @@ describe("sanitizeDpr", () => {
     expect(sanitizeDpr(-2)).toBe(1);
     expect(sanitizeDpr(undefined)).toBe(1);
     expect(sanitizeDpr(1.5)).toBe(1.5);
+  });
+});
+
+describe("scaleShadowOptions", () => {
+  it("materializes the renderer defaults for step/bias at 0.5 CSS px", () => {
+    expect(scaleShadowOptions({}, 1)).toEqual({ stepSize: 0.5, bias: 0.5 });
+    expect(DEFAULT_SHADOW_STEP_SIZE).toBe(0.5);
+    expect(DEFAULT_SHADOW_BIAS).toBe(0.5);
+  });
+
+  it("scales every configured length by dpr (same CSS-space march)", () => {
+    const scaled = scaleShadowOptions({ stepSize: 0.75, bias: 0.4, maxDistance: 120 }, 2);
+    expect(scaled).toEqual({ stepSize: 1.5, bias: 0.8, maxDistance: 240 });
+    // At dpr 1 the values pass through unchanged.
+    expect(scaleShadowOptions({ stepSize: 0.75, bias: 0.4, maxDistance: 120 }, 1)).toEqual({
+      stepSize: 0.75,
+      bias: 0.4,
+      maxDistance: 120,
+    });
+  });
+
+  it("omits maxDistance when not configured (renderer derives it from the scaled diagonal)", () => {
+    expect(scaleShadowOptions({}, 3)).toEqual({ stepSize: 1.5, bias: 1.5 });
+    expect("maxDistance" in scaleShadowOptions({}, 3)).toBe(false);
+  });
+
+  it("falls back to the CSS-space defaults for invalid configured values", () => {
+    expect(scaleShadowOptions({ stepSize: -1, bias: NaN, maxDistance: 0 }, 2)).toEqual({
+      stepSize: 1,
+      bias: 1,
+    });
   });
 });

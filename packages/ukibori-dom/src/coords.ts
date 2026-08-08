@@ -10,6 +10,16 @@ import type { Region } from "./types";
  * scene geometry — the overlay is positioned at the document origin and moves
  * with the page, so scroll does not force a re-render (sticky / transformed /
  * nested-scroll cases are handled by re-measuring on scroll, see dom-layer).
+ *
+ * DPR invariance: the renderer scene is the dpr-scaled similarity image of
+ * the CSS-space scene (every length x dpr, light direction unchanged). All
+ * length-valued pipeline parameters must be mapped through the SAME
+ * transform, otherwise dpr would change the physical result. The renderer's
+ * shadow pass (#17) takes `stepSize` / `bias` / `maxDistance` in SCENE units,
+ * so the DOM layer scales them by dpr (including the renderer's defaults for
+ * step/bias, which the layer therefore makes explicit). `maxDistance` is
+ * omitted when not configured: the renderer default is derived from the
+ * (already dpr-scaled) scene diagonal, so it is invariant on its own.
  */
 
 export interface ViewportRect {
@@ -108,4 +118,54 @@ export function renderTargetSize(
 /** Sanitize a device-pixel-ratio value to a finite number >= 1. */
 export function sanitizeDpr(dpr: number | undefined): number {
   return typeof dpr === "number" && Number.isFinite(dpr) && dpr >= 1 ? dpr : 1;
+}
+
+/** CSS-space shadow march step (renderer default 0.5 scene units at dpr 1). */
+export const DEFAULT_SHADOW_STEP_SIZE = 0.5;
+/** CSS-space self-shadow bias (renderer default 0.5 scene units at dpr 1). */
+export const DEFAULT_SHADOW_BIAS = 0.5;
+
+export interface ScaledShadowOptions {
+  stepSize: number;
+  bias: number;
+  maxDistance?: number;
+}
+
+/**
+ * Map CSS-space shadow options (#17) through the dpr similarity transform.
+ *
+ * The renderer's shadow pass interprets `stepSize` / `bias` / `maxDistance`
+ * in SCENE units, and the scene is dpr-scaled by `buildScene`. To keep the
+ * cast-shadow geometry identical in CSS space at any dpr, every configured
+ * length is multiplied by dpr AND the renderer's defaults for step/bias are
+ * materialized here (0.5 CSS px) instead of being left to the renderer —
+ * the renderer default is a fixed scene-unit value, so it would silently
+ * shrink with dpr. `maxDistance` is only forwarded when configured; the
+ * renderer default derives from the dpr-scaled scene diagonal and is already
+ * invariant. Invalid configured values fall back to the CSS-space defaults,
+ * mirroring the renderer's sanitization.
+ */
+export function scaleShadowOptions(
+  options: { stepSize?: number; bias?: number; maxDistance?: number },
+  dpr: number,
+): ScaledShadowOptions {
+  const d = sanitizeDpr(dpr);
+  const stepSize =
+    (isFiniteStrictPositive(options.stepSize) ? options.stepSize! : DEFAULT_SHADOW_STEP_SIZE) * d;
+  const bias =
+    (isFiniteNonNegative(options.bias) ? options.bias! : DEFAULT_SHADOW_BIAS) * d;
+  const maxDistance = isFiniteStrictPositive(options.maxDistance)
+    ? options.maxDistance! * d
+    : undefined;
+  return maxDistance === undefined
+    ? { stepSize, bias }
+    : { stepSize, bias, maxDistance };
+}
+
+function isFiniteStrictPositive(v: number | undefined): v is number {
+  return typeof v === "number" && Number.isFinite(v) && v > 0;
+}
+
+function isFiniteNonNegative(v: number | undefined): v is number {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0;
 }

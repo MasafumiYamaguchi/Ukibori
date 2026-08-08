@@ -5,20 +5,26 @@ import type { Region, SurfaceImage } from "./types";
  * Overlay canvas (#20).
  *
  * The overlay is a single absolutely-positioned `<canvas>` inserted as the
- * FIRST child of the host element:
+ * FIRST child of `document.body`:
  *
- * - `position: absolute` at the document origin, sized to the scene region,
- *   so it moves with the page on scroll (document-relative scene space) and
- *   clips cast shadows at the region boundary
+ * - **Document-origin contract**: the canvas is positioned with `left`/`top`
+ *   in DOCUMENT coordinates. That mapping is exact only when the canvas's
+ *   containing block is the initial containing block (a static `body`/`html`
+ *   with no positioning or transform). This is the only supported host; a
+ *   positioned/transformed host is out of contract (use the `factory` seam
+ *   for a custom overlay). The canvas scrolls with the page naturally, and
+ *   cast shadows are clipped at the scene-region boundary.
+ * - **Stacking (z-index: -1)**: the canvas paints above the page background
+ *   (so cast shadows on the "base plane" are visible) but BELOW every
+ *   in-flow element — including the registered surfaces, whose DOM text stays
+ *   visible WITHOUT any positioning change to the element itself. Registered
+ *   elements are never forced `position: relative`, so the containing block
+ *   of their absolutely positioned descendants is untouched (DOM layout stays
+ *   authoritative).
  * - `pointer-events: none` — hit-testing, focus, keyboard and pointer events
- *   belong entirely to the DOM underneath; the canvas never captures them
- * - `z-index: 0` and inserted BEFORE the page content: it paints above the
- *   host background (so cast shadows on the "base plane" are visible) but
- *   below any later positioned content, including the registered surfaces
- *   (which the layer forces `position: relative`, so their DOM text stays
- *   above the physical layer)
+ *   belong entirely to the DOM underneath; the canvas never captures them.
  * - `aria-hidden="true"`, `role="presentation"` and `tabindex="-1"`: the
- *   canvas is inert to the accessibility tree and to focus
+ *   canvas is inert to the accessibility tree and to focus.
  *
  * The backing store is DPR-scaled (`floor(region.w * dpr)` texels) while the
  * CSS size stays in CSS pixels, so `putImageData` writes crisp device pixels.
@@ -36,14 +42,14 @@ export interface Overlay {
 
 export const OVERLAY_STYLE_PROPS = {
   position: "absolute",
-  zIndex: "0",
+  zIndex: "-1",
   pointerEvents: "none",
 } as const;
 
 export class OverlayCanvas implements Overlay {
   readonly canvas: HTMLCanvasElement;
 
-  constructor(host: Element, zIndex = 0) {
+  constructor(zIndex = -1) {
     const canvas = document.createElement("canvas");
     canvas.style.position = OVERLAY_STYLE_PROPS.position;
     canvas.style.zIndex = String(zIndex);
@@ -56,7 +62,7 @@ export class OverlayCanvas implements Overlay {
     canvas.setAttribute("role", "presentation");
     canvas.tabIndex = -1;
     this.canvas = canvas;
-    host.insertBefore(canvas, host.firstChild);
+    document.body.insertBefore(canvas, document.body.firstChild);
   }
 
   resizeAndPosition(region: Region, dpr: number): void {
@@ -107,21 +113,20 @@ export interface SavedStyle {
  *   the element's CSS shadow would paint a second, unlit copy
  *
  * Text color, borders, outlines (including the `:focus-visible` ring),
- * `cursor` and all other content/affordance styles stay DOM-owned.
+ * `cursor` and all other content/affordance styles stay DOM-owned. The
+ * element's `position` is NEVER changed: the overlay paints at z-index -1
+ * (below in-flow content), so the surface's DOM text is visible without
+ * altering the containing block of absolutely positioned descendants.
  */
 export const SUPPRESSED_PROPS: ReadonlyArray<readonly [string, string]> = [
   ["background", "transparent"],
   ["box-shadow", "none"],
 ];
 
-/** Force the registered surface to paint above the overlay (required for its
- * DOM text to remain visible over the physical layer). */
-export const SURFACE_POSITION = "relative";
-
 /**
  * Save + suppress the element's background/shadow inline styles so the
  * physical layer is the single source of appearance. Returns the saved styles
- * for `restoreSavedStyles`.
+ * for `restoreSavedStyles`. The element's positioning is left untouched.
  */
 export function applySuppression(element: HTMLElement): SavedStyle[] {
   const saved: SavedStyle[] = [];
@@ -132,17 +137,6 @@ export function applySuppression(element: HTMLElement): SavedStyle[] {
       priority: element.style.getPropertyPriority(prop),
     });
     element.style.setProperty(prop, value, "important");
-  }
-  const currentPosition = element.style.getPropertyValue("position");
-  const computedPosition =
-    typeof getComputedStyle === "function" ? getComputedStyle(element).position : "static";
-  if (computedPosition === "static") {
-    saved.push({
-      prop: "position",
-      value: currentPosition,
-      priority: element.style.getPropertyPriority("position"),
-    });
-    element.style.setProperty("position", SURFACE_POSITION);
   }
   return saved;
 }

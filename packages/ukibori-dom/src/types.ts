@@ -120,7 +120,11 @@ export interface SurfaceImage {
   data: Uint8ClampedArray<ArrayBuffer>;
 }
 
-/** Renderer options forwarded to the shadow pass (#17). */
+/** Renderer options forwarded to the shadow pass (#17). All lengths are in
+ * CSS-space units: the DOM layer maps them through the dpr similarity
+ * transform before they reach the renderer, so cast shadows are invariant
+ * under devicePixelRatio. Invalid values fall back to the defaults
+ * (step 0.5 / bias 0.5 CSS px; maxDistance derived from the scene diagonal). */
 export interface DomShadowOptions {
   stepSize?: number;
   maxDistance?: number;

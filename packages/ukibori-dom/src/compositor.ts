@@ -40,7 +40,7 @@ export function sanitizeCompositeOptions(
       : DEFAULT_SHADOW_ALPHA;
   return {
     shadowColor,
-    shadowAlpha: alpha === 0 ? DEFAULT_SHADOW_ALPHA : alpha,
+    shadowAlpha: alpha,
   };
 }
 
