@@ -28,7 +28,7 @@ export {
 } from "./core/materials";
 export type { MaterialTokens, MaterialTokensOverride } from "./core/materials";
 export type { ShadowOptions, ShadowSpec } from "./core/shadow";
-export { isBrowser, prefersHighContrast, prefersReducedMotion } from "./env";
+export { isBrowser, prefersHighContrast, prefersReducedMotion, detectCanvas2dSupport } from "./env";
 export type {
   LightVector,
   MaterialName,

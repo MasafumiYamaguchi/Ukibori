@@ -1,6 +1,7 @@
 import { useContext, useState } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+import { stubCanvas2d } from "../test/dom";
 import { UkiboriContext, DEFAULT_COLOR, DEFAULT_INTENSITY, Surface, Ukibori } from "../index";
 import type { UkiboriContextValue } from "../context";
 
@@ -35,6 +36,7 @@ function readContext(el: HTMLElement): {
 
 describe("Ukibori provider", () => {
   it("enhances to a single physical layer after effects", async () => {
+    stubCanvas2d();
     let layerRef: unknown = "unset";
     render(
       <Ukibori onReady={(layer) => (layerRef = layer)}>

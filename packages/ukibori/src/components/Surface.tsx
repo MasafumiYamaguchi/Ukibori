@@ -43,8 +43,8 @@ interface SurfaceInnerProps {
   className?: string;
   style?: CSSProperties;
   children?: ReactNode;
-  id?: string;
-  shape?: DomSurfaceOptions["shape"];
+  sceneId?: string;
+  shape?: DomSurfaceOptions["shape"] | null;
   elevation?: number;
   thickness?: number;
   bevelWidth?: number;
@@ -123,7 +123,7 @@ export const Surface = forwardRef<HTMLElement, SurfaceInnerProps>(function Surfa
     as = "div",
     className,
     style,
-    id,
+    sceneId: sceneIdProp,
     shape,
     elevation,
     thickness,
@@ -142,7 +142,10 @@ export const Surface = forwardRef<HTMLElement, SurfaceInnerProps>(function Surfa
 ) {
   const ctx = useContext(UkiboriContext);
   const elementRef = useRef<HTMLElement | null>(null);
-  const sceneId = id ?? useId();
+  // Unconditional hooks: useId() is always called; the DOM `id` prop is a
+  // separate concern and is forwarded to the element untouched.
+  const fallbackSceneId = useId();
+  const sceneId = sceneIdProp ?? fallbackSceneId;
 
   const physicalOptions: PhysicalSurfaceOptions = {
     id: sceneId,
@@ -161,48 +164,59 @@ export const Surface = forwardRef<HTMLElement, SurfaceInnerProps>(function Surfa
   const optionsRef = useRef(physicalOptions);
   optionsRef.current = physicalOptions;
 
-  // Register once per enhancement (mount / mode / layer / id change).
+  // Registration ownership: this component tracks whether IT acquired the
+  // registration, so a failed register() (e.g. duplicate sceneId owned by
+  // another surface) can never release someone else's registration, and
+  // updates only ever touch this component's own entry.
+  const registrationRef = useRef(false);
+  const canRegister = ctx.mode === "physical" && ctx.layer !== null && shape !== null;
+
+  // Register/unregister the scene node (mount / mode / layer / sceneId /
+  // registration-eligibility changes). Prop updates never pass through this
+  // path — they go to the retained update effect below.
   useEffect(() => {
-    if (ctx.mode !== "physical" || ctx.layer === null) {
+    if (!canRegister) {
       return;
     }
     const element = elementRef.current;
     if (element === null) {
       return;
     }
-    const layer: UkiboriDom = ctx.layer;
+    const layer: UkiboriDom = ctx.layer!;
     try {
       layer.register(element, optionsRef.current);
+      registrationRef.current = true;
     } catch (error) {
+      registrationRef.current = false;
       ctx.reportError(error);
     }
     return () => {
+      if (!registrationRef.current) {
+        return;
+      }
+      registrationRef.current = false;
       try {
-        if (layer.registry.has(sceneId)) {
-          layer.unregister(sceneId);
-        }
+        layer.unregister(sceneId);
       } catch (error) {
         ctx.reportError(error);
       }
     };
-  }, [ctx.mode, ctx.layer, sceneId, ctx.reportError]);
+  }, [canRegister, ctx.layer, sceneId, ctx.reportError]);
 
   // Retained updates: prop changes call updateSurface, keeping insertion
-  // order stable. The register effect above runs first in the same commit.
+  // order stable. The register effect above runs first in the same commit,
+  // and only this component's own registration is updated.
   useEffect(() => {
-    if (ctx.mode !== "physical" || ctx.layer === null) {
+    if (!canRegister || !registrationRef.current) {
       return;
     }
-    const layer: UkiboriDom = ctx.layer;
-    if (!layer.registry.has(sceneId)) {
-      return;
-    }
+    const layer: UkiboriDom = ctx.layer!;
     try {
       layer.updateSurface(sceneId, optionsRef.current);
     } catch (error) {
       ctx.reportError(error);
     }
-  }, [optionsKey, ctx.mode, ctx.layer, sceneId, ctx.reportError]);
+  }, [optionsKey, canRegister, ctx.layer, sceneId, ctx.reportError]);
 
   // ---- CSS approximation fallback (backend="css" only) ----
   const cssStyle = useMemo<CSSProperties | undefined>(() => {

@@ -11,14 +11,22 @@ import type { UkiboriTextProps } from "../types";
  * The component renders a real `<span>` with the text: the visible text is
  * always DOM-owned, accessible and selectable. After mount (client only) the
  * text is rasterized into an alpha MaskSource (canvas 2d — rasterization
- * stays OUTSIDE the renderer core) at the element's size, and the surface
- * registers with that mask shape, so the glyph becomes physical geometry
- * (height relief + cast shadows, renderer #19) while the DOM text stays the
- * readable layer above it.
+ * stays OUTSIDE the renderer core) and the surface registers with that mask
+ * shape, so the glyph becomes physical geometry (height relief + cast
+ * shadows, renderer #19) while the DOM text stays the readable layer above
+ * it.
  *
- * The span's box is fixed to the rasterized pixel dimensions so the mask
- * mapping is exactly isotropic (#19 mapping contract). Re-rasterization
- * happens on text/font changes and after `document.fonts.ready`.
+ * Sizing policy (valid in bare usage, no demo CSS required): the element's
+ * measured box is rounded to integer pixel dimensions, the glyph is
+ * rasterized at exactly those dimensions, and the span's inline box is then
+ * fixed to them (`width`/`height`). The mask aspect therefore equals the
+ * span's box aspect EXACTLY — the #19 isotropic mapping contract holds even
+ * for fractional initial text dimensions (the rounding is the policy).
+ *
+ * Before a valid mask exists — or if rasterization fails — the component
+ * stays PLAIN DOM TEXT: `shape` is `null`, nothing is registered, and no
+ * rounded-rectangle substitute is created. Re-rasterization happens on
+ * text/font changes and after `document.fonts.ready`.
  */
 
 export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
@@ -40,7 +48,7 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
           setMask(rasterizeText(text, element, font));
         } catch (error) {
           // Rasterization failure: the DOM text remains visible and readable;
-          // only the physical glyph relief is lost.
+          // only the physical glyph relief is lost (no substitute is made).
           console.error("UkiboriText rasterization failed:", error);
         }
       };
@@ -66,7 +74,7 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
         as="span"
         ref={mergeRefs(forwardedRef, innerRef)}
         style={fixedStyle}
-        shape={mask !== null ? { kind: "mask", mask } : { kind: "roundedRect" }}
+        shape={mask !== null ? { kind: "mask", mask } : null}
       >
         {text}
       </Surface>
@@ -74,6 +82,7 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
   },
 );
 
+/** Sizing policy: round the measured box to integer pixels. */
 function rasterizeText(
   text: string,
   element: HTMLElement,

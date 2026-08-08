@@ -28,10 +28,10 @@ describe("renderer failure resilience", () => {
         schedule={(cb) => cb()}
         onError={(e) => errors.push(e)}
       >
-        <Surface id="dup" elevation={4} thickness={2}>
+        <Surface sceneId="dup" elevation={4} thickness={2}>
           First
         </Surface>
-        <Surface id="dup" elevation={4} thickness={2}>
+        <Surface sceneId="dup" elevation={4} thickness={2}>
           Second
         </Surface>
       </Ukibori>,
@@ -53,7 +53,7 @@ describe("renderer failure resilience", () => {
     const onClick = vi.fn();
     render(
       <Ukibori schedule={(cb) => cb()} onError={(e) => errors.push(e)}>
-        <Surface as="button" id="b" material="does-not-exist" onClick={onClick} elevation={4} thickness={2}>
+        <Surface as="button" sceneId="b" material="does-not-exist" onClick={onClick} elevation={4} thickness={2}>
           Still a button
         </Surface>
       </Ukibori>,

@@ -30,7 +30,7 @@ describe("backend selection", () => {
     let layer: UkiboriDom | null = null;
     render(
       <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
-        <Surface id="a" elevation={1} thickness={1}>
+        <Surface sceneId="a" elevation={1} thickness={1}>
           A
         </Surface>
       </Ukibori>,
@@ -41,10 +41,12 @@ describe("backend selection", () => {
   });
 
   it('"cpu" explicitly selects the physical CPU renderer', async () => {
+    stubElementRects();
+    stubCanvas2d();
     let layer: UkiboriDom | null = null;
     render(
       <Ukibori backend="cpu" onReady={(l) => (layer = l)}>
-        <Surface id="a" elevation={1} thickness={1}>
+        <Surface sceneId="a" elevation={1} thickness={1}>
           A
         </Surface>
       </Ukibori>,
@@ -57,7 +59,7 @@ describe("backend selection", () => {
     let layer: UkiboriDom | null = null;
     render(
       <Ukibori backend="css" onReady={(l) => (layer = l)}>
-        <Surface id="a" elevation={4} variant="raised">
+        <Surface sceneId="a" elevation={4} variant="raised">
           A
         </Surface>
       </Ukibori>,
@@ -71,10 +73,12 @@ describe("backend selection", () => {
   });
 
   it("resolves auto/cpu to the physical mode and css to the approximation", async () => {
+    stubElementRects();
+    stubCanvas2d();
     let layer: UkiboriDom | null = null;
     const { unmount } = render(
       <Ukibori onReady={(l) => (layer = l)}>
-        <Surface id="a" elevation={1} thickness={1}>
+        <Surface sceneId="a" elevation={1} thickness={1}>
           A
         </Surface>
       </Ukibori>,
@@ -102,12 +106,12 @@ describe("backend selection", () => {
     const { unmount } = render(
       <>
         <Ukibori quality="low" schedule={(cb) => cb()} onReady={(l) => (layerLow = l)}>
-          <Surface id="a" elevation={1} thickness={1}>
+          <Surface sceneId="a" elevation={1} thickness={1}>
             A
           </Surface>
         </Ukibori>
         <Ukibori quality="high" schedule={(cb) => cb()} onReady={(l) => (layerHigh = l)}>
-          <Surface id="b" elevation={1} thickness={1}>
+          <Surface sceneId="b" elevation={1} thickness={1}>
             B
           </Surface>
         </Ukibori>
@@ -120,5 +124,80 @@ describe("backend selection", () => {
     expect(sizeHigh!.width).toBeGreaterThanOrEqual(sizeLow!.width);
     expect(sizeHigh!.height).toBeGreaterThanOrEqual(sizeLow!.height);
     unmount();
+  });
+});
+
+describe("capability resolution and retained provider", () => {
+  it("falls back to the CSS approximation when Canvas2D is unavailable (auto)", async () => {
+    // getContext returns null: the real CPU/Canvas presentation path is
+    // unusable, so the provider must NOT suppress DOM surfaces while an
+    // overlay silently paints nothing.
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    let layer: UkiboriDom | null = null;
+    const errors: unknown[] = [];
+    render(
+      <Ukibori onReady={(l) => (layer = l)} onError={(e) => errors.push(e)}>
+        <Surface elevation={4} variant="raised">
+          A
+        </Surface>
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(layer).toBeNull();
+    // The fallback is reported and the explicitly labeled CSS approximation
+    // is applied — the surface is never left suppressed-but-unpainted.
+    expect(errors.length).toBeGreaterThan(0);
+    const el = screen.getByText("A");
+    expect(el.style.boxShadow).toContain("var(--ukibori-shadow-x)");
+    expect(document.querySelector("canvas")).toBeNull();
+  });
+
+  it("enters physical mode only when Canvas2D is actually usable", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    let layer: UkiboriDom | null = null;
+    render(
+      <Ukibori onReady={(l) => (layer = l)}>
+        <Surface sceneId="a" elevation={1} thickness={1}>
+          A
+        </Surface>
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(layer).not.toBeNull();
+  });
+
+  it("retains the layer and registry entries across shared-light/quality updates", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    let layer: UkiboriDom | null = null;
+    const tree = (light: { x: number; y: number; z: number }, quality: "low" | "high") => (
+      <Ukibori
+        schedule={(cb) => cb()}
+        onReady={(l) => (layer = l)}
+        light={light}
+        quality={quality}
+      >
+        <Surface sceneId="a" elevation={2} thickness={1}>
+          A
+        </Surface>
+      </Ukibori>
+    );
+    const { rerender } = render(tree({ x: -0.6, y: -0.8, z: 1 }, "low"));
+    await flushAsync();
+    const first = layer!;
+    const entryBefore = first.registry.get("a")!;
+    const setLightSpy = vi.spyOn(first, "setLight");
+    const setDprSpy = vi.spyOn(first, "setDpr");
+
+    // Ordinary physical prop changes: the EXISTING layer is updated through
+    // its setters — no dispose/recreate, no surface re-registration.
+    rerender(tree({ x: 1, y: 0, z: 0 }, "high"));
+    await flushAsync();
+    expect(layer).toBe(first);
+    expect(first.registry.get("a")).toBe(entryBefore);
+    expect(first.registry.size).toBe(1);
+    expect(setLightSpy).toHaveBeenCalled();
+    expect(setDprSpy).toHaveBeenCalled();
   });
 });

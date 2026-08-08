@@ -4,18 +4,35 @@ import { vi } from "vitest";
  * Shared DOM stubs for jsdom (no layout, no canvas 2d).
  */
 
-/** Give every element a measurable rect so the physical layer renders. */
+/**
+ * Give every element a measurable rect so the physical layer renders. The
+ * rect adapts to an element's own inline width/height when set (mirroring
+ * real layout), which is what UkiboriText's fixed sizing relies on.
+ */
 export function stubElementRects(
   rect = { left: 10, top: 20, width: 120, height: 40 },
 ): void {
-  const domRect = {
-    ...rect,
-    x: rect.left,
-    y: rect.top,
-    right: rect.left + rect.width,
-    bottom: rect.top + rect.height,
-  } as DOMRect;
-  vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue(domRect);
+  vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (
+    this: Element,
+  ): DOMRect {
+    const el = this as HTMLElement;
+    const inlineWidth =
+      typeof el.style?.width === "string" ? parseFloat(el.style.width) : NaN;
+    const inlineHeight =
+      typeof el.style?.height === "string" ? parseFloat(el.style.height) : NaN;
+    const width = Number.isFinite(inlineWidth) ? inlineWidth : rect.width;
+    const height = Number.isFinite(inlineHeight) ? inlineHeight : rect.height;
+    return {
+      left: rect.left,
+      top: rect.top,
+      width,
+      height,
+      x: rect.left,
+      y: rect.top,
+      right: rect.left + width,
+      bottom: rect.top + height,
+    } as DOMRect;
+  });
 }
 
 /** A minimal 2d context so canvas rasterization works in jsdom. */

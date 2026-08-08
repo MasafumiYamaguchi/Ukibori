@@ -28,7 +28,7 @@ describe("UkiboriText glyph integration", () => {
     let layer: UkiboriDom | null = null;
     render(
       <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
-        <UkiboriText id="play" text="PLAY" elevation={6} thickness={0.8} bevelWidth={1.1} material="metal" />
+        <UkiboriText sceneId="play" text="PLAY" elevation={6} thickness={0.8} bevelWidth={1.1} material="metal" />
       </Ukibori>,
     );
     await flushAsync();
@@ -60,7 +60,7 @@ describe("UkiboriText glyph integration", () => {
     let layer: UkiboriDom | null = null;
     const { rerender } = render(
       <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
-        <UkiboriText id="g" text="PLAY" elevation={6} thickness={0.8} />
+        <UkiboriText sceneId="g" text="PLAY" elevation={6} thickness={0.8} />
       </Ukibori>,
     );
     await flushAsync();
@@ -68,7 +68,7 @@ describe("UkiboriText glyph integration", () => {
 
     rerender(
       <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
-        <UkiboriText id="g" text="STOP" elevation={6} thickness={0.8} />
+        <UkiboriText sceneId="g" text="STOP" elevation={6} thickness={0.8} />
       </Ukibori>,
     );
     await flushAsync();
@@ -78,5 +78,72 @@ describe("UkiboriText glyph integration", () => {
     const maskAfter = (shape as { kind: "mask"; mask: unknown }).mask;
     // A fresh rasterization: new mask object, same retained surface entry.
     expect(maskAfter).not.toBe(maskBefore);
+  });
+});
+
+describe("UkiboriText sizing policy (bare usage)", () => {
+  it("satisfies the #19 isotropic mapping with fractional initial dimensions", async () => {
+    // No demo CSS: a bare span whose initial box is fractional.
+    stubElementRects({ left: 10, top: 20, width: 103.3, height: 24.6 });
+    stubCanvas2d();
+    let layer: UkiboriDom | null = null;
+    const errors: unknown[] = [];
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} onError={(e) => errors.push(e)}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    // The scene must build: the span box is fixed to the rasterized pixel
+    // dims, so the mask mapping is exactly isotropic (no createScene error).
+    expect(errors).toHaveLength(0);
+    const span = screen.getByText("PLAY");
+    expect(span.style.width).toBe("103px");
+    expect(span.style.height).toBe("25px");
+    const entry = layer!.registry.get("play")!;
+    expect(entry.options.shape.kind).toBe("mask");
+    expect(layer!.debugBuffers()).not.toBeNull();
+  });
+
+  it("stays plain DOM text when rasterization fails (no rounded-rectangle substitute)", async () => {
+    stubElementRects();
+    // The capability probe canvas (default 300x150) works, but the rasterizer
+    // canvas (element-sized) fails -> no mask can exist.
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+      (function (
+        this: HTMLCanvasElement,
+      ): CanvasRenderingContext2D | null {
+        // The capability probe canvas keeps its default 300x150 size; every
+        // element-sized canvas (the rasterizer, the overlay) must be usable
+        // too, so only the probe gets a functional context.
+        const functional = {
+          clearRect: () => undefined,
+          fillText: () => undefined,
+          getImageData: () => ({ width: 0, height: 0, data: new Uint8ClampedArray(0) }),
+          putImageData: () => undefined,
+        } as unknown as CanvasRenderingContext2D;
+        if (this.width === 300 && this.height === 150) {
+          return functional;
+        }
+        // The rasterizer canvas is element-sized: fail, so no mask exists.
+        return null;
+      }) as unknown as typeof HTMLCanvasElement.prototype.getContext,
+    );
+    let layer: UkiboriDom | null = null;
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    // Plain DOM text: visible, untouched, and NOT registered as a
+    // rounded-rectangle substitute.
+    const span = screen.getByText("PLAY");
+    expect(span.tagName).toBe("SPAN");
+    expect(span.textContent).toBe("PLAY");
+    expect(span.getAttribute("data-ukibori-surface")).toBeNull();
+    expect(span.style.width).toBe("");
+    expect(layer!.registry.has("play")).toBe(false);
+    expect(layer!.registry.size).toBe(0);
   });
 });

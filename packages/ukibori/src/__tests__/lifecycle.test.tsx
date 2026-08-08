@@ -22,10 +22,12 @@ afterEach(() => {
 
 describe("registry lifecycle", () => {
   it("mount registers, prop update uses the retained path, unmount unregisters", async () => {
+    stubElementRects();
+    stubCanvas2d();
     let layer: UkiboriDom | null = null;
     const { rerender } = render(
       <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
-        <Surface id="card" elevation={4} thickness={2}>
+        <Surface sceneId="card" elevation={4} thickness={2}>
           Card
         </Surface>
       </Ukibori>,
@@ -39,7 +41,7 @@ describe("registry lifecycle", () => {
     const entryBefore = current.registry.get("card");
     rerender(
       <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
-        <Surface id="card" elevation={9} thickness={3}>
+        <Surface sceneId="card" elevation={9} thickness={3}>
           Card
         </Surface>
       </Ukibori>,
@@ -61,13 +63,15 @@ describe("registry lifecycle", () => {
   });
 
   it("keeps scene insertion order stable across updates (ids never re-key)", async () => {
+    stubElementRects();
+    stubCanvas2d();
     let layer: UkiboriDom | null = null;
     const tree = (
       <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
-        <Surface id="first" elevation={1} thickness={1}>
+        <Surface sceneId="first" elevation={1} thickness={1}>
           First
         </Surface>
-        <Surface id="second" elevation={2} thickness={1}>
+        <Surface sceneId="second" elevation={2} thickness={1}>
           Second
         </Surface>
       </Ukibori>
@@ -80,10 +84,10 @@ describe("registry lifecycle", () => {
 
     rerender(
       <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
-        <Surface id="first" elevation={9} thickness={2}>
+        <Surface sceneId="first" elevation={9} thickness={2}>
           First
         </Surface>
-        <Surface id="second" elevation={2} thickness={1}>
+        <Surface sceneId="second" elevation={2} thickness={1}>
           Second
         </Surface>
       </Ukibori>,
@@ -99,13 +103,13 @@ describe("registry lifecycle", () => {
     let layer: UkiboriDom | null = null;
     render(
       <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
-        <Surface id="a" elevation={1} thickness={1}>
+        <Surface sceneId="a" elevation={1} thickness={1}>
           A
         </Surface>
-        <Surface id="b" elevation={3} thickness={2}>
+        <Surface sceneId="b" elevation={3} thickness={2}>
           B
         </Surface>
-        <Surface id="c" elevation={2} thickness={1}>
+        <Surface sceneId="c" elevation={2} thickness={1}>
           C
         </Surface>
       </Ukibori>,
@@ -121,9 +125,11 @@ describe("registry lifecycle", () => {
   });
 
   it("unmounts the provider cleanly: stage attribute and overlay released", async () => {
+    stubElementRects();
+    stubCanvas2d();
     const { unmount } = render(
       <Ukibori schedule={(cb) => cb()}>
-        <Surface id="x" elevation={1} thickness={1}>
+        <Surface sceneId="x" elevation={1} thickness={1}>
           X
         </Surface>
       </Ukibori>,

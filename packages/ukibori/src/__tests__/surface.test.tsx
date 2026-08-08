@@ -1,6 +1,7 @@
 import { createRef } from "react";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { stubCanvas2d, stubElementRects } from "../test/dom";
 import { Surface, Ukibori } from "../index";
 
 /**
@@ -174,6 +175,8 @@ describe("Surface shadow output (css fallback)", () => {
 
 describe("Surface under a physical provider (no enhancement styling)", () => {
   it("keeps the element's own style untouched before/without the physical layer", () => {
+    stubElementRects();
+    stubCanvas2d();
     // A physical provider enhances after effects; the RENDERED output stays
     // the plain semantic element with the user's own style.
     render(

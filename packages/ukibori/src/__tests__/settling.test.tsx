@@ -1,6 +1,7 @@
 import { act } from "react";
 import { render } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { stubCanvas2d, stubElementRects } from "../test/dom";
 import { Surface, Ukibori } from "../index";
 
 /**
@@ -13,8 +14,14 @@ const flushAsync = () =>
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("static scene settling", () => {
   it("stops scheduling after mount settles", async () => {
+    stubElementRects();
+    stubCanvas2d();
     let scheduled = 0;
     const { unmount } = render(
       <Ukibori
@@ -23,10 +30,10 @@ describe("static scene settling", () => {
           cb();
         }}
       >
-        <Surface id="a" elevation={2} thickness={1}>
+        <Surface sceneId="a" elevation={2} thickness={1}>
           A
         </Surface>
-        <Surface id="b" elevation={4} thickness={2}>
+        <Surface sceneId="b" elevation={4} thickness={2}>
           B
         </Surface>
       </Ukibori>,
@@ -42,6 +49,8 @@ describe("static scene settling", () => {
   });
 
   it("settles again after a one-time prop update", async () => {
+    stubElementRects();
+    stubCanvas2d();
     let scheduled = 0;
     const { rerender } = render(
       <Ukibori
@@ -50,7 +59,7 @@ describe("static scene settling", () => {
           cb();
         }}
       >
-        <Surface id="a" elevation={2} thickness={1}>
+        <Surface sceneId="a" elevation={2} thickness={1}>
           A
         </Surface>
       </Ukibori>,
@@ -65,7 +74,7 @@ describe("static scene settling", () => {
           cb();
         }}
       >
-        <Surface id="a" elevation={8} thickness={2}>
+        <Surface sceneId="a" elevation={8} thickness={2}>
           A
         </Surface>
       </Ukibori>,

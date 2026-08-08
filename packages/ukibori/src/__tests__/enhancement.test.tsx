@@ -1,7 +1,8 @@
 import { act } from "react";
 import { render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { stubCanvas2d, stubElementRects } from "../test/dom";
 import { Surface, Ukibori } from "../index";
 import type { UkiboriDom } from "ukibori-dom";
 
@@ -17,8 +18,14 @@ const flushAsync = () =>
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
 describe("enhancement after hydration", () => {
   it("hydrates server HTML and enhances the SAME elements (no replacement)", async () => {
+    stubElementRects();
+    stubCanvas2d();
     const element = (
       <Ukibori light={{ x: -0.6, y: -0.8, z: 1 }}>
         <Surface as="button" type="button" aria-label="enhanced" elevation={4} thickness={2}>
@@ -57,13 +64,15 @@ describe("enhancement after hydration", () => {
   });
 
   it("registers surfaces into the provider layer after enhancement", async () => {
+    stubElementRects();
+    stubCanvas2d();
     let layer: UkiboriDom | null = null;
     render(
       <Ukibori
         schedule={(cb) => cb()}
         onReady={(l) => (layer = l)}
       >
-        <Surface id="a" elevation={2} thickness={1}>
+        <Surface sceneId="a" elevation={2} thickness={1}>
           A
         </Surface>
       </Ukibori>,

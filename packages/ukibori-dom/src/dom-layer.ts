@@ -108,9 +108,9 @@ export class UkiboriDom {
   private readonly overlay: Overlay;
   private readonly scheduler: (cb: () => void) => void;
   private readonly onError: (error: unknown) => void;
-  private readonly margin: number;
+  private margin: number;
   private dprSource: number | (() => number) | undefined;
-  private readonly compositeOptions: CompositeOptions;
+  private compositeOptions: CompositeOptions;
   private readonly shadowOptions: DomShadowOptions;
 
   private light: DomLightState;
@@ -327,6 +327,22 @@ export class UkiboriDom {
   setDpr(dpr: number | (() => number)): void {
     this.throwIfDisposed();
     this.dprSource = dpr;
+    this.sceneDirty = true;
+    this.scheduleRender();
+  }
+
+  /** Replace the scene-region shadow margin (CSS px). */
+  setMargin(margin: number): void {
+    this.throwIfDisposed();
+    this.margin = Number.isFinite(margin) && margin >= 0 ? margin : DEFAULT_MARGIN;
+    this.sceneDirty = true;
+    this.scheduleRender();
+  }
+
+  /** Replace the compositor mapping options. */
+  setCompositing(options: CompositeOptions): void {
+    this.throwIfDisposed();
+    this.compositeOptions = options;
     this.sceneDirty = true;
     this.scheduleRender();
   }

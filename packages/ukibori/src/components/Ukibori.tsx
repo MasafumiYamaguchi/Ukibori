@@ -6,7 +6,7 @@ import { DEFAULT_COLOR, DEFAULT_INTENSITY, UkiboriContext } from "../context";
 import { DEFAULT_LIGHT, normalizeLight } from "../core/light";
 import { INTENSITY_MAX } from "../core/shadow";
 import { sanitizeNumber } from "../core/math";
-import { prefersHighContrast } from "../env";
+import { detectCanvas2dSupport, prefersHighContrast } from "../env";
 import type { UkiboriMode, UkiboriProps, UkiboriQuality } from "../types";
 
 /**
@@ -22,11 +22,20 @@ import type { UkiboriMode, UkiboriProps, UkiboriQuality } from "../types";
  *
  * - SSR / first render: mode "none" — ordinary semantic DOM, no window /
  *   document / canvas / WebGPU / UkiboriDom touched.
- * - After hydration + effects (capability detection -> integration init ->
- *   surface registration): the layer is created once and the provider renders
- *   a wrapper element that becomes the #20 stage (the overlay canvas is
- *   inserted inside it; `overlay.stage` overrides). The stage relationship is
- *   disposed cleanly on unmount or when the config changes.
+ * - Post-hydration capability resolution: `backend="auto"` verifies that the
+ *   real CPU/Canvas presentation path is usable (`detectCanvas2dSupport`)
+ *   before entering physical mode. When Canvas2D is unavailable, the mode is
+ *   the explicitly labeled CSS approximation fallback instead of suppressing
+ *   DOM surfaces while an overlay silently paints nothing. WebGPU stays
+ *   unselectable until a real compute pipeline exists.
+ * - Enhancement (integration init -> surface registration): the layer is
+ *   created once and the provider renders a wrapper element that becomes the
+ *   #20 stage (the overlay canvas is inserted inside it; `overlay.stage`
+ *   overrides). The stage relationship is disposed cleanly on unmount or on
+ *   STRUCTURAL changes (backend / stage / high-contrast policy).
+ * - Ordinary physical prop changes (light, intensity, shadow, dpr, quality,
+ *   margin, compositing) are pushed to the EXISTING layer through its setter
+ *   APIs — the layer and every retained surface registration survive.
  * - `backend="css"`: no layer at all — surfaces render the CSS approximation
  *   (box-shadow), an EXPLICITLY LABELED fallback that is not physical
  *   rendering.
@@ -110,33 +119,36 @@ export function Ukibori({
     setHighContrastEnabled(prefersHighContrast());
   }, [highContrast]);
 
+  // ---- post-hydration capability resolution ----
+  // "auto" (and explicit "cpu") must verify the real CPU/Canvas presentation
+  // path before entering physical mode. Skipped for backend="css" (the
+  // approximation fallback needs no canvas).
+  const [canvas2dAvailable, setCanvas2dAvailable] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (backend === "css") {
+      setCanvas2dAvailable(null);
+      return;
+    }
+    setCanvas2dAvailable(detectCanvas2dSupport());
+  }, [backend]);
+
   // ---- layer lifecycle ----
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [layer, setLayer] = useState<UkiboriDom | null>(null);
 
-  // The physical configuration is keyed by a serialized string so inline
-  // object props cannot recreate the layer on unrelated re-renders.
-  const configKey = [
-    backend,
+  const physicalRequested = backend !== "css" && !highContrastEnabled;
+
+  // STRUCTURAL key: recreation of the layer requires one of these to change.
+  const structuralKey = `${backend}|${stage ?? ""}|${highContrastEnabled}`;
+  // UPDATE key: ordinary physical props pushed through the layer setters.
+  const updateKey = [
     cssEnv.key,
-    margin ?? "",
     JSON.stringify(shadow),
-    JSON.stringify(compositing),
     String(dpr),
     quality,
+    margin ?? "",
+    JSON.stringify(compositing),
   ].join("|");
-  const physicalConfig = useMemo(() => {
-    if (backend === "css") {
-      return null;
-    }
-    const lightState: DomLightState = {
-      direction: cssEnv.light,
-      intensity: cssEnv.intensity,
-    };
-    const shadowOptions: DomShadowOptions | undefined = shadow;
-    return { lightState, margin, shadow: shadowOptions, compositing };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [configKey]);
 
   useEffect(() => {
     if (backend === "css" || highContrastEnabled) {
@@ -144,16 +156,33 @@ export function Ukibori({
       onReadyRef.current?.(null);
       return;
     }
-    if (physicalConfig === null) {
+    if (canvas2dAvailable === null) {
+      // Capability resolution still pending: keep mode "none" (plain DOM).
+      return;
+    }
+    if (!canvas2dAvailable) {
+      // Canvas2D presentation is unusable: the physical overlay could not
+      // present anything. Fall back to the explicitly labeled CSS
+      // approximation instead of suppressing DOM surfaces silently.
+      reportError(
+        new Error(
+          "Ukibori: Canvas2D presentation unavailable — using the explicitly labeled CSS approximation fallback",
+        ),
+      );
+      setLayer(null);
+      onReadyRef.current?.(null);
       return;
     }
     let created: UkiboriDom | null = null;
     try {
       created = new UkiboriDom({
-        light: physicalConfig.lightState,
-        margin: physicalConfig.margin,
-        shadow: physicalConfig.shadow,
-        compositing: physicalConfig.compositing,
+        light: {
+          direction: cssEnv.light,
+          intensity: cssEnv.intensity,
+        } satisfies DomLightState,
+        margin,
+        shadow,
+        compositing,
         dpr: dpr ?? (() => (window.devicePixelRatio ?? 1) * QUALITY_DPR[quality]),
         schedule: scheduleRef.current,
         overlay: { stage: stage ?? stageRef.current ?? undefined },
@@ -170,10 +199,41 @@ export function Ukibori({
       created.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backend, physicalConfig, stage, highContrastEnabled, reportError]);
+  }, [structuralKey, backend, canvas2dAvailable, reportError]);
+
+  // Retained physical updates: push changes through the EXISTING layer's
+  // setters so the layer and every retained registration survive ordinary
+  // light/intensity/shadow/DPR/quality/margin/compositing changes.
+  useEffect(() => {
+    if (layer === null) {
+      return;
+    }
+    const current: UkiboriDom = layer;
+    current.setLight(
+      { x: cssEnv.light.x, y: cssEnv.light.y, z: cssEnv.light.z },
+      cssEnv.intensity,
+    );
+    if (shadow !== undefined) {
+      current.setShadow(shadow);
+    }
+    if (margin !== undefined) {
+      current.setMargin(margin);
+    }
+    if (compositing !== undefined) {
+      current.setCompositing(compositing);
+    }
+    current.setDpr(dpr ?? (() => (window.devicePixelRatio ?? 1) * QUALITY_DPR[quality]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layer, updateKey]);
 
   const mode: UkiboriMode =
-    backend === "css" ? "css" : layer !== null ? "physical" : "none";
+    backend === "css"
+      ? "css"
+      : physicalRequested && canvas2dAvailable === false
+        ? "css"
+        : layer !== null
+          ? "physical"
+          : "none";
 
   const value = useMemo(
     () => ({
@@ -188,11 +248,9 @@ export function Ukibori({
     [mode, layer, backend, reportError, cssEnv],
   );
 
-  const wrapperStyle: CSSProperties | undefined = style;
-
   return (
     <UkiboriContext.Provider value={value}>
-      <div ref={stageRef} className={className} style={wrapperStyle}>
+      <div ref={stageRef} className={className} style={style}>
         {children}
       </div>
     </UkiboriContext.Provider>

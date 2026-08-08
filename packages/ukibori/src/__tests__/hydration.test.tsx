@@ -4,6 +4,7 @@ import { hydrateRoot } from "react-dom/client";
 import { render, screen } from "@testing-library/react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { stubCanvas2d } from "../test/dom";
 import { Surface, Ukibori } from "../index";
 
 // Server (React 19) serializes custom properties without a space after the
@@ -24,6 +25,7 @@ describe("hydration determinism", () => {
   });
 
   it("produces identical plain button markup server-side and client-side (physical path)", () => {
+    stubCanvas2d();
     const element = createElement(
       Ukibori,
       { light: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },

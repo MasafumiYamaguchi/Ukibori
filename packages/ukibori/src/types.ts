@@ -110,14 +110,17 @@ export interface SurfaceOwnProps {
   /** Polymorphic element type; semantic elements stay real (button, input, ...). */
   as?: ElementType;
   /**
-   * Scene id, STABLE for the mounted lifetime (required invariant for the
-   * physical path). Defaults to `useId()`. Prop updates use the retained
-   * `updateSurface` path so the scene insertion/paint order never changes.
+   * RENDERER scene identity, STABLE for the mounted lifetime (required
+   * invariant for the physical path). Defaults to an unconditional `useId()`.
+   * This is separate from the ordinary DOM `id` prop (which is forwarded to
+   * the element untouched). Prop updates use the retained `updateSurface`
+   * path so the scene insertion/paint order never changes.
    */
-  id?: string;
+  sceneId?: string;
   /** Shape source (renderer #13/#19). Defaults to a rounded rect with the
-   * corner radius measured from the element's CSS. */
-  shape?: DomShape;
+   * corner radius measured from the element's CSS. `null` = do not register
+   * (plain semantic DOM; used by <UkiboriText> before its mask exists). */
+  shape?: DomShape | null;
   /** Absolute scene z of the surface base (CSS px, #13). */
   elevation?: number;
   /** Profile height range above the base (CSS px). */
