@@ -72,8 +72,16 @@ function drawToCanvas(
   canvas: HTMLCanvasElement,
   image: { width: number; height: number; data: Uint8ClampedArray },
 ): void {
-  canvas.width = image.width;
-  canvas.height = image.height;
+  // Idempotent sizing: only touch the width/height attributes when they
+  // actually change. The debug canvases are NOT Ukibori-managed nodes, so an
+  // unconditional assignment would be seen as an external DOM mutation and
+  // schedule another render forever. putImageData still runs every time.
+  if (canvas.width !== image.width) {
+    canvas.width = image.width;
+  }
+  if (canvas.height !== image.height) {
+    canvas.height = image.height;
+  }
   const ctx = canvas.getContext("2d");
   if (ctx === null) {
     return;

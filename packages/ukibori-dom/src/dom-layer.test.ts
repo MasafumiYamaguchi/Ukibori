@@ -867,4 +867,61 @@ describe("UkiboriDom — DOM integration", () => {
     expect(scheduled).toBe(afterRender + 1);
     layer.dispose();
   });
+
+  it("demo debug output settles: idempotent canvas sizing stops scheduling after a one-time resize", async () => {
+    // jsdom has no 2d context; paint() must tolerate a null context silently.
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    let scheduled = 0;
+    const layer = new UkiboriDom({
+      schedule: (cb) => {
+        scheduled++;
+        cb();
+      },
+      observe: true,
+    });
+    layer.register(button, BUTTON_OPTIONS);
+    // An app-owned debug canvas (like the demo's buffer views) is NOT a
+    // Ukibori-managed node: the document observer sees its attribute writes
+    // as external mutations.
+    const debug = document.createElement("canvas");
+    host.appendChild(debug);
+    // refreshDebug-equivalent with the idempotency guard from the demo.
+    const draw = (width: number, height: number) => {
+      if (debug.width !== width) {
+        debug.width = width;
+      }
+      if (debug.height !== height) {
+        debug.height = height;
+      }
+    };
+    layer.render();
+    const atRest = scheduled;
+
+    // The demo's FIRST refreshDebug: a one-time debug-canvas resize. Exactly
+    // one additional render is scheduled.
+    draw(288, 172);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const afterOneTimeResize = scheduled;
+    expect(afterOneTimeResize).toBe(atRest + 1);
+
+    // The render it scheduled ran (sync scheduler). Its refreshDebug
+    // re-asserts the SAME sizes: the guard writes nothing, so no mutation
+    // and no further scheduling — the page settles.
+    draw(288, 172);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(scheduled).toBe(afterOneTimeResize);
+
+    // Without the guard the same-value write is still an attribute mutation
+    // (jsdom records every setAttribute): the feedback loop would persist.
+    debug.width = 288;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(scheduled).toBe(afterOneTimeResize + 1);
+
+    // A real external change invalidates as usual.
+    debug.setAttribute("data-marker", "x");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(scheduled).toBe(afterOneTimeResize + 2);
+    layer.dispose();
+  });
 });
