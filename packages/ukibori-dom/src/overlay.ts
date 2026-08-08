@@ -1,26 +1,32 @@
 import { renderTargetSize, sanitizeDpr } from "./coords";
+import { readPageScroll } from "./measure";
 import type { Region, SurfaceImage } from "./types";
 
 /**
  * Overlay canvas (#20).
  *
  * The overlay is a single absolutely-positioned `<canvas>` inserted as the
- * FIRST child of `document.body`:
+ * FIRST CHILD of the **stage** element:
  *
- * - **Document-origin contract**: the canvas is positioned with `left`/`top`
- *   in DOCUMENT coordinates. That mapping is exact only when the canvas's
- *   containing block is the initial containing block (a static `body`/`html`
- *   with no positioning or transform). This is the only supported host; a
- *   positioned/transformed host is out of contract (use the `factory` seam
- *   for a custom overlay). The canvas scrolls with the page naturally, and
- *   cast shadows are clipped at the scene-region boundary.
- * - **Stacking (z-index: -1)**: the canvas paints above the page background
- *   (so cast shadows on the "base plane" are visible) but BELOW every
- *   in-flow element — including the registered surfaces, whose DOM text stays
- *   visible WITHOUT any positioning change to the element itself. Registered
- *   elements are never forced `position: relative`, so the containing block
- *   of their absolutely positioned descendants is untouched (DOM layout stays
- *   authoritative).
+ * - **Stage-root contract**: the stage is the element that contains the
+ *   registered surfaces (typically their innermost shared container). The
+ *   canvas is inserted inside the stage so it paints WITHIN the stage's
+ *   subtree: every in-flow ancestor background (an ordinary opaque card,
+ *   panel, ...) is painted before its descendants, so the canvas is always
+ *   above them, and `z-index: -1` keeps it below the surfaces' own in-flow
+ *   content. A document-level canvas would instead be covered by opaque
+ *   ancestors, which is why the canvas must live inside the stage.
+ *   The stage receives the managed `data-ukibori-stage` attribute and the
+ *   injected stylesheet applies `isolation: isolate` — a stacking context
+ *   with NO layout, positioning or containing-block effect — so the canvas's
+ *   negative z-index is contained even when the stage is otherwise static.
+ * - **Positioning**: the canvas is `position: absolute`; `left`/`top` are
+ *   set in the coordinate system of its containing block (measured via the
+ *   `offsetParent` chain, with a computed-style fallback walk for
+ *   transform/filter ancestors), so a positioned stage or a positioned
+ *   ancestor wrapper both work. No registered element or ancestor is ever
+ *   given a `position` — absolutely positioned descendants keep their
+ *   containing block.
  * - `pointer-events: none` — hit-testing, focus, keyboard and pointer events
  *   belong entirely to the DOM underneath; the canvas never captures them.
  * - `aria-hidden="true"`, `role="presentation"` and `tabindex="-1"`: the
@@ -29,6 +35,47 @@ import type { Region, SurfaceImage } from "./types";
  * The backing store is DPR-scaled (`floor(region.w * dpr)` texels) while the
  * CSS size stays in CSS pixels, so `putImageData` writes crisp device pixels.
  */
+
+/** Managed attribute marking a registered surface (suppressed appearance). */
+export const SURFACE_ATTR = "data-ukibori-surface";
+/** Managed attribute marking the stage element (isolation for the overlay). */
+export const STAGE_ATTR = "data-ukibori-stage";
+/** Marker attribute on the injected stylesheet (deduplication). */
+export const STYLE_ATTR = "data-ukibori-style";
+
+/**
+ * Ownership-safe suppression: a stylesheet rule keyed on `SURFACE_ATTR`
+ * (applied by adding the attribute on register, removed on unregister). No
+ * inline styles are saved or restored, so while registered, app/React inline
+ * style updates cannot double-render (the rule overrides plain inline
+ * values), and on unregister the element reveals its LATEST app-owned style
+ * rather than a stale mount-time snapshot.
+ */
+export function ensureOverlayStylesheet(doc: Document = document): HTMLStyleElement {
+  const existing = doc.querySelector<HTMLStyleElement>(`style[${STYLE_ATTR}]`);
+  if (existing !== null) {
+    return existing;
+  }
+  const style = doc.createElement("style");
+  style.setAttribute(STYLE_ATTR, "");
+  style.textContent = [
+    `[${SURFACE_ATTR}] { background: transparent !important; box-shadow: none !important; }`,
+    `[${STAGE_ATTR}] { isolation: isolate; }`,
+  ].join("\n");
+  (doc.head ?? doc.documentElement).appendChild(style);
+  return style;
+}
+
+/** Mark an element as a registered surface (suppress its own appearance). */
+export function suppressSurface(element: HTMLElement): void {
+  ensureOverlayStylesheet(document);
+  element.setAttribute(SURFACE_ATTR, "");
+}
+
+/** Unmark a registered surface (reveal the element's own current styles). */
+export function restoreSurface(element: HTMLElement): void {
+  element.removeAttribute(SURFACE_ATTR);
+}
 
 export interface Overlay {
   /** Resize + reposition the canvas to cover `region` at `dpr`. */
@@ -48,8 +95,10 @@ export const OVERLAY_STYLE_PROPS = {
 
 export class OverlayCanvas implements Overlay {
   readonly canvas: HTMLCanvasElement;
+  readonly stage: Element;
 
-  constructor(zIndex = -1) {
+  constructor(stage: Element = document.body, zIndex = -1) {
+    ensureOverlayStylesheet(document);
     const canvas = document.createElement("canvas");
     canvas.style.position = OVERLAY_STYLE_PROPS.position;
     canvas.style.zIndex = String(zIndex);
@@ -62,15 +111,18 @@ export class OverlayCanvas implements Overlay {
     canvas.setAttribute("role", "presentation");
     canvas.tabIndex = -1;
     this.canvas = canvas;
-    document.body.insertBefore(canvas, document.body.firstChild);
+    this.stage = stage;
+    stage.setAttribute(STAGE_ATTR, "");
+    stage.insertBefore(canvas, stage.firstChild);
   }
 
   resizeAndPosition(region: Region, dpr: number): void {
     const { width, height } = renderTargetSize(region, sanitizeDpr(dpr));
     this.canvas.width = width;
     this.canvas.height = height;
-    this.canvas.style.left = `${region.x}px`;
-    this.canvas.style.top = `${region.y}px`;
+    const origin = containingBlockOrigin(this.canvas);
+    this.canvas.style.left = `${region.x - origin.x}px`;
+    this.canvas.style.top = `${region.y - origin.y}px`;
     this.canvas.style.width = `${region.w}px`;
     this.canvas.style.height = `${region.h}px`;
   }
@@ -80,7 +132,7 @@ export class OverlayCanvas implements Overlay {
     if (ctx === null) {
       return;
     }
-    const img = new ImageData(image.data, image.width, image.height);
+    const img = new ImageData(new Uint8ClampedArray(image.data), image.width, image.height);
     ctx.putImageData(img, 0, 0);
   }
 
@@ -97,57 +149,42 @@ export class OverlayCanvas implements Overlay {
   }
 }
 
-export interface SavedStyle {
-  prop: string;
-  value: string;
-  priority: string;
-}
-
 /**
- * Inline-style properties the layer overrides on a registered surface so the
- * physical appearance is not double-rendered by the original DOM:
- *
- * - `background`: the renderer paints the surface relief on the overlay, so
- *   the element's own background must become transparent
- * - `box-shadow`: cast shadows / relief shading are generated by the renderer;
- *   the element's CSS shadow would paint a second, unlit copy
- *
- * Text color, borders, outlines (including the `:focus-visible` ring),
- * `cursor` and all other content/affordance styles stay DOM-owned. The
- * element's `position` is NEVER changed: the overlay paints at z-index -1
- * (below in-flow content), so the surface's DOM text is visible without
- * altering the containing block of absolutely positioned descendants.
+ * Document-space origin of the canvas's containing block (the box its
+ * `left`/`top` are relative to). `offsetParent` is the browser's answer
+ * (null = the initial containing block at the document origin); jsdom does
+ * not implement it, and transformed/filtered ancestors are not always
+ * reported, so a computed-style walk backstops it.
  */
-export const SUPPRESSED_PROPS: ReadonlyArray<readonly [string, string]> = [
-  ["background", "transparent"],
-  ["box-shadow", "none"],
-];
-
-/**
- * Save + suppress the element's background/shadow inline styles so the
- * physical layer is the single source of appearance. Returns the saved styles
- * for `restoreSavedStyles`. The element's positioning is left untouched.
- */
-export function applySuppression(element: HTMLElement): SavedStyle[] {
-  const saved: SavedStyle[] = [];
-  for (const [prop, value] of SUPPRESSED_PROPS) {
-    saved.push({
-      prop,
-      value: element.style.getPropertyValue(prop),
-      priority: element.style.getPropertyPriority(prop),
-    });
-    element.style.setProperty(prop, value, "important");
-  }
-  return saved;
-}
-
-/** Restore inline styles saved by `applySuppression` (mount -> unmount). */
-export function restoreSavedStyles(element: HTMLElement, saved: SavedStyle[]): void {
-  for (const { prop, value, priority } of saved) {
-    if (value === "" && priority === "") {
-      element.style.removeProperty(prop);
-    } else {
-      element.style.setProperty(prop, value, priority);
+function containingBlockOrigin(canvas: HTMLCanvasElement): { x: number; y: number } {
+  let block: Element | null = null;
+  const offsetParent = (canvas as unknown as { offsetParent?: Element | null }).offsetParent;
+  if (offsetParent !== null && offsetParent !== undefined) {
+    block = offsetParent;
+  } else {
+    let current = canvas.parentElement;
+    while (current !== null && current !== document.documentElement) {
+      const cs = getComputedStyle(current);
+      if (
+        cs.position !== "static" ||
+        cs.transform !== "none" ||
+        cs.filter !== "none" ||
+        cs.backdropFilter !== "none" ||
+        cs.willChange === "transform"
+      ) {
+        block = current;
+        break;
+      }
+      current = current.parentElement;
     }
   }
+  if (block === null) {
+    return { x: 0, y: 0 };
+  }
+  const rect = block.getBoundingClientRect();
+  const { scrollX, scrollY } = readPageScroll();
+  const cs = getComputedStyle(block);
+  const borderX = parseFloat(cs.borderLeftWidth) || 0;
+  const borderY = parseFloat(cs.borderTopWidth) || 0;
+  return { x: rect.left + scrollX + borderX, y: rect.top + scrollY + borderY };
 }

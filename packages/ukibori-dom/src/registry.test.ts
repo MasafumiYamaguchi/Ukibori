@@ -19,7 +19,6 @@ function entry(id: string, el: HTMLElement): SurfaceEntry {
     },
     geometry: null,
     dirty: true,
-    savedStyles: [],
   };
 }
 

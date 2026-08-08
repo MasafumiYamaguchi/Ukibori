@@ -167,23 +167,34 @@ describe("UkiboriDom — DOM integration", () => {
     layer.dispose();
   });
 
-  it("suppresses the DOM background/shadow on mount and restores them on unmount", () => {
+  it("suppresses the DOM appearance via a managed attribute, ownership-safe across style updates", () => {
     button.style.background = "red";
     button.style.boxShadow = "1px 2px 3px black";
-    button.style.position = "static";
     const layer = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
     layer.register(button, BUTTON_OPTIONS);
-    expect(button.style.getPropertyValue("background")).toBe("transparent");
-    expect(button.style.getPropertyPriority("background")).toBe("important");
-    expect(button.style.getPropertyValue("box-shadow")).toBe("none");
-    // Positioning semantics are NEVER changed (the overlay paints at
-    // z-index -1, so the DOM text stays above it without position:relative).
-    expect(button.style.position).toBe("static");
-
-    layer.unregister("primary");
+    expect(button.getAttribute("data-ukibori-surface")).toBe("");
+    // Inline styles are NOT touched: the stylesheet rule does the work, so an
+    // app/React inline update while registered cannot double-render.
     expect(button.style.getPropertyValue("background")).toBe("red");
+    expect(button.style.position).toBe("");
+
+    // The app updates its own style while registered (React style prop).
+    button.style.background = "blue";
+    layer.unregister("primary");
+    // Unregister reveals the LATEST app-owned style, not a mount-time snapshot.
+    expect(button.getAttribute("data-ukibori-surface")).toBeNull();
+    expect(button.style.getPropertyValue("background")).toBe("blue");
     expect(button.style.getPropertyValue("box-shadow")).toBe("1px 2px 3px black");
-    expect(button.style.position).toBe("static");
+    layer.dispose();
+  });
+
+  it("suppresses via the injected stylesheet rule", () => {
+    const layer = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
+    layer.register(button, BUTTON_OPTIONS);
+    const style = document.querySelector("style[data-ukibori-style]");
+    expect(style).not.toBeNull();
+    expect(style?.textContent).toContain("[data-ukibori-surface]");
+    expect(style?.textContent).toContain("isolation: isolate");
     layer.dispose();
   });
 
@@ -231,14 +242,67 @@ describe("UkiboriDom — DOM integration", () => {
     expect(canvas.getAttribute("aria-hidden")).toBe("true");
     expect(canvas.getAttribute("role")).toBe("presentation");
     expect(canvas.tabIndex).toBe(-1);
-    // Document-origin contract: always a direct child of document.body,
-    // positioned at the region's DOCUMENT coordinates.
+    // Stage-root contract (default stage = document.body): the canvas is a
+    // direct child of the stage and the stage gets the isolation attribute.
     expect(canvas.parentElement).toBe(document.body);
+    expect(document.body.getAttribute("data-ukibori-stage")).toBe("");
     expect(canvas.style.zIndex).toBe("-1");
+    // In jsdom the containing block is the initial containing block, so the
+    // canvas sits at the region's DOCUMENT coordinates.
     expect(canvas.style.left).toBe("36px");
     expect(canvas.style.top).toBe("136px");
     layer.dispose();
     expect(document.body.contains(canvas)).toBe(false);
+  });
+
+  it("works inside an opaque stage: canvas is a first-child of the stage, above its background", () => {
+    // The regression case: a registered button inside an ordinary opaque
+    // parent. The stage IS that parent; the canvas is inserted inside it so
+    // it paints within the stage's stacking context (isolation: isolate) —
+    // above the parent's background, below the surface text.
+    const opaque = document.createElement("section");
+    opaque.style.background = "#fff";
+    host.appendChild(opaque);
+    opaque.appendChild(button);
+    stubRectFor(button, { left: 100, top: 200, width: 160, height: 44 });
+    const layer = new UkiboriDom({
+      overlay: { stage: opaque },
+      schedule: (cb) => cb(),
+      observe: false,
+    });
+    layer.register(button, BUTTON_OPTIONS);
+    const overlay = (layer as unknown as { overlay: OverlayCanvas }).overlay;
+    expect(overlay.stage).toBe(opaque);
+    expect(overlay.canvas.parentElement).toBe(opaque);
+    expect(opaque.firstElementChild).toBe(overlay.canvas);
+    expect(opaque.getAttribute("data-ukibori-stage")).toBe("");
+    // The button's own positioning is untouched inside the opaque parent.
+    expect(button.style.position).toBe("");
+    layer.dispose();
+  });
+
+  it("positions the canvas relative to a positioned containing block", () => {
+    // A positioned wrapper establishes the canvas's containing block: the
+    // canvas left/top must be expressed in the wrapper's local coordinates.
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "relative";
+    host.appendChild(wrapper);
+    wrapper.appendChild(button);
+    stubRectFor(button, { left: 100, top: 200, width: 160, height: 44 });
+    stubRectFor(wrapper, { left: 40, top: 60, width: 300, height: 400 });
+    const layer = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
+    const overlay = (layer as unknown as { overlay: OverlayCanvas }).overlay;
+    // jsdom lacks offsetParent: stub it to the positioned wrapper.
+    Object.defineProperty(overlay.canvas, "offsetParent", {
+      value: wrapper,
+      configurable: true,
+    });
+    layer.register(button, BUTTON_OPTIONS);
+    layer.render();
+    // Region doc origin (36, 136) minus the wrapper's doc origin (40, 60).
+    expect(overlay.canvas.style.left).toBe("-4px");
+    expect(overlay.canvas.style.top).toBe("76px");
+    layer.dispose();
   });
 
   it("skips re-render when scroll re-measures identical geometry", () => {
@@ -578,17 +642,47 @@ describe("UkiboriDom — DOM integration", () => {
     );
     // Same id on a fresh element.
     expect(() => layer.register(other, BUTTON_OPTIONS)).toThrow(/duplicate surface id/);
-    // The failed registrations must not have touched the DOM styles.
-    expect(other.style.getPropertyValue("background")).toBe("blue");
-    expect(other.style.getPropertyValue("box-shadow")).toBe("");
-    expect(button.style.getPropertyValue("background")).toBe("transparent");
+    // The failed registrations must not have touched the DOM at all.
+    expect(other.getAttribute("data-ukibori-surface")).toBeNull();
+    expect(button.getAttribute("data-ukibori-surface")).toBe("");
     expect(layer.registry.size).toBe(1);
     layer.dispose();
-    expect(other.style.getPropertyValue("background")).toBe("blue");
-    expect(button.style.getPropertyValue("background")).toBe("");
+    expect(button.getAttribute("data-ukibori-surface")).toBeNull();
   });
 
-  it("updateSurface renames atomically across registry maps and scene identity", () => {
+  it("invalidates on an ancestor mutation that moves a registered element", async () => {
+    const fake = makeFakeOverlay();
+    const layer = new UkiboriDom({
+      overlay: { factory: () => fake.overlay },
+      schedule: (cb) => cb(),
+      observe: true,
+    });
+    // The button lives inside a wrapper; an ancestor mutation (a sibling
+    // inserted above it) moves the button without resizing or touching it.
+    const wrapper = document.createElement("div");
+    host.appendChild(wrapper);
+    wrapper.appendChild(button);
+    stubRectFor(button, { left: 100, top: 200, width: 160, height: 44 });
+    layer.register(button, BUTTON_OPTIONS);
+    layer.render();
+    const resizesBefore = fake.calls.filter((c) => c.type === "resize").length;
+
+    const spacer = document.createElement("div");
+    spacer.style.height = "80px";
+    wrapper.insertBefore(spacer, button);
+    stubRectFor(button, { left: 100, top: 280, width: 160, height: 44 });
+
+    // The document-level MutationObserver delivers asynchronously.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const resizes = fake.calls.filter((c) => c.type === "resize");
+    expect(resizes.length).toBeGreaterThan(resizesBefore);
+    const last = resizes[resizes.length - 1];
+    // Region follows the moved button (margin 64 around 100..260 x 280..324).
+    expect(last?.region).toEqual({ x: 36, y: 216, w: 288, h: 172 });
+    layer.dispose();
+  });
+
+  it("updateSurface refuses id changes (ids are immutable, scene order preserved)", () => {
     const fake = makeFakeOverlay();
     const layer = new UkiboriDom({
       overlay: { factory: () => fake.overlay },
@@ -596,26 +690,16 @@ describe("UkiboriDom — DOM integration", () => {
       observe: false,
     });
     layer.register(button, BUTTON_OPTIONS);
-    layer.updateSurface("primary", { id: "renamed", elevation: 9 });
-    expect(layer.registry.has("primary")).toBe(false);
-    expect(layer.registry.has("renamed")).toBe(true);
-    expect(layer.registry.get("renamed")?.element).toBe(button);
-    expect(layer.registry.get("renamed")?.options.id).toBe("renamed");
-    // The scene identity moves with the registry.
-    layer.render();
-    const objectId = layer.debugObjectId();
-    expect(objectId).not.toBeNull();
-    // Renaming onto an existing id is rejected BEFORE any state changes.
-    layer.register(document.createElement("div"), {
-      ...BUTTON_OPTIONS,
-      id: "taken",
-      shape: { kind: "roundedRect", radius: 2 },
-    });
-    expect(() => layer.updateSurface("renamed", { id: "taken" })).toThrow(
-      /duplicate surface id/,
-    );
-    expect(layer.registry.has("renamed")).toBe(true);
-    expect(layer.registry.get("renamed")?.options.elevation).toBe(9);
+    const second = document.createElement("div");
+    host.appendChild(second);
+    stubRectFor(second, { left: 300, top: 200, width: 60, height: 20 });
+    layer.register(second, { ...BUTTON_OPTIONS, id: "badge" });
+    const orderBefore = layer.registry.entries().map((e) => e.id);
+
+    expect(() => layer.updateSurface("primary", { id: "renamed" })).toThrow(/immutable/);
+    // Nothing changed: registry keys, element maps and scene order intact.
+    expect(layer.registry.entries().map((e) => e.id)).toEqual(orderBefore);
+    expect(layer.registry.get("primary")?.options.id).toBe("primary");
     layer.dispose();
   });
 

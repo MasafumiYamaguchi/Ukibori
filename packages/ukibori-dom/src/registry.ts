@@ -16,8 +16,6 @@ export interface SurfaceEntry {
   /** last measured geometry (null until first measure) */
   geometry: MeasuredGeometry | null;
   dirty: boolean;
-  /** inline styles saved on mount so they can be restored on unmount */
-  savedStyles: Array<{ prop: string; value: string; priority: string }>;
 }
 
 export class SurfaceRegistry {

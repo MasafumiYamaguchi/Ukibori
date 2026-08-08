@@ -8,7 +8,7 @@ import type { HostBuffer, LightingBuffers, Material } from "ukibori-renderer";
 import { computeRegion, sanitizeDpr, scaleShadowOptions } from "./coords";
 import { compositeSurfaceImage } from "./compositor";
 import { geometriesEqual, measureSurfaceElement } from "./measure";
-import { OverlayCanvas, applySuppression, restoreSavedStyles } from "./overlay";
+import { OverlayCanvas, restoreSurface, suppressSurface } from "./overlay";
 import type { Overlay } from "./overlay";
 import { SurfaceRegistry, assertValidId } from "./registry";
 import { buildScene } from "./scene-builder";
@@ -34,8 +34,10 @@ import type {
  * - register/unregister: retained scene nodes are added/removed (mount /
  *   unmount)
  * - ResizeObserver: a registered element's layout changed -> node dirty
- * - MutationObserver: a registered element's style/class/subtree changed
- *   (incl. text geometry) -> node dirty
+ * - document-level MutationObserver: ANY DOM mutation can move/resize a
+ *   registered element through ancestors or siblings (style, class, inserted
+ *   nodes, text), so all nodes are marked dirty conservatively; the render
+ *   re-measures and SKIPS when geometry is unchanged
  * - scroll (capture): node dirty, re-measured on the next render; with
  *   document-relative scene coordinates ordinary page scroll leaves geometry
  *   unchanged and the render is skipped
@@ -60,8 +62,17 @@ export interface UkiboriDomOptions {
   /** fixed device-pixel-ratio, or a provider; default `window.devicePixelRatio` */
   dpr?: number | (() => number);
   overlay?: {
-    /** overlay z-index (default -1: below in-flow content; the document-origin
-     * stacking contract applies unless changed deliberately) */
+    /**
+     * The stage element: the container of the registered surfaces. The
+     * overlay canvas is inserted as its first child (so it paints inside
+     * the stage's stacking context — above opaque ancestor backgrounds,
+     * below the surfaces) and the stage receives the managed
+     * `data-ukibori-stage` attribute (`isolation: isolate`, no layout
+     * effect). Defaults to `document.body`; for the opaque-container case
+     * pass the element that wraps your surfaces.
+     */
+    stage?: Element;
+    /** overlay z-index (default -1: below the stage's in-flow content) */
     zIndex?: number;
     /** test seam: supply a fake overlay instead of a real canvas */
     factory?: () => Overlay;
@@ -78,9 +89,15 @@ export interface UkiboriDomOptions {
 const DEFAULT_MARGIN = 64;
 const DEFAULT_INTENSITY = 1;
 
+/**
+ * Document-level observer config: ANY DOM mutation (attributes, child lists,
+ * text) anywhere can move or resize a registered element through ancestors
+ * and siblings, so the layer invalidates conservatively via `markAllDirty`
+ * and lets the rAF-coalesced render skip when geometry is unchanged. No
+ * per-frame rescanning.
+ */
 const MUTATION_CONFIG: MutationObserverInit = {
   attributes: true,
-  attributeFilter: ["style", "class"],
   childList: true,
   subtree: true,
   characterData: true,
@@ -140,7 +157,7 @@ export class UkiboriDom {
     this.overlay =
       options.overlay?.factory !== undefined
         ? options.overlay.factory()
-        : new OverlayCanvas(options.overlay?.zIndex ?? -1);
+        : new OverlayCanvas(options.overlay?.stage, options.overlay?.zIndex ?? -1);
 
     const observe = options.observe !== false;
     this.resizeObserver =
@@ -160,20 +177,15 @@ export class UkiboriDom {
           })
         : null;
 
+    // One DOCUMENT-level observer: ancestor/sibling mutations can move a
+    // registered element without touching it directly (the per-surface
+    // observer would miss them). Conservative markAllDirty + the
+    // unchanged-geometry skip keep it cheap.
     this.mutationObserver =
       observe && typeof MutationObserver === "function"
-        ? new MutationObserver((mutations) => {
-            let changed = false;
-            for (const mutation of mutations) {
-              const id = this.surfaceIdForNode(mutation.target);
-              if (id !== undefined) {
-                this.registry.markDirty(id);
-                changed = true;
-              }
-            }
-            if (changed) {
-              this.scheduleRender();
-            }
+        ? new MutationObserver(() => {
+            this.registry.markAllDirty();
+            this.scheduleRender();
           })
         : null;
 
@@ -185,16 +197,18 @@ export class UkiboriDom {
         document.addEventListener("scroll", this.onScroll, true);
         const fonts = document.fonts;
         fonts?.addEventListener?.("loadingdone", this.onFontsLoaded);
+        this.mutationObserver?.observe(document.documentElement, MUTATION_CONFIG);
       }
     }
   }
 
   /**
    * Register a DOM element as a Ukibori surface (mount). The element's own
-   * background/shadow are suppressed inline and restored on `unregister`.
+   * background/shadow are suppressed via the managed `data-ukibori-surface`
+   * attribute (stylesheet rule) and revealed again on `unregister`.
    *
    * Atomic: duplicate ids / already-registered elements are rejected BEFORE
-   * any inline style is touched, so a failed registration never leaves
+   * any attribute is touched, so a failed registration never leaves
    * suppression behind.
    */
   register(element: HTMLElement, options: DomSurfaceOptions): void {
@@ -207,7 +221,7 @@ export class UkiboriDom {
     if (existing !== undefined) {
       throw new TypeError(`element already registered as "${existing}"`);
     }
-    const savedStyles = applySuppression(element);
+    suppressSurface(element);
     try {
       const entry = {
         id: options.id,
@@ -215,20 +229,18 @@ export class UkiboriDom {
         options: { ...options },
         geometry: null,
         dirty: true,
-        savedStyles,
       };
       this.registry.add(entry);
     } catch (error) {
-      restoreSavedStyles(element, savedStyles);
+      restoreSurface(element);
       throw error;
     }
     this.resizeObserver?.observe(element);
-    this.mutationObserver?.observe(element, MUTATION_CONFIG);
     this.sceneDirty = true;
     this.scheduleRender();
   }
 
-  /** Remove a registered surface (unmount) and restore its inline styles. */
+  /** Remove a registered surface (unmount) and reveal its own styles. */
   unregister(id: string): void {
     this.throwIfDisposed();
     const entry = this.registry.remove(id);
@@ -236,20 +248,17 @@ export class UkiboriDom {
       return;
     }
     this.resizeObserver?.unobserve(entry.element);
-    // MutationObserver has no per-node unobserve: re-observe the survivors.
-    this.reobserveMutations();
-    restoreSavedStyles(entry.element, entry.savedStyles);
+    restoreSurface(entry.element);
     this.sceneDirty = true;
     this.scheduleRender();
   }
 
   /**
-   * Merge a patch into a surface's options and invalidate it.
-   *
-   * Changing `id` is an ATOMIC rename: validated up front (duplicate ids are
-   * rejected before anything mutates), then both registry maps and the scene
-   * identity move together to the new id. Any other patch path keeps the id
-   * unchanged, so an options merge can never silently change scene identity.
+   * Merge a patch into a surface's options and invalidate it. Surface ids
+   * are IMMUTABLE: changing `id` through `updateSurface` throws, because a
+   * rename would re-key the registry and silently change the scene's
+   * insertion / paint order. Use `unregister` + `register` to replace a
+   * surface.
    */
   updateSurface(id: string, patch: Partial<DomSurfaceOptions>): void {
     this.throwIfDisposed();
@@ -257,22 +266,10 @@ export class UkiboriDom {
     if (entry === undefined) {
       return;
     }
-    const nextId = patch.id;
-    if (nextId !== undefined && nextId !== entry.options.id) {
-      assertValidId(nextId);
-      if (this.registry.has(nextId)) {
-        throw new TypeError(`duplicate surface id "${nextId}"`);
-      }
-      // Atomic rename: remove the old key, move entry + options under the new
-      // id, re-insert. The element maps are carried over by the entry.
-      this.registry.remove(id);
-      entry.id = nextId;
-      entry.options = { ...entry.options, ...patch, id: nextId };
-      this.registry.add(entry);
-      this.registry.markDirty(nextId);
-      this.sceneDirty = true;
-      this.scheduleRender();
-      return;
+    if (patch.id !== undefined && patch.id !== entry.options.id) {
+      throw new TypeError(
+        `surface ids are immutable: "${entry.options.id}" cannot be renamed to "${patch.id}"`,
+      );
     }
     entry.options = { ...entry.options, ...patch, id: entry.options.id };
     // Any option change feeds the scene (geometry, elevation, material...).
@@ -474,7 +471,7 @@ export class UkiboriDom {
     };
   }
 
-  /** Remove the overlay, disconnect observers and restore all surface styles. */
+  /** Remove the overlay, disconnect observers and reveal all surface styles. */
   dispose(): void {
     if (this.disposed) {
       return;
@@ -490,7 +487,7 @@ export class UkiboriDom {
     this.resizeObserver?.disconnect();
     this.mutationObserver?.disconnect();
     for (const entry of this.registry.entries()) {
-      restoreSavedStyles(entry.element, entry.savedStyles);
+      restoreSurface(entry.element);
     }
     this.registry.clear();
     this.overlay.dispose();
@@ -501,29 +498,6 @@ export class UkiboriDom {
     const value = typeof source === "function" ? source() : source;
     const win = typeof window !== "undefined" ? window : undefined;
     return sanitizeDpr(value ?? win?.devicePixelRatio ?? 1);
-  }
-
-  private surfaceIdForNode(node: Node): string | undefined {
-    const start = node instanceof Element ? node : node.parentElement;
-    let current: Element | null = start;
-    while (current !== null) {
-      const id = this.registry.idFor(current);
-      if (id !== undefined) {
-        return id;
-      }
-      current = current.parentElement;
-    }
-    return undefined;
-  }
-
-  private reobserveMutations(): void {
-    if (this.mutationObserver === null) {
-      return;
-    }
-    this.mutationObserver.disconnect();
-    for (const entry of this.registry.entries()) {
-      this.mutationObserver.observe(entry.element, MUTATION_CONFIG);
-    }
   }
 
   private readonly onViewportChange = (): void => {

@@ -10,6 +10,22 @@ import { toCategoryRgba, toRgbaBytes } from "ukibori-renderer";
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 
+// ---- DOM ----
+const panel = $<HTMLDivElement>("panel");
+const button = $<HTMLButtonElement>("play");
+const icon = $<HTMLSpanElement>("icon");
+const badge = $<HTMLDivElement>("badge");
+const label = $<HTMLSpanElement>("play-label");
+const statusEl = $<HTMLDivElement>("status");
+
+// Surface page-level failures in the status line for the debug page.
+window.addEventListener("error", (event) => {
+  statusEl.textContent = `page error: ${event.message}`;
+});
+window.addEventListener("unhandledrejection", (event) => {
+  statusEl.textContent = `unhandled rejection: ${String(event.reason)}`;
+});
+
 // ---- mask rasterization stays app-side (#19 contract) ----
 function maskFromIcon(
   draw: (ctx: CanvasRenderingContext2D, size: number) => void,
@@ -45,14 +61,6 @@ const PLAY_MASK = maskFromIcon((ctx, size) => {
   ctx.fill();
 }, 28);
 
-// ---- DOM ----
-const panel = $<HTMLDivElement>("panel");
-const button = $<HTMLButtonElement>("play");
-const icon = $<HTMLSpanElement>("icon");
-const badge = $<HTMLDivElement>("badge");
-const label = $<HTMLSpanElement>("play-label");
-const statusEl = $<HTMLDivElement>("status");
-
 function bufferData(buffer: HostBuffer): BufferData {
   return {
     spec: buffer.spec,
@@ -76,17 +84,26 @@ function drawToCanvas(
 // ---- layer ----
 let buttonState = { elevation: 7, thickness: 2.5, radius: 12 };
 
+const stage = $<HTMLElement>("stage");
+
 const layer = new UkiboriDom({
   light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
   margin: 48,
   dpr: 1,
   shadow: { bias: 0.5 },
+  // The stage is the opaque container that wraps the surfaces: the overlay
+  // canvas is inserted inside it so it paints above the stage's background
+  // (isolation: isolate) but below the surfaces' own content.
+  overlay: { stage },
   schedule: (cb) =>
     requestAnimationFrame(() => {
       cb();
       refreshDebug();
     }),
-  onError: (error) => console.error(error),
+  onError: (error) => {
+    console.error(error);
+    statusEl.textContent = `render error: ${error instanceof Error ? error.message : String(error)}`;
+  },
 });
 
 function iconOptions() {

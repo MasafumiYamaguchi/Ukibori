@@ -77,37 +77,42 @@ re-measured:
 | --- | --- |
 | `register` / `unregister` (mount/unmount) | node added/removed -> scene rebuild |
 | resize (`ResizeObserver`) | node dirty |
-| attribute / subtree / text change (`MutationObserver`) | node dirty |
+| ANY DOM mutation (`document.documentElement` observer) | all nodes dirty; the render re-measures and skips when geometry is unchanged |
 | scroll (capture) | all nodes dirty (re-measure; skipped when unchanged) |
 | viewport resize / dpr change | nodes + scene dirty |
 | `document.fonts` `loadingdone` | nodes + scene dirty |
 | `setLight` / `setIntensity` / `setMaterials` / `updateSurface` | scene dirty |
 
-All invalidation coalesces through one rAF-throttled `render()`. `render()`
-re-measures dirty nodes, compares against the cached geometry and **skips the
-renderer entirely when nothing changed**. This is the dirty-update seam: a
-future backend (#21) can replace the single full-scene pass with
-region-scoped target updates without changing the registry/observer API.
+The single **document-level MutationObserver** closes the retained-layout
+hole: an ancestor/sibling mutation (inserted node above the surface, changed
+margins, ...) can move a registered element without touching it directly, so
+invalidation is conservative (`markAllDirty`). The rAF-coalesced render
+re-measures and **skips the renderer entirely when nothing changed** — no
+per-frame rescans. All invalidation coalesces through one rAF-throttled
+`render()`. This is the dirty-update seam: a future backend (#21) can replace
+the single full-scene pass with region-scoped target updates without changing
+the registry/observer API.
 
 ## Compositing
 
-The overlay is one `<canvas>` inserted as the **first child of
-`document.body`** — the public host contract is a **true document-origin
-overlay** (the containing block must be the initial containing block; a
-positioned/transformed host is out of contract, use the `factory` seam for a
-custom overlay):
+The overlay is one `<canvas>` inserted as the **first child of the stage**
+element (`overlay.stage`, default `document.body`) — the container that wraps
+the registered surfaces:
 
-- `position: absolute` at the region's DOCUMENT coordinates, sized to the
-  scene region → it scrolls with the page and clips cast shadows at the
-  region boundary;
+- **Stage-root stacking**: painting inside the stage's subtree guarantees the
+  canvas paints above every in-flow ancestor background — an ordinary opaque
+  card/panel can never hide the physical layer. The stage receives the
+  managed `data-ukibori-stage` attribute and the injected stylesheet applies
+  `isolation: isolate` (a stacking context with NO layout, positioning or
+  containing-block effect), so the canvas's `z-index: -1` stays below the
+  stage's in-flow content — the surfaces' DOM text — while being above the
+  stage's own background;
+- **Positioning**: `left`/`top` are expressed in the canvas's containing
+  block (measured via `offsetParent`, with a computed-style fallback walk),
+  so a positioned stage or a positioned ancestor wrapper both work; no
+  registered element or ancestor is ever given a `position`;
 - `pointer-events: none` → hit-testing, focus, keyboard and pointer events
   are never captured (verified by test);
-- **`z-index: -1`** → it paints above the page background (so cast shadows on
-  the base plane are visible) and below every in-flow element, including the
-  registered surfaces. Their DOM text is therefore visible WITHOUT any
-  `position` change: registered elements keep their positioning semantics, so
-  absolutely positioned descendants keep their containing block (regression:
-  an absolute child's layout is untouched by register/unregister);
 - `aria-hidden="true"`, `role="presentation"`, `tabindex="-1"` → inert to the
   accessibility tree and to focus.
 
@@ -125,14 +130,22 @@ generated unchanged by the #13–#19 pipeline and exposed via
 
 ## Double-rendering policy
 
-To prevent the original DOM background/shadow from painting a second, unlit
-copy under the physical layer, `register` saves and overrides the element's
-inline `background` and `box-shadow` (`transparent` / `none`, with
-`!important`) and `unregister` restores them. Registration is **atomic**: a
-duplicate-id / already-registered element is rejected BEFORE any inline style
-is touched, so a failed registration never leaves suppression behind.
-`updateSurface` can only change `id` through an atomic rename that moves both
-registry maps and the scene identity together.
+Suppression is **ownership-safe**: an injected stylesheet keys on the managed
+`data-ukibori-surface` attribute (`background: transparent !important;
+box-shadow: none !important;`). `register` adds the attribute, `unregister`
+removes it — no inline styles are saved or restored. Consequently:
+
+- while registered, app/React inline style updates cannot double-render (the
+  rule overrides plain inline values; an explicit inline `!important` is the
+  documented override point);
+- unregister reveals the element's LATEST app-owned style, never a stale
+  mount-time snapshot.
+
+Registration is **atomic**: duplicate ids / already-registered elements are
+rejected BEFORE any attribute is touched, so a failed registration never
+leaves suppression behind. Surface ids are **immutable** in `updateSurface`
+(a rename would re-key the registry and silently change the scene's
+insertion/paint order); replace a surface via `unregister` + `register`.
 
 Everything else stays DOM-owned: text color and content, borders, the
 `:focus-visible` ring, `cursor`, `aria-*`, `data-*`, form behavior, events.
@@ -150,9 +163,10 @@ becomes measurable again.
 
 - The scene is a single height field: overhangs, stacked surfaces at the same
   pixel and carving (inset) are out of scope (#18 height-field constraints).
-- The overlay is a document-origin element: a positioned/transformed
-  `body`/`html` (or iframes) is out of contract — use the `overlay.factory`
-  seam for a custom overlay.
+- The overlay's stacking guarantee holds inside the stage's subtree: surfaces
+  should be registered inside the stage element (`overlay.stage`); surfaces
+  outside it still render geometrically, but opaque ancestors between the
+  stage and such a surface can hide its physical layer.
 - The initial implementation renders the full scene on the CPU backend;
   WebGPU / region-scoped updates are backend work (#21).
 
