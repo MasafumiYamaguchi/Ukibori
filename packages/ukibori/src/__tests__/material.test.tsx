@@ -4,8 +4,10 @@ import { Surface, Ukibori } from "../index";
 
 const LIGHT = { x: 1, y: 0, z: 0 } as const;
 
+// These tests exercise the CSS APPROXIMATION fallback material tokens
+// (backend="css" — explicitly labeled, not physical rendering).
 function renderSurface(node: React.ReactNode) {
-  return render(<Ukibori light={LIGHT}>{node}</Ukibori>);
+  return render(<Ukibori backend="css" light={LIGHT}>{node}</Ukibori>);
 }
 
 describe("Surface material presets", () => {

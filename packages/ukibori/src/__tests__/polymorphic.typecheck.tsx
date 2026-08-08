@@ -21,8 +21,9 @@ export const invalidHref: ReactNode = <Surface as="button" href="/x">x</Surface>
 // @ts-expect-error elevation must be a number
 export const invalidElevation: ReactNode = <Surface elevation="6">x</Surface>;
 
-// @ts-expect-error unknown material value
-export const invalidMaterial: ReactNode = <Surface material="plastic">x</Surface>;
+// material is a renderer ref (string) — any string is type-valid; unknown
+// refs fail at scene build time and are reported, leaving semantic DOM.
+export const stringMaterial: ReactNode = <Surface material="silicone">x</Surface>;
 
 // @ts-expect-error unknown variant value
 export const invalidVariant: ReactNode = <Surface variant="embossed">x</Surface>;

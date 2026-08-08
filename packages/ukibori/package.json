@@ -26,6 +26,10 @@
     "react": ">=18",
     "react-dom": ">=18"
   },
+  "dependencies": {
+    "ukibori-dom": "*",
+    "ukibori-renderer": "*"
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.1.0",

@@ -12,10 +12,10 @@ const normalizeMarkup = (html: string) =>
   html.replace(/;\s*/g, ";").replace(/:\s*/g, ":").replace(/;">/g, '">');
 
 describe("hydration determinism", () => {
-  it("produces identical markup server-side and client-side", () => {
+  it("produces identical markup server-side and client-side (css fallback)", () => {
     const element = createElement(
       Ukibori,
-      { light: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+      { backend: "css", light: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
       createElement(Surface, { as: "button", elevation: 6, radius: 20, variant: "raised" }, "Hello"),
     );
     const serverHtml = renderToString(element);
@@ -23,11 +23,36 @@ describe("hydration determinism", () => {
     expect(normalizeMarkup(container.innerHTML)).toBe(normalizeMarkup(serverHtml));
   });
 
-  it("hydrates server HTML without mismatch and keeps handlers working", () => {
+  it("produces identical plain button markup server-side and client-side (physical path)", () => {
+    const element = createElement(
+      Ukibori,
+      { light: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+      createElement(Surface, { as: "button", elevation: 6, thickness: 2 }, "Hello"),
+    );
+    const serverHtml = renderToString(element);
+    // The physical path renders ordinary semantic DOM; the client-side
+    // enhancement effect adds the overlay AFTER this comparison, so compare
+    // the semantic element markup itself.
+    const serverProbe = document.createElement("div");
+    serverProbe.innerHTML = serverHtml;
+    const serverButton = serverProbe.querySelector("button")!.outerHTML;
+
+    const { container } = render(element);
+    const clientButton = container.querySelector("button")!.outerHTML;
+    // The client markup equals the server markup plus the single managed
+    // enhancement attribute — the element structure is unchanged (hydration
+    // never replaces elements).
+    const clientStripped = clientButton.replace(' data-ukibori-surface=""', "");
+    expect(normalizeMarkup(clientStripped)).toBe(normalizeMarkup(serverButton));
+    // No physical artifacts in the button markup itself.
+    expect(clientButton).not.toContain("box-shadow");
+  });
+
+  it("hydrates server HTML without mismatch and keeps handlers working (css fallback)", () => {
     const onClick = vi.fn();
     const element = createElement(
       Ukibori,
-      null,
+      { backend: "css" },
       createElement(Surface, { as: "button", onClick }, "Hello"),
     );
     const serverHtml = renderToString(element);

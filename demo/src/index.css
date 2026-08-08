@@ -232,6 +232,66 @@ code {
   color: rgba(31, 36, 48, 0.45);
 }
 
+.demo-root {
+  /* The provider's stage wrapper: contains every surface of the demo. */
+  min-width: 0;
+}
+
+.demo-play-panel {
+  min-height: 130px;
+  padding: 1.2rem 1.4rem;
+  color: #1f2430;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.8rem;
+}
+
+.ukibori-text {
+  display: block;
+  font-size: 3.2rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  line-height: 1;
+  color: #1f2430;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+.plain-note {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #465066;
+}
+
+.btn-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.2rem;
+}
+
+.btn {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid rgba(31, 36, 48, 0.25);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  color: #1f2430;
+}
+
+.btn:focus-visible {
+  outline: 2px solid #2f6feb;
+  outline-offset: 2px;
+}
+
+.hint {
+  font-size: 0.78rem;
+  color: #5b6577;
+  margin: 0.4rem 0 0;
+}
+
 @media (max-width: 860px) {
   .demo-layout {
     grid-template-columns: minmax(0, 1fr);

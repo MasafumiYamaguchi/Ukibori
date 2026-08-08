@@ -1,8 +1,15 @@
 import { useId, useState } from "react";
-import type { MaterialName, Variant } from "ukibori";
-import { Surface, Ukibori } from "ukibori";
+import type { UkiboriBackend } from "ukibori";
+import { Surface, Ukibori, UkiboriText } from "ukibori";
 
-const MATERIALS: MaterialName[] = ["silicone", "matte", "glass", "metal"];
+/**
+ * #21 React API demo: the physical renderer driven through <Ukibori> /
+ * <Surface> / <UkiboriText>. The DOM stays authoritative (real buttons,
+ * DOM text); the physical layer (SDF -> height field -> material lighting +
+ * cast shadows) renders onto the provider's stage-root overlay.
+ */
+
+const MATERIALS = ["silicone", "matte", "metal"] as const;
 
 const TWO_DECIMALS = (value: number) => value.toFixed(2);
 const PX = (value: number) => `${value}px`;
@@ -50,9 +57,11 @@ export function App() {
   const [light, setLight] = useState({ x: -0.6, y: -0.8, z: 1 });
   const [intensity, setIntensity] = useState(1);
   const [elevation, setElevation] = useState(6);
+  const [thickness, setThickness] = useState(2);
   const [radius, setRadius] = useState(16);
-  const [material, setMaterial] = useState<MaterialName>("silicone");
-  const [variant, setVariant] = useState<Variant>("raised");
+  const [material, setMaterial] = useState<(typeof MATERIALS)[number]>("silicone");
+  const [backend, setBackend] = useState<UkiboriBackend>("auto");
+  const [showPlay, setShowPlay] = useState(true);
 
   const setLightAxis = (axis: "x" | "y" | "z") => (value: number) =>
     setLight((prev) => ({ ...prev, [axis]: value }));
@@ -60,22 +69,46 @@ export function App() {
   const buttonElevation = Math.min(elevation, 16);
 
   return (
-    <Ukibori light={light} intensity={intensity} color="#dde4f0">
+    <Ukibori
+      light={light}
+      intensity={intensity}
+      backend={backend}
+      className="demo-root"
+    >
       <div className="demo">
         <header className="demo-header">
           <h1>
-            Ukibori <span className="demo-sub">浮彫 — shared-light surface demo</span>
+            Ukibori <span className="demo-sub">浮彫 — physical 2.5D layer over real DOM</span>
           </h1>
           <p>
-            Every surface below shares one light source defined by <code>&lt;Ukibori&gt;</code>.
-            Move the controls and watch the highlight and shadow directions stay consistent
-            across cards, buttons, inputs and materials.
+            DOM UI → 2.5D height field → physical material lighting + cross-element cast
+            shadows. The buttons below are real DOM elements; the physical layer renders onto a
+            <code> pointer-events: none </code>
+            overlay owned by the provider.
           </p>
         </header>
 
         <div className="demo-layout">
-          <aside className="demo-controls" aria-label="Light and surface controls">
-            <h2>Controls</h2>
+          <aside className="demo-controls" aria-label="Physical layer controls">
+            <h2>Physical layer</h2>
+            <div className="field">
+              <div className="field-head">
+                <label htmlFor="backend-select">Backend</label>
+              </div>
+              <select
+                id="backend-select"
+                value={backend}
+                onChange={(event) => setBackend(event.target.value as UkiboriBackend)}
+              >
+                <option value="auto">auto — physical (CPU renderer)</option>
+                <option value="cpu">cpu — physical (CPU renderer)</option>
+                <option value="css">css — approximation fallback (not physical)</option>
+              </select>
+              <p className="hint">
+                The CSS path is the explicitly labeled box-shadow approximation. WebGPU is not
+                selectable: its compute pipeline is not implemented (honest capability policy).
+              </p>
+            </div>
             <SliderControl
               label="Light x"
               value={light.x}
@@ -122,10 +155,19 @@ export function App() {
               onChange={setElevation}
             />
             <SliderControl
+              label="Thickness"
+              value={thickness}
+              min={0}
+              max={10}
+              step={0.5}
+              format={PX}
+              onChange={setThickness}
+            />
+            <SliderControl
               label="Radius"
               value={radius}
               min={0}
-              max={100}
+              max={60}
               step={1}
               format={PX}
               onChange={setRadius}
@@ -137,7 +179,7 @@ export function App() {
               <select
                 id="material-select"
                 value={material}
-                onChange={(event) => setMaterial(event.target.value as MaterialName)}
+                onChange={(event) => setMaterial(event.target.value as (typeof MATERIALS)[number])}
               >
                 {MATERIALS.map((name) => (
                   <option key={name} value={name}>
@@ -146,21 +188,17 @@ export function App() {
                 ))}
               </select>
             </div>
-            <fieldset className="field fieldset">
-              <legend>Variant</legend>
-              {(["raised", "inset"] as const).map((name) => (
-                <label key={name} className="radio">
-                  <input
-                    type="radio"
-                    name="variant"
-                    value={name}
-                    checked={variant === name}
-                    onChange={() => setVariant(name)}
-                  />
-                  {name}
-                </label>
-              ))}
-            </fieldset>
+            <div className="field">
+              <div className="btn-row">
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={() => setShowPlay((v) => !v)}
+                >
+                  {showPlay ? "Hide PLAY glyph" : "Show PLAY glyph"}
+                </button>
+              </div>
+            </div>
             <div className="light-preview" aria-label="Light direction preview">
               <svg viewBox="-1.3 -1.3 2.6 2.6" role="img" aria-label="Light direction from above">
                 <circle r={1.1} fill="none" stroke="currentColor" strokeOpacity={0.25} />
@@ -182,55 +220,40 @@ export function App() {
 
           <main className="demo-showcase">
             <section>
-              <h2>Live card — {material} / {variant}</h2>
+              <h2>Live card — {material} / elevation {elevation}px</h2>
               <Surface
-                material={material}
-                variant={variant}
-                elevation={elevation}
+                id="live-card"
+                shape={{ kind: "roundedRect", radius }}
+                variant="raised"
+                elevation={0}
+                thickness={3}
+                bevelWidth={5}
                 radius={radius}
+                material={material}
                 className="demo-card"
               >
                 <p className="demo-card-title">The shared light is visible here</p>
                 <p>
-                  elevation {elevation} · radius {radius} · intensity {intensity.toFixed(2)}
+                  elevation {elevation} · thickness {thickness} · radius {radius} · intensity{" "}
+                  {intensity.toFixed(2)}
                 </p>
               </Surface>
             </section>
 
-            <section className="demo-section" aria-label="Raised and inset comparison">
-              <h2>raised vs inset</h2>
-              <div className="demo-pair">
-                <Surface
-                  variant="raised"
-                  elevation={6}
-                  radius={16}
-                  material="silicone"
-                  className="demo-tile"
-                >
-                  raised
-                </Surface>
-                <Surface
-                  variant="inset"
-                  elevation={6}
-                  radius={16}
-                  material="silicone"
-                  className="demo-tile"
-                >
-                  inset
-                </Surface>
-              </div>
-            </section>
-
-            <section className="demo-section" aria-label="Material comparison">
-              <h2>Materials — one shared light</h2>
+            <section className="demo-section" aria-label="Raised surfaces">
+              <h2>Raised surfaces — one shared light</h2>
               <div className="demo-grid">
                 {MATERIALS.map((name) => (
                   <Surface
                     key={name}
-                    material={name}
+                    id={`tile-${name}`}
+                    shape={{ kind: "roundedRect", radius }}
                     variant="raised"
                     elevation={elevation}
+                    thickness={thickness}
+                    bevelWidth={3.5}
                     radius={radius}
+                    material={name}
                     className="demo-tile"
                   >
                     {name}
@@ -240,43 +263,89 @@ export function App() {
             </section>
 
             <section className="demo-section" aria-label="Buttons and input">
-              <h2>Buttons &amp; input</h2>
+              <h2>Buttons &amp; input — real DOM, physical layer</h2>
               <div className="demo-row">
                 <Surface
                   as="button"
+                  id="primary"
                   type="button"
-                  material={material}
-                  variant={variant}
+                  shape={{ kind: "roundedRect", radius }}
+                  variant="raised"
                   elevation={buttonElevation}
+                  thickness={thickness}
+                  bevelWidth={3.5}
                   radius={radius}
+                  material={material}
                   className="demo-btn"
-                  onClick={() => alert(`Primary button (${material} / ${variant})`)}
+                  onClick={() => alert(`Primary button (${material} / physical layer)`)}
                 >
                   Primary
                 </Surface>
                 <Surface
                   as="button"
+                  id="secondary"
                   type="button"
-                  material="matte"
-                  variant="inset"
+                  shape={{ kind: "roundedRect", radius }}
+                  variant="raised"
                   elevation={buttonElevation}
+                  thickness={thickness}
+                  bevelWidth={3.5}
                   radius={radius}
+                  material="matte"
                   className="demo-btn"
-                  onClick={() => alert("Secondary button (matte / inset)")}
+                  onClick={() => alert("Secondary button (matte)")}
                 >
                   Secondary
                 </Surface>
                 <Surface
                   as="input"
+                  id="field"
                   type="text"
                   placeholder="Type something…"
                   aria-label="Demo text input"
-                  material={material}
+                  shape={{ kind: "roundedRect", radius }}
+                  variant="raised"
                   elevation={buttonElevation}
+                  thickness={thickness}
+                  bevelWidth={3.5}
                   radius={radius}
+                  material={material}
                   className="demo-input"
                 />
               </div>
+            </section>
+
+            <section className="demo-section" aria-label="Glyph demo">
+              <h2>Glyph (#19 mask path) — DOM text + physical relief</h2>
+              <Surface
+                id="glyph-panel"
+                shape={{ kind: "roundedRect", radius }}
+                variant="raised"
+                elevation={0}
+                thickness={3}
+                bevelWidth={5}
+                radius={radius}
+                material="matte"
+                className="demo-play-panel"
+              >
+                {showPlay ? (
+                  <UkiboriText
+                    id="play"
+                    text="PLAY"
+                    elevation={3}
+                    thickness={0.8}
+                    bevelWidth={1.1}
+                    material="metal"
+                    className="ukibori-text"
+                  />
+                ) : (
+                  <span className="ukibori-text">PLAY</span>
+                )}
+                <p className="plain-note">
+                  The text stays DOM-owned and accessible; its glyph is rasterized into a #19
+                  mask and renders as physical relief with cast shadows.
+                </p>
+              </Surface>
             </section>
           </main>
         </div>

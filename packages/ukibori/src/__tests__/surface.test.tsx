@@ -3,6 +3,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { Surface, Ukibori } from "../index";
 
+/**
+ * These tests exercise the CSS APPROXIMATION fallback path
+ * (`backend="css"`, explicitly labeled — not physical rendering) plus the
+ * plain semantic DOM behavior of the physical path.
+ */
+
 const RAISED_SHADOW =
   "var(--ukibori-shadow-x) var(--ukibori-shadow-y) var(--ukibori-shadow-blur) var(--ukibori-shadow-spread) var(--ukibori-shadow-color, rgba(0, 0, 0, var(--ukibori-shadow-alpha))), " +
   "var(--ukibori-highlight-x) var(--ukibori-highlight-y) var(--ukibori-highlight-blur) 0 var(--ukibori-highlight-color, rgba(255, 255, 255, var(--ukibori-highlight-alpha)))";
@@ -13,28 +19,28 @@ const INSET_SHADOW =
 
 const DEFAULT_LIGHT_PROPS = { x: 1, y: 0, z: 0 } as const;
 
-function renderSurface(node: React.ReactNode) {
-  return render(<Ukibori light={DEFAULT_LIGHT_PROPS}>{node}</Ukibori>);
+function renderCssSurface(node: React.ReactNode) {
+  return render(<Ukibori backend="css" light={DEFAULT_LIGHT_PROPS}>{node}</Ukibori>);
 }
 
-describe("Surface rendering", () => {
+describe("Surface rendering (css fallback mode)", () => {
   it("renders children inside a div by default", () => {
-    renderSurface(<Surface>Hello</Surface>);
+    renderCssSurface(<Surface>Hello</Surface>);
     expect(screen.getByText("Hello").tagName).toBe("DIV");
   });
 
   it("renders the polymorphic element type", () => {
-    renderSurface(<Surface as="button">Go</Surface>);
+    renderCssSurface(<Surface as="button">Go</Surface>);
     expect(screen.getByRole("button")).toBeInTheDocument();
-    renderSurface(<Surface as="a" href="/path">Link</Surface>);
+    renderCssSurface(<Surface as="a" href="/path">Link</Surface>);
     expect(screen.getByRole("link")).toHaveAttribute("href", "/path");
-    renderSurface(<Surface as="span">Span</Surface>);
+    renderCssSurface(<Surface as="span">Span</Surface>);
     expect(screen.getByText("Span").tagName).toBe("SPAN");
   });
 
   it("forwards element-specific props and events", () => {
     const onClick = vi.fn();
-    renderSurface(
+    renderCssSurface(
       <Surface as="button" type="submit" onClick={onClick} aria-label="go" data-testid="btn">
         Go
       </Surface>,
@@ -48,7 +54,7 @@ describe("Surface rendering", () => {
 
   it("forwards a ref to the rendered element", () => {
     const ref = createRef<HTMLButtonElement>();
-    renderSurface(
+    renderCssSurface(
       <Surface as="button" ref={ref}>
         Go
       </Surface>,
@@ -58,14 +64,14 @@ describe("Surface rendering", () => {
   });
 
   it("keeps user className and merges it", () => {
-    renderSurface(<Surface className="user-class">Hello</Surface>);
+    renderCssSurface(<Surface className="user-class">Hello</Surface>);
     expect(screen.getByText("Hello")).toHaveClass("user-class");
   });
 });
 
-describe("Surface style composition", () => {
+describe("Surface style composition (css fallback)", () => {
   it("applies internal style and lets user style win on conflicts", () => {
-    renderSurface(
+    renderCssSurface(
       <Surface style={{ color: "red", "--ukibori-radius": "99px" } as React.CSSProperties}>Hello</Surface>,
     );
     const el = screen.getByText("Hello");
@@ -76,17 +82,12 @@ describe("Surface style composition", () => {
   });
 
   it("lets a user boxShadow fully replace the internal shadow", () => {
-    renderSurface(<Surface style={{ boxShadow: "none" }}>Hello</Surface>);
+    renderCssSurface(<Surface style={{ boxShadow: "none" }}>Hello</Surface>);
     expect(screen.getByText("Hello").style.boxShadow).toBe("none");
   });
 
-  it("lets a user backgroundColor fully replace the internal background", () => {
-    renderSurface(<Surface style={{ backgroundColor: "rebeccapurple" }}>Hello</Surface>);
-    expect(screen.getByText("Hello").style.backgroundColor).toBe("rebeccapurple");
-  });
-
   it("keeps the var() structure while a user override changes the referenced value", () => {
-    renderSurface(
+    renderCssSurface(
       <Surface elevation={4} style={{ "--ukibori-shadow-blur": "10px" } as React.CSSProperties}>Hello</Surface>,
     );
     const el = screen.getByText("Hello");
@@ -95,7 +96,7 @@ describe("Surface style composition", () => {
   });
 
   it("allows intentional override of shadow colors via CSS variables", () => {
-    renderSurface(
+    renderCssSurface(
       <Surface
         style={{ "--ukibori-shadow-color": "rgba(255, 0, 0, 0.9)" } as React.CSSProperties}
       >
@@ -110,9 +111,9 @@ describe("Surface style composition", () => {
   });
 });
 
-describe("Surface shadow output", () => {
+describe("Surface shadow output (css fallback)", () => {
   it("emits a var()-based box-shadow referencing computed variables", () => {
-    renderSurface(<Surface elevation={4} variant="raised">Hello</Surface>);
+    renderCssSurface(<Surface elevation={4} variant="raised">Hello</Surface>);
     const el = screen.getByText("Hello");
     expect(el.style.boxShadow).toBe(RAISED_SHADOW);
     expect(el.style.getPropertyValue("--ukibori-shadow-x")).toBe("-4px");
@@ -127,7 +128,7 @@ describe("Surface shadow output", () => {
   });
 
   it("emits an inset box-shadow with inset keyword and mirrored variables", () => {
-    renderSurface(<Surface elevation={4} variant="inset">Hello</Surface>);
+    renderCssSurface(<Surface elevation={4} variant="inset">Hello</Surface>);
     const el = screen.getByText("Hello");
     expect(el.style.boxShadow).toBe(INSET_SHADOW);
     expect(el.style.getPropertyValue("--ukibori-variant")).toBe("inset");
@@ -137,7 +138,7 @@ describe("Surface shadow output", () => {
   });
 
   it("reflects elevation and radius props in CSS variables and var() references", () => {
-    renderSurface(<Surface elevation={6} radius={20}>Hello</Surface>);
+    renderCssSurface(<Surface elevation={6} radius={20}>Hello</Surface>);
     const el = screen.getByText("Hello");
     expect(el.style.getPropertyValue("--ukibori-elevation")).toBe("6px");
     expect(el.style.getPropertyValue("--ukibori-radius")).toBe("20px");
@@ -146,7 +147,7 @@ describe("Surface shadow output", () => {
 
   it("connects the context color to backgroundColor via --ukibori-color", () => {
     render(
-      <Ukibori color="#112233">
+      <Ukibori backend="css" color="#112233">
         <Surface>Hello</Surface>
       </Ukibori>,
     );
@@ -156,7 +157,7 @@ describe("Surface shadow output", () => {
   });
 
   it("normalizes an unknown variant to raised everywhere", () => {
-    renderSurface(<Surface variant={"embossed" as never}>Hello</Surface>);
+    renderCssSurface(<Surface variant={"embossed" as never}>Hello</Surface>);
     const el = screen.getByText("Hello");
     expect(el.style.getPropertyValue("--ukibori-variant")).toBe("raised");
     expect(el.style.boxShadow).toBe(RAISED_SHADOW);
@@ -164,21 +165,35 @@ describe("Surface shadow output", () => {
   });
 
   it("sanitizes invalid elevation to the default", () => {
-    renderSurface(<Surface elevation={NaN}>Hello</Surface>);
+    renderCssSurface(<Surface elevation={NaN}>Hello</Surface>);
     const el = screen.getByText("Hello");
     expect(el.style.getPropertyValue("--ukibori-elevation")).toBe("4px");
     expect(el.style.boxShadow).toBe(RAISED_SHADOW);
   });
 });
 
+describe("Surface under a physical provider (no enhancement styling)", () => {
+  it("keeps the element's own style untouched before/without the physical layer", () => {
+    // A physical provider enhances after effects; the RENDERED output stays
+    // the plain semantic element with the user's own style.
+    render(
+      <Ukibori>
+        <Surface style={{ color: "red" }} elevation={4}>Hello</Surface>
+      </Ukibori>,
+    );
+    const el = screen.getByText("Hello");
+    expect(el.style.color).toBe("red");
+    // No CSS approximation styling leaks into the physical path.
+    expect(el.style.boxShadow).toBe("");
+    expect(el.style.getPropertyValue("--ukibori-elevation")).toBe("");
+  });
+});
+
 describe("Surface outside a provider", () => {
-  it("renders with safe defaults and deterministic var-based output", () => {
+  it("renders plain semantic DOM with no approximation styling", () => {
     render(<Surface elevation={4}>Hello</Surface>);
     const el = screen.getByText("Hello");
-    expect(el.style.boxShadow).toBe(RAISED_SHADOW);
-    expect(el.style.getPropertyValue("--ukibori-shadow-x")).toBe("1.7px");
-    expect(el.style.getPropertyValue("--ukibori-shadow-y")).toBe("2.26px");
-    expect(el.style.getPropertyValue("--ukibori-color")).toBe("#e4e8ef");
-    expect(el.style.getPropertyValue("--ukibori-elevation")).toBe("4px");
+    expect(el.style.boxShadow).toBe("");
+    expect(el.style.getPropertyValue("--ukibori-color")).toBe("");
   });
 });

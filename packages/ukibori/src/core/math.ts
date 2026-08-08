@@ -18,7 +18,12 @@ export function roundTo(value: number, precision: number): number {
  * - fallback: must be finite; if not, min is used
  * The result is always finite and deterministic.
  */
-export function sanitizeNumber(value: number, fallback: number, min: number, max: number): number {
+export function sanitizeNumber(
+  value: number | undefined,
+  fallback: number,
+  min: number,
+  max: number,
+): number {
   const safeFallback = isFiniteNumber(fallback) ? clamp(fallback, min, max) : min;
   return isFiniteNumber(value) ? clamp(value, min, max) : safeFallback;
 }
