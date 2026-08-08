@@ -5,10 +5,14 @@ export type { SurfaceEntry } from "./registry";
 export { assertValidId } from "./registry";
 export {
   OverlayCanvas,
+  OVERLAY_ATTR,
   SURFACE_ATTR,
   STAGE_ATTR,
   STYLE_ATTR,
+  acquireStageAttribute,
   ensureOverlayStylesheet,
+  isManagedMutation,
+  releaseStageAttribute,
   restoreSurface,
   suppressSurface,
 } from "./overlay";

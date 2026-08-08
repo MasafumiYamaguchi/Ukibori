@@ -305,6 +305,33 @@ describe("UkiboriDom — DOM integration", () => {
     layer.dispose();
   });
 
+  it("compensates a SCROLLED containing block (positioned overflow:auto)", () => {
+    // The containing block scrolls its content by (30, 50): the canvas is an
+    // absolutely positioned child and moves with the scrolled content, so its
+    // left/top must be inflated by the block's scrollLeft/scrollTop.
+    const wrapper = document.createElement("div");
+    wrapper.style.position = "relative";
+    wrapper.style.overflow = "auto";
+    host.appendChild(wrapper);
+    wrapper.appendChild(button);
+    stubRectFor(button, { left: 100, top: 200, width: 160, height: 44 });
+    stubRectFor(wrapper, { left: 40, top: 60, width: 300, height: 400 });
+    wrapper.scrollLeft = 30;
+    wrapper.scrollTop = 50;
+    const layer = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
+    const overlay = (layer as unknown as { overlay: OverlayCanvas }).overlay;
+    Object.defineProperty(overlay.canvas, "offsetParent", {
+      value: wrapper,
+      configurable: true,
+    });
+    layer.register(button, BUTTON_OPTIONS);
+    layer.render();
+    // Origin = doc (40, 60) - scroll (30, 50) = (10, 10); region (36, 136).
+    expect(overlay.canvas.style.left).toBe("26px");
+    expect(overlay.canvas.style.top).toBe("126px");
+    layer.dispose();
+  });
+
   it("skips re-render when scroll re-measures identical geometry", () => {
     const fake = makeFakeOverlay();
     const layer = new UkiboriDom({
@@ -756,6 +783,88 @@ describe("UkiboriDom — DOM integration", () => {
     // A text change inside the surface must NOT invalidate when observe:false.
     button.textContent = "changed text";
     expect(scheduled).toBe(scheduledAfterRegister);
+    layer.dispose();
+  });
+
+  it("releases the stage attribute on dispose, preserving app-owned state", () => {
+    // Clean baseline: a layer on the default body stage acquires and releases.
+    const layer = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
+    layer.register(button, BUTTON_OPTIONS);
+    expect(document.body.getAttribute("data-ukibori-stage")).toBe("");
+    layer.dispose();
+    expect(document.body.getAttribute("data-ukibori-stage")).toBeNull();
+  });
+
+  it("preserves a pre-existing app-owned stage attribute", () => {
+    host.setAttribute("data-ukibori-stage", "");
+    const layer = new UkiboriDom({
+      overlay: { stage: host },
+      schedule: (cb) => cb(),
+      observe: false,
+    });
+    layer.register(button, BUTTON_OPTIONS);
+    layer.dispose();
+    // The application set the attribute itself: the layer must not remove it.
+    expect(host.getAttribute("data-ukibori-stage")).toBe("");
+    host.removeAttribute("data-ukibori-stage");
+  });
+
+  it("reference-counts the stage attribute across multiple instances", () => {
+    const stage = document.createElement("main");
+    host.appendChild(stage);
+    stage.appendChild(button);
+    stubRectFor(button, { left: 100, top: 200, width: 160, height: 44 });
+    const layerA = new UkiboriDom({ overlay: { stage }, schedule: (cb) => cb(), observe: false });
+    const layerB = new UkiboriDom({ overlay: { stage }, schedule: (cb) => cb(), observe: false });
+    layerA.register(button, BUTTON_OPTIONS);
+    expect(stage.getAttribute("data-ukibori-stage")).toBe("");
+    layerA.dispose();
+    // Still owned by layerB.
+    expect(stage.getAttribute("data-ukibori-stage")).toBe("");
+    layerB.dispose();
+    expect(stage.getAttribute("data-ukibori-stage")).toBeNull();
+  });
+
+  it("reference-counts the surface attribute across multiple instances", () => {
+    const layerA = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
+    const layerB = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
+    layerA.register(button, BUTTON_OPTIONS);
+    layerB.register(button, { ...BUTTON_OPTIONS, id: "second" });
+    expect(button.getAttribute("data-ukibori-surface")).toBe("");
+    layerA.unregister("primary");
+    // Still registered in layerB: suppression must remain active.
+    expect(button.getAttribute("data-ukibori-surface")).toBe("");
+    layerB.unregister("second");
+    expect(button.getAttribute("data-ukibori-surface")).toBeNull();
+    layerA.dispose();
+    layerB.dispose();
+  });
+
+  it("settles after an initial render: Ukibori-owned mutations do not schedule renders", async () => {
+    // jsdom has no 2d context; paint() must tolerate a null context silently.
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    let scheduled = 0;
+    const layer = new UkiboriDom({
+      schedule: (cb) => {
+        scheduled++;
+        cb();
+      },
+      observe: true,
+    });
+    layer.register(button, BUTTON_OPTIONS);
+    layer.render();
+    const afterRender = scheduled;
+    // Flush the document-level MutationObserver microtasks triggered by the
+    // layer's own DOM writes (canvas attributes, managed attributes). They
+    // must be filtered: no additional renders may be scheduled.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(scheduled).toBe(afterRender);
+
+    // External mutations still invalidate.
+    button.setAttribute("style", "width: 120px");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(scheduled).toBe(afterRender + 1);
     layer.dispose();
   });
 });

@@ -42,6 +42,8 @@ export const SURFACE_ATTR = "data-ukibori-surface";
 export const STAGE_ATTR = "data-ukibori-stage";
 /** Marker attribute on the injected stylesheet (deduplication). */
 export const STYLE_ATTR = "data-ukibori-style";
+/** Marker attribute on the overlay canvas (managed-DOM filtering). */
+export const OVERLAY_ATTR = "data-ukibori-overlay";
 
 /**
  * Ownership-safe suppression: a stylesheet rule keyed on `SURFACE_ATTR`
@@ -66,18 +68,123 @@ export function ensureOverlayStylesheet(doc: Document = document): HTMLStyleElem
   return style;
 }
 
+interface AttributeOwnership {
+  /** live owners (UkiboriDom instances) of the attribute */
+  refs: number;
+  /** true when the attribute existed before the first owner acquired it */
+  preexisting: boolean;
+}
+
+/**
+ * Per-element ownership of a managed attribute. Reference-counted so that
+ * multiple UkiboriDom instances sharing a stage or element stay consistent:
+ * the attribute is added on first acquisition and removed only when the last
+ * owner releases it. A PRE-EXISTING application-owned attribute is never
+ * removed (the layer only owns what it created).
+ */
+const stageOwnership = new WeakMap<Element, AttributeOwnership>();
+const surfaceOwnership = new WeakMap<Element, AttributeOwnership>();
+
+function acquireAttribute(
+  element: Element,
+  attr: string,
+  ownership: WeakMap<Element, AttributeOwnership>,
+): void {
+  const existing = ownership.get(element);
+  if (existing !== undefined) {
+    existing.refs++;
+    return;
+  }
+  const preexisting = element.hasAttribute(attr);
+  if (!preexisting) {
+    element.setAttribute(attr, "");
+  }
+  ownership.set(element, { refs: 1, preexisting });
+}
+
+function releaseAttribute(
+  element: Element,
+  attr: string,
+  ownership: WeakMap<Element, AttributeOwnership>,
+): void {
+  const record = ownership.get(element);
+  if (record === undefined) {
+    return;
+  }
+  record.refs--;
+  if (record.refs > 0) {
+    return;
+  }
+  ownership.delete(element);
+  if (!record.preexisting) {
+    element.removeAttribute(attr);
+  }
+}
+
 /** Mark an element as a registered surface (suppress its own appearance). */
 export function suppressSurface(element: HTMLElement): void {
   ensureOverlayStylesheet(document);
-  element.setAttribute(SURFACE_ATTR, "");
+  acquireAttribute(element, SURFACE_ATTR, surfaceOwnership);
 }
 
 /** Unmark a registered surface (reveal the element's own current styles). */
 export function restoreSurface(element: HTMLElement): void {
-  element.removeAttribute(SURFACE_ATTR);
+  releaseAttribute(element, SURFACE_ATTR, surfaceOwnership);
+}
+
+/** Acquire the stage attribute for an overlay canvas (refcounted). */
+export function acquireStageAttribute(stage: Element): void {
+  ensureOverlayStylesheet(document);
+  acquireAttribute(stage, STAGE_ATTR, stageOwnership);
+}
+
+/** Release the stage attribute (removed when the last owner releases). */
+export function releaseStageAttribute(stage: Element): void {
+  releaseAttribute(stage, STAGE_ATTR, stageOwnership);
+}
+
+/**
+ * True when a mutation record concerns DOM owned by the Ukibori layer: the
+ * overlay canvas (any instance), the injected stylesheet, or any
+ * `data-ukibori-*` attribute. The document-level MutationObserver ignores
+ * these so the layer's own render output (canvas resize, suppression
+ * attributes) cannot feed back into another render — external DOM mutations
+ * still invalidate.
+ */
+export function isManagedMutation(
+  mutation: MutationRecord,
+  overlayNode: Element | null,
+): boolean {
+  if (mutation.type === "attributes" && mutation.attributeName !== null) {
+    if (mutation.attributeName.startsWith("data-ukibori-")) {
+      return true;
+    }
+  }
+  const target = mutation.target;
+  if (!(target instanceof Element)) {
+    if (overlayNode !== null) {
+      let parent = target.parentElement;
+      while (parent !== null) {
+        if (parent === overlayNode) {
+          return true;
+        }
+        parent = parent.parentElement;
+      }
+    }
+    return false;
+  }
+  if (target.getAttribute(OVERLAY_ATTR) !== null || target.getAttribute(STYLE_ATTR) !== null) {
+    return true;
+  }
+  if (overlayNode !== null && (target === overlayNode || overlayNode.contains(target))) {
+    return true;
+  }
+  return false;
 }
 
 export interface Overlay {
+  /** The DOM node the overlay owns (canvas), for managed-mutation filtering. */
+  readonly node?: Element;
   /** Resize + reposition the canvas to cover `region` at `dpr`. */
   resizeAndPosition(region: Region, dpr: number): void;
   /** Draw a full-scene image (1 texel = 1 canvas device pixel). */
@@ -95,6 +202,7 @@ export const OVERLAY_STYLE_PROPS = {
 
 export class OverlayCanvas implements Overlay {
   readonly canvas: HTMLCanvasElement;
+  readonly node: Element;
   readonly stage: Element;
 
   constructor(stage: Element = document.body, zIndex = -1) {
@@ -110,9 +218,11 @@ export class OverlayCanvas implements Overlay {
     canvas.setAttribute("aria-hidden", "true");
     canvas.setAttribute("role", "presentation");
     canvas.tabIndex = -1;
+    canvas.setAttribute(OVERLAY_ATTR, "");
     this.canvas = canvas;
+    this.node = canvas;
     this.stage = stage;
-    stage.setAttribute(STAGE_ATTR, "");
+    acquireStageAttribute(stage);
     stage.insertBefore(canvas, stage.firstChild);
   }
 
@@ -146,6 +256,7 @@ export class OverlayCanvas implements Overlay {
 
   dispose(): void {
     this.canvas.remove();
+    releaseStageAttribute(this.stage);
   }
 }
 
@@ -155,6 +266,12 @@ export class OverlayCanvas implements Overlay {
  * (null = the initial containing block at the document origin); jsdom does
  * not implement it, and transformed/filtered ancestors are not always
  * reported, so a computed-style walk backstops it.
+ *
+ * A SCROLLED containing block shifts its content (including the absolutely
+ * positioned canvas) by `scrollLeft`/`scrollTop`, so those offsets are
+ * subtracted here: with them, the canvas's visual position equals the
+ * region's document position even when the containing block itself is
+ * scrolled (`overflow: auto` / `scroll`).
  */
 function containingBlockOrigin(canvas: HTMLCanvasElement): { x: number; y: number } {
   let block: Element | null = null;
@@ -186,5 +303,11 @@ function containingBlockOrigin(canvas: HTMLCanvasElement): { x: number; y: numbe
   const cs = getComputedStyle(block);
   const borderX = parseFloat(cs.borderLeftWidth) || 0;
   const borderY = parseFloat(cs.borderTopWidth) || 0;
-  return { x: rect.left + scrollX + borderX, y: rect.top + scrollY + borderY };
+  const scrolled = block as HTMLElement;
+  const scrollLeft = typeof scrolled.scrollLeft === "number" ? scrolled.scrollLeft : 0;
+  const scrollTop = typeof scrolled.scrollTop === "number" ? scrolled.scrollTop : 0;
+  return {
+    x: rect.left + scrollX + borderX - scrollLeft,
+    y: rect.top + scrollY + borderY - scrollTop,
+  };
 }

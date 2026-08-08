@@ -77,7 +77,7 @@ re-measured:
 | --- | --- |
 | `register` / `unregister` (mount/unmount) | node added/removed -> scene rebuild |
 | resize (`ResizeObserver`) | node dirty |
-| ANY DOM mutation (`document.documentElement` observer) | all nodes dirty; the render re-measures and skips when geometry is unchanged |
+| ANY external DOM mutation (`document.documentElement` observer) | all nodes dirty; the render re-measures and skips when geometry is unchanged |
 | scroll (capture) | all nodes dirty (re-measure; skipped when unchanged) |
 | viewport resize / dpr change | nodes + scene dirty |
 | `document.fonts` `loadingdone` | nodes + scene dirty |
@@ -88,10 +88,13 @@ hole: an ancestor/sibling mutation (inserted node above the surface, changed
 margins, ...) can move a registered element without touching it directly, so
 invalidation is conservative (`markAllDirty`). The rAF-coalesced render
 re-measures and **skips the renderer entirely when nothing changed** — no
-per-frame rescans. All invalidation coalesces through one rAF-throttled
-`render()`. This is the dirty-update seam: a future backend (#21) can replace
-the single full-scene pass with region-scoped target updates without changing
-the registry/observer API.
+per-frame rescans. **Ukibori-owned DOM mutations are filtered** (the overlay
+canvas, the injected stylesheet, and managed `data-ukibori-*` attributes), so
+the layer's own render output cannot feed back into another render and the
+page settles after an initial render. All invalidation coalesces through one
+rAF-throttled `render()`. This is the dirty-update seam: a future backend
+(#21) can replace the single full-scene pass with region-scoped target
+updates without changing the registry/observer API.
 
 ## Compositing
 
@@ -109,8 +112,11 @@ the registered surfaces:
   stage's own background;
 - **Positioning**: `left`/`top` are expressed in the canvas's containing
   block (measured via `offsetParent`, with a computed-style fallback walk),
-  so a positioned stage or a positioned ancestor wrapper both work; no
-  registered element or ancestor is ever given a `position`;
+  so a positioned stage or a positioned ancestor wrapper both work; a
+  SCROLLED containing block (`overflow: auto` / `scroll`) is compensated via
+  its `scrollLeft`/`scrollTop` so the canvas stays glued to the region even
+  when the block's content is scrolled; no registered element or ancestor is
+  ever given a `position`;
 - `pointer-events: none` → hit-testing, focus, keyboard and pointer events
   are never captured (verified by test);
 - `aria-hidden="true"`, `role="presentation"`, `tabindex="-1"` → inert to the
@@ -140,6 +146,13 @@ removes it — no inline styles are saved or restored. Consequently:
   documented override point);
 - unregister reveals the element's LATEST app-owned style, never a stale
   mount-time snapshot.
+
+Managed attributes are **lifecycle-safe and reference-counted**: the stage
+attribute and each surface attribute are shared across UkiboriDom instances
+(an attribute is removed only when the last owner releases it), and a
+pre-existing application-owned attribute is never removed. `dispose()`
+releases the stage attribute along with the canvas, so `isolation: isolate`
+does not linger on the DOM.
 
 Registration is **atomic**: duplicate ids / already-registered elements are
 rejected BEFORE any attribute is touched, so a failed registration never

@@ -244,6 +244,12 @@ button.addEventListener("click", () => {
 });
 
 // ---- debug views ----
+// The debug output must NOT mutate the DOM when nothing structural changed:
+// the document-level observer would otherwise re-schedule renders forever
+// (status text / canvas attribute feedback). Only writes that differ from the
+// last written state reach the DOM, so the page settles.
+let lastStatusText = "";
+
 function refreshDebug(): void {
   const buffers = layer.debugBuffers();
   const objectId = layer.debugObjectId();
@@ -262,7 +268,14 @@ function refreshDebug(): void {
   const region = state.region === null
     ? "empty"
     : `(${state.region.x.toFixed(0)}, ${state.region.y.toFixed(0)}) ${state.region.w.toFixed(0)}x${state.region.h.toFixed(0)}`;
-  statusEl.textContent =
+  // Structural state only — the render timing varies every pass, so it must
+  // not participate in change detection or the status write would re-schedule
+  // renders forever.
+  const structural =
     `region ${region} · dpr ${state.dpr} · target ${state.renderSize?.width ?? "-"}x${state.renderSize?.height ?? "-"} · ` +
-    `render ${state.lastRenderMs.toFixed(1)}ms · nodes ${state.nodeCount} · dirty ${state.dirtyCount}`;
+    `nodes ${state.nodeCount} · dirty ${state.dirtyCount}`;
+  if (structural !== lastStatusText) {
+    lastStatusText = structural;
+    statusEl.textContent = `${structural} · render ${state.lastRenderMs.toFixed(1)}ms`;
+  }
 }

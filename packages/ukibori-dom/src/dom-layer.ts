@@ -8,7 +8,7 @@ import type { HostBuffer, LightingBuffers, Material } from "ukibori-renderer";
 import { computeRegion, sanitizeDpr, scaleShadowOptions } from "./coords";
 import { compositeSurfaceImage } from "./compositor";
 import { geometriesEqual, measureSurfaceElement } from "./measure";
-import { OverlayCanvas, restoreSurface, suppressSurface } from "./overlay";
+import { OverlayCanvas, isManagedMutation, restoreSurface, suppressSurface } from "./overlay";
 import type { Overlay } from "./overlay";
 import { SurfaceRegistry, assertValidId } from "./registry";
 import { buildScene } from "./scene-builder";
@@ -180,12 +180,21 @@ export class UkiboriDom {
     // One DOCUMENT-level observer: ancestor/sibling mutations can move a
     // registered element without touching it directly (the per-surface
     // observer would miss them). Conservative markAllDirty + the
-    // unchanged-geometry skip keep it cheap.
+    // unchanged-geometry skip keep it cheap. Ukibori's OWN DOM mutations
+    // (overlay canvas, injected stylesheet, managed data-ukibori-* attributes)
+    // are filtered out so the render output cannot feed back into another
+    // render.
     this.mutationObserver =
       observe && typeof MutationObserver === "function"
-        ? new MutationObserver(() => {
-            this.registry.markAllDirty();
-            this.scheduleRender();
+        ? new MutationObserver((mutations) => {
+            const overlayNode = this.overlay.node ?? null;
+            for (const mutation of mutations) {
+              if (!isManagedMutation(mutation, overlayNode)) {
+                this.registry.markAllDirty();
+                this.scheduleRender();
+                return;
+              }
+            }
           })
         : null;
 
