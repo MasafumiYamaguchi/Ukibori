@@ -33,6 +33,7 @@ export {
 export type {
   CompositeOptions,
   DomDebugState,
+  DomEnvironmentState,
   DomLightState,
   DomShadowOptions,
   DomShape,

@@ -1,11 +1,63 @@
 import { describe, expect, it } from "vitest";
-import { clamp, isFiniteNumber, isValidVec3, lerp, normalizeVec3 } from "./math";
+import {
+  clamp,
+  isFiniteNumber,
+  isValidVec3,
+  lerp,
+  normalizeVec3,
+  saturatingAdd,
+  saturatingMul,
+} from "./math";
 
 describe("clamp", () => {
   it("clamps below min and above max", () => {
     expect(clamp(-1, 0, 1)).toBe(0);
     expect(clamp(2, 0, 1)).toBe(1);
     expect(clamp(0.5, 0, 1)).toBe(0.5);
+  });
+});
+
+describe("saturatingAdd / saturatingMul (overflow-safe)", () => {
+  it("passes ordinary finite values through unchanged", () => {
+    expect(saturatingAdd(1, 2)).toBe(3);
+    expect(saturatingAdd(-1, 2)).toBe(1);
+    expect(saturatingMul(2, 3)).toBe(6);
+    expect(saturatingMul(-2, 3)).toBe(-6);
+    expect(saturatingMul(0.5, 0.5)).toBe(0.25);
+  });
+
+  it("saturates sums/products that would overflow to +-Infinity", () => {
+    const max = Number.MAX_VALUE;
+    expect(saturatingAdd(max, max)).toBe(max);
+    expect(saturatingAdd(-max, -max)).toBe(-max);
+    expect(saturatingMul(max, 2)).toBe(max);
+    expect(saturatingMul(max, -2)).toBe(-max);
+    // plain arithmetic on the same inputs overflows
+    expect(max + max).toBe(Infinity);
+    expect(max * 2).toBe(Infinity);
+  });
+
+  it("keeps zero absorbing in multiply and zero-safe sums", () => {
+    expect(saturatingMul(0, Number.MAX_VALUE)).toBe(0);
+    expect(saturatingMul(Number.MAX_VALUE, 0)).toBe(0);
+    expect(saturatingAdd(Number.MAX_VALUE, 0)).toBe(Number.MAX_VALUE);
+    expect(saturatingAdd(0, 0)).toBe(0);
+  });
+
+  it("returns finite results for all finite inputs near the limits", () => {
+    const max = Number.MAX_VALUE;
+    for (const [a, b] of [
+      [max, 1],
+      [max, max],
+      [1, max],
+      [-max, -1],
+      [max, 1e-300],
+      [1e300, 1e300],
+      [1e200, 1e200],
+    ] as const) {
+      expect(Number.isFinite(saturatingAdd(a, b))).toBe(true);
+      expect(Number.isFinite(saturatingMul(a, b))).toBe(true);
+    }
   });
 });
 

@@ -2,7 +2,13 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { UkiboriDom } from "ukibori-dom";
 import type { DomLightState, DomShadowOptions } from "ukibori-dom";
-import { DEFAULT_COLOR, DEFAULT_INTENSITY, UkiboriContext } from "../context";
+import { sanitizeEnvironment, sanitizeExposure } from "ukibori-renderer";
+import {
+  DEFAULT_COLOR,
+  DEFAULT_EXPOSURE,
+  DEFAULT_INTENSITY,
+  UkiboriContext,
+} from "../context";
 import { DEFAULT_LIGHT, normalizeLight } from "../core/light";
 import { INTENSITY_MAX } from "../core/shadow";
 import { sanitizeNumber } from "../core/math";
@@ -56,6 +62,8 @@ export function Ukibori({
   backend = "auto",
   light = DEFAULT_LIGHT,
   intensity = DEFAULT_INTENSITY,
+  environment = {},
+  exposure = DEFAULT_EXPOSURE,
   color = DEFAULT_COLOR,
   stage,
   quality = "medium",
@@ -88,6 +96,28 @@ export function Ukibori({
     // same values even when the caller passes a fresh object.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [light.x, light.y, light.z, intensity, color]);
+
+  // Physical-only image-level controls (#22): environment illumination and
+  // exposure. Sanitized with the RENDERER's own policy so the React entry
+  // yields exactly the scene values: environment intensity finite >= 0
+  // (0 = off; NaN / +-Infinity / negative fall back to the default 0.5),
+  // the diffuse/specular shares finite clamped into [0, 1] (negative -> 0;
+  // NaN / +-Infinity fall back to the default 1), exposure finite >= 0
+  // (NaN / +-Infinity / negative fall back to the identity 1).
+  const envEnv = useMemo(() => {
+    const env = sanitizeEnvironment(environment);
+    const key = `${env.intensity}|${env.diffuseIntensity}|${env.specularIntensity}`;
+    return {
+      intensity: env.intensity,
+      diffuseIntensity: env.diffuseIntensity,
+      specularIntensity: env.specularIntensity,
+      key,
+    };
+    // The environment fields are primitives: stable across re-renders with
+    // the same values even when the caller passes a fresh object.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [environment?.intensity, environment?.diffuseIntensity, environment?.specularIntensity]);
+  const safeExposure = sanitizeExposure(exposure);
 
   // Callbacks are kept in refs so inline functions never churn the layer.
   const onErrorRef = useRef(onError);
@@ -173,6 +203,12 @@ export function Ukibori({
           direction: cssEnv.light,
           intensity: cssEnv.intensity,
         } satisfies DomLightState,
+        environment: {
+          intensity: envEnv.intensity,
+          diffuseIntensity: envEnv.diffuseIntensity,
+          specularIntensity: envEnv.specularIntensity,
+        },
+        exposure: safeExposure,
         margin,
         shadow,
         compositing,
@@ -194,12 +230,15 @@ export function Ukibori({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backend, stage, highContrastEnabled, canvas2dAvailable, reportError]);
 
-  // Ordinary value props (light/intensity/shadow/margin/compositing/quality)
-  // are plain data and are serialized for a stable update key; `dpr` may be
-  // a FUNCTION and is keyed by IDENTITY so a changed provider function (even
-  // with identical source text) is always pushed to the layer.
+  // Ordinary value props (light/intensity/environment/exposure/shadow/
+  // margin/compositing/quality) are plain data and are serialized for a
+  // stable update key; `dpr` may be a FUNCTION and is keyed by IDENTITY so a
+  // changed provider function (even with identical source text) is always
+  // pushed to the layer.
   const updateDataKey = [
     cssEnv.key,
+    envEnv.key,
+    safeExposure,
     JSON.stringify(shadow),
     JSON.stringify(compositing),
     margin ?? "",
@@ -220,6 +259,12 @@ export function Ukibori({
       { x: cssEnv.light.x, y: cssEnv.light.y, z: cssEnv.light.z },
       cssEnv.intensity,
     );
+    current.setEnvironment({
+      intensity: envEnv.intensity,
+      diffuseIntensity: envEnv.diffuseIntensity,
+      specularIntensity: envEnv.specularIntensity,
+    });
+    current.setExposure(safeExposure);
     current.setShadow(shadow ?? {});
     current.setMargin(margin);
     current.setCompositing(compositing ?? {});

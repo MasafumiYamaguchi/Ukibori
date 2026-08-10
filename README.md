@@ -22,6 +22,28 @@ import { Ukibori, Surface, UkiboriText } from "ukibori";
 
 `as="button"`の要素は**本物のbuttonのまま**です(events / focus / ARIA / form / refすべてDOM所有)。物理層はproviderのstage-root overlay(`pointer-events: none`、ARIA inert)へcompositeされ、要素のbackground/shadowは管理属性で抑制されます。
 
+## Architecture Decision
+
+### 指示書との関係: 暫定構成としての位置づけ
+
+指示書のMVPは**軽量なDOM/CSS主体のモデル**(CSSカスタムプロパティによるbox-shadow近似。Canvas等の重い経路を導入しない)を想定しています。一方、このリポジトリにはCP1以前から構築された既存実装があり、その基本経路(`backend="auto"`/`"cpu"`)は**Canvas 2Dを使うCPUレンダラー**(SDF → height field → 材質BRDF → キャストシャドウ)です。これは指示書の想定から**逸脱**しており、CP1の作業で新たに選択したものではなく、また逸脱を既成事実として正当化するものではありません。
+
+当面はこの既存Canvas構成を**暫定構成**として維持します。
+
+- 維持の理由: 既存の検証済み実装(テスト済み)を破壊せず、ユーザーに方向性を確認するまで動作可能な状態を保つため
+- 後続CPでの扱い: CP2以降で「指示書準拠の軽量DOM/CSS中心モデルへ移行する」か「既存Canvas構成を恒久的な基本経路として採用する」かをユーザーに諮り、その決定に従う
+- **恒久変更にはユーザー承認が必要**です。この節は判断までの暫定状態の記録であり、逸脱の正当化ではありません
+
+### 現在の構成(暫定)
+
+| 決定 | 内容 |
+| --- | --- |
+| npm workspacesを採用 | `packages/*`(`ukibori-renderer` / `ukibori-dom` / `ukibori`)+ `demo`のworkspace構成。公開物とデモを分離し、ライブラリ側にデモ用依存を混ぜない |
+| 3パッケージに分離 | renderer(React/DOM非依存の純計算)→ dom(DOM統合)→ ukibori(React API)の順に依存。計算・DOM・Reactの責務を分け、各層を独立にテストする。runtime dependencyを最小化する(React層はpeer dependency) |
+| 基本経路(暫定): Canvas製CPUレンダラー | `backend="auto"` / `"cpu"`はcanvas 2dへ描画するCPU reference rendererが担う(物理レンダリングの軽量近似であり、正確な物理シミュレーションではない)。React層は薄く、rendererのセマンティクスをReactへ移さない。SSRでは`window`/`document`/canvasに一切触れない。**指示書の「Canvas非導入」と整合しておらず、暫定扱い** |
+| box-shadow近似はCSS backendのみ | `backend="css"`は指示書の軽量DOM/CSSモデルに整合する経路で、CSSカスタムプロパティ(`--ukibori-*`)とbox-shadowによる近似フォールバックを出力し、「物理レンダリングではない」と明示的にラベル付けする。物理経路と混同しない |
+| 統一光源 | `<Ukibori>`で共有光ベクトルを定義し、子の`<Surface>`は常にそれを使う(物理経路・CSS経路の両方で一貫) |
+
 ## アーキテクチャ
 
 | パッケージ | 役割 |

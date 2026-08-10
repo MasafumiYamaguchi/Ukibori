@@ -56,6 +56,9 @@ function SliderControl({
 export function App() {
   const [light, setLight] = useState({ x: -0.6, y: -0.8, z: 1 });
   const [intensity, setIntensity] = useState(1);
+  const [environment, setEnvironment] = useState(0.5);
+  const [environmentSpecular, setEnvironmentSpecular] = useState(1);
+  const [exposure, setExposure] = useState(1);
   const [elevation, setElevation] = useState(6);
   const [thickness, setThickness] = useState(2);
   const [radius, setRadius] = useState(16);
@@ -72,6 +75,8 @@ export function App() {
     <Ukibori
       light={light}
       intensity={intensity}
+      environment={{ intensity: environment, specularIntensity: environmentSpecular }}
+      exposure={exposure}
       backend={backend}
       className="demo-root"
     >
@@ -145,6 +150,37 @@ export function App() {
               format={TWO_DECIMALS}
               onChange={setIntensity}
             />
+            <SliderControl
+              label="Environment"
+              value={environment}
+              min={0}
+              max={2}
+              step={0.05}
+              format={TWO_DECIMALS}
+              onChange={setEnvironment}
+            />
+            <SliderControl
+              label="Environment specular share"
+              value={environmentSpecular}
+              min={0}
+              max={1}
+              step={0.05}
+              format={TWO_DECIMALS}
+              onChange={setEnvironmentSpecular}
+            />
+            <SliderControl
+              label="Exposure"
+              value={exposure}
+              min={0}
+              max={4}
+              step={0.05}
+              format={TWO_DECIMALS}
+              onChange={setExposure}
+            />
+            <p className="hint">
+              Environment is a uniform shared fill (0 = off) applied with exposure before sRGB
+              encoding — physical path only, kept independent of the directional light.
+            </p>
             <SliderControl
               label="Elevation"
               value={elevation}

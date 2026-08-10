@@ -2,7 +2,7 @@ import { createScene, DEFAULT_LIGHT_DIRECTION, normalizeVec3 } from "ukibori-ren
 import type { Material, Scene, SurfaceNode } from "ukibori-renderer";
 import { renderTargetSize } from "./coords";
 import type { SurfaceRegistry } from "./registry";
-import type { DomLightState, Region } from "./types";
+import type { DomEnvironmentState, DomLightState, Region } from "./types";
 
 /**
  * DOM -> renderer scene construction (#20).
@@ -38,6 +38,11 @@ export interface BuildSceneInput {
   region: Region;
   dpr: number;
   light: DomLightState;
+  /** shared environment illumination state (#22); absent fields -> renderer
+   * defaults (intensity 0.5, shares 1) */
+  environment?: Partial<DomEnvironmentState>;
+  /** exposure multiplier (dimensionless). `undefined` -> renderer default 1. */
+  exposure?: number;
   materials?: Record<string, Material>;
 }
 
@@ -86,6 +91,8 @@ export function buildScene(input: BuildSceneInput): Scene {
     surfaces,
     materials,
     light: { direction, intensity: sanitizeNonNegative(light.intensity) },
+    environment: input.environment,
+    exposure: input.exposure,
   });
 }
 

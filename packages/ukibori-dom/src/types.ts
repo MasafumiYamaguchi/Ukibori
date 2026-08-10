@@ -93,6 +93,29 @@ export interface DomLightState {
 }
 
 /**
+ * Shared environment illumination state fed to the renderer scene (#22).
+ *
+ * A uniform environment independent of the directional light: it lifts
+ * dielectrics through baseColor-scaled diffuse and keeps metals from
+ * blacking out outside the direct specular lobe through an F0/roughness
+ * specular term. The three controls are independent scene/shared values:
+ *
+ * - `intensity` 0 disables the environment entirely (the output stays close
+ *   to the pre-#22 ambient + direct response)
+ * - `diffuseIntensity` 0 removes only the environment diffuse
+ * - `specularIntensity` 0 removes only the environment specular (the metal
+ *   black-drop lift is off)
+ */
+export interface DomEnvironmentState {
+  /** uniform environment illumination intensity, finite >= 0 (0 = off) */
+  intensity: number;
+  /** 0..1 share of the environment applied to diffuse (default 1) */
+  diffuseIntensity: number;
+  /** 0..1 share of the environment applied to specular (default 1) */
+  specularIntensity: number;
+}
+
+/**
  * How the compositor maps the renderer output onto the DOM overlay.
  *
  * The renderer's `color` buffer is fully opaque (alpha 255 everywhere,

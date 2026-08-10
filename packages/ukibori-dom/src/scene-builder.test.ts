@@ -107,6 +107,31 @@ describe("buildScene", () => {
     expect(scene.light.direction).toEqual({ x: 0, y: 0, z: 1 });
   });
 
+  it("passes environment and exposure through to the scene", () => {
+    const registry = new SurfaceRegistry();
+    addSurface(registry, "btn", 40, 60, 100, 32);
+    const scene = buildScene({
+      registry,
+      region: REGION,
+      dpr: 1,
+      light: LIGHT,
+      environment: { intensity: 0.25, diffuseIntensity: 0.5, specularIntensity: 0 },
+      exposure: 3,
+    });
+    expect(scene.environment.intensity).toBe(0.25);
+    expect(scene.environment.diffuseIntensity).toBe(0.5);
+    expect(scene.environment.specularIntensity).toBe(0);
+    expect(scene.exposure).toBe(3);
+  });
+
+  it("defaults environment (intensity 0.5, shares 1) and exposure (1) when omitted", () => {
+    const registry = new SurfaceRegistry();
+    addSurface(registry, "btn", 40, 60, 100, 32);
+    const scene = buildScene({ registry, region: REGION, dpr: 1, light: LIGHT });
+    expect(scene.environment).toEqual({ intensity: 0.5, diffuseIntensity: 1, specularIntensity: 1 });
+    expect(scene.exposure).toBe(1);
+  });
+
   it("resolves material refs from the override table", () => {
     const registry = new SurfaceRegistry();
     addSurface(registry, "btn", 40, 60, 100, 32, { material: "custom" });

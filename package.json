@@ -9,8 +9,10 @@
   "scripts": {
     "build": "npm run build -w ukibori-renderer && npm run build -w ukibori-dom && npm run build -w ukibori && npm run build -w demo",
     "typecheck": "npm run typecheck -w ukibori-renderer && npm run typecheck -w ukibori-dom && npm run typecheck -w ukibori && npm run typecheck -w demo",
-    "test": "npm run test -w ukibori-renderer && npm run test -w ukibori-dom && npm run test -w ukibori",
+    "test": "npm run dev:loop:check && npm run test -w ukibori-renderer && npm run test -w ukibori-dom && npm run test -w ukibori",
     "dev": "npm run dev -w demo",
-    "preview": "npm run preview -w demo"
+    "preview": "npm run preview -w demo",
+    "dev:loop": "node tools/dev-loop/cli.mjs",
+    "dev:loop:check": "node --test tools/dev-loop/*.test.mjs"
   }
 }

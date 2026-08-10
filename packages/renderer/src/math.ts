@@ -4,6 +4,42 @@ export function clamp(v: number, min: number, max: number): number {
   return v < min ? min : v > max ? max : v;
 }
 
+/**
+ * Overflow-safe saturated addition: `min(a + b, Number.MAX_VALUE)`.
+ *
+ * Finite inputs whose sum would overflow to +-Infinity are clamped to
+ * +-Number.MAX_VALUE instead, so the result is always finite for finite
+ * inputs (non-finite inputs pass through unchanged).
+ */
+export function saturatingAdd(a: number, b: number): number {
+  const sum = a + b;
+  if (sum > Number.MAX_VALUE) {
+    return Number.MAX_VALUE;
+  }
+  if (sum < -Number.MAX_VALUE) {
+    return -Number.MAX_VALUE;
+  }
+  return sum;
+}
+
+/**
+ * Overflow-safe saturated multiply: `a * b` clamped to +-Number.MAX_VALUE.
+ *
+ * Finite inputs whose product would overflow to +-Infinity are clamped to
+ * +-Number.MAX_VALUE instead; zero times anything is zero. The result is
+ * always finite for finite inputs.
+ */
+export function saturatingMul(a: number, b: number): number {
+  if (a === 0 || b === 0) {
+    return 0;
+  }
+  const product = a * b;
+  if (Number.isFinite(product)) {
+    return product;
+  }
+  return a < 0 !== b < 0 ? -Number.MAX_VALUE : Number.MAX_VALUE;
+}
+
 export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }

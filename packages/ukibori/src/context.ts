@@ -1,10 +1,13 @@
 import { createContext } from "react";
 import type { UkiboriDom } from "ukibori-dom";
+import { DEFAULT_EXPOSURE as DEFAULT_EXPOSURE_RENDERER } from "ukibori-renderer";
 import { DEFAULT_LIGHT, normalizeLight } from "./core/light";
 import type { LightVector, UkiboriBackend, UkiboriMode } from "./types";
 
 export const DEFAULT_COLOR = "#e4e8ef";
 export const DEFAULT_INTENSITY = 1;
+/** Default exposure multiplier (identity; renderer #22 default). */
+export const DEFAULT_EXPOSURE = DEFAULT_EXPOSURE_RENDERER;
 
 // Context default (used when no <Ukibori> provider wraps a Surface): mode
 // "none" — plain semantic DOM, no physical layer and no CSS approximation.

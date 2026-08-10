@@ -371,6 +371,13 @@ export function RendererDebug(): ReactElement {
   const siliconeCanvas = useRef<HTMLCanvasElement>(null);
   const matteCanvas = useRef<HTMLCanvasElement>(null);
   const metalCanvas = useRef<HTMLCanvasElement>(null);
+  // #22: material x environment matrix (silicone / matte / metal x OFF / ON)
+  const matrixSiliconeOffCanvas = useRef<HTMLCanvasElement>(null);
+  const matrixSiliconeOnCanvas = useRef<HTMLCanvasElement>(null);
+  const matrixMatteOffCanvas = useRef<HTMLCanvasElement>(null);
+  const matrixMatteOnCanvas = useRef<HTMLCanvasElement>(null);
+  const matrixMetalOffCanvas = useRef<HTMLCanvasElement>(null);
+  const matrixMetalOnCanvas = useRef<HTMLCanvasElement>(null);
   const glossyCanvas = useRef<HTMLCanvasElement>(null);
   const roughCanvas = useRef<HTMLCanvasElement>(null);
   const dielectricCanvas = useRef<HTMLCanvasElement>(null);
@@ -393,6 +400,15 @@ export function RendererDebug(): ReactElement {
   const [status, setStatus] = useState<Status | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [light, setLight] = useState({ x: -0.6, y: -0.8 });
+  // #22: environment OFF/ON columns (the ON column always renders the real
+  // ON value, 0.5) and exposure low/default/high for the material comparison
+  // matrix (same geometry, same directional light).
+  const [exposureLevel, setExposureLevel] = useState<"low" | "default" | "high">("default");
+
+  const ENV_OFF = 0;
+  const ENV_ON = 0.5;
+  const EXPOSURE_VALUES = { low: 0.25, default: 1, high: 4 } as const;
+  const EXPOSURE = EXPOSURE_VALUES[exposureLevel];
 
   useEffect(() => {
     let cancelled = false;
@@ -471,8 +487,32 @@ export function RendererDebug(): ReactElement {
         const presetColor = lightScene(presetScene).color;
         draw(canvas.current, toRgbaBytes(await readBufferData(presetColor)));
       }
+
+      // #22 matrix: silicone / matte / metal x environment OFF / ON, at the
+      // selected exposure. Same geometry and same directional light. The ON
+      // column ALWAYS renders the real ON value (ENV_ON), independent of any
+      // toggle, so the two columns stay comparable.
+      const matrix = [
+        ["silicone", matrixSiliconeOffCanvas, ENV_OFF],
+        ["silicone", matrixSiliconeOnCanvas, ENV_ON],
+        ["matte", matrixMatteOffCanvas, ENV_OFF],
+        ["matte", matrixMatteOnCanvas, ENV_ON],
+        ["metal", matrixMetalOffCanvas, ENV_OFF],
+        ["metal", matrixMetalOnCanvas, ENV_ON],
+      ] as const;
+      for (const [ref, canvas, envIntensity] of matrix) {
+        const matrixScene = createScene({
+          ...SDF_SCENE,
+          surfaces: [{ ...SDF_SCENE.surfaces[0], material: ref }],
+          light: { direction: { x: light.x, y: light.y, z: 1 }, intensity: 1 },
+          environment: { intensity: envIntensity },
+          exposure: EXPOSURE,
+        });
+        const matrixColor = lightScene(matrixScene).color;
+        draw(canvas.current, toRgbaBytes(await readBufferData(matrixColor)));
+      }
     })();
-  }, [light.x, light.y]);
+  }, [light.x, light.y, exposureLevel]);
 
   useEffect(() => {
     const scene = createScene({
@@ -687,6 +727,61 @@ export function RendererDebug(): ReactElement {
             <p>
               Cook-Torrance (GGX/Smith/Schlick) with the metallic workflow: dielectric F0 from
               IOR, metal uses baseColor as F0 with no diffuse term.
+            </p>
+          </section>
+          <section>
+            <h2>Exposure &amp; environment #22 — material matrix (same geometry and light)</h2>
+            <p>
+              columns: environment OFF (intensity 0) vs ON (intensity {ENV_ON}) — the ON
+              column always draws the real ON value · exposure:{" "}
+              {(["low", "default", "high"] as const).map((level) => (
+                <label key={level}>
+                  <input
+                    type="radio"
+                    name="exposure"
+                    checked={exposureLevel === level}
+                    onChange={() => setExposureLevel(level)}
+                  />{" "}
+                  {level} ({EXPOSURE_VALUES[level]})
+                </label>
+              ))}
+            </p>
+            <div className="row">
+              <div>
+                <p>silicone / env OFF</p>
+                <canvas ref={matrixSiliconeOffCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>silicone / env ON</p>
+                <canvas ref={matrixSiliconeOnCanvas} width={96} height={60} />
+              </div>
+            </div>
+            <div className="row">
+              <div>
+                <p>matte / env OFF</p>
+                <canvas ref={matrixMatteOffCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>matte / env ON</p>
+                <canvas ref={matrixMatteOnCanvas} width={96} height={60} />
+              </div>
+            </div>
+            <div className="row">
+              <div>
+                <p>metal / env OFF</p>
+                <canvas ref={matrixMetalOffCanvas} width={96} height={60} />
+              </div>
+              <div>
+                <p>metal / env ON</p>
+                <canvas ref={matrixMetalOnCanvas} width={96} height={60} />
+              </div>
+            </div>
+            <p>
+              Move the light sliders above and the direct highlight/normal response stays: the
+              environment is a uniform fill, independent of the directional light and of
+              cast-shadow visibility. Compare metal OFF vs ON — the flat top stays dark without
+              the environment (the #22 black-drop problem) and lifts with it. Exposure scales
+              the whole linear result (ambient + direct + environment) before sRGB encoding.
             </p>
           </section>
           <section>
