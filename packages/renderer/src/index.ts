@@ -77,6 +77,7 @@ export type {
 } from "./gpu/uploader";
 export { WGSL_LAYOUT } from "./gpu/wgsl";
 export {
+  COMPOSE_CASTER_HEIGHT_WGSL,
   COMPOSE_COVERAGE_WGSL,
   COMPOSE_HEIGHT_WGSL,
   COMPOSE_MATERIAL_ID_WGSL,
@@ -111,6 +112,7 @@ export type {
   HeightPassOutputBinding,
   HeightPassOutputFormat,
   HeightPassOutputs,
+  HeightPassProvenance,
   HeightPassSnapshot,
 } from "./gpu/height-pass";
 export {
@@ -134,6 +136,29 @@ export type {
   NormalPassLastDispatch,
   NormalPassSnapshot,
 } from "./gpu/normal-pass";
+export {
+  MAX_SHADOW_STEP_COUNT,
+  SHADOW_OUTPUT_BYTES_PER_TEXEL,
+  SHADOW_PARAMS_BYTE_LENGTH,
+  SHADOW_PASS_WGSL,
+  SHADOW_WORKGROUP_SIZE,
+} from "./gpu/shadow-pass-wgsl";
+export {
+  SHADOW_PASS_OUTPUT_USAGE,
+  ShadowPass,
+  sanitizeShadowOptions,
+  shadowHeightBindingsFromHeightPass,
+} from "./gpu/shadow-pass";
+export type {
+  ShadowEffectiveOptions,
+  ShadowFieldBinding,
+  ShadowOutputBinding,
+  ShadowPassDispatchStats,
+  ShadowPassInput,
+  ShadowPassLastDispatch,
+  ShadowPassSnapshot,
+  ShadowSanitizeContext,
+} from "./gpu/shadow-pass";
 export {
   UkiboriRenderer,
   createRenderer,

@@ -64,13 +64,13 @@ describe("sampleHeightAt", () => {
 describe("computeVisibility on the two-level fixture", () => {
   it("prepares pass-wide context: maxDistance scales with 1/|L.xy|", () => {
     const ctx = prepareShadowContext(sceneWithLight({ x: 0.5, y: 0, z: 0.8660254 }), twoLevelHeight());
-    expect(ctx.maxDistance).toBeCloseTo(Math.hypot(16, 16) / 0.5, 6);
+    expect(ctx.maxDistance).toBe(Math.fround(Math.hypot(16, 16) / 0.5));
     expect(ctx.bias).toBe(0.5);
     expect(ctx.stepSize).toBe(0.5);
     expect(ctx.maxHeight).toBe(6);
     // near-vertical light: no horizontal travel, diagonal is a harmless cap
     const vertical = prepareShadowContext(sceneWithLight({ x: 0, y: 0, z: 1 }), twoLevelHeight());
-    expect(vertical.maxDistance).toBeCloseTo(Math.hypot(16, 16), 6);
+    expect(vertical.maxDistance).toBe(Math.fround(Math.hypot(16, 16)));
   });
 
   it("canonicalizes the sanitized bias to f32 in the prepared context", () => {
@@ -79,6 +79,25 @@ describe("computeVisibility on the two-level fixture", () => {
     });
     expect(ctx.bias).toBe(Math.fround(0.1));
     expect(ctx.bias).not.toBe(0.1); // f64 differs; the f32 value matches a WGSL uniform
+  });
+
+  it("applies the GPU-equivalent termination cap to custom march options", () => {
+    const scene = sceneWithLight(LIGHT_FROM_RIGHT);
+    const height = twoLevelHeight();
+    const tinyStep = prepareShadowContext(scene, height, {
+      stepSize: 1e-40,
+      maxDistance: 8,
+    });
+    expect(tinyStep.stepSize).toBe(0.5);
+    expect(tinyStep.maxDistance).toBe(8);
+
+    const hugeDistance = prepareShadowContext(scene, height, {
+      maxDistance: 1e30,
+    });
+    expect(hugeDistance.stepSize).toBe(0.5);
+    expect(hugeDistance.maxDistance).toBe(
+      Math.fround(Math.hypot(16, 16) / Math.hypot(LIGHT_FROM_RIGHT.x, LIGHT_FROM_RIGHT.y)),
+    );
   });
 
   it("reaches occluders that require t > the scene diagonal (default maxDistance = diagonal / |L.xy|)", () => {
@@ -477,5 +496,161 @@ describe("traceShadowRay", () => {
         expect(Number.isFinite(ray.t)).toBe(true);
       }
     }
+  });
+});
+
+describe("DPR-aware render extent sampling (#27)", () => {
+  it("defaults to dpr 1 and preserves the historical result byte-for-byte", () => {
+    const scene = sceneWithLight(LIGHT_FROM_RIGHT);
+    const height = twoLevelHeight();
+    const vis = computeVisibility(scene, height);
+    const visDpr1 = computeVisibility(scene, height, { dpr: 1 });
+    expect(Array.from(visDpr1.data)).toEqual(Array.from(vis.data));
+    const ctx = prepareShadowContext(scene, height);
+    expect(ctx.dpr).toBe(1);
+    // an invalid dpr falls back to 1 (stable default)
+    expect(prepareShadowContext(scene, height, { dpr: NaN }).dpr).toBe(1);
+    expect(prepareShadowContext(scene, height, { dpr: -2 }).dpr).toBe(1);
+  });
+
+  it("keeps the default maxDistance in scene units for any dpr", () => {
+    // render 32x32 at dpr 2 covers the same logical 16x16 scene, so the
+    // scene-diagonal default stays identical
+    const scene = sceneWithLight({ x: 0.5, y: 0, z: 0.8660254 });
+    const dpr1 = prepareShadowContext(
+      scene,
+      new HostBuffer({ width: 16, height: 16, channels: 1, format: "f32" }),
+    );
+    const dpr2 = prepareShadowContext(
+      scene,
+      new HostBuffer({ width: 32, height: 32, channels: 1, format: "f32" }),
+      { dpr: 2 },
+    );
+    expect(dpr2.maxDistance).toBeCloseTo(dpr1.maxDistance, 9);
+    expect(dpr2.dpr).toBe(2);
+  });
+
+  it("samples texels at ((tx + 0.5) / dpr, (ty + 0.5) / dpr) and matches direct traces", () => {
+    // 2x scaled copy of the two-level slab: render 32x32, slab texels
+    // 16..27 x 4..7 (logical 8..13.5 x 2..3.5)
+    const scene = sceneWithLight(LIGHT_FROM_RIGHT);
+    const height = new HostBuffer({ width: 32, height: 32, channels: 1, format: "f32" });
+    for (let y = 0; y < 32; y++) {
+      for (let x = 0; x < 32; x++) {
+        height.set(x, y, 0, x >= 16 && x <= 27 && y >= 4 && y <= 7 ? 6 : 0);
+      }
+    }
+    const vis = computeVisibility(scene, height, { dpr: 2 });
+    // the receiver position of render texel (x, y) is ((x + 0.5) / 2, ...);
+    // every decision must equal a direct trace at that logical position
+    let blocked = 0;
+    for (let y = 0; y < 32; y++) {
+      for (let x = 0; x < 32; x++) {
+        const ray = traceShadowRay(scene, height, (x + 0.5) / 2, (y + 0.5) / 2, { dpr: 2 });
+        expect(vis.get(x, y, 0)).toBe(ray.occluded ? 0 : 1);
+        if (ray.occluded) {
+          blocked++;
+        }
+      }
+    }
+    expect(blocked).toBeGreaterThan(0);
+  });
+
+  it("doubles the shadow texel span when the render extent doubles at dpr 2", () => {
+    const scene = sceneWithLight(LIGHT_FROM_RIGHT);
+    const dpr1 = computeVisibility(scene, twoLevelHeight());
+    const scaled = new HostBuffer({ width: 32, height: 32, channels: 1, format: "f32" });
+    for (let y = 0; y < 32; y++) {
+      for (let x = 0; x < 32; x++) {
+        scaled.set(x, y, 0, x >= 16 && x <= 27 && y >= 4 && y <= 7 ? 6 : 0);
+      }
+    }
+    const dpr2 = computeVisibility(scene, scaled, { dpr: 2 });
+    const count1 = rowVisibility(dpr1, 3).filter((v) => v === 0).length;
+    const count2 = rowVisibility(dpr2, 6).filter((v) => v === 0).length;
+    expect(count2).toBeGreaterThanOrEqual(count1 * 2 - 2);
+    expect(count2).toBeLessThanOrEqual(count1 * 2 + 2);
+  });
+
+  it("stops the march at the LAST texel center (extent - 0.5) / dpr at dpr > 1", () => {
+    // render 16x16 at dpr 2 covers logical [0, 8): the inclusive pixel-center
+    // rectangle ends at the last texel center (16 - 0.5) / 2 = 7.75. A tall
+    // caster occupies the last render column. A receiver on that caster with
+    // a light leaving the field on the right must get ZERO marched samples:
+    // the first sample already leaves the rectangle (a buggy
+    // `extent - 0.5 / dpr` bound of 15.75 would let the ray march on over
+    // the clamped caster top instead of stopping).
+    const height = new HostBuffer({ width: 16, height: 16, channels: 1, format: "f32" });
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        height.set(x, y, 0, x >= 15 && y >= 6 && y <= 9 ? 4 : 0);
+      }
+    }
+    const scene = sceneWithLight(LIGHT_FROM_RIGHT);
+    // texel 15 center = 7.75; the +x ray's first sample is beyond it
+    const samples = marchShadowRay(scene, height, 7.75, 4.25, { dpr: 2 });
+    expect(samples.length).toBe(0);
+    const vis = computeVisibility(scene, height, { dpr: 2 });
+    expect(vis.get(15, 8, 0)).toBe(1); // lit: the march stopped at the bound
+    // the same behavior holds at dpr 1 (last center 15.5)
+    const samplesDpr1 = marchShadowRay(scene, height, 15.5, 4.25);
+    expect(samplesDpr1.length).toBe(0);
+    expect(computeVisibility(scene, height).get(15, 8, 0)).toBe(1);
+    // and a receiver ONE texel inside still marches normally (the bound is
+    // inclusive, not one texel short)
+    const inner = marchShadowRay(scene, height, 7.25, 4.25, { dpr: 2 });
+    expect(inner.length).toBeGreaterThan(0);
+  });
+});
+
+describe("explicit f32-multiple march series (#27)", () => {
+  it("marches t = fround(k * stepSize) exactly for a non-dyadic step", () => {
+    // stepSize 0.1 is NOT f32-exact: the CPU series must be the f32-rounded
+    // integer multiples fround(k * f32(0.1)) — the exact series the GPU
+    // shader produces with `f32(stepIndex) * stepSize`. A naive f64
+    // accumulation (t += stepSize, exact k * step) drifts by ~1 ulp per step
+    // and is NOT the reference series.
+    const scene = sceneWithLight(LIGHT_FROM_RIGHT);
+    const height = twoLevelHeight();
+    const samples = marchShadowRay(scene, height, 0.5, 3.5, {
+      stepSize: 0.1,
+      maxDistance: 1.05,
+    });
+    const step = Math.fround(0.1);
+    const expected = [];
+    for (let k = 1; k <= 10; k++) {
+      expected.push(Math.fround(k * step));
+    }
+    expect(samples.map((s) => s.t)).toEqual(expected);
+    // the count is floor(maxDistance / stepSize), matching the shadow pass
+    // stepCount (10 steps for maxDistance 1.05 / step 0.1)
+    expect(samples.length).toBe(10);
+    // the series differs from naive f64 accumulation (regression detection):
+    // t = 0.30000000447034836 (f64 exact) vs fround -> 0.30000001192092896
+    expect(Math.fround(3 * step)).not.toBe(3 * step);
+    expect(samples[2].t).toBe(Math.fround(3 * step));
+  });
+
+  it("distinguishes the f32 threshold judgment from a naive f64 comparison", () => {
+    // caster top stores f32(0.1 + 0.2) = 0.30000001192092896; with a
+    // horizontal light rayZ stays 0 and bias 0.3 gives the f32 threshold
+    // f32(0 + 0.3) == the sample EXACTLY -> equality -> LIT. A naive f64
+    // comparison (0.30000001192092896 > 0.3) would report BLOCKED.
+    const height = new HostBuffer({ width: 16, height: 16, channels: 1, format: "f32" });
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        height.set(x, y, 0, x >= 3 && x <= 6 && y >= 6 && y <= 7 ? 0.1 + 0.2 : 0);
+      }
+    }
+    const scene = sceneWithLight({ x: 1, y: 0, z: 0 });
+    const vis = computeVisibility(scene, height, { bias: 0.3 });
+    expect(vis.get(0, 6, 0)).toBe(1); // the ray crosses the caster top: equality -> lit
+    expect(vis.get(2, 6, 0)).toBe(1); // ramp samples (0 / 0.15) stay below the threshold
+    expect(vis.get(3, 6, 0)).toBe(1); // on the caster: rz0 = sample, ray rises -> lit
+    const sample = sampleHeightAt(height, 3.5, 6.5); // the f32 top value
+    expect(sample).toBe(Math.fround(0.3));
+    expect(sample).toBe(Math.fround(0.1 + 0.2));
+    expect(sample > 0.3).toBe(true); // naive f64: blocked
+    expect(sample > Math.fround(0.3)).toBe(false); // f32: equality -> lit
   });
 });

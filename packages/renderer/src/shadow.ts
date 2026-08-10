@@ -12,7 +12,8 @@ import type { Scene } from "./scene";
  * (the #13 convention: direction points TOWARD the light), sampling the
  * height field along the way:
  *
- *     for t = step .. maxDistance:
+ *     for k = 1 .. floor(maxDistance / stepSize):
+ *         t        = f32(k * stepSize)        (explicit f32-multiple series)
  *         sampleXY = P.xy + L.xy * t
  *         rayZ     = P.z  + L.z  * t
  *         if H(sampleXY) > f32(rayZ + bias):  occluded
@@ -46,9 +47,17 @@ import type { Scene } from "./scene";
  * - the occlusion comparison is f32-consistent: the height sample is stored
  *   f32 and the threshold `f32(rayZ + bias)` is rounded to f32 before the
  *   comparison, matching the WebGPU pipeline
+ * - MARCH SERIES (explicit f32 convention, fixed with the #27 shadow pass):
+ *   the series is `t_k = f32(k * stepSize)` for `k = 1 .. floor(maxDistance /
+ *   stepSize)` — the f32-rounded integer multiple, exactly the series the
+ *   GPU shadow shader marches (`f32(stepIndex) * params.stepSize`, identical
+ *   for every k <= 2^24). This keeps a NON-DYADIC step like 0.1 on the SAME
+ *   series in both implementations; a naive f64 accumulation
+ *   (`t += stepSize`) would drift by up to 1 ulp per step and is NOT used.
  * - termination: marching stops when the sample leaves the scene rectangle,
  *   when the ray rises above `maxHeight + bias` (nothing can occlude it
- *   anymore), or at `maxDistance`
+ *   anymore), or after `floor(maxDistance / stepSize)` steps; option
+ *   sanitization applies the same 2^24 iteration cap as the GPU pass
  * - default `maxDistance = sceneDiagonal / |L.xy|`: t advances along the
  *   NORMALIZED 3D light vector while XY advances by only `|L.xy| * t`, so a
  *   scene-diagonal XY traversal needs `sceneDiagonal / |L.xy|`. For a
@@ -90,6 +99,17 @@ export interface VisibilityOptions extends ShadowOptions {
    * semantics. Defaults to `height` when omitted (all surfaces cast).
    */
   casterHeight?: HostBuffer;
+  /**
+   * DPR-aware render extent sampling (#27): render texel (tx, ty) samples
+   * logical scene position `((tx + 0.5) / dpr, (ty + 0.5) / dpr)` while
+   * `stepSize`/`bias`/`maxDistance` stay in scene units, so the shadow
+   * result is resolution-independent (only the sampling density changes).
+   * Default `1` preserves the historical DPR-1 behavior exactly; the
+   * default `maxDistance` scene diagonal is then derived from the LOGICAL
+   * scene extent (`hypot(width / dpr, height / dpr)` over the render
+   * buffer), which equals the historical `hypot(width, height)` at DPR 1.
+   */
+  dpr?: number;
 }
 
 export interface ShadowRayResult {
@@ -125,6 +145,8 @@ export interface ShadowContext {
   ly: number;
   lz: number;
   maxHeight: number;
+  /** render extent sampling DPR (default 1; texel centers divide by dpr) */
+  dpr: number;
   /** field used for occlusion sampling (caster-only field, or the full height) */
   sampleHeight: HostBuffer;
   /** ownership buffer for receivesShadow (null = everything receives) */
@@ -133,6 +155,9 @@ export interface ShadowContext {
 
 const DEFAULT_STEP_SIZE = 0.5;
 const DEFAULT_BIAS = 0.5;
+const DEFAULT_DPR = 1;
+/** Must stay equal to the #27 GPU host/shader f32-index termination cap. */
+const MAX_CPU_SHADOW_STEP_COUNT = 1 << 24;
 
 export function prepareShadowContext(
   scene: Scene,
@@ -140,19 +165,42 @@ export function prepareShadowContext(
   options: VisibilityOptions = {},
 ): ShadowContext {
   const { width, height: h } = height.spec;
-  const stepSize = sanitizeStrictPositive(options.stepSize, DEFAULT_STEP_SIZE);
-  // Canonicalize the bias to f32 once, so f32(rayZ + bias) matches an f32
-  // WGSL uniform exactly.
-  const bias = Math.fround(sanitizeNonNegative(options.bias, DEFAULT_BIAS));
+  // Every option is f32-packed (Math.fround) BEFORE use — exactly like the
+  // #27 shadow pass sanitizer — so the CPU reference marches the SAME
+  // effective values (stepSize/maxDistance/bias/dpr) as the GPU for any
+  // raw input, and the explicit f32-multiple series t = fround(k *
+  // stepSize) is identical on both sides.
+  let stepSize = sanitizeF32StrictPositive(options.stepSize, DEFAULT_STEP_SIZE);
+  const bias = sanitizeF32NonNegative(options.bias, DEFAULT_BIAS);
+  // DPR-aware render extent sampling (#27); default 1 keeps the historical
+  // behavior. The scene diagonal used for the default maxDistance stays in
+  // SCENE units: at DPR d the render buffer covers width/d x height/d scene
+  // units, and at dpr 1 this reduces to the historical hypot(width, height).
+  const dpr = sanitizeF32StrictPositive(options.dpr, DEFAULT_DPR);
   const lx = scene.light.direction.x;
   const ly = scene.light.direction.y;
   const lz = scene.light.direction.z;
   const xyLength = Math.hypot(lx, ly);
-  const diagonal = Math.hypot(width, h);
-  const maxDistance = sanitizeStrictPositive(
-    options.maxDistance,
+  const diagonal = Math.hypot(width / dpr, h / dpr);
+  const defaultMaxDistance = Math.fround(
     xyLength > 1e-6 ? diagonal / xyLength : diagonal,
   );
+  let maxDistance = sanitizeF32StrictPositive(options.maxDistance, defaultMaxDistance);
+  let stepCount = shadowStepCount(maxDistance, stepSize);
+  if (stepCount > MAX_CPU_SHADOW_STEP_COUNT) {
+    stepSize = DEFAULT_STEP_SIZE;
+    stepCount = shadowStepCount(maxDistance, stepSize);
+  }
+  if (stepCount > MAX_CPU_SHADOW_STEP_COUNT) {
+    maxDistance = defaultMaxDistance;
+    stepCount = shadowStepCount(maxDistance, stepSize);
+  }
+  if (stepCount > MAX_CPU_SHADOW_STEP_COUNT) {
+    throw new Error(
+      `shadow step count ${stepCount} exceeds the termination cap ` +
+        `${MAX_CPU_SHADOW_STEP_COUNT}: the scene diagonal/options are too large`,
+    );
+  }
   const sampleHeight = options.casterHeight ?? height;
   return {
     stepSize,
@@ -162,6 +210,7 @@ export function prepareShadowContext(
     ly,
     lz,
     maxHeight: sceneMaxHeight(sampleHeight),
+    dpr,
     sampleHeight,
     objectId: options.objectId ?? null,
   };
@@ -171,17 +220,39 @@ export function prepareShadowContext(
  * Bilinear sample of the height field at a CONTINUOUS scene position.
  * Sample positions are clamped to the pixel-center range so rays never read
  * outside the buffer (texture-boundary policy: replicate the edge).
+ *
+ * `x`/`y` are DPR-1 scene positions (texel-center units); the DPR-aware
+ * conversion to render-field interpolation coordinates is
+ * `sampleHeightAtDpr` (`x * dpr - 0.5`).
  */
 export function sampleHeightAt(height: HostBuffer, x: number, y: number): number {
+  return bilinearHeightAt(height, x - 0.5, y - 0.5);
+}
+
+/**
+ * DPR-aware bilinear sample (#27): takes a LOGICAL scene position and maps
+ * it to render-field interpolation coordinates with the same center
+ * convention — `fx = x * dpr - 0.5` (render texel `(tx, ty)` sits at
+ * logical `((tx + 0.5) / dpr, (ty + 0.5) / dpr)`, so the receiver's own
+ * texel maps back to `fx = tx` exactly). At `dpr = 1` this is identical to
+ * `sampleHeightAt`. `dpr` must be finite and > 0 (the public options
+ * sanitize it; internal callers pass the prepared context value).
+ */
+function sampleHeightAtDpr(height: HostBuffer, x: number, y: number, dpr: number): number {
+  return bilinearHeightAt(height, x * dpr - 0.5, y * dpr - 0.5);
+}
+
+/** Row-major bilinear core over interpolation coordinates (clamped edges). */
+function bilinearHeightAt(height: HostBuffer, fx: number, fy: number): number {
   const { width, height: h } = height.spec;
-  const fx = clamp(x - 0.5, 0, width - 1);
-  const fy = clamp(y - 0.5, 0, h - 1);
-  const x0 = Math.floor(fx);
-  const y0 = Math.floor(fy);
+  const cx = clamp(fx, 0, width - 1);
+  const cy = clamp(fy, 0, h - 1);
+  const x0 = Math.floor(cx);
+  const y0 = Math.floor(cy);
   const x1 = Math.min(x0 + 1, width - 1);
   const y1 = Math.min(y0 + 1, h - 1);
-  const tx = fx - x0;
-  const ty = fy - y0;
+  const tx = cx - x0;
+  const ty = cy - y0;
   const v00 = height.get(x0, y0, 0);
   const v10 = height.get(x1, y0, 0);
   const v01 = height.get(x0, y1, 0);
@@ -207,18 +278,35 @@ export function isOccludedWithContext(
   py: number,
 ): boolean {
   const { width, height: h } = height.spec;
-  const rz0 = Math.fround(sampleHeightAt(height, px, py));
-  for (let t = ctx.stepSize; t <= ctx.maxDistance; t += ctx.stepSize) {
+  // The receiver z is the full visible field at the LOGICAL receiver
+  // position; at the render-texel center this is exactly the composed texel
+  // value (fx = px * dpr - 0.5 = tx).
+  const rz0 = Math.fround(sampleHeightAtDpr(height, px, py, ctx.dpr));
+  // Inclusive pixel-center rectangle in LOGICAL scene units: render texel
+  // (tx, ty) spans logical [(tx + 0.5) / dpr, (tx + 1.5) / dpr), so the
+  // rectangle runs from the first texel center `0.5 / dpr` to the LAST
+  // texel center `(extent - 0.5) / dpr` (mirrors the WGSL bound exactly).
+  // At dpr 1 this is the historical [0.5, width - 0.5] texel-center range.
+  const left = 0.5 / ctx.dpr;
+  const right = (width - 0.5) / ctx.dpr;
+  const top = 0.5 / ctx.dpr;
+  const bottom = (h - 0.5) / ctx.dpr;
+  // Explicit f32-multiple march series (see the module doc): t = fround(k *
+  // stepSize), the exact series the GPU shadow shader marches; the count is
+  // floor(maxDistance / stepSize), matching the shadow pass stepCount.
+  const stepCount = Math.floor(ctx.maxDistance / ctx.stepSize);
+  for (let k = 1; k <= stepCount; k++) {
+    const t = Math.fround(k * ctx.stepSize);
     const sx = px + ctx.lx * t;
     const sy = py + ctx.ly * t;
-    if (sx < 0.5 || sx > width - 0.5 || sy < 0.5 || sy > h - 0.5) {
+    if (sx < left || sx > right || sy < top || sy > bottom) {
       break;
     }
     const rayZ = Math.fround(rz0 + ctx.lz * t);
     if (rayZ > ctx.maxHeight + ctx.bias) {
       break;
     }
-    const sample = Math.fround(sampleHeightAt(ctx.sampleHeight, sx, sy));
+    const sample = Math.fround(sampleHeightAtDpr(ctx.sampleHeight, sx, sy, ctx.dpr));
     if (sample > Math.fround(rayZ + ctx.bias)) {
       return true;
     }
@@ -237,24 +325,30 @@ function traceWithContext(
   py: number,
 ): ShadowRayResult {
   const { width, height: h } = height.spec;
-  const rz0 = Math.fround(sampleHeightAt(height, px, py));
+  const rz0 = Math.fround(sampleHeightAtDpr(height, px, py, ctx.dpr));
+  const left = 0.5 / ctx.dpr;
+  const right = (width - 0.5) / ctx.dpr;
+  const top = 0.5 / ctx.dpr;
+  const bottom = (h - 0.5) / ctx.dpr;
   let lastT = 0;
   let lastX = px;
   let lastY = py;
   let lastSample = rz0;
   let lastRayZ = rz0;
   let occluded = false;
-  for (let t = ctx.stepSize; t <= ctx.maxDistance; t += ctx.stepSize) {
+  const stepCount = Math.floor(ctx.maxDistance / ctx.stepSize);
+  for (let k = 1; k <= stepCount; k++) {
+    const t = Math.fround(k * ctx.stepSize);
     const sx = px + ctx.lx * t;
     const sy = py + ctx.ly * t;
-    if (sx < 0.5 || sx > width - 0.5 || sy < 0.5 || sy > h - 0.5) {
+    if (sx < left || sx > right || sy < top || sy > bottom) {
       break;
     }
     const rayZ = Math.fround(rz0 + ctx.lz * t);
     if (rayZ > ctx.maxHeight + ctx.bias) {
       break;
     }
-    const sample = Math.fround(sampleHeightAt(ctx.sampleHeight, sx, sy));
+    const sample = Math.fround(sampleHeightAtDpr(ctx.sampleHeight, sx, sy, ctx.dpr));
     lastT = t;
     lastX = sx;
     lastY = sy;
@@ -286,19 +380,25 @@ function marchWithContext(
   py: number,
 ): ShadowMarchSample[] {
   const { width, height: h } = height.spec;
-  const rz0 = Math.fround(sampleHeightAt(height, px, py));
+  const rz0 = Math.fround(sampleHeightAtDpr(height, px, py, ctx.dpr));
+  const left = 0.5 / ctx.dpr;
+  const right = (width - 0.5) / ctx.dpr;
+  const top = 0.5 / ctx.dpr;
+  const bottom = (h - 0.5) / ctx.dpr;
   const samples: ShadowMarchSample[] = [];
-  for (let t = ctx.stepSize; t <= ctx.maxDistance; t += ctx.stepSize) {
+  const stepCount = Math.floor(ctx.maxDistance / ctx.stepSize);
+  for (let k = 1; k <= stepCount; k++) {
+    const t = Math.fround(k * ctx.stepSize);
     const sx = px + ctx.lx * t;
     const sy = py + ctx.ly * t;
-    if (sx < 0.5 || sx > width - 0.5 || sy < 0.5 || sy > h - 0.5) {
+    if (sx < left || sx > right || sy < top || sy > bottom) {
       break;
     }
     const rayZ = Math.fround(rz0 + ctx.lz * t);
     if (rayZ > ctx.maxHeight + ctx.bias) {
       break;
     }
-    const sample = Math.fround(sampleHeightAt(ctx.sampleHeight, sx, sy));
+    const sample = Math.fround(sampleHeightAtDpr(ctx.sampleHeight, sx, sy, ctx.dpr));
     const occluded = sample > Math.fround(rayZ + ctx.bias);
     samples.push({ t, sampleX: sx, sampleY: sy, height: sample, rayZ, occluded });
     if (occluded) {
@@ -352,16 +452,21 @@ export function computeVisibility(
   const out = new HostBuffer(VISIBILITY_SPEC(width, h));
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < width; x++) {
+      // DPR-aware sampling (#27): texel (x, y) samples the logical scene
+      // position ((x + 0.5) / dpr, (y + 0.5) / dpr); at dpr 1 this is the
+      // historical pixel-center convention.
+      const px = (x + 0.5) / ctx.dpr;
+      const py = (y + 0.5) / ctx.dpr;
       let vis = 1;
       if (ctx.objectId !== null) {
         const ownOwner = ctx.objectId.get(x, y, 0);
         const receives = ownOwner === NO_OWNER
           ? true
           : (scene.surfaces[ownOwner]?.receivesShadow ?? true);
-        if (receives && isOccludedWithContext(ctx, height, x + 0.5, y + 0.5)) {
+        if (receives && isOccludedWithContext(ctx, height, px, py)) {
           vis = 0;
         }
-      } else if (isOccludedWithContext(ctx, height, x + 0.5, y + 0.5)) {
+      } else if (isOccludedWithContext(ctx, height, px, py)) {
         vis = 0;
       }
       out.set(x, y, 0, vis);
@@ -383,10 +488,33 @@ function sceneMaxHeight(height: HostBuffer): number {
   return max;
 }
 
-function sanitizeStrictPositive(v: number | undefined, fallback: number): number {
-  return typeof v === "number" && Number.isFinite(v) && v > 0 ? v : fallback;
+/**
+ * f32-packed strict-positive sanitizer: accepts only values whose f32
+ * rounding is finite and strictly positive (mirrors the #27 shadow pass
+ * sanitizer, so the CPU reference uses the exact values the GPU packs).
+ */
+function sanitizeF32StrictPositive(v: number | undefined, fallback: number): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) {
+    return fallback;
+  }
+  const rounded = Math.fround(v);
+  return Number.isFinite(rounded) && rounded > 0 ? rounded : fallback;
 }
 
-function sanitizeNonNegative(v: number | undefined, fallback: number): number {
-  return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : fallback;
+function shadowStepCount(maxDistance: number, stepSize: number): number {
+  const quotient = maxDistance / stepSize;
+  if (!Number.isFinite(quotient) || quotient <= 0) {
+    return MAX_CPU_SHADOW_STEP_COUNT + 1;
+  }
+  const count = Math.floor(quotient);
+  return Number.isSafeInteger(count) ? count : MAX_CPU_SHADOW_STEP_COUNT + 1;
+}
+
+/** f32-packed non-negative sanitizer (bias/dpr-like options). */
+function sanitizeF32NonNegative(v: number | undefined, fallback: number): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) {
+    return fallback;
+  }
+  const rounded = Math.fround(v);
+  return Number.isFinite(rounded) && rounded >= 0 ? rounded : fallback;
 }
