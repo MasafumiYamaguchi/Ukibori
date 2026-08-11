@@ -1,13 +1,14 @@
 {
-  "brief": "ISSUE_29_IMPLEMENTATION_BRIEF.md",
-  "checkpoint": "ISSUE-29",
+  "brief": "ISSUE_30_IMPLEMENTATION_BRIEF.md",
+  "checkpoint": "ISSUE-30",
   "maxIterations": 5,
   "model": "opencode-go/deepseek-v4-flash",
   "variant": "max",
   "implementationTimeoutMs": 2700000,
   "reviewTimeoutMs": 900000,
   "reviewPaths": [
-    "ISSUE_29_IMPLEMENTATION_BRIEF.md",
+    "ISSUE_30_IMPLEMENTATION_BRIEF.md",
+    ".github/workflows",
     "package.json",
     "package-lock.json",
     "packages/renderer/src/backend",
