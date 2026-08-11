@@ -217,3 +217,39 @@ order; resize/loss/disposal behavior; full-chain orchestration; real-adapter
 fixture and RGBA mismatch totals; presentation-only and full-chain benchmark
 medians; test totals; and work consciously deferred to #30/#31. Do not
 commit, push, reset, clean or discard changes. Stop for Codex review.
+
+## Supervisor feedback after the timed-out first implementation attempt
+
+Continue from the existing files; do not restart or discard useful production
+code. The next attempt must address these concrete findings:
+
+1. `npm test -w ukibori-renderer -- --run` currently has 42 failures. Nearly
+   all new presentation/pipeline tests build real Height/Normal/Shadow/Lighting
+   snapshots, but their command-encoder mocks throw from `beginComputePass()`.
+   Reuse the proven compute-pass mock behavior from the existing pass tests (a
+   pass encoder with `setPipeline`, `setBindGroup`, `dispatchWorkgroups`, and
+   `end`) instead of an `"unused"` throwing stub. Do not weaken production
+   assertions to make a broken mock pass.
+2. Fix the incorrect sanitizer expectation `[255, 256, 0]`; the documented
+   byte contract clamps the second channel to 255.
+3. Do not call a fabricated `GPUCanvasContext.getPreferredFormat()` method.
+   Real WebGPU obtains the browser-preferred format from
+   `navigator.gpu.getPreferredCanvasFormat()`. Keep the production class
+   testable by accepting an already-resolved `rgba8unorm`/`bgra8unorm` format
+   at the real API boundary (constructor or present input), then validate it.
+4. Canvas configuration reuse must include context identity, not only a string
+   format/debug key. A different context must never skip `configure()` because
+   it happens to use the same format. Either bind a `PresentationPass` to one
+   context or explicitly unconfigure/reconfigure on context change.
+5. `GpuScenePipeline` must resize the same backing-store object exposed by the
+   presentation context. Reject mismatched canvas/context ownership early or
+   remove the redundant independent canvas parameter; do not silently resize
+   one object and validate another.
+6. Complete the real-browser harness required by this issue: WebGPU canvas
+   presentation parity for opaque surface, transparent lit background,
+   translucent shadow, clipping, resize and DPR, plus separately reported
+   presentation-only timing. Production remains readback-free; only the
+   harness configuration may add `COPY_SRC`.
+7. Run the full configured verification without piping through `head` (which
+   can hide the real exit code). Do not report completion until typecheck,
+   tests, build, and the real-WebGPU harness all pass.

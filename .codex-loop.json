@@ -4,7 +4,7 @@
   "maxIterations": 5,
   "model": "opencode-go/deepseek-v4-flash",
   "variant": "max",
-  "implementationTimeoutMs": 1800000,
+  "implementationTimeoutMs": 2700000,
   "reviewTimeoutMs": 900000,
   "reviewPaths": [
     "ISSUE_29_IMPLEMENTATION_BRIEF.md",

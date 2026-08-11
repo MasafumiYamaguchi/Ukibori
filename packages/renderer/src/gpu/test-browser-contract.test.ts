@@ -44,11 +44,12 @@ describe("parity.mjs — fixture failure accounting (no false PASS)", () => {
 
   it("pops the validation error scope exactly once per fixture (no double-pop)", () => {
     // count the actual call syntax so the doc comment mentioning the method
-    // name does not count as an occurrence
+    // name does not count as an occurrence; both fixture runners (compute
+    // chain and #29 presentation) push and pop exactly one scope per fixture
     const pushes = paritySource.split("device.pushErrorScope(").length - 1;
     const pops = paritySource.split("device.popErrorScope(").length - 1;
-    expect(pushes).toBe(1);
-    expect(pops).toBe(1);
+    expect(pushes).toBe(2);
+    expect(pops).toBe(2);
   });
 
   it("counts execution failures and FAILs the final marker when any exist", () => {
@@ -229,6 +230,104 @@ describe("parity.mjs — checkShaders fails on ANY compilation message", () => {
     expect(shaderFail).toBeGreaterThan(-1);
     expect(passIndex).toBeGreaterThan(-1);
     expect(shaderFail).toBeLessThan(passIndex);
+  });
+});
+
+describe("parity.mjs — #29 GPU canvas presentation", () => {
+  it("runs the full public GpuScenePipeline into a real GPUCanvasContext", () => {
+    expect(paritySource).toContain("GpuScenePipeline,");
+    expect(paritySource).toContain('canvas.getContext("webgpu")');
+    expect(paritySource).toContain("new GpuScenePipeline(device, context, canvasFormat)");
+    expect(paritySource).toContain("PRESENTATION_PASS_WGSL,");
+    expect(paritySource).toContain("compositePixelBytes,");
+    expect(paritySource).toContain("compositeShadowPremultipliedBytes,");
+    expect(paritySource).toContain("debugReadback: true");
+  });
+
+  it("resolves the canvas format once at the real API boundary (no fabricated method)", () => {
+    expect(paritySource).toContain("navigator.gpu.getPreferredCanvasFormat()");
+    // the production modules must never call navigator.gpu or a fabricated
+    // context method; only the harness resolves the browser-preferred format
+    expect(paritySource).toContain(
+      "// resolved ONCE at the real API boundary, exactly like the #29 contract",
+    );
+  });
+
+  it("pins the required #29 presentation fixture set (brief fixture list)", () => {
+    for (const name of [
+      "present-silicone-opaque",
+      "present-matte-opaque",
+      "present-metal-opaque",
+      "present-lit-background",
+      "present-shadow-default",
+      "present-shadow-custom-tint-alpha",
+      "present-shadow-alpha-0",
+      "present-shadow-alpha-1",
+      "present-overlap-ownership",
+      "present-clipped-offscreen",
+      "present-empty-scene",
+      "present-frac-dpr1",
+      "present-frac-dpr1.5",
+      "present-frac-dpr2",
+      "present-two-resizes",
+      "present-light-change",
+      "present-env-exposure-change",
+    ]) {
+      expect(paritySource).toContain(`name: "${name}"`);
+    }
+    expect(paritySource).toContain("renders: [");
+  });
+
+  it("runs the test-only padded canvas readback only after the presentation submission", () => {
+    // padded staging: bytesPerRow rounded up to 256
+    expect(paritySource).toContain("const bytesPerRow = Math.ceil((width * 4) / 256) * 256;");
+    expect(paritySource).toContain("GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST");
+    expect(paritySource).toContain("encoder.copyTextureToBuffer(");
+    // the readback is a harness-only path: it must live in parity.mjs and
+    // never in the production modules (pinned by presentation-pass.test.ts)
+    expect(paritySource).toContain("ukibori-test-present-staging");
+  });
+
+  it("normalizes BGRA canvas bytes into RGBA for the comparison", () => {
+    expect(paritySource).toContain("if (canvasFormat !== \"bgra8unorm\") {");
+    expect(paritySource).toContain("out[p + 2]");
+  });
+
+  it("requires exact alpha and the documented at-most-one-channel-by-one canvas policy", () => {
+    const compareStart = paritySource.indexOf("function compareCanvas(");
+    const compareEnd = paritySource.indexOf("return { hard, alphaBad, maxDelta, samples };", compareStart);
+    const compareFn = paritySource.slice(compareStart, compareEnd);
+    expect(compareStart).toBeGreaterThan(-1);
+    expect(compareEnd).toBeGreaterThan(compareStart);
+    expect(compareFn).toContain("Math.abs(gpu[i + 3] - reference[i + 3]) > 0");
+    expect(compareFn).toContain("if (maxd > 1 || diffs > 1 || alpha) {");
+  });
+
+  it("reports the presentation benchmark separately from the compute-chain benchmark", () => {
+    expect(paritySource).toContain("const PRESENT_BENCHMARK_WARMUP = 5;");
+    expect(paritySource).toContain("const PRESENT_BENCHMARK_SAMPLES = 10;");
+    expect(paritySource).toContain("present-only median");
+    expect(paritySource).toContain("(full compute-chain median reported separately)");
+    expect(paritySource).toContain("pipeline.present();");
+    expect(paritySource).toContain("await device.queue.onSubmittedWorkDone();");
+  });
+
+  it("FAILs the run on presentation mismatches and on benchmark scene mismatches", () => {
+    expect(paritySource).toContain(
+      "presentation canvas mismatches: ${totalPresentHard} hard texels",
+    );
+    expect(paritySource).toContain("presentation fixture execution failures");
+    const failIndex = paritySource.indexOf("if (totalPresentHard > 0) {");
+    const passIndex = paritySource.lastIndexOf("MARKER_PASS,");
+    expect(failIndex).toBeGreaterThan(-1);
+    expect(failIndex).toBeLessThan(passIndex);
+    expect(paritySource).toContain(
+      "presentation benchmark scene canvas mismatches",
+    );
+  });
+
+  it("checks the presentation shader module for compilation with zero messages", () => {
+    expect(paritySource).toContain('["PRESENTATION_PASS_WGSL", PRESENTATION_PASS_WGSL],');
   });
 });
 

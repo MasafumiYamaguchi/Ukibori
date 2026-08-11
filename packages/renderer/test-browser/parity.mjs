@@ -121,6 +121,13 @@ const LIGHTING_F32_TOLERANCE = 1e-3;
 // (scene intensity/environment/exposure at F32_MAX must saturate to white
 // with finite deterministic outputs on both sides).
 const F32_MAX_LIGHTING = 3.4028234663852886e38;
+// #29 presentation: the presentation-only benchmark reuses the documented
+// demo-frame proxy extent with its own warmup/sample counts and is reported
+// SEPARATELY from the full compute-chain benchmark. The canvas comparison
+// uses the documented at-most-one-channel-by-one policy with EXACT alpha
+// (premultiplied canvas) and reports per-channel maxima.
+const PRESENT_BENCHMARK_WARMUP = 5;
+const PRESENT_BENCHMARK_SAMPLES = 10;
 
 const {
   createScene,
@@ -159,6 +166,10 @@ const {
   NORMAL_PASS_WGSL,
   SHADOW_PASS_WGSL,
   LIGHTING_PASS_WGSL,
+  GpuScenePipeline,
+  PRESENTATION_PASS_WGSL,
+  compositePixelBytes,
+  compositeShadowPremultipliedBytes,
 } = await import("./index.js");
 
 const detail = [];
@@ -2078,6 +2089,7 @@ async function checkShaders(device) {
     ["NORMAL_PASS_WGSL", NORMAL_PASS_WGSL],
     ["SHADOW_PASS_WGSL", SHADOW_PASS_WGSL],
     ["LIGHTING_PASS_WGSL", LIGHTING_PASS_WGSL],
+    ["PRESENTATION_PASS_WGSL", PRESENTATION_PASS_WGSL],
   ]) {
     const module = device.createShaderModule({ code, label });
     const info = await module.getCompilationInfo();
@@ -2108,13 +2120,19 @@ function median(samples) {
  * the speedup; requires a material >= BENCHMARK_MIN_SPEEDUP improvement and
  * otherwise reports the measured blocker.
  */
-async function runBenchmark(device) {
+/**
+ * The shared 640x360 demo-frame proxy scene (the #27/#29 benchmark scene):
+ * a full-panel receiver plus rounded/bevel/mask casters with shadows
+ * falling on the panel AND the NO_OWNER base plane (opaque surface,
+ * transparent lit background and translucent shadow texels all present).
+ */
+function benchmarkProxyScene() {
   const glyph = {
     width: 6,
     height: 6,
     alpha: new Uint8Array(36).fill(255),
   };
-  const scene = createScene({
+  return createScene({
     width: BENCHMARK_WIDTH,
     height: BENCHMARK_HEIGHT,
     surfaces: [
@@ -2171,6 +2189,10 @@ async function runBenchmark(device) {
     ],
     light: { direction: LIGHT_FROM_RIGHT, intensity: 1 },
   });
+}
+
+async function runBenchmark(device) {
+  const scene = benchmarkProxyScene();
   const options = {};
 
   // CPU side (like-for-like stage set: height + caster composition +
@@ -2335,6 +2357,421 @@ async function runBenchmark(device) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// #29 presentation parity: the full GpuScenePipeline into a REAL
+// GPUCanvasContext. The production path stays readback-free; ONLY this
+// harness configures the current canvas texture with COPY_SRC (via the
+// test-only `debugReadback` flag) and copies it to a padded staging buffer
+// after the presentation submission.
+// ---------------------------------------------------------------------------
+
+/**
+ * TEST-ONLY canvas readback. The current texture is captured synchronously
+ * in the same task as the presentation submission, then copied directly to
+ * a padded staging buffer. Production never enables COPY_SRC or reads back.
+ */
+async function presentReadback(device, context, width, height, _format, capturedTexture = null) {
+  const canvasTexture = capturedTexture ?? context.getCurrentTexture();
+  const bytesPerRow = Math.ceil((width * 4) / 256) * 256;
+  const staging = device.createBuffer({
+    size: bytesPerRow * height,
+    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+    label: "ukibori-test-present-staging",
+  });
+  try {
+    const encoder = device.createCommandEncoder({ label: "ukibori-test-present-readback" });
+    encoder.copyTextureToBuffer(
+      { texture: canvasTexture, mipLevel: 0, origin: { x: 0, y: 0 } },
+      { buffer: staging, bytesPerRow, rowsPerImage: height },
+      { width, height, depthOrArrayLayers: 1 },
+    );
+    device.queue.submit([encoder.finish()]);
+    await staging.mapAsync(GPUMapMode.READ);
+    const mapped = new Uint8Array(staging.getMappedRange().slice()); // detach before unmap
+    staging.unmap();
+    const rows = new Uint8Array(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      rows.set(mapped.subarray(y * bytesPerRow, y * bytesPerRow + width * 4), y * width * 4);
+    }
+    return rows;
+  } finally {
+    staging.destroy();
+  }
+}
+
+/**
+ * Normalize the canvas readback into R,G,B,A byte order: the canvas may be
+ * `bgra8unorm` (the browser-preferred format on most platforms), in which
+ * case the attachment format swizzle is handled by WebGPU and the raw
+ * bytes come back B,G,R,A. The production shader always returns logical
+ * RGBA; this normalization makes the comparison independent of the
+ * selected 8-bit canvas format.
+ */
+function normalizeCanvasBytes(bytes, canvasFormat, width, height) {
+  if (canvasFormat !== "bgra8unorm") {
+    return bytes;
+  }
+  const out = new Uint8Array(bytes);
+  for (let g = 0; g < width * height; g++) {
+    const p = g * 4;
+    const r = out[p];
+    out[p] = out[p + 2];
+    out[p + 2] = r;
+  }
+  return out;
+}
+
+/**
+ * CPU reference for the presented canvas: the actual shared compositor
+ * semantics (`compositePixelBytes` — the DOM path's exact per-texel
+ * decision — with `compositeShadowPremultipliedBytes` as the premultiplied
+ * shadow form the `alphaMode: "premultiplied"` canvas receives), composed
+ * from the CPU oracle fields (objectId / visibility / shadePreparedFields
+ * RGBA8). No second formula copy: every value comes from the shared
+ * helpers or the existing oracle functions.
+ */
+function presentationReference(scene, dpr, effectiveShadowOptions, ambient, compositeOptions) {
+  const oracle = cpuOracle(scene, dpr);
+  const casterOracle = cpuCasterOracle(scene, dpr);
+  const normal = normalOracle(
+    oracle.height,
+    oracle.rw,
+    oracle.rh,
+    sanitizeNormalOptions(DPR_NORMAL_OPTIONS[dpr] ?? {}),
+  );
+  const visibility = stableShadowOracle(
+    scene,
+    oracle.rw,
+    oracle.rh,
+    oracle.height,
+    casterOracle.height,
+    oracle.objectId,
+    dpr,
+    effectiveShadowOptions,
+  );
+  const lighting = lightingOracleCPU(
+    scene,
+    oracle.rw,
+    oracle.rh,
+    normal,
+    oracle.objectId,
+    visibility,
+    { ambient },
+  );
+  const ref = new Uint8Array(oracle.rw * oracle.rh * 4);
+  for (let g = 0; g < oracle.rw * oracle.rh; g++) {
+    const i = g * 4;
+    const owner = oracle.objectId[g];
+    // the shared DOM-compositor decision (opaque surface / transparent lit
+    // base plane / translucent shadow tint)
+    const decision = compositePixelBytes(
+      owner,
+      lighting.color[i],
+      lighting.color[i + 1],
+      lighting.color[i + 2],
+      visibility[g],
+      compositeOptions,
+    );
+    // the canvas is premultiplied: only the shadow texel's RGB is
+    // premultiplied (the shared premultiplied helper); surface (alpha 1)
+    // and transparent (0,0,0,0) texels are unchanged by premultiplication
+    let px = decision;
+    if (owner === NO_OWNER && visibility[g] < 0.5) {
+      px = compositeShadowPremultipliedBytes(compositeOptions);
+    }
+    ref.set(px, i);
+  }
+  return { ref, texels: oracle.rw * oracle.rh, rw: oracle.rw, rh: oracle.rh };
+}
+
+/**
+ * #29 canvas comparison: exact alpha and byte order (premultiplied RGBA8),
+ * with the documented at-most-one-channel-by-one policy (the GPU storage
+ * bytes -> f32 -> unorm round trip can flip one channel by one 8-bit step)
+ * and per-channel maxima always reported.
+ */
+function compareCanvas(name, reference, gpu, width) {
+  const texels = reference.length / 4;
+  let hard = 0;
+  let alphaBad = 0;
+  const maxDelta = [0, 0, 0, 0];
+  const samples = [];
+  for (let g = 0; g < texels; g++) {
+    const i = g * 4;
+    let diffs = 0;
+    let maxd = 0;
+    for (let ch = 0; ch < 4; ch++) {
+      const d = Math.abs(gpu[i + ch] - reference[i + ch]);
+      maxDelta[ch] = Math.max(maxDelta[ch], d);
+      maxd = Math.max(maxd, d);
+      if (d > 0) {
+        diffs += 1;
+      }
+    }
+    const alpha = Math.abs(gpu[i + 3] - reference[i + 3]) > 0;
+    if (maxd > 1 || diffs > 1 || alpha) {
+      hard += 1;
+      if (alpha) {
+        alphaBad += 1;
+      }
+      if (samples.length < 8) {
+        const tx = g % width;
+        const ty = Math.floor(g / width);
+        samples.push(
+          `${name} texel(${tx},${ty}): gpu (${gpu[i]},${gpu[i + 1]},${gpu[i + 2]},${gpu[i + 3]}) ` +
+            `oracle (${reference[i]},${reference[i + 1]},${reference[i + 2]},${reference[i + 3]})`,
+        );
+      }
+    }
+  }
+  return { hard, alphaBad, maxDelta, samples };
+}
+
+// ---------------------------------------------------------------------------
+// #29 presentation fixtures: the full public GpuScenePipeline into a real
+// GPUCanvasContext, compared against the CPU reference composition.
+// ---------------------------------------------------------------------------
+
+const PRESENTATION_FIXTURES = [
+  // opaque silicone/matte/metal surfaces and lit base-plane transparency
+  { name: "present-silicone-opaque", scene: lightingPanel("silicone"), dpr: 1 },
+  { name: "present-matte-opaque", scene: lightingPanel("matte"), dpr: 1 },
+  { name: "present-metal-opaque", scene: lightingPanel("metal"), dpr: 1 },
+  // vertical light: no shadow anywhere, the base plane is transparent
+  { name: "present-lit-background", scene: twoLevelScene(LIGHT_VERTICAL).scene, dpr: 1 },
+  // shadowed and lit background, custom shadow tint/alpha, alpha 0 and 1
+  { name: "present-shadow-default", scene: twoLevelScene(LIGHT_FROM_RIGHT).scene, dpr: 1 },
+  {
+    name: "present-shadow-custom-tint-alpha",
+    scene: twoLevelScene(LIGHT_FROM_RIGHT).scene,
+    dpr: 1,
+    compositeOptions: { shadowColor: [200, 40, 220], shadowAlpha: 0.6 },
+  },
+  {
+    name: "present-shadow-alpha-0",
+    scene: twoLevelScene(LIGHT_FROM_RIGHT).scene,
+    dpr: 1,
+    compositeOptions: { shadowAlpha: 0 },
+  },
+  {
+    name: "present-shadow-alpha-1",
+    scene: twoLevelScene(LIGHT_FROM_RIGHT).scene,
+    dpr: 1,
+    compositeOptions: { shadowAlpha: 1 },
+  },
+  // overlap/ownership, clipped/offscreen surfaces and empty scene behavior
+  { name: "present-overlap-ownership", scene: tieOverlapScene().scene, dpr: 1 },
+  { name: "present-clipped-offscreen", scene: clipScene(), dpr: 1 },
+  { name: "present-empty-scene", scene: emptyScene(), dpr: 1 },
+  // DPR 1 / 1.5 / 2 and fractional floor render extents (13x9 logical)
+  { name: "present-frac-dpr1", scene: fracShadowScene().scene, dpr: 1 },
+  {
+    name: "present-frac-dpr1.5",
+    scene: fracShadowScene().scene,
+    dpr: 1.5,
+    normalOptions: DPR_NORMAL_OPTIONS[1.5],
+  },
+  {
+    name: "present-frac-dpr2",
+    scene: fracShadowScene().scene,
+    dpr: 2,
+    normalOptions: DPR_NORMAL_OPTIONS[2],
+  },
+  // two backing-store resizes on the SAME presenter (32x32 -> 16x16 ->
+  // 32x32), each frame compared
+  {
+    name: "present-two-resizes",
+    renders: [
+      { scene: lightingPanel("silicone"), dpr: 1 },
+      { scene: twoLevelScene(LIGHT_FROM_RIGHT).scene, dpr: 1 },
+      { scene: lightingPanel("silicone"), dpr: 1 },
+    ],
+  },
+  // light/environment/exposure changes without stale presentation
+  // dimensions (the same 32x32 presenter every frame)
+  { name: "present-light-change", scene: lightingPanel("silicone", LIGHT_FROM_LEFT), dpr: 1 },
+  {
+    name: "present-env-exposure-change",
+    scene: withEnv(withExposure(lightingPanel("silicone"), 4), 1, 0.25, 0.75),
+    dpr: 1,
+  },
+];
+
+/**
+ * Run one presentation fixture: a fresh canvas/context + GpuScenePipeline,
+ * render every requested frame (the canvas backing store is resized by the
+ * pipeline itself), read back the presented canvas through a TEST-ONLY
+ * padded staging copy, and compare against the CPU reference composition.
+ * Exactly one error scope is pushed and popped per fixture; disposal never
+ * masks the outcome.
+ */
+async function runPresentationFixture(device, fixture) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 0;
+  canvas.height = 0;
+  document.body.appendChild(canvas);
+  const context = canvas.getContext("webgpu");
+  // resolved ONCE at the real API boundary, exactly like the #29 contract
+  const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+  let pipeline = null;
+  let compared = null;
+  let failure = null;
+  device.pushErrorScope("validation");
+  try {
+    const frames = fixture.renders ?? [
+      {
+        scene: fixture.scene,
+        dpr: fixture.dpr,
+        compositeOptions: fixture.compositeOptions,
+        normalOptions: fixture.normalOptions,
+      },
+    ];
+    pipeline = new GpuScenePipeline(device, context, canvasFormat);
+    compared = [];
+    for (const frame of frames) {
+      pipeline.render({
+        scene: frame.scene,
+        dpr: frame.dpr,
+        normalOptions: frame.normalOptions,
+        compositeOptions: frame.compositeOptions,
+        debugReadback: true,
+      });
+      // capture the current canvas texture SYNCHRONOUSLY (same task as the
+      // presentation submission) — the queue orders the test-only blit
+      // after the presentation work, so the captured texture always holds
+      // the presented frame
+      const captured = context.getCurrentTexture();
+      const snapshot = pipeline.getSnapshot();
+      const width = snapshot.width;
+      const height = snapshot.height;
+      const raw = await presentReadback(device, context, width, height, canvasFormat, captured);
+      const gpu = normalizeCanvasBytes(raw, canvasFormat, width, height);
+      const oracle = presentationReference(
+        frame.scene,
+        frame.dpr,
+        snapshot.shadowPass.options,
+        snapshot.lightingPass.ambient,
+        frame.compositeOptions,
+      );
+      const compare = compareCanvas(fixture.name, oracle.ref, gpu, width);
+      compared.push({ width, height, texels: oracle.texels, compare });
+      if (fixture.probe) {
+        const current = context.getCurrentTexture();
+        detail.push(
+          `  presentation probe: canvas ${snapshot.width}x${snapshot.height} dpr ${snapshot.dpr} ` +
+            `format ${canvasFormat} alphaMode=${snapshot.presentationPass.alphaMode} ` +
+            `colorSpace=${snapshot.presentationPass.colorSpace} ` +
+            `composite=${JSON.stringify(snapshot.presentationPass.composite)} ` +
+            `configGeneration=${snapshot.presentationPass.configurationGeneration} ` +
+            `workSubmitted=${snapshot.presentationPass.workSubmitted} ` +
+            `currentTexture.usage=0x${current.usage.toString(16)} ` +
+            `width=${current.width} height=${current.height}`,
+        );
+      }
+    }
+  } catch (error) {
+    failure = String(error?.stack ?? error);
+  }
+  const scopedError = await device.popErrorScope().catch(() => null);
+  if (scopedError !== null) {
+    detail.push(`fixture ${fixture.name} validation error: ${scopedError.message}`);
+  }
+  try {
+    pipeline?.dispose();
+    canvas.remove();
+  } catch {
+    // disposal must never mask the fixture outcome
+  }
+  if (failure !== null) {
+    return { name: fixture.name, error: failure };
+  }
+  if (scopedError !== null) {
+    return { name: fixture.name, error: `validation: ${scopedError.message}` };
+  }
+  if (compared === null || compared.length === 0) {
+    return { name: fixture.name, error: "no frames compared" };
+  }
+  return {
+    name: fixture.name,
+    canvasFormat,
+    compared,
+    texels: compared.reduce((sum, frame) => sum + frame.texels, 0),
+  };
+}
+
+/**
+ * #29 presentation-only benchmark at the documented demo-frame proxy extent
+ * (640x360): the full chain runs ONCE (upload + compute outside the
+ * timing), then the timed samples re-present the last frame — timed from
+ * the render-pass encoding through `queue.onSubmittedWorkDone()`, excluding
+ * compute, scene upload and test readback. Reported SEPARATELY from the
+ * full compute-chain benchmark. The final presented frame is verified
+ * against the CPU reference (outside the timings).
+ */
+async function runPresentationBenchmark(device) {
+  const scene = benchmarkProxyScene();
+  const canvas = document.createElement("canvas");
+  canvas.width = 0;
+  canvas.height = 0;
+  document.body.appendChild(canvas);
+  const context = canvas.getContext("webgpu");
+  const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+  const pipeline = new GpuScenePipeline(device, context, canvasFormat);
+  try {
+    pipeline.render({ scene, dpr: 1, debugReadback: true });
+    await device.queue.onSubmittedWorkDone();
+    let finalTexture = null;
+    const sample = async () => {
+      const t0 = performance.now();
+      pipeline.present();
+      // capture synchronously (same task as the submission) so the final
+      // parity readback can read the presented texture
+      finalTexture = context.getCurrentTexture();
+      await device.queue.onSubmittedWorkDone();
+      return performance.now() - t0;
+    };
+    for (let i = 0; i < PRESENT_BENCHMARK_WARMUP; i++) {
+      await sample(); // warm the cached pipeline/allocations before timing
+    }
+    const samples = [];
+    for (let i = 0; i < PRESENT_BENCHMARK_SAMPLES; i++) {
+      samples.push(await sample());
+    }
+    const presentMedian = median(samples);
+    // verify the last presented frame (outside both timings and the readback)
+    const snapshot = pipeline.getSnapshot();
+    const raw = await presentReadback(
+      device,
+      context,
+      snapshot.width,
+      snapshot.height,
+      canvasFormat,
+      finalTexture,
+    );
+    const gpu = normalizeCanvasBytes(raw, canvasFormat, snapshot.width, snapshot.height);
+    const oracle = presentationReference(
+      scene,
+      1,
+      snapshot.shadowPass.options,
+      snapshot.lightingPass.ambient,
+      undefined,
+    );
+    const parity = compareCanvas("presentation-benchmark", oracle.ref, gpu, snapshot.width);
+    return {
+      presentMedian,
+      warmups: PRESENT_BENCHMARK_WARMUP,
+      samples: PRESENT_BENCHMARK_SAMPLES,
+      width: BENCHMARK_WIDTH,
+      height: BENCHMARK_HEIGHT,
+      texels: oracle.texels,
+      parity,
+    };
+  } finally {
+    pipeline.dispose();
+    canvas.remove();
+  }
+}
+
 async function main() {
   try {
     if (typeof navigator === "undefined" || navigator.gpu === undefined) {
@@ -2370,6 +2807,27 @@ async function main() {
     } catch (error) {
       benchmarkFailure = String(error?.stack ?? error);
     }
+    // #29 presentation: the full public GpuScenePipeline into a real
+    // GPUCanvasContext (opaque surfaces, lit transparency, translucent
+    // shadows, overlap/clipping/empty, DPR 1/1.5/2, two resizes on one
+    // presenter, light/environment/exposure changes and the separate
+    // presentation-only benchmark).
+    const presentationResults = [];
+    for (let i = 0; i < PRESENTATION_FIXTURES.length; i++) {
+      const fixture = { ...PRESENTATION_FIXTURES[i], probe: i === 0 };
+      try {
+        presentationResults.push(await runPresentationFixture(device, fixture));
+      } catch (error) {
+        presentationResults.push({ name: fixture.name, error: String(error?.stack ?? error) });
+      }
+    }
+    let presentationBenchmark = null;
+    let presentationBenchmarkFailure = null;
+    try {
+      presentationBenchmark = await runPresentationBenchmark(device);
+    } catch (error) {
+      presentationBenchmarkFailure = String(error?.stack ?? error);
+    }
     // drain async device errors before destroying the device
     await device.queue.onSubmittedWorkDone().catch(() => undefined);
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
@@ -2402,6 +2860,12 @@ async function main() {
     let totalMutationMismatches = 0;
     const colorMaxDelta = [0, 0, 0, 0];
     let executionFailures = 0;
+    // #29 presentation totals (canvas bytes, exact alpha, normalized to RGBA)
+    let totalPresentTexels = 0;
+    let totalPresentHard = 0;
+    let totalPresentAlphaBad = 0;
+    const presentMaxDelta = [0, 0, 0, 0];
+    let presentationExecutionFailures = 0;
     for (const result of fixtureResults) {
       totalTexels += result.texels ?? 0;
       totalMismatches += result.mismatches ?? 0;
@@ -2493,6 +2957,57 @@ async function main() {
       for (const sample of result.lighting?.mutation?.samples ?? []) {
         detail.push("  " + sample);
       }
+    }
+    for (const result of presentationResults) {
+      if (result.error !== undefined) {
+        presentationExecutionFailures += 1;
+        detail.push(`presentation fixture ${result.name}: FAIL (threw: ${result.error})`);
+        continue;
+      }
+      let frameHard = 0;
+      let frameAlphaBad = 0;
+      const frameMaxDelta = [0, 0, 0, 0];
+      for (const frame of result.compared ?? []) {
+        totalPresentTexels += frame.texels;
+        frameHard += frame.compare.hard;
+        frameAlphaBad += frame.compare.alphaBad;
+        for (let ch = 0; ch < 4; ch++) {
+          frameMaxDelta[ch] = Math.max(frameMaxDelta[ch], frame.compare.maxDelta[ch]);
+          presentMaxDelta[ch] = Math.max(presentMaxDelta[ch], frame.compare.maxDelta[ch]);
+        }
+      }
+      totalPresentHard += frameHard;
+      totalPresentAlphaBad += frameAlphaBad;
+      const sizes = (result.compared ?? [])
+        .map((frame) => `${frame.width}x${frame.height}`)
+        .join(",");
+      detail.push(
+        `presentation fixture ${result.name}: ${frameHard === 0 ? "PASS" : "FAIL"} ` +
+          `(${frameHard} hard / ${frameAlphaBad} bad-alpha of ${result.texels ?? 0} canvas texels, ` +
+          `sizes ${sizes}, format ${result.canvasFormat}, ` +
+          `per-channel max deltas R${frameMaxDelta[0]} G${frameMaxDelta[1]} B${frameMaxDelta[2]} A${frameMaxDelta[3]})`,
+      );
+      for (const frame of result.compared ?? []) {
+        for (const sample of frame.compare.samples ?? []) {
+          detail.push("  " + sample);
+        }
+      }
+    }
+    if (presentationBenchmark !== null) {
+      const benchmarkParity = presentationBenchmark.parity;
+      detail.push(
+        `presentation benchmark ${presentationBenchmark.width}x${presentationBenchmark.height} ` +
+          `${presentationBenchmark.warmups} warmups, ${presentationBenchmark.samples} samples: ` +
+          `present-only median ${presentationBenchmark.presentMedian.toFixed(3)}ms ` +
+          `(full compute-chain median reported separately); ` +
+          `final frame parity: ${benchmarkParity.hard} hard / ${benchmarkParity.alphaBad} ` +
+          `bad-alpha of ${presentationBenchmark.texels} canvas texels, ` +
+          `per-channel max deltas R${benchmarkParity.maxDelta[0]} G${benchmarkParity.maxDelta[1]} ` +
+          `B${benchmarkParity.maxDelta[2]} A${benchmarkParity.maxDelta[3]}`,
+      );
+    }
+    if (presentationBenchmarkFailure !== null) {
+      detail.push(`presentation benchmark failed: ${presentationBenchmarkFailure}`);
     }
 
     if (shaderProblems.length > 0) {
@@ -2635,6 +3150,46 @@ async function main() {
       );
       return;
     }
+    // #29 presentation FAIL branches (before the PASS marker)
+    if (presentationExecutionFailures > 0) {
+      finish(
+        MARKER_FAIL,
+        `presentation fixture execution failures: ${presentationExecutionFailures} of ` +
+          `${presentationResults.length} presentation fixtures ` +
+          `(thrown errors or non-null scoped validation errors)`,
+      );
+      return;
+    }
+    if (totalPresentHard > 0) {
+      finish(
+        MARKER_FAIL,
+        `presentation canvas mismatches: ${totalPresentHard} hard texels ` +
+          `(${totalPresentAlphaBad} bad alpha) of ${totalPresentTexels} canvas texels ` +
+          `(exact alpha; at-most-one-channel-by-one policy; per-channel max deltas ` +
+          `R${presentMaxDelta[0]} G${presentMaxDelta[1]} B${presentMaxDelta[2]} A${presentMaxDelta[3]})`,
+      );
+      return;
+    }
+    if (presentationBenchmarkFailure !== null) {
+      finish(
+        MARKER_FAIL,
+        `presentation benchmark failed: ${presentationBenchmarkFailure}`,
+      );
+      return;
+    }
+    if (presentationBenchmark.parity.hard > 0) {
+      finish(
+        MARKER_FAIL,
+        `presentation benchmark scene canvas mismatches: ${presentationBenchmark.parity.hard} hard ` +
+          `(${presentationBenchmark.parity.alphaBad} bad alpha) of ` +
+          `${presentationBenchmark.texels} canvas texels`,
+      );
+      return;
+    }
+    const presentationBenchmarkLine =
+      `presentation benchmark ${presentationBenchmark.width}x${presentationBenchmark.height} ` +
+      `${presentationBenchmark.warmups} warmups, ${presentationBenchmark.samples} samples: ` +
+      `present-only median ${presentationBenchmark.presentMedian.toFixed(3)}ms`;
     finish(
       MARKER_PASS,
       `real adapter parity: ${fixtureResults.length} fixtures, ${totalTexels} scene texels, ` +
@@ -2648,7 +3203,10 @@ async function main() {
         `max specular err ${maxSpecularError.toExponential(3)}, ` +
         `RGBA8 per-channel max deltas R${colorMaxDelta[0]} G${colorMaxDelta[1]} B${colorMaxDelta[2]} A${colorMaxDelta[3]}, ` +
         `soft single-byte deltas ${totalColorSoft}); ` +
-        `${benchmarkLine})`,
+        `presentation ${presentationResults.length} fixtures, ${totalPresentTexels} canvas texels, ` +
+        `0 hard / 0 bad-alpha (per-channel max deltas R${presentMaxDelta[0]} G${presentMaxDelta[1]} ` +
+        `B${presentMaxDelta[2]} A${presentMaxDelta[3]}); ` +
+        `${benchmarkLine}; ${presentationBenchmarkLine})`,
     );
   } catch (error) {
     finish(MARKER_FAIL, `harness threw: ${String(error?.stack ?? error)}`);
