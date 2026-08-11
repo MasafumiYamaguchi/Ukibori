@@ -24,7 +24,7 @@
 
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { copyFile, mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, resolve } from "node:path";
@@ -48,6 +48,14 @@ export function parseResultMarker(text) {
   const firstLine = String(text).split("\n", 1)[0].trim();
   const match = /^(UKIBORI_WEBGPU_(?:PASS|FAIL|SKIP))(?:[ \t]|$)/.exec(firstLine);
   return match === null ? null : match[1];
+}
+
+async function publishResult(text) {
+  const resultPath = process.env.WEBGPU_RESULT_PATH;
+  if (resultPath !== undefined && resultPath.length > 0) {
+    await writeFile(resultPath, text, "utf8");
+  }
+  console.log(text);
 }
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -146,22 +154,27 @@ function connectCdp(wsUrl, { onMessage }) {
 }
 
 async function main() {
-  // 1. build the public renderer ESM first.
+  // 1. build the public renderer ESM first. The output is buffered so the
+  //    dedicated WEBGPU_RESULT_PATH file can always begin with the anchored
+  //    marker even when npm adds banners to the full human-readable log.
   const build = spawnSync("npm", ["run", "build", "-w", "ukibori-renderer"], {
     cwd: repoRoot,
-    stdio: "inherit",
+    stdio: ["ignore", "pipe", "pipe"],
+    encoding: "utf8",
   });
+  const buildOutput = (build.stdout ?? "") + (build.stderr ?? "");
   if (build.status !== 0) {
-    console.error("test:webgpu: ukibori-renderer build failed; aborting");
+    process.stderr.write(buildOutput);
+    await publishResult(`${MARKER_FAIL} ukibori-renderer build failed; aborting`);
     process.exit(1);
   }
   const bundle = join(pkgRoot, "dist", "index.js");
   if (!existsSync(bundle)) {
-    console.error(`test:webgpu: bundle not found at ${bundle}`);
+    await publishResult(`${MARKER_FAIL} bundle not found at ${bundle}`);
     process.exit(1);
   }
   if (!existsSync(CHROME)) {
-    console.log(
+    await publishResult(
       `${MARKER_SKIP} headless Chrome not found at ${CHROME} ` +
         "(set CHROME_PATH to the chrome binary); real-GPU parity cannot run on this machine " +
         "(SKIP is a failure: only a real-adapter PASS counts)",
@@ -177,7 +190,7 @@ async function main() {
   try {
     const profileDir = join(tmp, "chrome-profile");
     await mkdir(profileDir, { recursive: true });
-    for (const file of ["parity.html", "parity.mjs"]) {
+    for (const file of ["parity.html", "parity.mjs", "catalog.mjs", "oracle.mjs"]) {
       await copyFile(join(pkgRoot, "test-browser", file), join(tmp, file));
     }
     await copyFile(bundle, join(tmp, "index.js"));
@@ -261,7 +274,7 @@ async function main() {
     clearTimeout(killTimer);
 
     if (result !== null) {
-      console.log(result);
+      await publishResult(result);
       // The FIRST LINE carries the marker; FAIL takes precedence by the
       // parsed marker token, never by substring search (a FAIL detail may
       // legitimately mention UKIBORI_WEBGPU_PASS and must still exit 1).
@@ -282,7 +295,7 @@ async function main() {
         process.exitCode = 1;
       }
     } else {
-      console.log(
+      await publishResult(
         `${MARKER_FAIL} harness produced no result within ${RESULT_TIMEOUT_MS}ms ` +
           `(chrome exited ${chrome.exitCode ?? "still running"})`,
       );
@@ -305,6 +318,10 @@ async function main() {
       await new Promise((resolveClose) => server.close(resolveClose));
     }
     await rm(tmp, { recursive: true, force: true });
+    // Keep build details in the full log; CI parses the dedicated result file.
+    if (buildOutput.trim().length > 0) {
+      console.log("test:webgpu: renderer build output:\n" + buildOutput.trimEnd());
+    }
   }
 }
 
@@ -313,8 +330,8 @@ async function main() {
 const isMain = process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isMain) {
-  main().catch((error) => {
-    console.error(`test:webgpu: runner failed: ${error}`);
+  main().catch(async (error) => {
+    await publishResult(`${MARKER_FAIL} runner failed: ${error}`).catch(() => {});
     process.exit(1);
   });
 }
