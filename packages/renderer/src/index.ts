@@ -275,3 +275,46 @@ export {
   sceneMaterials,
 } from "./compose";
 export type { ComposeOptions, ComposeResult, SurfaceHeightAt, TieBreak } from "./compose";
+export {
+  DEFAULT_SHADOW_ALPHA,
+  DEFAULT_SHADOW_COLOR,
+  compositePixelBytes,
+  compositeShadowAlphaByte,
+  compositeShadowPremultipliedBytes,
+  sanitizeCompositeOptions,
+} from "./gpu/composite";
+export type { CompositeOptions, EffectiveCompositeOptions } from "./gpu/composite";
+export { PRESENTATION_PARAMS_BYTE_LENGTH, PRESENTATION_PASS_WGSL } from "./gpu/presentation-pass-wgsl";
+export {
+  FRAGMENT_STAGE_VISIBILITY,
+  GPU_USAGE_RENDER_ATTACHMENT,
+  PRESENTATION_ALPHA_MODE,
+  PRESENTATION_COLOR_SPACE,
+  PresentationPass,
+  presentationColorBindingFromLightingPass,
+  presentationObjectIdBindingFromHeightPass,
+  presentationVisibilityBindingFromShadowPass,
+} from "./gpu/presentation-pass";
+export type {
+  Canvas8BitFormat,
+  GpuCanvasConfigurationLike,
+  GpuCanvasContextLike,
+  GpuPresentationDeviceLike,
+  GpuPresentationEncoderLike,
+  GpuPresentationLimitsLike,
+  GpuRenderPassEncoderLike,
+  GpuRenderPipelineLike,
+  GpuTextureLike,
+  GpuTextureViewLike,
+  PresentationInputBinding,
+  PresentationPassInput,
+  PresentationPassSnapshot,
+  PresentationPassStats,
+} from "./gpu/presentation-pass";
+export { GpuScenePipeline } from "./gpu/pipeline";
+export type {
+  GpuPipelineDeviceLike,
+  GpuScenePipelineFrameStats,
+  GpuScenePipelineInput,
+  GpuScenePipelineSnapshot,
+} from "./gpu/pipeline";

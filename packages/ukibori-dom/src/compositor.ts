@@ -1,4 +1,8 @@
-import { NO_OWNER } from "ukibori-renderer";
+import {
+  NO_OWNER,
+  compositePixelBytes,
+  sanitizeCompositeOptions as sharedSanitize,
+} from "ukibori-renderer";
 import type { HostBuffer } from "ukibori-renderer";
 import type { CompositeOptions, SurfaceImage } from "./types";
 
@@ -20,6 +24,11 @@ import type { CompositeOptions, SurfaceImage } from "./types";
  * This reinterpretation lives ONLY in the compositor; the renderer buffers
  * (SDF / height / normal / visibility / color) are generated unchanged by the
  * #13–#19 pipeline and remain available for debug views.
+ *
+ * #29: the per-pixel semantics and the sanitization are the narrow shared
+ * helpers in `ukibori-renderer` (`gpu/composite.ts`) — the SAME code the GPU
+ * presentation stage mirrors in WGSL. The results here are byte-identical to
+ * the previous inline formulas (the DOM tests pin the exact bytes).
  */
 
 export const DEFAULT_SHADOW_COLOR: readonly [number, number, number] = [12, 16, 28];
@@ -28,19 +37,10 @@ export const DEFAULT_SHADOW_ALPHA = 0.3;
 export function sanitizeCompositeOptions(
   options: CompositeOptions,
 ): Required<CompositeOptions> {
-  const color = options.shadowColor ?? DEFAULT_SHADOW_COLOR;
-  const shadowColor: readonly [number, number, number] = [
-    clampByte(color[0]),
-    clampByte(color[1]),
-    clampByte(color[2]),
-  ];
-  const alpha =
-    typeof options.shadowAlpha === "number" && Number.isFinite(options.shadowAlpha)
-      ? clamp01(options.shadowAlpha)
-      : DEFAULT_SHADOW_ALPHA;
+  const effective = sharedSanitize(options);
   return {
-    shadowColor,
-    shadowAlpha: alpha,
+    shadowColor: effective.shadowColor,
+    shadowAlpha: effective.shadowAlpha,
   };
 }
 
@@ -80,41 +80,26 @@ export function compositeSurfaceImage(
   const opts = sanitizeCompositeOptions(options);
   const { width, height } = spec;
   const data = new Uint8ClampedArray(width * height * 4);
-  const sr = opts.shadowColor[0];
-  const sg = opts.shadowColor[1];
-  const sb = opts.shadowColor[2];
-  const sa = Math.round(opts.shadowAlpha * 255);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       const p = (y * width + x) * 4;
-      if (objectId.get(x, y, 0) !== NO_OWNER) {
-        data[p] = color.get(x, y, 0);
-        data[p + 1] = color.get(x, y, 1);
-        data[p + 2] = color.get(x, y, 2);
-        data[p + 3] = 255;
-        continue;
-      }
-      const vis = visibility === null ? 1 : visibility.get(x, y, 0);
-      if (vis >= 0.5) {
-        data[p] = 0;
-        data[p + 1] = 0;
-        data[p + 2] = 0;
-        data[p + 3] = 0;
-        continue;
-      }
-      data[p] = sr;
-      data[p + 1] = sg;
-      data[p + 2] = sb;
-      data[p + 3] = sa;
+      // #29 shared per-pixel semantics (gpu/composite.ts): opaque surface,
+      // lit transparent base plane, or translucent shadow tint. `opts` is
+      // already sanitized, so `compositePixelBytes` re-sanitization is a
+      // no-op and the bytes are identical to the previous inline loop.
+      const [r, g, b, a] = compositePixelBytes(
+        objectId.get(x, y, 0),
+        color.get(x, y, 0),
+        color.get(x, y, 1),
+        color.get(x, y, 2),
+        visibility === null ? null : visibility.get(x, y, 0),
+        opts,
+      );
+      data[p] = r;
+      data[p + 1] = g;
+      data[p + 2] = b;
+      data[p + 3] = a;
     }
   }
   return { width, height, data };
-}
-
-function clampByte(v: number): number {
-  return v < 0 ? 0 : v > 255 ? 255 : Math.round(v);
-}
-
-function clamp01(v: number): number {
-  return v < 0 ? 0 : v > 1 ? 1 : v;
 }

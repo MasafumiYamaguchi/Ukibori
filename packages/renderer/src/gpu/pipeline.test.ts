@@ -1,0 +1,410 @@
+import { describe, expect, it } from "vitest";
+import { createScene } from "../scene";
+import type { Scene } from "../scene";
+import type {
+  GpuBindGroupEntryLike,
+  GpuBindGroupLayoutEntryLike,
+  GpuBindGroupLayoutLike,
+  GpuBindGroupLike,
+  GpuComputePipelineLike,
+  GpuLimitsLike,
+  GpuPipelineLayoutLike,
+  GpuShaderModuleLike,
+} from "./height-pass";
+import { GpuScenePipeline } from "./pipeline";
+import type { GpuPipelineDeviceLike } from "./pipeline";
+import type {
+  GpuCanvasConfigurationLike,
+  GpuCanvasContextLike,
+  GpuPresentationEncoderLike,
+  GpuPresentationLimitsLike,
+  GpuRenderPassEncoderLike,
+  GpuRenderPipelineLike,
+  GpuTextureLike,
+} from "./presentation-pass";
+import type { GpuBufferLike } from "./uploader";
+
+// ---------------------------------------------------------------------------
+// Full structural mock: implements the exact GpuComputeDeviceLike +
+// GpuPresentationDeviceLike surface the real GPUDevice is cast into.
+// ---------------------------------------------------------------------------
+
+class MockBuffer implements GpuBufferLike {
+  destroyed = false;
+  constructor(
+    readonly size: number,
+    readonly usage: number,
+    readonly label?: string,
+  ) {}
+  destroy(): void {
+    this.destroyed = true;
+  }
+}
+
+class MockTexture implements GpuTextureLike {
+  constructor(
+    readonly width: number,
+    readonly height: number,
+  ) {}
+  createView(): { label: string } {
+    return { label: "ukibori-mock-view" };
+  }
+}
+
+class MockRenderPass implements GpuRenderPassEncoderLike {
+  readonly log: string[] = [];
+  setPipeline(): void {
+    this.log.push("setPipeline");
+  }
+  setBindGroup(index: number): void {
+    this.log.push(`setBindGroup(${index})`);
+  }
+  draw(vertexCount: number): void {
+    this.log.push(`draw(${vertexCount})`);
+  }
+  end(): void {
+    this.log.push("end");
+  }
+}
+
+class MockFullEncoder implements GpuPresentationEncoderLike {
+  readonly log: string[] = [];
+  beginComputePass(): { setPipeline(): void; setBindGroup(): void; dispatchWorkgroups(): void; end(): void } {
+    // The same proven compute-pass mock behavior as the existing pass
+    // tests: the full #25/#26/#27/#28 chain runs through this encoder.
+    this.log.push("beginComputePass");
+    const log = this.log;
+    return {
+      setPipeline(): void {
+        log.push("setPipeline");
+      },
+      setBindGroup(): void {
+        log.push("setBindGroup");
+      },
+      dispatchWorkgroups(): void {
+        log.push("dispatch");
+      },
+      end(): void {
+        log.push("end");
+      },
+    };
+  }
+  beginRenderPass(desc: unknown): GpuRenderPassEncoderLike {
+    const pass = new MockRenderPass();
+    this.log.push(`beginRenderPass(${String((desc as { colorAttachments?: unknown[] }).colorAttachments?.length ?? 0)} attachment)`);
+    return pass;
+  }
+  finish(): { label?: string } {
+    return { label: "mock" };
+  }
+}
+
+class MockCanvasContext implements GpuCanvasContextLike {
+  readonly canvas: { width: number; height: number };
+  readonly configured: GpuCanvasConfigurationLike[] = [];
+  unconfigured = false;
+  constructor(width: number, height: number) {
+    this.canvas = { width, height };
+  }
+  configure(desc: GpuCanvasConfigurationLike): void {
+    this.configured.push(desc);
+  }
+  unconfigure(): void {
+    this.unconfigured = true;
+  }
+  getCurrentTexture(): GpuTextureLike {
+    return new MockTexture(this.canvas.width, this.canvas.height);
+  }
+}
+
+class MockFullDevice {
+  readonly limits: GpuLimitsLike & GpuPresentationLimitsLike;
+  readonly encoders: MockFullEncoder[] = [];
+  readonly submits: unknown[][] = [];
+  readonly writes: Array<{ buffer: MockBuffer; bytes: Uint8Array }> = [];
+  readonly created: MockBuffer[] = [];
+  readonly renderPipelineFormats: string[] = [];
+  readonly bindGroups: Array<{ entries: readonly GpuBindGroupEntryLike[] }> = [];
+  private resolveLost: ((value: unknown) => void) | null = null;
+  readonly lost: Promise<unknown>;
+
+  constructor(limits: Partial<GpuLimitsLike & GpuPresentationLimitsLike> = {}) {
+    this.limits = {
+      maxStorageBufferBindingSize: 1 << 28,
+      maxBufferSize: 1 << 28,
+      maxUniformBufferBindingSize: 16 * 1024,
+      maxComputeWorkgroupSizeX: 256,
+      maxComputeInvocationsPerWorkgroup: 256,
+      maxComputeWorkgroupsPerDimension: 65535,
+      maxStorageBuffersPerShaderStage: 8,
+      ...limits,
+    };
+    this.lost = new Promise((resolveLost) => {
+      this.resolveLost = resolveLost;
+    });
+  }
+
+  triggerLoss(): void {
+    this.resolveLost?.(undefined);
+  }
+
+  readonly queue = {
+    writeBuffer: (buffer: GpuBufferLike, _offset: number, source: Uint8Array): void => {
+      this.writes.push({ buffer: buffer as MockBuffer, bytes: source.slice() });
+    },
+    submit: (commandBuffers: readonly unknown[]): void => {
+      this.submits.push([...commandBuffers]);
+    },
+  };
+
+  createBuffer(desc: { size: number; usage: number; label?: string }): GpuBufferLike {
+    const buffer = new MockBuffer(desc.size, desc.usage, desc.label);
+    this.created.push(buffer);
+    return buffer;
+  }
+
+  createShaderModule(desc: { code: string; label?: string }): GpuShaderModuleLike {
+    return { label: desc.label };
+  }
+
+  createComputePipeline(desc: { label?: string }): GpuComputePipelineLike {
+    return { label: desc.label };
+  }
+
+  createRenderPipeline(desc: {
+    label?: string;
+    fragment: { targets: readonly { format: string; label?: string }[] };
+  }): GpuRenderPipelineLike {
+    this.renderPipelineFormats.push(desc.fragment.targets[0].format);
+    return { label: desc.label };
+  }
+
+  createBindGroupLayout(desc: { label?: string }): GpuBindGroupLayoutLike {
+    return { label: desc.label };
+  }
+
+  createPipelineLayout(desc: { label?: string }): GpuPipelineLayoutLike {
+    return { label: desc.label };
+  }
+
+  createBindGroup(desc: { label?: string; entries: readonly GpuBindGroupEntryLike[] }): GpuBindGroupLike {
+    this.bindGroups.push({ entries: [...desc.entries] });
+    return { label: desc.label };
+  }
+
+  createCommandEncoder(): MockFullEncoder {
+    const encoder = new MockFullEncoder();
+    this.encoders.push(encoder);
+    return encoder;
+  }
+}
+
+// ---------------------------------------------------------------------------
+
+function sceneA(): Scene {
+  return createScene({
+    width: 100,
+    height: 80,
+    surfaces: [
+      {
+        id: "a",
+        position: { x: 10, y: 10 },
+        size: { x: 40, y: 30 },
+        elevation: 2,
+        thickness: 2,
+        shape: { kind: "roundedRect", radius: 0 },
+        profile: { kind: "flat" },
+        material: "silicone",
+        castsShadow: true,
+        receivesShadow: true,
+      },
+    ],
+    light: { direction: { x: -0.70710678, y: 0, z: 0.70710678 }, intensity: 1 },
+  });
+}
+
+function sceneB(): Scene {
+  return createScene({
+    width: 64,
+    height: 48,
+    surfaces: [
+      {
+        id: "b",
+        position: { x: 4, y: 4 },
+        size: { x: 20, y: 20 },
+        elevation: 5,
+        thickness: 1,
+        shape: { kind: "roundedRect", radius: 0 },
+        profile: { kind: "flat" },
+        material: "metal",
+        castsShadow: true,
+        receivesShadow: true,
+      },
+    ],
+    light: { direction: { x: 0, y: 0, z: 1 }, intensity: 1 },
+  });
+}
+
+function setup() {
+  const device = new MockFullDevice();
+  const context = new MockCanvasContext(0, 0);
+  const pipeline = new GpuScenePipeline(
+    device as unknown as GpuPipelineDeviceLike,
+    context,
+    "rgba8unorm",
+  );
+  return { device, context, pipeline };
+}
+
+// ---------------------------------------------------------------------------
+
+describe("GpuScenePipeline — full-chain orchestrator", () => {
+  it("runs encode -> upload -> height -> normal -> shadow -> lighting -> presentation in order", () => {
+    const { device, context, pipeline } = setup();
+    const stats = pipeline.render({ scene: sceneA(), dpr: 1 });
+    // five stage encoders in order: height, normal, shadow, lighting,
+    // presentation (each pass owns one encoder + one submission)
+    expect(device.encoders).toHaveLength(5);
+    const heightEnc = device.encoders[0];
+    expect(heightEnc.log[0]).toBe("beginComputePass");
+    // compute passes run before the render pass of the final stage
+    const allPasses: string[] = device.encoders.flatMap((encoder) => encoder.log);
+    const renderPasses = allPasses.filter((entry) => entry.startsWith("beginRenderPass")).length;
+    expect(renderPasses).toBe(1); // only the presentation stage uses a render pass
+    // the four compute stages each begin with compute passes; the final
+    // presentation stage begins with the render pass (height/normal/shadow/
+    // lighting may begin a compute pass several times per dispatch)
+    for (const encoder of device.encoders.slice(0, 4)) {
+      expect(encoder.log[0]).toBe("beginComputePass");
+    }
+    expect(device.encoders[4].log[0]).toBe("beginRenderPass(1 attachment)");
+    expect(device.submits).toHaveLength(5); // one queue submission per stage
+    // the canvas backing store exposed by the presentation context was
+    // resized to the encoded render extent (same object, no divergence)
+    expect(context.canvas.width).toBe(100);
+    expect(context.canvas.height).toBe(80);
+    expect(context.configured).toHaveLength(1);
+    expect(context.configured[0].format).toBe("rgba8unorm");
+    // structured per-stage stats, no host pixel copies
+    expect(stats.renderWidth).toBe(100);
+    expect(stats.renderHeight).toBe(80);
+    expect(stats.dpr).toBe(1);
+    expect(stats.upload.allocationCount).toBe(5);
+    expect(stats.height.composePasses).toBe(5);
+    expect(stats.normal.allocationCount).toBe(2);
+    expect(stats.shadow.allocationCount).toBe(2);
+    expect(stats.lighting.allocationCount).toBe(4);
+    expect(stats.presentation.allocationCount).toBe(1);
+  });
+
+  it("derives every downstream binding with current per-frame provenance", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const first = pipeline.getSnapshot();
+    pipeline.render({ scene: sceneB(), dpr: 1 });
+    const second = pipeline.getSnapshot();
+    expect(first.heightPass.provenance).not.toBe(second.heightPass.provenance);
+    // the snapshot is current: lighting provenance matches this frame's height
+    expect(second.lightingPass.provenance).toBe(second.heightPass.provenance);
+    expect(second.normalPass.provenance).toBe(second.heightPass.provenance);
+    expect(second.shadowPass.provenance).toBe(second.heightPass.provenance);
+    expect(second.width).toBe(64);
+    expect(second.height).toBe(48);
+    expect(second.dpr).toBe(1);
+    // the presentation bind group references THIS frame's lighting output
+    // with THIS frame's extent (pass-level allocations may be reused across
+    // frames — the caching contract — so the per-frame identity is the
+    // provenance object and the bound byte sizes, not buffer object identity)
+    const presentationGroup = device.bindGroups.at(-1)!;
+    const colorEntry = presentationGroup.entries[1];
+    expect(colorEntry.resource.buffer).toBe(second.lightingPass.color.buffer);
+    expect(colorEntry.resource.size).toBe(second.lightingPass.color.byteLength);
+    expect(colorEntry.resource.size).toBe(64 * 48 * 4);
+    const objectIdEntry = presentationGroup.entries[2];
+    expect(objectIdEntry.resource.buffer).toBe(second.heightPass.outputs.objectId.buffer);
+    expect(objectIdEntry.resource.size).toBe(second.heightPass.outputs.objectId.byteLength);
+    const visibilityEntry = presentationGroup.entries[3];
+    expect(visibilityEntry.resource.buffer).toBe(second.shadowPass.output.buffer);
+    expect(visibilityEntry.resource.size).toBe(second.shadowPass.output.byteLength);
+    expect(device.renderPipelineFormats).toEqual(["rgba8unorm"]);
+  });
+
+  it("resizes the canvas backing store on every frame and reuses the presentation", () => {
+    const { device, context, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 }); // 100x80
+    expect(context.canvas.width).toBe(100);
+    expect(context.canvas.height).toBe(80);
+    pipeline.render({ scene: sceneB(), dpr: 2 }); // 128x96 at dpr 2
+    expect(context.canvas.width).toBe(128);
+    expect(context.canvas.height).toBe(96);
+    expect(context.configured).toHaveLength(1); // config reused across sizes
+    expect(device.submits).toHaveLength(10);
+  });
+
+  it("forwards composite options and the test-only debug flag to the presentation pass", () => {
+    const { pipeline } = setup();
+    pipeline.render({
+      scene: sceneA(),
+      dpr: 1,
+      compositeOptions: { shadowColor: [255, 0, 0], shadowAlpha: 0.5 },
+      debugReadback: true,
+    });
+    const snapshot = pipeline.getSnapshot();
+    expect(snapshot.presentationPass.composite).toEqual({
+      shadowColor: [255, 0, 0],
+      shadowAlpha: 0.5,
+    });
+    expect(snapshot.presentationPass.debug).toBe(true);
+  });
+
+  it("presents the last rendered frame without re-running the compute passes", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const submissionsAfterRender = device.submits.length;
+    const stats = pipeline.present();
+    expect(device.submits.length).toBe(submissionsAfterRender + 1);
+    expect(stats.workSubmitted).toBe(2);
+    expect(stats.configured).toBe(false); // config reused
+  });
+
+  it("throws on present() before any render() and on getSnapshot() before/after", () => {
+    const { pipeline } = setup();
+    expect(() => pipeline.present()).toThrow(/no frame rendered/);
+    expect(() => pipeline.getSnapshot()).toThrow(/no frame rendered/);
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    pipeline.dispose();
+    expect(() => pipeline.render({ scene: sceneA(), dpr: 1 })).toThrow(/disposed/);
+    expect(() => pipeline.getSnapshot()).toThrow(/disposed/);
+    pipeline.dispose(); // idempotent
+  });
+
+  it("disposes in reverse ownership order and never destroys the foreign canvas", () => {
+    const { context, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    pipeline.dispose();
+    expect(context.unconfigured).toBe(true);
+    expect(() => pipeline.getSnapshot()).toThrow(/disposed/);
+  });
+
+  it("fails closed after device loss without submitting more work", async () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    device.triggerLoss();
+    await new Promise((resolveSleep) => setTimeout(resolveSleep, 0));
+    const submissions = device.submits.length;
+    expect(() => pipeline.render({ scene: sceneA(), dpr: 1 })).toThrow(/device is lost/);
+    expect(() => pipeline.present()).toThrow(/device is lost/);
+    expect(() => pipeline.getSnapshot()).toThrow(/device is lost/);
+    expect(device.submits.length).toBe(submissions);
+  });
+});
+
+describe("WebGpuBackend — capabilities.compute stays false until #30", () => {
+  it("still reports compute: false (no public GPU selection before parity)", async () => {
+    const { WebGpuBackend } = await import("../backend/webgpu");
+    const backend = new WebGpuBackend({ destroy() {} } as never);
+    expect(backend.capabilities.backend).toBe("webgpu");
+    expect(backend.capabilities.compute).toBe(false);
+    backend.dispose();
+  });
+});

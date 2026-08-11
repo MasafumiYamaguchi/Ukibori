@@ -214,6 +214,13 @@ export interface LightingPassSnapshot {
   readonly specular: LightingOutputBinding;
   readonly color: LightingOutputBinding;
   readonly lastDispatch: LightingPassLastDispatch;
+  /**
+   * The per-HeightPass-dispatch provenance propagated from the #26 normal
+   * binding (#29): the presentation stage requires every field to share
+   * this exact token so foreign/mixed fields are rejected before any
+   * presentation-device/context call.
+   */
+  readonly provenance: HeightPassProvenance;
 }
 
 export interface LightingPassDispatchStats {
@@ -332,6 +339,7 @@ export class LightingPass {
   private lastDispatch: LightingPassLastDispatch | null = null;
   private lastDpr = 0;
   private lastAmbient = DEFAULT_AMBIENT;
+  private lastProvenance: HeightPassProvenance | null = null;
   private cached: CachedLightingPipeline | null = null;
 
   constructor(private readonly device: GpuComputeDeviceLike) {}
@@ -464,6 +472,7 @@ export class LightingPass {
     };
     this.lastDpr = header.dpr;
     this.lastAmbient = ambient;
+    this.lastProvenance = input.normal.provenance;
 
     const stats: LightingPassDispatchStats = {
       newAllocations: this.newAllocations,
@@ -477,7 +486,7 @@ export class LightingPass {
 
   /** Stable read-only snapshot; throws before the first successful dispatch. */
   getSnapshot(): LightingPassSnapshot {
-    if (this.lastDispatch === null) {
+    if (this.lastDispatch === null || this.lastProvenance === null) {
       throw new Error("no dispatch: dispatch() has not completed or dispose() was called");
     }
     const texelCount = this.lastDispatch.renderWidth * this.lastDispatch.renderHeight;
@@ -505,6 +514,7 @@ export class LightingPass {
         usage: LIGHTING_PASS_OUTPUT_USAGE,
       },
       lastDispatch: this.lastDispatch,
+      provenance: this.lastProvenance,
     };
   }
 
@@ -519,6 +529,7 @@ export class LightingPass {
     this.lastDispatch = null;
     this.lastDpr = 0;
     this.lastAmbient = DEFAULT_AMBIENT;
+    this.lastProvenance = null;
   }
 
   // -- validation (all BEFORE any device call) ------------------------------
