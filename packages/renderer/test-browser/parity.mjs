@@ -105,6 +105,22 @@ const BENCHMARK_HEIGHT = 360;
 const BENCHMARK_WARMUP = 5;
 const BENCHMARK_SAMPLES = 10;
 const BENCHMARK_MIN_SPEEDUP = 2;
+// #28: tight f32 tolerance for the diffuse/specular debug outputs and the
+// RGBA8 color comparison policy. The GPU lighting shader runs in f32 while
+// the CPU oracle (shadePreparedFields) runs in f64 over the same f32-packed
+// scene values; the per-texel BRDF chain (~20 f32 ops) plus the GPU-vs-CPU
+// normal difference (<= NORMAL_TOLERANCE per component) bound the errors at
+// ~1e-3 for these fixtures; the measured maxima are always reported. The
+// color comparison requires exact RGBA8 where the quantization margin is
+// stable and permits AT MOST ONE encoded byte differing by exactly 1 per
+// texel otherwise (documented f32-vs-f64 rounding justification: a single
+// 1-ulp sRGB/pow rounding can flip one channel by one 8-bit step); any
+// larger difference or any second differing channel FAILS.
+const LIGHTING_F32_TOLERANCE = 1e-3;
+// #28: largest finite f32, used by the lighting finite-f32 stress fixture
+// (scene intensity/environment/exposure at F32_MAX must saturate to white
+// with finite deterministic outputs on both sides).
+const F32_MAX_LIGHTING = 3.4028234663852886e38;
 
 const {
   createScene,
@@ -116,14 +132,23 @@ const {
   sanitizeNormalOptions,
   ShadowPass,
   shadowHeightBindingsFromHeightPass,
+  LightingPass,
+  lightingMaterialIdBindingFromHeightPass,
+  lightingNormalBindingFromNormalPass,
+  lightingVisibilityBindingFromShadowPass,
   computeNormals,
   computeVisibility,
   composeCasterHeightField,
   composeSdfHeightField,
+  shadePreparedFields,
   HostBuffer,
   HEIGHT_SPEC,
   OBJECT_ID_SPEC,
+  VISIBILITY_SPEC,
+  NORMAL_SPEC,
   NO_OWNER,
+  DEFAULT_IOR,
+  resolveMaterial,
   surfaceHeight,
   MASK_SDF_WGSL,
   COMPOSE_HEIGHT_WGSL,
@@ -133,6 +158,7 @@ const {
   COMPOSE_CASTER_HEIGHT_WGSL,
   NORMAL_PASS_WGSL,
   SHADOW_PASS_WGSL,
+  LIGHTING_PASS_WGSL,
 } = await import("./index.js");
 
 const detail = [];
@@ -409,6 +435,14 @@ function stableShadowOracle(
   effectiveOptions,
   exactThreshold = false,
 ) {
+  // ShadowPass reads the encoded caster flags and exits all-lit when no
+  // surface casts. `computeVisibility` also supports free-standing
+  // synthetic height fields, so it cannot infer that integrated-scene
+  // condition itself; mirror the pass contract before calling the actual
+  // TypeScript oracle for scenes that do contain casters.
+  if (!scene.surfaces.some((surface) => surface.castsShadow)) {
+    return new Float32Array(rw * rh).fill(1);
+  }
   const oracle = (h, c) =>
     shadowOracleCPU(scene, rw, rh, h, c, objectId, dpr, effectiveOptions);
   const base = oracle(height, casterHeight);
@@ -479,6 +513,163 @@ function compareCasterHeight(oracle, gpu) {
     }
   }
   return { mismatches, maxError };
+}
+
+/**
+ * #28 CPU lighting oracle: the ACTUAL TypeScript `shadePreparedFields` (the
+ * semantic reference and CPU fallback, never a second copy of the formulas)
+ * fed with the CPU reference normal/objectId fields at the same render
+ * extent, the f32-packed scene values (light direction, intensity, exposure
+ * and environment exactly as the encoder wrote them), the STABLE CPU
+ * visibility oracle and the GPU's EFFECTIVE options (the f32-packed ambient
+ * from the LightingPass snapshot). Returns the diffuse, specular and RGBA8
+ * color fields.
+ */
+function lightingOracleCPU(scene, rw, rh, normal, objectId, visibility, options) {
+  const f32Materials = Object.fromEntries(
+    [...new Set(scene.surfaces.map((surface) => surface.material))].map((ref) => {
+      const material = resolveMaterial(scene.materials, ref);
+      return [
+        ref,
+        {
+          baseColor: {
+            r: Math.fround(material.baseColor.r),
+            g: Math.fround(material.baseColor.g),
+            b: Math.fround(material.baseColor.b),
+          },
+          roughness: Math.fround(material.roughness),
+          metallic: Math.fround(material.metallic),
+          ior: Math.fround(material.ior ?? DEFAULT_IOR),
+        },
+      ];
+    }),
+  );
+  const oracleScene = {
+    ...scene,
+    materials: f32Materials,
+    light: {
+      direction: {
+        x: Math.fround(scene.light.direction.x),
+        y: Math.fround(scene.light.direction.y),
+        z: Math.fround(scene.light.direction.z),
+      },
+      intensity: Math.fround(scene.light.intensity),
+    },
+    exposure: Math.fround(scene.exposure),
+    environment: {
+      intensity: Math.fround(scene.environment.intensity),
+      diffuseIntensity: Math.fround(scene.environment.diffuseIntensity),
+      specularIntensity: Math.fround(scene.environment.specularIntensity),
+    },
+  };
+  const load = (spec, data, channels) => {
+    const buf = new HostBuffer(spec(rw, rh));
+    for (let g = 0; g < rw * rh; g++) {
+      for (let c = 0; c < channels; c++) {
+        buf.set(g % rw, Math.floor(g / rw), c, data[g * channels + c]);
+      }
+    }
+    return buf;
+  };
+  const shaded = shadePreparedFields(
+    oracleScene,
+    {
+      normal: load(NORMAL_SPEC, normal, 3),
+      objectId: load(OBJECT_ID_SPEC, objectId, 1),
+      visibility: load(VISIBILITY_SPEC, visibility, 1),
+    },
+    options,
+  );
+  const diffuse = new Float32Array(rw * rh);
+  const specular = new Float32Array(rw * rh);
+  const color = new Uint8Array(rw * rh * 4);
+  for (let y = 0; y < rh; y++) {
+    for (let x = 0; x < rw; x++) {
+      const g = y * rw + x;
+      diffuse[g] = shaded.diffuse.get(x, y, 0);
+      specular[g] = shaded.specular.get(x, y, 0);
+      for (let c = 0; c < 4; c++) {
+        color[g * 4 + c] = shaded.color.get(x, y, c);
+      }
+    }
+  }
+  return { diffuse, specular, color };
+}
+
+/**
+ * #28 diffuse/specular comparison: every value must be finite and within the
+ * explicit tight f32 tolerance; reports the measured maximum errors.
+ */
+function compareLightingF32(name, oracle, gpu, width) {
+  const texels = oracle.length;
+  let mismatches = 0;
+  let maxError = 0;
+  const samples = [];
+  for (let g = 0; g < texels; g++) {
+    const d = Math.abs(gpu[g] - oracle[g]);
+    maxError = Math.max(maxError, d);
+    if (!Number.isFinite(gpu[g]) || !(d <= LIGHTING_F32_TOLERANCE)) {
+      mismatches += 1;
+      if (samples.length < 8) {
+        const tx = g % width;
+        const ty = Math.floor(g / width);
+        samples.push(
+          `${name} texel(${tx},${ty}): gpu ${gpu[g].toExponential(3)} ` +
+            `oracle ${oracle[g].toExponential(3)} (d ${d.toExponential(3)})`,
+        );
+      }
+    }
+  }
+  return { mismatches, maxError, samples };
+}
+
+/**
+ * #28 RGBA8 color comparison. Byte order R, G, B, A is enforced by the
+ * comparison itself (the GPU u32 packing is read back little-endian, the
+ * oracle writes R,G,B,A per texel). Alpha must be EXACTLY 255 on both sides.
+ * Each texel may differ in AT MOST ONE encoded byte, and that byte by AT
+ * MOST ONE unit (a documented f32-vs-f64 rounding justification); any
+ * larger difference or any second differing channel is a hard mismatch.
+ * Reports the per-channel maximum deltas.
+ */
+function compareColor(name, oracle, gpu, width) {
+  const texels = oracle.length / 4;
+  let hard = 0;
+  let soft = 0;
+  let alphaBad = 0;
+  const maxDelta = [0, 0, 0, 0];
+  const samples = [];
+  for (let g = 0; g < texels; g++) {
+    const i = g * 4;
+    let diffs = 0;
+    let maxd = 0;
+    for (let ch = 0; ch < 4; ch++) {
+      const d = Math.abs(gpu[i + ch] - oracle[i + ch]);
+      maxDelta[ch] = Math.max(maxDelta[ch], d);
+      maxd = Math.max(maxd, d);
+      if (d > 0) {
+        diffs += 1;
+      }
+    }
+    const alpha = oracle[i + 3] !== 255 || gpu[i + 3] !== 255;
+    if (maxd > 1 || diffs > 1 || alpha) {
+      hard += 1;
+      if (alpha) {
+        alphaBad += 1;
+      }
+      if (samples.length < 8) {
+        const tx = g % width;
+        const ty = Math.floor(g / width);
+        samples.push(
+          `${name} texel(${tx},${ty}): gpu (${gpu[i]},${gpu[i + 1]},${gpu[i + 2]},${gpu[i + 3]}) ` +
+            `oracle (${oracle[i]},${oracle[i + 1]},${oracle[i + 2]},${oracle[i + 3]})`,
+        );
+      }
+    } else if (diffs === 1) {
+      soft += 1;
+    }
+  }
+  return { hard, soft, alphaBad, maxDelta, samples };
 }
 
 /** Small synthetic f32-exact GPU-resident height field for normal fixtures. */
@@ -1027,6 +1218,142 @@ const SHADOW_FIXTURES = [
   selfShadowSynthFixture(),
 ];
 
+// ---------------------------------------------------------------------------
+// #28 lighting fixtures. Every fixture runs the FULL integrated chain
+// (SceneUploader -> HeightPass -> NormalPass -> ShadowPass -> LightingPass)
+// and compares diffuse/specular/RGBA8 against the actual TypeScript
+// `shadePreparedFields` oracle fed with the CPU reference fields, the
+// f32-packed scene values and the GPU's effective ambient. Scenes use
+// integer positions/sizes and f32-exact elevations; the lighting button is
+// a FLAT-profile caster so the shadow decisions keep wide stability margins
+// (the +/-5e-4 pre-check still guards every fixture).
+// ---------------------------------------------------------------------------
+
+/**
+ * A 32x32 panel with a flat casting button. `material` is the button's
+ * built-in preset ref; the panel uses a custom override material (proving
+ * the uploaded MaterialRecord table is consumed). `extra` may override
+ * light/environment/exposure/materials for the #22/#28 variants.
+ */
+function lightingPanel(material, light = LIGHT_FROM_RIGHT, extra = {}) {
+  return createScene({
+    width: 32,
+    height: 32,
+    surfaces: [
+      {
+        id: "panel",
+        position: { x: 0, y: 0 },
+        size: { x: 32, y: 32 },
+        elevation: 0,
+        thickness: 0,
+        shape: { kind: "roundedRect", radius: 0 },
+        profile: { kind: "flat" },
+        material: "panel",
+        castsShadow: false,
+        receivesShadow: true,
+      },
+      {
+        id: "btn",
+        position: { x: 6, y: 6 },
+        size: { x: 14, y: 14 },
+        elevation: 3,
+        thickness: 2,
+        shape: { kind: "roundedRect", radius: 0 },
+        profile: { kind: "flat" },
+        material,
+        castsShadow: true,
+        receivesShadow: true,
+      },
+    ],
+    materials: {
+      panel: { baseColor: { r: 0.6, g: 0.6, b: 0.6 }, roughness: 0.5, metallic: 0 },
+    },
+    light: { direction: light, intensity: 1 },
+    ...extra,
+  });
+}
+
+const withEnv = (scene, intensity, diffuseShare, specularShare) => ({
+  ...scene,
+  environment: { intensity, diffuseIntensity: diffuseShare, specularIntensity: specularShare },
+});
+
+const withExposure = (scene, exposure) => ({ ...scene, exposure });
+
+const withLight = (scene, direction) => ({ ...scene, light: { direction, intensity: 1 } });
+
+const LIGHTING_FIXTURES = [
+  // built-in material coverage (silicone / matte / metal presets)
+  { name: "lighting-silicone", scene: lightingPanel("silicone"), dpr: 1 },
+  { name: "lighting-matte", scene: lightingPanel("matte"), dpr: 1 },
+  { name: "lighting-metal", scene: lightingPanel("metal"), dpr: 1 },
+  // base plane only: every texel is NO_OWNER -> BASE_MATERIAL, and the
+  // scene carries a ZERO-length logical material table (the one-record ABI
+  // floor binding is never read by the shader)
+  { name: "lighting-base-plane", scene: emptyScene(), dpr: 1 },
+  // material overrides: custom baseColor/roughness/metallic/ior in the
+  // scene materials table, consumed through the uploaded MaterialRecords
+  {
+    name: "lighting-material-overrides",
+    scene: lightingPanel("silicone", LIGHT_FROM_RIGHT, {
+      materials: {
+        panel: { baseColor: { r: 0.15, g: 0.55, b: 0.9 }, roughness: 0.1, metallic: 0.5, ior: 1.33 },
+        silicone: { baseColor: { r: 0.95, g: 0.3, b: 0.25 }, roughness: 0.7, metallic: 0.2 },
+      },
+    }),
+    dpr: 1,
+  },
+  // environment OFF / ON with share endpoints and mixed shares
+  { name: "lighting-env-off", scene: withEnv(lightingPanel("silicone"), 0, 1, 1), dpr: 1 },
+  { name: "lighting-env-shares", scene: withEnv(lightingPanel("metal"), 1, 0.25, 0.75), dpr: 1 },
+  { name: "lighting-env-no-shares", scene: withEnv(lightingPanel("silicone"), 1, 0, 0), dpr: 1 },
+  // exposure 0 / low / default / high
+  { name: "lighting-exposure-0", scene: withExposure(lightingPanel("silicone"), 0), dpr: 1 },
+  { name: "lighting-exposure-low", scene: withExposure(lightingPanel("silicone"), 0.5), dpr: 1 },
+  { name: "lighting-exposure-default", scene: withExposure(lightingPanel("silicone"), 1), dpr: 1 },
+  { name: "lighting-exposure-high", scene: withExposure(lightingPanel("silicone"), 4), dpr: 1 },
+  // visibility 0/1: the two-level slab casts a hard shadow on the base
+  // plane (visibility 0 texels keep ambient + environment); the vertical
+  // light produces no shadow at all (visibility 1 everywhere)
+  { name: "lighting-visibility-shadowed", scene: twoLevelScene(LIGHT_FROM_RIGHT).scene, dpr: 1 },
+  { name: "lighting-visibility-lit", scene: twoLevelScene(LIGHT_VERTICAL).scene, dpr: 1 },
+  // light movement over the same scene
+  { name: "lighting-light-right", scene: lightingPanel("silicone", LIGHT_FROM_RIGHT), dpr: 1 },
+  { name: "lighting-light-left", scene: lightingPanel("silicone", LIGHT_FROM_LEFT), dpr: 1 },
+  { name: "lighting-light-vertical", scene: lightingPanel("silicone", LIGHT_VERTICAL), dpr: 1 },
+  // degenerate half vector (L = -V): zero direct BRDF, no NaN, ambient +
+  // environment only (no casters so the shadow field is exactly 1)
+  {
+    name: "lighting-degenerate-half-vector",
+    scene: (() => {
+      const base = lightingPanel("metal", { x: 0, y: 0, z: -1 });
+      return { ...base, surfaces: base.surfaces.map((s) => ({ ...s, castsShadow: false })) };
+    })(),
+    dpr: 1,
+  },
+  // fractional render extents at DPR 1 / 1.5 / 2
+  { name: "lighting-frac-dpr1", scene: lightingPanel("silicone"), dpr: 1, normalOptions: DPR_NORMAL_OPTIONS[1] },
+  { name: "lighting-frac-dpr1.5", scene: lightingPanel("silicone"), dpr: 1.5, normalOptions: DPR_NORMAL_OPTIONS[1.5] },
+  { name: "lighting-frac-dpr2", scene: lightingPanel("silicone"), dpr: 2, normalOptions: DPR_NORMAL_OPTIONS[2] },
+  // finite f32 stress: intensity/environment/exposure at the largest finite
+  // f32 — saturated non-negative accumulation must stay finite and saturate
+  // to white on both the f64 oracle and the f32 shader
+  {
+    name: "lighting-f32-stress",
+    scene: withEnv(
+      withExposure(withLight(lightingPanel("metal"), LIGHT_FROM_RIGHT), F32_MAX_LIGHTING),
+      F32_MAX_LIGHTING,
+      1,
+      1,
+    ),
+    dpr: 1,
+  },
+  // ambient variants: off, half, and a value above 1 (clamped to 1)
+  { name: "lighting-ambient-0", scene: lightingPanel("silicone"), dpr: 1, lightingOptions: { ambient: 0 } },
+  { name: "lighting-ambient-half", scene: lightingPanel("silicone"), dpr: 1, lightingOptions: { ambient: 0.5 } },
+  { name: "lighting-ambient-saturated", scene: lightingPanel("silicone"), dpr: 1, lightingOptions: { ambient: 2 } },
+];
+
 const FIXTURES = [
   { name: "rounded-flat-dpr1", scene: flatScene(), dpr: 1 },
   { name: "rounded-bevel-dpr1", scene: bevelScene(), dpr: 1 },
@@ -1230,6 +1557,10 @@ const FIXTURES = [
   // caster-height parity, and the +/-5e-4 stability pre-check on every
   // fixture).
   ...SHADOW_FIXTURES,
+  // #28 lighting fixtures (the real-GPU lighting stage: the full integrated
+  // chain plus LightingPass, diffuse/specular tolerance parity and the
+  // RGBA8 color policy — all compared against shadePreparedFields).
+  ...LIGHTING_FIXTURES,
 ];
 
 // ---------------------------------------------------------------------------
@@ -1241,6 +1572,7 @@ async function runFixture(device, fixture) {
   let pass = null;
   let normalPass = null;
   let shadowPass = null;
+  let lightingPass = null;
   let synthHeightBuffer = null;
   let synthObjectIdBuffer = null;
   let result = null;
@@ -1599,6 +1931,86 @@ async function runFixture(device, fixture) {
       result.casterTexels = oracle.rw * oracle.rh;
       result.caster = compareCasterHeight(casterOracle.height, casterBytes);
 
+      // #28 lighting stage: consume the #25 materialId, #26 normal and #27
+      // visibility fields DIRECTLY (through the public helpers, whose
+      // per-HeightPass-dispatch provenance is propagated into the
+      // NormalPass/ShadowPass snapshots) plus the exact uploaded header and
+      // material table, and compare diffuse/specular/RGBA8 against the
+      // ACTUAL TypeScript shadePreparedFields oracle.
+      lightingPass = new LightingPass(device);
+      // snapshot the upstream field BYTES before the lighting dispatch so a
+      // source-buffer mutation by the lighting pass fails the fixture
+      const upstreamBefore = [
+        new Uint8Array(height.buffer, height.byteOffset, height.byteLength),
+        new Uint8Array(objectId.buffer, objectId.byteOffset, objectId.byteLength),
+        new Uint8Array(materialId.buffer, materialId.byteOffset, materialId.byteLength),
+        new Uint8Array(normal.buffer, normal.byteOffset, normal.byteLength),
+        new Uint8Array(visibility.buffer, visibility.byteOffset, visibility.byteLength),
+      ];
+      lightingPass.dispatch({
+        scene: encoded,
+        bindings,
+        materialId: lightingMaterialIdBindingFromHeightPass(snapshot),
+        normal: lightingNormalBindingFromNormalPass(normalPass.getSnapshot()),
+        visibility: lightingVisibilityBindingFromShadowPass(shadowSnapshot),
+        options: fixture.lightingOptions,
+      });
+      const lightingSnapshot = lightingPass.getSnapshot();
+      const [diffuseGpu, specularGpu, colorBytes] = await Promise.all([
+        readbackF32(device, lightingSnapshot.diffuse.buffer, lightingSnapshot.diffuse.byteLength),
+        readbackF32(device, lightingSnapshot.specular.buffer, lightingSnapshot.specular.byteLength),
+        readback(device, lightingSnapshot.color.buffer, lightingSnapshot.color.byteLength),
+      ]);
+      // environment/exposure/ambient must NOT mutate any upstream buffer
+      const upstreamAfter = [
+        await readback(device, outputs.height.buffer, outputs.height.byteLength),
+        await readback(device, outputs.objectId.buffer, outputs.objectId.byteLength),
+        await readback(device, outputs.materialId.buffer, outputs.materialId.byteLength),
+        await readback(device, normalPass.getSnapshot().output.buffer, normalPass.getSnapshot().output.byteLength),
+        await readback(device, shadowSnapshot.output.buffer, shadowSnapshot.output.byteLength),
+      ];
+      let mutationMismatches = 0;
+      const mutationSamples = [];
+      for (let i = 0; i < upstreamBefore.length; i++) {
+        if (!bytesEqual(upstreamBefore[i], upstreamAfter[i])) {
+          mutationMismatches += 1;
+          mutationSamples.push(`  upstream field ${i} changed during a lighting dispatch`);
+        }
+      }
+      const cpuNormalOracle = normalOracle(
+        oracle.height,
+        oracle.rw,
+        oracle.rh,
+        sanitizeNormalOptions(fixture.normalOptions),
+      );
+      const lightingOracle = lightingOracleCPU(
+        fixture.scene,
+        oracle.rw,
+        oracle.rh,
+        cpuNormalOracle,
+        oracle.objectId,
+        visibilityOracle,
+        { ambient: lightingSnapshot.ambient },
+      );
+      result.lightingTexels = oracle.rw * oracle.rh;
+      result.lighting = {
+        diffuse: compareLightingF32(
+          fixture.name + "/diffuse",
+          lightingOracle.diffuse,
+          diffuseGpu,
+          oracle.rw,
+        ),
+        specular: compareLightingF32(
+          fixture.name + "/specular",
+          lightingOracle.specular,
+          specularGpu,
+          oracle.rw,
+        ),
+        color: compareColor(fixture.name, lightingOracle.color, colorBytes, oracle.rw),
+        mutation: { mismatches: mutationMismatches, samples: mutationSamples },
+        ambient: lightingSnapshot.ambient,
+      };
+
       // Raw GPU probes for the first fixture only: the uploaded scene header
       // (proves the queue.writeBuffer path), the objectId field (proves the
       // shader actually wrote NO_OWNER into background texels), the normal
@@ -1615,7 +2027,9 @@ async function runFixture(device, fixture) {
           `  height first16=${Array.from(height.subarray(0, 16)).map((v) => v.toFixed(4)).join(",")}`,
           `  normal first16=${Array.from(normal.subarray(0, 48)).map((v) => v.toFixed(4)).join(",")}`,
           `  shadow first16=${Array.from(visibility.subarray(0, 16)).join(",")}`,
-          `  snapshot=${JSON.stringify({ w: snapshot.width, h: snapshot.height, wg: snapshot.lastDispatch.workgroupCountX, cells: snapshot.lastDispatch.totalMaskCells, nwg: normalPass.getSnapshot().lastDispatch.workgroupCountX, swg: shadowSnapshot.lastDispatch.workgroupCountX, steps: shadowSnapshot.lastDispatch.stepCount, swOpts: shadowSnapshot.options })}`,
+          `  lighting diffuse first16=${Array.from(diffuseGpu.subarray(0, 16)).map((v) => v.toFixed(4)).join(",")}`,
+          `  lighting color first8=${Array.from(colorBytes.subarray(0, 32)).join(",")} ambient=${lightingSnapshot.ambient}`,
+          `  snapshot=${JSON.stringify({ w: snapshot.width, h: snapshot.height, wg: snapshot.lastDispatch.workgroupCountX, cells: snapshot.lastDispatch.totalMaskCells, nwg: normalPass.getSnapshot().lastDispatch.workgroupCountX, swg: shadowSnapshot.lastDispatch.workgroupCountX, steps: shadowSnapshot.lastDispatch.stepCount, swOpts: shadowSnapshot.options, lwg: lightingSnapshot.lastDispatch.workgroupCountX })}`,
         ];
         for (const line of probeLines) {
           detail.push(line);
@@ -1637,6 +2051,7 @@ async function runFixture(device, fixture) {
     pass?.dispose();
     normalPass?.dispose();
     shadowPass?.dispose();
+    lightingPass?.dispose();
     synthHeightBuffer?.destroy();
     synthObjectIdBuffer?.destroy();
   } catch {
@@ -1662,6 +2077,7 @@ async function checkShaders(device) {
     ["COMPOSE_CASTER_HEIGHT_WGSL", COMPOSE_CASTER_HEIGHT_WGSL],
     ["NORMAL_PASS_WGSL", NORMAL_PASS_WGSL],
     ["SHADOW_PASS_WGSL", SHADOW_PASS_WGSL],
+    ["LIGHTING_PASS_WGSL", LIGHTING_PASS_WGSL],
   ]) {
     const module = device.createShaderModule({ code, label });
     const info = await module.getCompilationInfo();
@@ -1758,14 +2174,19 @@ async function runBenchmark(device) {
   const options = {};
 
   // CPU side (like-for-like stage set: height + caster composition +
-  // normals + visibility).
+  // normals + visibility + final-color shading, the #28 lighting oracle).
   const cpuFrame = () => {
     const composed = composeSdfHeightField(scene);
     const caster = composeCasterHeightField(scene);
-    computeNormals(composed.height);
-    computeVisibility(scene, composed.height, {
+    const normal = computeNormals(composed.height);
+    const visibility = computeVisibility(scene, composed.height, {
       objectId: composed.objectId,
       casterHeight: caster,
+    });
+    shadePreparedFields(scene, {
+      normal,
+      objectId: composed.objectId,
+      visibility,
     });
   };
   for (let i = 0; i < BENCHMARK_WARMUP; i++) {
@@ -1780,10 +2201,10 @@ async function runBenchmark(device) {
   const cpuMedian = median(cpuSamples);
 
   // GPU side: upload once, then per sample the full frame chain
-  // (HeightPass -> NormalPass -> ShadowPass) with queue completion. This
-  // includes the normal per-frame parameter upload/dispatch/queue
-  // completion; pipeline and allocation caches are warm from the parity
-  // run and the warm-up frame below.
+  // (HeightPass -> NormalPass -> ShadowPass -> LightingPass) with queue
+  // completion. This includes the normal per-frame parameter upload/
+  // dispatch/queue completion; pipeline and allocation caches are warm from
+  // the parity run and the warm-up frame below.
   const encoded = encodeScene(scene, 1);
   const uploader = new SceneUploader(device);
   uploader.upload(encoded);
@@ -1791,14 +2212,30 @@ async function runBenchmark(device) {
   const heightPass = new HeightPass(device);
   const normalPass = new NormalPass(device);
   const shadowPass = new ShadowPass(device);
-  heightPass.dispatch(encoded, bindings);
-  const snapshot = heightPass.getSnapshot();
-  const shadowInputs = shadowHeightBindingsFromHeightPass(snapshot);
-  const normalInput = { height: normalHeightBindingFromHeightPass(snapshot), options: {} };
+  const lightingPass = new LightingPass(device);
   const frame = async () => {
     heightPass.dispatch(encoded, bindings);
-    normalPass.dispatch(normalInput);
-    shadowPass.dispatch({ scene: encoded, bindings, ...shadowInputs, options });
+    const heightSnapshot = heightPass.getSnapshot();
+    normalPass.dispatch({
+      height: normalHeightBindingFromHeightPass(heightSnapshot),
+      options: {},
+    });
+    const normalSnapshot = normalPass.getSnapshot();
+    shadowPass.dispatch({
+      scene: encoded,
+      bindings,
+      ...shadowHeightBindingsFromHeightPass(heightSnapshot),
+      options,
+    });
+    const shadowSnapshot = shadowPass.getSnapshot();
+    lightingPass.dispatch({
+      scene: encoded,
+      bindings,
+      materialId: lightingMaterialIdBindingFromHeightPass(heightSnapshot),
+      normal: lightingNormalBindingFromNormalPass(normalSnapshot),
+      visibility: lightingVisibilityBindingFromShadowPass(shadowSnapshot),
+      options,
+    });
     await device.queue.onSubmittedWorkDone();
   };
   for (let i = 0; i < BENCHMARK_WARMUP; i++) {
@@ -1816,8 +2253,10 @@ async function runBenchmark(device) {
   const effectiveOptions = shadowPass.getSnapshot().options;
 
   // One parity verification of the benchmark scene itself (outside both
-  // timings): exact binary visibility vs the stable CPU oracle and tight
-  // caster-height parity, so the benchmark measures verified work.
+  // timings): exact binary visibility vs the stable CPU oracle, tight
+  // caster-height parity, and the #28 lighting parity (diffuse/specular
+  // tolerance + RGBA8 color policy vs shadePreparedFields), so the
+  // benchmark measures verified work.
   const outputs = heightPass.getOutputs();
   const [shadowBytes, caster] = await Promise.all([
     readback(device, shadowPass.getSnapshot().output.buffer, shadowPass.getSnapshot().output.byteLength),
@@ -1831,26 +2270,49 @@ async function runBenchmark(device) {
     shadowBytes.byteOffset,
     shadowBytes.byteLength / 4,
   );
+  const visibilityOracle = stableShadowOracle(
+    scene,
+    oracle.rw,
+    oracle.rh,
+    oracle.height,
+    casterOracle.height,
+    oracle.objectId,
+    1,
+    shadowPass.getSnapshot().options,
+  );
   const visCompare = compareVisibility(
     "benchmark",
-    stableShadowOracle(
-      scene,
-      oracle.rw,
-      oracle.rh,
-      oracle.height,
-      casterOracle.height,
-      oracle.objectId,
-      1,
-      shadowPass.getSnapshot().options,
-    ),
+    visibilityOracle,
     visibility,
     oracle.rw,
   );
+  const lightingSnapshot = lightingPass.getSnapshot();
+  const [diffuseGpu, specularGpu, colorBytes] = await Promise.all([
+    readbackF32(device, lightingSnapshot.diffuse.buffer, lightingSnapshot.diffuse.byteLength),
+    readbackF32(device, lightingSnapshot.specular.buffer, lightingSnapshot.specular.byteLength),
+    readback(device, lightingSnapshot.color.buffer, lightingSnapshot.color.byteLength),
+  ]);
+  const lightingOracle = lightingOracleCPU(
+    scene,
+    oracle.rw,
+    oracle.rh,
+    normalOracle(oracle.height, oracle.rw, oracle.rh, sanitizeNormalOptions({})),
+    oracle.objectId,
+    visibilityOracle,
+    { ambient: lightingSnapshot.ambient },
+  );
+  const lightingParity = {
+    diffuse: compareLightingF32("benchmark/diffuse", lightingOracle.diffuse, diffuseGpu, oracle.rw),
+    specular: compareLightingF32("benchmark/specular", lightingOracle.specular, specularGpu, oracle.rw),
+    color: compareColor("benchmark", lightingOracle.color, colorBytes, oracle.rw),
+    ambient: lightingSnapshot.ambient,
+  };
 
   uploader.dispose();
   heightPass.dispose();
   normalPass.dispose();
   shadowPass.dispose();
+  lightingPass.dispose();
   return {
     cpuMedian,
     gpuMedian,
@@ -1869,6 +2331,7 @@ async function runBenchmark(device) {
       rw: oracle.rw,
       rh: oracle.rh,
     },
+    lighting: lightingParity,
   };
 }
 
@@ -1928,6 +2391,16 @@ async function main() {
     let casterMaxError = 0;
     let maxComponentError = 0;
     let maxLengthError = 0;
+    let totalLightingTexels = 0;
+    let totalDiffuseMismatches = 0;
+    let totalSpecularMismatches = 0;
+    let maxDiffuseError = 0;
+    let maxSpecularError = 0;
+    let totalColorHard = 0;
+    let totalColorSoft = 0;
+    let totalColorAlphaBad = 0;
+    let totalMutationMismatches = 0;
+    const colorMaxDelta = [0, 0, 0, 0];
     let executionFailures = 0;
     for (const result of fixtureResults) {
       totalTexels += result.texels ?? 0;
@@ -1949,6 +2422,21 @@ async function main() {
         totalCasterTexels += result.casterTexels ?? 0;
         casterMaxError = Math.max(casterMaxError, caster.maxError ?? 0);
       }
+      const lighting = result.lighting;
+      if (lighting !== undefined) {
+        totalLightingTexels += result.lightingTexels ?? 0;
+        totalDiffuseMismatches += lighting.diffuse.mismatches ?? 0;
+        totalSpecularMismatches += lighting.specular.mismatches ?? 0;
+        maxDiffuseError = Math.max(maxDiffuseError, lighting.diffuse.maxError ?? 0);
+        maxSpecularError = Math.max(maxSpecularError, lighting.specular.maxError ?? 0);
+        totalColorHard += lighting.color.hard ?? 0;
+        totalColorSoft += lighting.color.soft ?? 0;
+        totalColorAlphaBad += lighting.color.alphaBad ?? 0;
+        totalMutationMismatches += lighting.mutation?.mismatches ?? 0;
+        for (let ch = 0; ch < 4; ch++) {
+          colorMaxDelta[ch] = Math.max(colorMaxDelta[ch], lighting.color.maxDelta[ch] ?? 0);
+        }
+      }
       if (result.error !== undefined) {
         executionFailures += 1;
       }
@@ -1969,9 +2457,19 @@ async function main() {
               `(${result.shadow.mismatches}/${result.shadowTexels ?? result.texels} visibility texels, ` +
               `caster ${result.caster?.mismatches ?? 0}/${result.casterTexels ?? 0} ` +
               `max err ${(result.caster?.maxError ?? 0).toExponential(3)})`;
+        const lightingLine =
+          result.lighting === undefined
+            ? ""
+            : `; lighting ${result.lighting.diffuse.mismatches === 0 && result.lighting.specular.mismatches === 0 && result.lighting.color.hard === 0 && result.lighting.mutation.mismatches === 0 ? "PASS" : "FAIL"} ` +
+              `(${result.lightingTexels ?? result.texels} texels, ` +
+              `diffuse max err ${result.lighting.diffuse.maxError.toExponential(3)}, ` +
+              `specular max err ${result.lighting.specular.maxError.toExponential(3)}, ` +
+              `color hard ${result.lighting.color.hard} soft ${result.lighting.color.soft} ` +
+              `alphaBad ${result.lighting.color.alphaBad}, ` +
+              `mutations ${result.lighting.mutation.mismatches})`;
         detail.push(
           `fixture ${result.name}: ${result.mismatches === 0 ? "PASS" : "FAIL"} ` +
-            `(${result.mismatches}/${result.texels} texels)${normalLine}${shadowLine}`,
+            `(${result.mismatches}/${result.texels} texels)${normalLine}${shadowLine}${lightingLine}`,
         );
       }
       for (const sample of result.samples ?? []) {
@@ -1981,6 +2479,18 @@ async function main() {
         detail.push("  " + sample);
       }
       for (const sample of result.shadow?.samples ?? []) {
+        detail.push("  " + sample);
+      }
+      for (const sample of result.lighting?.diffuse?.samples ?? []) {
+        detail.push("  " + sample);
+      }
+      for (const sample of result.lighting?.specular?.samples ?? []) {
+        detail.push("  " + sample);
+      }
+      for (const sample of result.lighting?.color?.samples ?? []) {
+        detail.push("  " + sample);
+      }
+      for (const sample of result.lighting?.mutation?.samples ?? []) {
         detail.push("  " + sample);
       }
     }
@@ -2031,6 +2541,33 @@ async function main() {
       );
       return;
     }
+    if (totalDiffuseMismatches > 0 || totalSpecularMismatches > 0) {
+      finish(
+        MARKER_FAIL,
+        `lighting diffuse/specular mismatches: diffuse ${totalDiffuseMismatches}, ` +
+          `specular ${totalSpecularMismatches} of ${totalLightingTexels} lighting texels ` +
+          `(tolerance ${LIGHTING_F32_TOLERANCE}, measured max diffuse error ${maxDiffuseError.toExponential(3)}, ` +
+          `max specular error ${maxSpecularError.toExponential(3)})`,
+      );
+      return;
+    }
+    if (totalColorHard > 0 || totalColorAlphaBad > 0) {
+      finish(
+        MARKER_FAIL,
+        `lighting RGBA8 mismatches: ${totalColorHard} hard texels (${totalColorAlphaBad} bad alpha) ` +
+          `of ${totalLightingTexels} lighting texels ` +
+          `(per-channel max deltas R${colorMaxDelta[0]} G${colorMaxDelta[1]} B${colorMaxDelta[2]} A${colorMaxDelta[3]}; ` +
+          `soft 1-unit single-channel deltas ${totalColorSoft} permitted)`,
+      );
+      return;
+    }
+    if (totalMutationMismatches > 0) {
+      finish(
+        MARKER_FAIL,
+        `upstream buffer mutations during lighting dispatches: ${totalMutationMismatches}`,
+      );
+      return;
+    }
     if (benchmarkFailure !== null) {
       finish(
         MARKER_FAIL,
@@ -2046,10 +2583,19 @@ async function main() {
       `(effective options ${JSON.stringify(benchmark.options)})`;
     detail.push(benchmarkLine);
     const benchmarkParity = benchmark.parity;
+    const benchmarkLighting = benchmark.lighting;
     detail.push(
       `benchmark parity: visibility ${benchmarkParity.mismatches}/${benchmarkParity.rw * benchmarkParity.rh}, ` +
         `caster ${benchmarkParity.casterMismatches}/${benchmarkParity.rw * benchmarkParity.rh}, ` +
-        `max err ${benchmarkParity.casterMaxError.toExponential(3)}`,
+        `max err ${benchmarkParity.casterMaxError.toExponential(3)}; ` +
+        `lighting (ambient ${benchmarkLighting.ambient}): ` +
+        `diffuse ${benchmarkLighting.diffuse.mismatches}/${benchmarkParity.rw * benchmarkParity.rh} ` +
+        `max err ${benchmarkLighting.diffuse.maxError.toExponential(3)}, ` +
+        `specular ${benchmarkLighting.specular.mismatches}/${benchmarkParity.rw * benchmarkParity.rh} ` +
+        `max err ${benchmarkLighting.specular.maxError.toExponential(3)}, ` +
+        `color hard ${benchmarkLighting.color.hard} soft ${benchmarkLighting.color.soft} ` +
+        `max deltas R${benchmarkLighting.color.maxDelta[0]} G${benchmarkLighting.color.maxDelta[1]} ` +
+        `B${benchmarkLighting.color.maxDelta[2]} A${benchmarkLighting.color.maxDelta[3]}`,
     );
     if (!(benchmark.speedup >= BENCHMARK_MIN_SPEEDUP)) {
       finish(
@@ -2076,6 +2622,19 @@ async function main() {
       );
       return;
     }
+    if (
+      benchmarkLighting.diffuse.mismatches > 0 ||
+      benchmarkLighting.specular.mismatches > 0 ||
+      benchmarkLighting.color.hard > 0
+    ) {
+      finish(
+        MARKER_FAIL,
+        `benchmark scene lighting mismatches: diffuse ${benchmarkLighting.diffuse.mismatches}, ` +
+          `specular ${benchmarkLighting.specular.mismatches}, ` +
+          `color hard ${benchmarkLighting.color.hard} of ${benchmarkParity.rw * benchmarkParity.rh}`,
+      );
+      return;
+    }
     finish(
       MARKER_PASS,
       `real adapter parity: ${fixtureResults.length} fixtures, ${totalTexels} scene texels, ` +
@@ -2084,6 +2643,11 @@ async function main() {
         `max length error ${maxLengthError.toExponential(3)}; ` +
         `shadow ${totalShadowMismatches}/${totalShadowTexels} visibility texels exact, ` +
         `caster tolerance ${SHADOW_CASTER_TOLERANCE} max err ${casterMaxError.toExponential(3)}; ` +
+        `lighting ${totalDiffuseMismatches + totalSpecularMismatches + totalColorHard}/${totalLightingTexels} texels ` +
+        `(tolerance ${LIGHTING_F32_TOLERANCE}, max diffuse err ${maxDiffuseError.toExponential(3)}, ` +
+        `max specular err ${maxSpecularError.toExponential(3)}, ` +
+        `RGBA8 per-channel max deltas R${colorMaxDelta[0]} G${colorMaxDelta[1]} B${colorMaxDelta[2]} A${colorMaxDelta[3]}, ` +
+        `soft single-byte deltas ${totalColorSoft}); ` +
         `${benchmarkLine})`,
     );
   } catch (error) {
