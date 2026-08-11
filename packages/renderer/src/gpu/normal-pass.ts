@@ -10,6 +10,7 @@ import type {
   GpuComputePipelineLike,
   GpuPipelineLayoutLike,
   GpuShaderModuleLike,
+  HeightPassProvenance,
   HeightPassSnapshot,
 } from "./height-pass";
 import { GPU_USAGE_COPY_DST, GPU_USAGE_COPY_SRC, GPU_USAGE_STORAGE } from "./layout";
@@ -131,6 +132,13 @@ export interface NormalHeightBinding {
   readonly width: number;
   /** render extent height (texels) */
   readonly height: number;
+  /**
+   * O(1) identity of the successful #25 dispatch this height field came
+   * from (#28 provenance propagation). Set automatically by
+   * `normalHeightBindingFromHeightPass`; optional so synthetic height
+   * inputs (which have no HeightPass execution) stay legal.
+   */
+  readonly provenance?: HeightPassProvenance;
 }
 
 /** Effective (sanitized + f32-rounded) normal options actually dispatched. */
@@ -176,6 +184,12 @@ export interface NormalPassSnapshot {
   /** the effective (sanitized, f32-rounded) options that ran */
   readonly options: NormalEffectiveOptions;
   readonly lastDispatch: NormalPassLastDispatch;
+  /**
+   * The per-HeightPass-dispatch provenance propagated from the #25 height
+   * binding (null for synthetic height inputs that carry none). #28
+   * lighting consumes this to reject foreign/mixed lighting fields.
+   */
+  readonly provenance: HeightPassProvenance | null;
 }
 
 export interface NormalPassDispatchStats {
@@ -242,6 +256,9 @@ export function normalHeightBindingFromHeightPass(
     usage: height.usage,
     width: snapshot.width,
     height: snapshot.height,
+    // #28 provenance propagation: the lighting stage needs the exact
+    // per-HeightPass-dispatch token shared by every integrated field.
+    provenance: snapshot.provenance,
   };
 }
 
@@ -261,6 +278,7 @@ export class NormalPass {
   private newAllocations = 0;
   private lastDispatch: NormalPassLastDispatch | null = null;
   private lastOptions: NormalEffectiveOptions | null = null;
+  private lastProvenance: HeightPassProvenance | null = null;
   private cached: CachedNormalPipeline | null = null;
 
   constructor(private readonly device: GpuComputeDeviceLike) {}
@@ -320,6 +338,7 @@ export class NormalPass {
       workgroupCountX,
     };
     this.lastOptions = options;
+    this.lastProvenance = height.provenance ?? null;
 
     const stats: NormalPassDispatchStats = {
       newAllocations: this.newAllocations,
@@ -350,6 +369,7 @@ export class NormalPass {
       },
       options: this.lastOptions,
       lastDispatch: this.lastDispatch,
+      provenance: this.lastProvenance,
     };
   }
 
@@ -363,6 +383,7 @@ export class NormalPass {
     this.newAllocations = 0;
     this.lastDispatch = null;
     this.lastOptions = null;
+    this.lastProvenance = null;
   }
 
   // -- validation (all BEFORE any device call) ------------------------------

@@ -160,6 +160,30 @@ export type {
   ShadowSanitizeContext,
 } from "./gpu/shadow-pass";
 export {
+  LIGHTING_OUTPUT_BYTES_PER_TEXEL,
+  LIGHTING_PARAMS_BYTE_LENGTH,
+  LIGHTING_PASS_WGSL,
+  LIGHTING_WORKGROUP_SIZE,
+} from "./gpu/lighting-pass-wgsl";
+export {
+  DEFAULT_AMBIENT,
+  LIGHTING_PASS_OUTPUT_USAGE,
+  LightingPass,
+  lightingMaterialIdBindingFromHeightPass,
+  lightingNormalBindingFromNormalPass,
+  lightingVisibilityBindingFromShadowPass,
+  sanitizeAmbient,
+} from "./gpu/lighting-pass";
+export type {
+  LightingFieldBinding,
+  LightingOutputBinding,
+  LightingPassDispatchStats,
+  LightingPassInput,
+  LightingPassLastDispatch,
+  LightingPassOptions,
+  LightingPassSnapshot,
+} from "./gpu/lighting-pass";
+export {
   UkiboriRenderer,
   createRenderer,
   testPatternBytes,
@@ -207,8 +231,15 @@ export {
   sanitizeExposure,
 } from "./environment";
 export type { EnvironmentLight, EnvironmentResult } from "./environment";
-export { computeNormals, lightScene, shadeHeightField } from "./lighting";
-export type { LightingBuffers, LightingOptions, NormalOptions, ShadeInput } from "./lighting";
+export { computeNormals, lightScene, shadeHeightField, shadePreparedFields } from "./lighting";
+export type {
+  LightingBuffers,
+  LightingOptions,
+  NormalOptions,
+  PreparedFieldShadeInput,
+  PreparedFieldShadingBuffers,
+  ShadeInput,
+} from "./lighting";
 export {
   computeVisibility,
   isOccludedWithContext,

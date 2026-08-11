@@ -242,6 +242,12 @@ export interface ShadowPassSnapshot {
   /** the effective (sanitized, f32-rounded) options that ran */
   readonly options: ShadowEffectiveOptions;
   readonly lastDispatch: ShadowPassLastDispatch;
+  /**
+   * The per-HeightPass-dispatch provenance propagated from the #25 height
+   * bindings (#28): the lighting stage requires every field to share this
+   * exact token so foreign/mixed fields are rejected before any device call.
+   */
+  readonly provenance: HeightPassProvenance;
 }
 
 export interface ShadowPassDispatchStats {
@@ -344,6 +350,7 @@ export class ShadowPass {
   private lastDispatch: ShadowPassLastDispatch | null = null;
   private lastOptions: ShadowEffectiveOptions | null = null;
   private lastDpr = 0;
+  private lastProvenance: HeightPassProvenance | null = null;
   private cached: CachedShadowPipeline | null = null;
 
   constructor(private readonly device: GpuComputeDeviceLike) {}
@@ -467,6 +474,7 @@ export class ShadowPass {
     };
     this.lastOptions = options;
     this.lastDpr = header.dpr;
+    this.lastProvenance = input.height.provenance;
 
     const stats: ShadowPassDispatchStats = {
       newAllocations: this.newAllocations,
@@ -498,6 +506,7 @@ export class ShadowPass {
       },
       options: this.lastOptions,
       lastDispatch: this.lastDispatch,
+      provenance: this.lastProvenance as HeightPassProvenance,
     };
   }
 
@@ -512,6 +521,7 @@ export class ShadowPass {
     this.lastDispatch = null;
     this.lastOptions = null;
     this.lastDpr = 0;
+    this.lastProvenance = null;
   }
 
   // -- validation (all BEFORE any device call) ------------------------------
