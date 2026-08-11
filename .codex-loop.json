@@ -1,13 +1,13 @@
 {
-  "brief": "ISSUE_28_IMPLEMENTATION_BRIEF.md",
-  "checkpoint": "ISSUE-28",
+  "brief": "ISSUE_29_IMPLEMENTATION_BRIEF.md",
+  "checkpoint": "ISSUE-29",
   "maxIterations": 5,
   "model": "opencode-go/deepseek-v4-flash",
   "variant": "max",
   "implementationTimeoutMs": 1800000,
   "reviewTimeoutMs": 900000,
   "reviewPaths": [
-    "ISSUE_28_IMPLEMENTATION_BRIEF.md",
+    "ISSUE_29_IMPLEMENTATION_BRIEF.md",
     "package.json",
     "package-lock.json",
     "packages/renderer/src/backend",
@@ -28,9 +28,15 @@
     "packages/renderer/src/profile.ts",
     "packages/renderer/src/scene.ts",
     "packages/renderer/src/index.ts",
+    "packages/renderer/src/presentation.ts",
+    "packages/renderer/src/presentation.test.ts",
     "packages/renderer/package.json",
     "packages/renderer/scripts",
-    "packages/renderer/test-browser"
+    "packages/renderer/test-browser",
+    "packages/ukibori-dom/src/compositor.ts",
+    "packages/ukibori-dom/src/compositor.test.ts",
+    "packages/ukibori-dom/src/index.ts",
+    "packages/ukibori-dom/src/types.ts"
   ],
   "verificationCommands": [
     "npm run typecheck",
