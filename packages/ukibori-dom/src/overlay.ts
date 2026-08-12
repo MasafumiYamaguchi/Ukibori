@@ -3,14 +3,23 @@ import { readPageScroll } from "./measure";
 import type { Region, SurfaceImage } from "./types";
 
 /**
- * Overlay canvas (#20).
+ * Overlay canvases (#20).
  *
- * The overlay is a single absolutely-positioned `<canvas>` inserted as the
- * FIRST CHILD of the **stage** element:
+ * The overlay owns up to TWO separate `<canvas>` elements inserted as the
+ * FIRST CHILDREN of the **stage** element — one for the CPU (Canvas2D) path
+ * and one for the WebGPU path. The two are deliberately SEPARATE canvases:
+ * a canvas can only ever acquire one context type, so a GPU
+ * init/render/device-loss failure can switch ONCE to the CPU path without
+ * ever trying to acquire an incompatible context on the same canvas. The
+ * CPU canvas is created by the constructor (the #20 contract); the WebGPU
+ * canvas is created lazily by `gpuCanvas()` on the first GPU request and is
+ * never handed a "2d" context. Only the ACTIVE canvas is displayed
+ * (`display: none` on the other), so the page never shows a stale or
+ * half-presented frame.
  *
  * - **Stage-root contract**: the stage is the element that contains the
  *   registered surfaces (typically their innermost shared container). The
- *   canvas is inserted inside the stage so it paints WITHIN the stage's
+ *   canvases are inserted inside the stage so they paint WITHIN the stage's
  *   subtree: every in-flow ancestor background (an ordinary opaque card,
  *   panel, ...) is painted before its descendants, so the canvas is always
  *   above them, and `z-index: -1` keeps it below the surfaces' own in-flow
@@ -20,9 +29,9 @@ import type { Region, SurfaceImage } from "./types";
  *   injected stylesheet applies `isolation: isolate` — a stacking context
  *   with NO layout, positioning or containing-block effect — so the canvas's
  *   negative z-index is contained even when the stage is otherwise static.
- * - **Positioning**: the canvas is `position: absolute`; `left`/`top` are
- *   set in the coordinate system of its containing block (measured via the
- *   `offsetParent` chain, with a computed-style fallback walk for
+ * - **Positioning**: both canvases are `position: absolute`; `left`/`top`
+ *   are set in the coordinate system of their containing block (measured via
+ *   the `offsetParent` chain, with a computed-style fallback walk for
  *   transform/filter ancestors), so a positioned stage or a positioned
  *   ancestor wrapper both work. No registered element or ancestor is ever
  *   given a `position` — absolutely positioned descendants keep their
@@ -30,10 +39,12 @@ import type { Region, SurfaceImage } from "./types";
  * - `pointer-events: none` — hit-testing, focus, keyboard and pointer events
  *   belong entirely to the DOM underneath; the canvas never captures them.
  * - `aria-hidden="true"`, `role="presentation"` and `tabindex="-1"`: the
- *   canvas is inert to the accessibility tree and to focus.
+ *   canvases are inert to the accessibility tree and to focus.
  *
  * The backing store is DPR-scaled (`floor(region.w * dpr)` texels) while the
- * CSS size stays in CSS pixels, so `putImageData` writes crisp device pixels.
+ * CSS size stays in CSS pixels, so `putImageData` writes crisp device pixels
+ * on the CPU canvas and the WebGPU presentation pass presents directly to
+ * the GPU canvas's backing store (resized by the pipeline itself).
  */
 
 /** Managed attribute marking a registered surface (suppressed appearance). */
@@ -183,14 +194,32 @@ export function isManagedMutation(
 }
 
 export interface Overlay {
-  /** The DOM node the overlay owns (canvas), for managed-mutation filtering. */
+  /** The DOM node the overlay owns (the ACTIVE canvas), for managed-mutation
+   * filtering. */
   readonly node?: Element;
-  /** Resize + reposition the canvas to cover `region` at `dpr`. */
+  /** which canvas is currently presented: the CPU Canvas2D canvas or the
+   * WebGPU canvas */
+  readonly activeBackend: "cpu" | "webgpu";
+  /** Resize + reposition the canvas(es) to cover `region` at `dpr`. */
   resizeAndPosition(region: Region, dpr: number): void;
-  /** Draw a full-scene image (1 texel = 1 canvas device pixel). */
+  /** Draw a full-scene image (1 texel = 1 canvas device pixel) onto the CPU
+   * canvas (never the WebGPU canvas). */
   paint(image: SurfaceImage): void;
-  /** Make the canvas fully transparent (nothing to render). */
+  /** Make the active canvas fully transparent (nothing to render). The
+   * WebGPU canvas is hidden rather than cleared (clearing it would require a
+   * device call the overlay does not own). */
   clear(): void;
+  /**
+   * Switch the presented canvas. The two canvases are separate DOM nodes, so
+   * a switch never acquires a new context on a canvas that already has one:
+   * the WebGPU canvas is only ever given "webgpu", the CPU canvas only "2d".
+   */
+  setBackend(backend: "cpu" | "webgpu"): void;
+  /**
+   * The WebGPU canvas, created lazily on the first GPU request. Never
+   * displayed until `setBackend("webgpu")` and never given a "2d" context.
+   */
+  gpuCanvas(): HTMLCanvasElement;
   dispose(): void;
 }
 
@@ -200,41 +229,88 @@ export const OVERLAY_STYLE_PROPS = {
   pointerEvents: "none",
 } as const;
 
+function makeManagedCanvas(stage: Element, zIndex: number): HTMLCanvasElement {
+  ensureOverlayStylesheet(document);
+  const canvas = document.createElement("canvas");
+  canvas.style.position = OVERLAY_STYLE_PROPS.position;
+  canvas.style.zIndex = String(zIndex);
+  canvas.style.pointerEvents = OVERLAY_STYLE_PROPS.pointerEvents;
+  canvas.style.left = "0px";
+  canvas.style.top = "0px";
+  canvas.style.width = "0px";
+  canvas.style.height = "0px";
+  canvas.setAttribute("aria-hidden", "true");
+  canvas.setAttribute("role", "presentation");
+  canvas.tabIndex = -1;
+  canvas.setAttribute(OVERLAY_ATTR, "");
+  stage.insertBefore(canvas, stage.firstChild);
+  return canvas;
+}
+
 export class OverlayCanvas implements Overlay {
+  /** the CPU Canvas2D canvas (the #20 overlay; always exists) */
   readonly canvas: HTMLCanvasElement;
-  readonly node: Element;
+  /** the WebGPU canvas (created lazily; absent on pure-CPU layers) */
+  private gpuCanvasElement: HTMLCanvasElement | null = null;
   readonly stage: Element;
+  private backend: "cpu" | "webgpu" = "cpu";
+  private readonly zIndex: number;
 
   constructor(stage: Element = document.body, zIndex = -1) {
-    ensureOverlayStylesheet(document);
-    const canvas = document.createElement("canvas");
-    canvas.style.position = OVERLAY_STYLE_PROPS.position;
-    canvas.style.zIndex = String(zIndex);
-    canvas.style.pointerEvents = OVERLAY_STYLE_PROPS.pointerEvents;
-    canvas.style.left = "0px";
-    canvas.style.top = "0px";
-    canvas.style.width = "0px";
-    canvas.style.height = "0px";
-    canvas.setAttribute("aria-hidden", "true");
-    canvas.setAttribute("role", "presentation");
-    canvas.tabIndex = -1;
-    canvas.setAttribute(OVERLAY_ATTR, "");
-    this.canvas = canvas;
-    this.node = canvas;
     this.stage = stage;
+    this.zIndex = zIndex;
+    // The stage is owned by the overlay instance, not by each backing
+    // canvas. A GPU layer has two canvases but must acquire/release the stage
+    // attribute exactly once.
     acquireStageAttribute(stage);
-    stage.insertBefore(canvas, stage.firstChild);
+    this.canvas = makeManagedCanvas(stage, zIndex);
+  }
+
+  get activeBackend(): "cpu" | "webgpu" {
+    return this.backend;
+  }
+
+  get node(): Element {
+    return this.backend === "webgpu" && this.gpuCanvasElement !== null
+      ? this.gpuCanvasElement
+      : this.canvas;
+  }
+
+  gpuCanvas(): HTMLCanvasElement {
+    if (this.gpuCanvasElement !== null) {
+      return this.gpuCanvasElement;
+    }
+    const canvas = makeManagedCanvas(this.stage, this.zIndex);
+    canvas.style.display = "none";
+    this.gpuCanvasElement = canvas;
+    return canvas;
+  }
+
+  setBackend(backend: "cpu" | "webgpu"): void {
+    if (backend === this.backend) {
+      return;
+    }
+    this.backend = backend;
+    // Only the ACTIVE canvas is displayed. The inactive canvas keeps its
+    // backing store and context untouched, so CPU and GPU contexts never mix
+    // on one canvas and a GPU failure can switch back to CPU safely.
+    this.canvas.style.display = backend === "cpu" ? "" : "none";
+    if (this.gpuCanvasElement !== null) {
+      this.gpuCanvasElement.style.display = backend === "webgpu" ? "" : "none";
+    }
   }
 
   resizeAndPosition(region: Region, dpr: number): void {
     const { width, height } = renderTargetSize(region, sanitizeDpr(dpr));
-    this.canvas.width = width;
-    this.canvas.height = height;
-    const origin = containingBlockOrigin(this.canvas);
-    this.canvas.style.left = `${region.x - origin.x}px`;
-    this.canvas.style.top = `${region.y - origin.y}px`;
-    this.canvas.style.width = `${region.w}px`;
-    this.canvas.style.height = `${region.h}px`;
+    for (const canvas of this.allCanvases()) {
+      canvas.width = width;
+      canvas.height = height;
+      const origin = containingBlockOrigin(canvas);
+      canvas.style.left = `${region.x - origin.x}px`;
+      canvas.style.top = `${region.y - origin.y}px`;
+      canvas.style.width = `${region.w}px`;
+      canvas.style.height = `${region.h}px`;
+    }
   }
 
   paint(image: SurfaceImage): void {
@@ -256,7 +332,14 @@ export class OverlayCanvas implements Overlay {
 
   dispose(): void {
     this.canvas.remove();
+    this.gpuCanvasElement?.remove();
     releaseStageAttribute(this.stage);
+  }
+
+  private allCanvases(): HTMLCanvasElement[] {
+    return this.gpuCanvasElement === null
+      ? [this.canvas]
+      : [this.canvas, this.gpuCanvasElement];
   }
 }
 
