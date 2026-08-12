@@ -7,6 +7,8 @@ import {
   MATERIAL_STRIDE,
 } from "./layout";
 import type { GpuBufferLike, SceneBindings } from "./uploader";
+import type { BandRegion } from "./tiles";
+import { assertBandRegion } from "./tiles";
 import { validateEncodedScene } from "./validate";
 import {
   COMPUTE_STAGE_VISIBILITY,
@@ -179,6 +181,14 @@ export interface LightingPassInput {
   readonly visibility: LightingFieldBinding;
   /** CPU-compatible lighting options; ambient sanitized like the oracle */
   readonly options?: LightingPassOptions;
+  /**
+   * #32 optional dispatch region (inclusive texel rows): only those rows
+   * are computed (`ceil(bandTexels / LIGHTING_WORKGROUP_SIZE)` workgroups;
+   * the in-shader index adds `y0 * width`), so texels outside the band are
+   * never written. Bounds-safe by construction; `undefined` keeps the
+   * historical full-frame dispatch.
+   */
+  readonly region?: BandRegion;
 }
 
 /** Stable read-only output binding for #29 presentation. */
@@ -374,8 +384,16 @@ export class LightingPass {
     this.assertMaterialsSection(header.materialCount, input.bindings);
     this.assertExtent(header, scene.bytes, input);
     const texelCount = header.renderWidth * header.renderHeight;
-    const workgroupCountX = Math.ceil(texelCount / LIGHTING_WORKGROUP_SIZE);
-    this.assertDeviceLimits(workgroupCountX);
+    // #32 region dispatch: only the band rows are dispatched; the in-shader
+    // guard is the exclusive region end, so the band stays in bounds and its
+    // dispatch padding never writes a retained texel.
+    const region = assertBandRegion(input.region, header.renderHeight);
+    const bandRows = region === null ? header.renderHeight : region.y1 - region.y0 + 1;
+    const bandTexels = header.renderWidth * bandRows;
+    const dispatchCountX = Math.ceil(bandTexels / LIGHTING_WORKGROUP_SIZE);
+    const yOffset = region === null ? 0 : region.y0 * header.renderWidth;
+    const regionEnd = region === null ? 0 : yOffset + bandTexels;
+    this.assertDeviceLimits(dispatchCountX);
     const fieldBytes = texelCount * 4;
     const normalBytes = texelCount * 12; // tightly packed f32 xyz triples
     const materialsBindingBytes = Math.max(
@@ -404,7 +422,7 @@ export class LightingPass {
     this.ensureAllocation("outDiffuse", fieldBytes, LIGHTING_PASS_OUTPUT_USAGE);
     this.ensureAllocation("outSpecular", fieldBytes, LIGHTING_PASS_OUTPUT_USAGE);
     this.ensureAllocation("outColor", fieldBytes, LIGHTING_PASS_OUTPUT_USAGE);
-    this.packUniform(ambient);
+    this.packUniform(ambient, yOffset, regionEnd);
     const uniform = this.allocation("uniform");
     this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
 
@@ -461,14 +479,14 @@ export class LightingPass {
     const pass = encoder.beginComputePass();
     pass.setPipeline(cached.pipeline);
     pass.setBindGroup(0, group);
-    pass.dispatchWorkgroups(workgroupCountX);
+    pass.dispatchWorkgroups(dispatchCountX);
     pass.end();
     this.device.queue.submit([encoder.finish()]);
 
     this.lastDispatch = {
       renderWidth: header.renderWidth,
       renderHeight: header.renderHeight,
-      workgroupCountX,
+      workgroupCountX: dispatchCountX,
     };
     this.lastDpr = header.dpr;
     this.lastAmbient = ambient;
@@ -478,7 +496,7 @@ export class LightingPass {
       newAllocations: this.newAllocations,
       allocationCount: this.allocations.size,
       totalAllocationBytes: sumOf(this.allocationSizes),
-      workgroupCountX,
+      workgroupCountX: dispatchCountX,
     };
     this.newAllocations = 0;
     return stats;
@@ -755,12 +773,12 @@ export class LightingPass {
 
   // -- host packing (little-endian, offsets pinned by lighting-pass-wgsl.ts) --
 
-  private packUniform(ambient: number): void {
+  private packUniform(ambient: number, yOffset: number, regionEnd: number): void {
     const view = new DataView(this.uniformBytes.buffer);
     view.setFloat32(0, ambient, true);
     view.setUint32(4, LIGHTING_WORKGROUP_SIZE, true);
-    view.setUint32(8, 0, true);
-    view.setUint32(12, 0, true);
+    view.setUint32(8, yOffset, true);
+    view.setUint32(12, regionEnd, true);
   }
 
   // -- pipeline and bind group ----------------------------------------------

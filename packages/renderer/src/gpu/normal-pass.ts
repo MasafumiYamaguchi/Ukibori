@@ -15,6 +15,8 @@ import type {
 } from "./height-pass";
 import { GPU_USAGE_COPY_DST, GPU_USAGE_COPY_SRC, GPU_USAGE_STORAGE } from "./layout";
 import type { GpuBufferLike } from "./uploader";
+import type { BandRegion } from "./tiles";
+import { assertBandRegion } from "./tiles";
 import {
   NORMAL_OUTPUT_BYTES_PER_TEXEL,
   NORMAL_PARAMS_BYTE_LENGTH,
@@ -153,6 +155,14 @@ export interface NormalPassInput {
   readonly height: NormalHeightBinding;
   /** CPU-compatible normal options; sanitized like the oracle */
   readonly options?: NormalOptions;
+  /**
+   * #32 optional dispatch region (inclusive texel rows): only those rows
+   * are computed (`ceil(bandTexels / NORMAL_WORKGROUP_SIZE)` workgroups;
+   * the in-shader index adds `y0 * width`), so texels outside the band are
+   * never written. Bounds-safe by construction; `undefined` keeps the
+   * historical full-frame dispatch.
+   */
+  readonly region?: BandRegion;
 }
 
 /** Stable read-only output binding for later lighting (#27+). */
@@ -295,7 +305,14 @@ export class NormalPass {
     this.assertHeightBinding(height);
     const options = sanitizeNormalOptions(input.options);
     const texelCount = height.width * height.height;
-    const workgroupCountX = Math.ceil(texelCount / NORMAL_WORKGROUP_SIZE);
+    // #32 region dispatch: only the band rows are dispatched; the guard in
+    // the shader still uses the full texel count so the band stays in bounds.
+    const region = assertBandRegion(input.region, height.height);
+    const bandRows = region === null ? height.height : region.y1 - region.y0 + 1;
+    const bandTexels = height.width * bandRows;
+    const yOffset = region === null ? 0 : region.y0 * height.width;
+    const regionEnd = region === null ? 0 : yOffset + bandTexels;
+    const workgroupCountX = Math.ceil(bandTexels / NORMAL_WORKGROUP_SIZE);
     this.assertDeviceLimits(workgroupCountX);
     const outputBytes = texelCount * NORMAL_OUTPUT_BYTES_PER_TEXEL;
     this.assertAllocationWithinLimits(NORMAL_PARAMS_BYTE_LENGTH, "params uniform");
@@ -307,7 +324,7 @@ export class NormalPass {
       GPU_USAGE_UNIFORM | GPU_USAGE_COPY_DST,
     );
     this.ensureAllocation("outNormal", outputBytes, NORMAL_PASS_OUTPUT_USAGE);
-    this.packUniform(height.width, height.height, options);
+    this.packUniform(height.width, height.height, options, yOffset, regionEnd);
     const uniform = this.allocation("uniform");
     this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
 
@@ -490,7 +507,13 @@ export class NormalPass {
 
   // -- host packing (little-endian, offsets pinned by normal-pass-wgsl.ts) --
 
-  private packUniform(width: number, height: number, options: NormalEffectiveOptions): void {
+  private packUniform(
+    width: number,
+    height: number,
+    options: NormalEffectiveOptions,
+    yOffset: number,
+    regionEnd: number,
+  ): void {
     const view = new DataView(this.uniformBytes.buffer);
     view.setFloat32(0, options.scaleX, true);
     view.setFloat32(4, options.scaleY, true);
@@ -498,8 +521,8 @@ export class NormalPass {
     view.setUint32(12, width, true);
     view.setUint32(16, height, true);
     view.setUint32(20, NORMAL_WORKGROUP_SIZE, true);
-    view.setUint32(24, 0, true);
-    view.setUint32(28, 0, true);
+    view.setUint32(24, yOffset, true);
+    view.setUint32(28, regionEnd, true);
   }
 
   // -- pipeline and bind group ----------------------------------------------

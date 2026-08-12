@@ -110,7 +110,17 @@ import { WGSL_SCENE_BASE } from "./wgsl";
  * |        |      |                  | <= MAX_SHADOW_STEP_COUNT              |
  * | 68     | 4    | hasCasters (u32) | 1 when any surface has FLAG_CASTS_    |
  * |        |      |                  | SHADOW (early exit 1.0 when 0)        |
- * | 72     | 8    | _pad3..4 (u32)   | 0                                     |
+ * | 72     | 4    | yOffset (u32)    | #32 region dispatch texel offset      |
+ * |        |      |                  | (0 = full frame; the shader indexes   |
+ * |        |      |                  | `g = gid.x + yOffset`)               |
+ * | 76     | 4    | regionEnd (u32)  | #32 exclusive texel end of the        |
+ * |        |      |                  | dispatched region (0 = full-frame     |
+ * |        |      |                  | sentinel — a band may legitimately    |
+ * |        |      |                  | start at y0 = 0, so the region is     |
+ * |        |      |                  | signaled by regionEnd alone; the      |
+ * |        |      |                  | shader guards `regionEnd != 0 &&      |
+ * |        |      |                  | g >= regionEnd`, so dispatch padding  |
+ * |        |      |                  | never writes a retained texel)        |
  *
  * `width`/`height` are host-validated (positive integers, u32-bounded
  * texel count, byte-length-consistent with every bound field), so the
@@ -163,8 +173,8 @@ struct ShadowPassParams {
   surfaceCount: u32,    // 60 header surface count
   stepCount: u32,       // 64 floor(maxDistance / stepSize), capped
   hasCasters: u32,      // 68 1 when any surface casts (early exit when 0)
-  _pad3: u32,           // 72
-  _pad4: u32,           // 76
+  yOffset: u32,         // 72 #32 region dispatch texel offset (0 = full frame)
+  regionEnd: u32,       // 76 #32 exclusive region end (== texelCount full)
 }                       // size 80, align 16
 
 const SHADOW_WORKGROUP_SIZE: u32 = ${SHADOW_WORKGROUP_SIZE}u;
@@ -213,10 +223,20 @@ fn sampleCasterHeight(sx: f32, sy: f32) -> f32 {
 
 @compute @workgroup_size(SHADOW_WORKGROUP_SIZE)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-  let g = gid.x;
+  // #32 region dispatch: yOffset (0 on a full frame) shifts the 1D texel
+  // index into the dispatched band. The first guard is the historical
+  // full-frame bound; the second uses regionEnd (0 = full-frame sentinel; a
+  // band may legitimately start at y0 = 0, so the region is signaled by
+  // regionEnd alone) to stop the tail workgroup's padded invocations, which
+  // lie inside the buffer but past the band end, so they can never write a
+  // retained texel outside the band.
+  let g = gid.x + params.yOffset;
   let texelCount = params.width * params.height;
   if (g >= texelCount) {
     return; // in-shader bounds guard
+  }
+  if (params.regionEnd != 0u && g >= params.regionEnd) {
+    return; // #32 region-bound guard (padding-safe; never active on a full frame)
   }
   // Receiver rules (#17/#18/#27): NO_OWNER (base plane) RECEIVES shadows; a
   // valid owner whose FLAG_RECEIVES_SHADOW bit is clear returns 1.0 before

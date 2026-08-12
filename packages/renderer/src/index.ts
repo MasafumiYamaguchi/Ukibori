@@ -328,10 +328,43 @@ export type {
 } from "./gpu/dirty";
 export { GpuPipelineProfiler } from "./gpu/profiler";
 export type { CumulativeProfile, FrameProfile, ProfilerStageRecord } from "./gpu/profiler";
+export {
+  PARTIAL_DISPATCH_RATIO,
+  PROFILE_HALO_TEXELS,
+  TILE_SIZE_DEFAULT,
+  TILE_SIZE_MAX,
+  TILE_SIZE_MIN,
+  assertBandRegion,
+  bandForDirtyRect,
+  bytesEqual,
+  candidateCounts,
+  clampTileSize,
+  computeTileGrid,
+  diffEncodedScenes,
+  expandSceneRect,
+  expandTexelRect,
+  planPartialScene,
+  sceneRectToTexelRect,
+  shadowHalo,
+  surfaceTexelFootprint,
+  texelRectsOverlap,
+  tilesOverlappingRect,
+} from "./gpu/tiles";
+export type {
+  BandRegion,
+  PartialPlan,
+  PlanPartialInput,
+  SceneDiffResult,
+  SceneRect,
+  ShadowHalo,
+  TileGrid,
+  TileRect,
+} from "./gpu/tiles";
 export { GpuScenePipeline } from "./gpu/pipeline";
 export type {
   GpuPipelineDeviceLike,
   GpuScenePipelineFrameStats,
   GpuScenePipelineInput,
   GpuScenePipelineSnapshot,
+  PartialPlanReport,
 } from "./gpu/pipeline";

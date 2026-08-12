@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 import { computeNormals } from "../lighting";
 import { HostBuffer } from "../buffer";
 import { createScene } from "../scene";
-import type { Scene, SceneInput } from "../scene";
+import type { Scene, SceneInput, SurfaceNode } from "../scene";
+import type { ShadowOptions } from "../shadow";
 import { surfaceHeight } from "../geometry";
 import { computeVisibility } from "../shadow";
 import { NO_OWNER } from "../compose";
@@ -301,7 +302,7 @@ describe("#32 exact scene diff", () => {
           material: "silicone",
           castsShadow: false,
           receivesShadow: true,
-        },
+        } as SurfaceNode,
       ],
     };
     const result = diff(encoded(), encoded(added));
@@ -355,7 +356,7 @@ describe("#32 exact scene diff", () => {
     const beveled = {
       ...BASE_SCENE,
       surfaces: [
-        { ...BASE_SCENE.surfaces![0]!, bevelWidth: 4, profile: { kind: "bevel" } },
+        { ...BASE_SCENE.surfaces![0]!, bevelWidth: 4, profile: { kind: "bevel" } } as SurfaceNode,
         BASE_SCENE.surfaces![1]!,
         BASE_SCENE.surfaces![2]!,
       ],
@@ -417,12 +418,14 @@ describe("#32 exact scene diff", () => {
           material: "metal",
           castsShadow: true,
           receivesShadow: true,
-        },
+        } as SurfaceNode,
       ],
     };
     const changed = {
       ...withMask,
-      surfaces: [{ ...withMask.surfaces![0]!, shape: { kind: "mask", mask: changedGlyph } }],
+      surfaces: [
+        { ...withMask.surfaces![0]!, shape: { kind: "mask", mask: changedGlyph } } as SurfaceNode,
+      ],
     };
     const result = diff(encoded(withMask), encoded(changed));
     expect(result.fullFallback).toBe(false);
@@ -438,7 +441,13 @@ describe("#32 exact scene diff", () => {
 // ---------------------------------------------------------------------------
 
 describe("#32 partial/full policy", () => {
-  const plan = (prev: SceneInput, next: SceneInput, tileSize = 64, dpr = 1, shadowOptions = smallShadowOptions) =>
+  const plan = (
+    prev: SceneInput,
+    next: SceneInput,
+    tileSize = 64,
+    dpr = 1,
+    shadowOptions: ShadowOptions = smallShadowOptions,
+  ) =>
     planPartialScene({
       prevBytes: encodeScene(scene(prev), dpr).bytes,
       nextBytes: encodeScene(scene(next), dpr).bytes,
@@ -515,11 +524,11 @@ describe("#32 partial/full policy", () => {
       surfaces: [{ ...BASE_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, BASE_SCENE.surfaces![1]!, BASE_SCENE.surfaces![2]!],
     };
     const result = plan(BASE_SCENE, next, 32, 1);
-    expect(result.candidateSurfaceCount).toBeGreaterThan(0);
-    expect(result.candidateSurfaceCount + result.culledSurfaceCount).toBe(3);
+    expect(result.estimatedCandidateSurfaceCount).toBeGreaterThan(0);
+    expect(result.estimatedCandidateSurfaceCount + result.estimatedCulledSurfaceCount).toBe(3);
     // the distant constant surface is culled while the edited one is a candidate
-    expect(result.candidateSurfaceCount).toBe(1);
-    expect(result.culledSurfaceCount).toBe(2);
+    expect(result.estimatedCandidateSurfaceCount).toBe(1);
+    expect(result.estimatedCulledSurfaceCount).toBe(2);
   });
 
   it("reports the default tile grid on no-change frames", () => {
@@ -714,8 +723,8 @@ describe("#32 exact comparisons (no hash shortcuts)", () => {
     const bytes = encodeScene(scene(), 1).bytes;
     const dirty = { x: 9, y: 9, width: 42, height: 32 }; // surface a's footprint
     const counts = candidateCounts(bytes, dirty, 1, 100, 200);
-    expect(counts.candidateSurfaceCount).toBe(1);
-    expect(counts.culledSurfaceCount).toBe(2);
+    expect(counts.estimatedCandidateSurfaceCount).toBe(1);
+    expect(counts.estimatedCulledSurfaceCount).toBe(2);
     const again = candidateCounts(bytes, dirty, 1, 100, 200);
     expect(again).toEqual(counts);
   });

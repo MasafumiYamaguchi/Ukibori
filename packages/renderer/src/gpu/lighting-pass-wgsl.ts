@@ -122,8 +122,12 @@ ${WGSL_SCENE_BASE}
 struct LightingPassParams {
   ambient: f32,          //  0 effective ambient fill in [0, 1] (default 0.08)
   workgroupSize: u32,    //  4 documented dispatch workgroup size
-  _pad0: u32,            //  8
-  _pad1: u32,            // 12
+  yOffset: u32,          //  8 #32 region dispatch texel offset (0 = full frame)
+  regionEnd: u32,        // 12 #32 exclusive texel end of the dispatched region
+                         //    (0 = full-frame sentinel — a band may start at
+                         //    y0 = 0, so the region is signaled by regionEnd
+                         //    alone; the shader guards regionEnd != 0 &&
+                         //    g >= regionEnd)
 }                        // size 16, align 16
 
 const LIGHTING_WORKGROUP_SIZE: u32 = ${LIGHTING_WORKGROUP_SIZE}u;
@@ -295,12 +299,22 @@ fn packRgba(r: u32, g: u32, b: u32) -> u32 {
 
 @compute @workgroup_size(LIGHTING_WORKGROUP_SIZE)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-  let g = gid.x;
+  // #32 region dispatch: yOffset (0 on a full frame) shifts the 1D texel
+  // index into the dispatched band. The first guard is the historical
+  // full-frame bound; the second uses regionEnd (0 = full-frame sentinel; a
+  // band may legitimately start at y0 = 0, so the region is signaled by
+  // regionEnd alone) to stop the tail workgroup's padded invocations, which
+  // lie inside the buffer but past the band end, so they can never write a
+  // retained texel outside the band.
+  let g = gid.x + params.yOffset;
   let width = sceneHeader.renderWidth;
   let height = sceneHeader.renderHeight;
   let texelCount = width * height;
   if (g >= texelCount) {
     return; // in-shader bounds guard
+  }
+  if (params.regionEnd != 0u && g >= params.regionEnd) {
+    return; // #32 region-bound guard (padding-safe; never active on a full frame)
   }
   // #26 tightly packed f32 xyz normal triple at indices [g*3, g*3+1, g*3+2].
   let o = g * 3u;

@@ -13,6 +13,8 @@ import {
   sceneSectionLayout,
 } from "./layout";
 import type { GpuBufferLike, SceneBindings } from "./uploader";
+import type { BandRegion } from "./tiles";
+import { assertBandRegion } from "./tiles";
 import { validateEncodedScene } from "./validate";
 import {
   COMPOSE_CASTER_HEIGHT_WGSL,
@@ -426,8 +428,21 @@ export class HeightPass {
    * limits and allocation bounds all run BEFORE any device call; normal
    * execution then performs only GPU uploads and compute submission (no
    * map, no readback).
+   *
+   * `options.region` (#32) restricts the five compose passes to the
+   * inclusive texel rows `[y0, y1]` (a full-width dispatch band): the SDF
+   * pass always runs in full, every compose pass dispatches
+   * `ceil(bandTexels / WORKGROUP_SIZE)` workgroups and the in-shader index
+   * adds `y0 * renderWidth`, so texels outside the band are never written
+   * (they are retained by the scheduler). The band is bounds-safe by
+   * construction (it never exceeds the render extent). `undefined` keeps
+   * the historical full-frame behavior byte-for-byte.
    */
-  dispatch(scene: EncodedScene, bindings: SceneBindings): HeightPassDispatchStats {
+  dispatch(
+    scene: EncodedScene,
+    bindings: SceneBindings,
+    options?: { readonly region?: BandRegion },
+  ): HeightPassDispatchStats {
     const validation = validateEncodedScene(scene.bytes);
     if (!validation.ok || validation.header === undefined) {
       throw new Error(`invalid encoded scene: ${validation.errors.join("; ")}`);
@@ -448,12 +463,22 @@ export class HeightPass {
     );
     const totalMaskCells = workspaceBytes / 4;
     const texelCount = header.renderWidth * header.renderHeight;
-    const composeWorkgroups = ceilDiv(texelCount, WORKGROUP_SIZE);
+    // #32 region dispatch: the compose passes cover only the band rows; the
+    // SDF pass (mask workspace generation) always runs in full.
+    const region = assertBandRegion(options?.region, header.renderHeight);
+    const bandRows = region === null ? header.renderHeight : region.y1 - region.y0 + 1;
+    const bandTexels = header.renderWidth * bandRows;
+    const yOffset = region === null ? 0 : region.y0 * header.renderWidth;
+    // exclusive texel end of the dispatched region: 0 = full-frame sentinel;
+    // on a band the shader guard regionEnd != 0 && g >= regionEnd stops the
+    // dispatch padding from ever writing a retained texel outside the band
+    const regionEnd = region === null ? 0 : yOffset + bandTexels;
+    const composeWorkgroups = ceilDiv(bandTexels, WORKGROUP_SIZE);
     const sdfWorkgroups = totalMaskCells > 0 ? ceilDiv(totalMaskCells, WORKGROUP_SIZE) : 0;
     this.assertDeviceLimits(composeWorkgroups, sdfWorkgroups);
     this.ensureAllocations(maskOffsets.length, texelCount, totalMaskCells);
 
-    this.packUniform(totalMaskCells);
+    this.packUniform(totalMaskCells, yOffset, regionEnd);
     this.packMaskMeta(maskOffsets);
     const uniform = this.allocation("uniform");
     const maskMeta = this.allocation("maskMeta");
@@ -762,10 +787,12 @@ export class HeightPass {
 
   // -- host packing (little-endian, offsets pinned by height-pass-wgsl.ts) --
 
-  private packUniform(totalMaskCells: number): void {
+  private packUniform(totalMaskCells: number, yOffset: number, regionEnd: number): void {
     const view = new DataView(this.uniformBytes.buffer);
     view.setUint32(0, totalMaskCells, true);
     view.setUint32(4, WORKGROUP_SIZE, true);
+    view.setUint32(8, yOffset, true);
+    view.setUint32(12, regionEnd, true);
   }
 
   private packMaskMeta(offsets: readonly number[]): void {

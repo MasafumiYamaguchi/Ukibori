@@ -87,9 +87,12 @@ import type { ShadowOptions } from "../shadow";
  * measured by the pipeline as host wall-clock `planningHostMs` and reported
  * separately from GPU work.
  *
- * `candidateSurfaceCount` counts surfaces whose texel footprint intersects
- * the dirty rect (surfaces the passes must still consider); the rest are
- * culled.
+ * The `estimatedCandidateSurfaceCount` / `estimatedCulledSurfaceCount`
+ * fields are ESTIMATED diagnostics, not a promise of reduced GPU work: the
+ * compute passes still bind and iterate every surface record (the real
+ * per-texel culling is the in-shader ABI-bounds check inside the compose
+ * shaders). A surface is "estimated candidate" when its conservative texel
+ * footprint intersects the dirty rect; the rest are "estimated culled".
  */
 
 /** Default tile size (texels) — explicit, bounded, configurable. */
@@ -193,10 +196,14 @@ export interface PartialPlan {
   /** texels the partial dispatch would actually recompute (the band) */
   readonly dispatchTexels: number;
   readonly totalTexels: number;
-  /** surfaces whose footprint intersects the dirty rect */
-  readonly candidateSurfaceCount: number;
-  /** surfaces fully outside the dirty rect (culled) */
-  readonly culledSurfaceCount: number;
+  /**
+   * ESTIMATED (diagnostics only — the passes still iterate every surface;
+   * the in-shader ABI-bounds check is the actual per-texel culling):
+   * surfaces whose footprint intersects the dirty rect.
+   */
+  readonly estimatedCandidateSurfaceCount: number;
+  /** ESTIMATED: surfaces fully outside the dirty rect. */
+  readonly estimatedCulledSurfaceCount: number;
   /** the true 2D dirty texel rect (with all halos), clipped; null on full plans without a region */
   readonly dirtyRect: TileRect | null;
   /** the conservative dispatch band; non-null exactly when mode === "partial" */
@@ -570,13 +577,20 @@ export function diffEncodedScenes(prev: Uint8Array, next: Uint8Array): SceneDiff
   let dirty: SceneRect | null = null;
   const union = (rect: SceneRect): void => {
     if (dirty === null) {
-      dirty = { ...rect };
+      dirty = {
+        minX: rect.minX,
+        minY: rect.minY,
+        maxX: rect.maxX,
+        maxY: rect.maxY,
+      };
       return;
     }
-    dirty.minX = Math.min(dirty.minX, rect.minX);
-    dirty.minY = Math.min(dirty.minY, rect.minY);
-    dirty.maxX = Math.max(dirty.maxX, rect.maxX);
-    dirty.maxY = Math.max(dirty.maxY, rect.maxY);
+    dirty = {
+      minX: Math.min(dirty.minX, rect.minX),
+      minY: Math.min(dirty.minY, rect.minY),
+      maxX: Math.max(dirty.maxX, rect.maxX),
+      maxY: Math.max(dirty.maxY, rect.maxY),
+    };
   };
   for (const index of affected) {
     // changed surfaces: union of the OLD and NEW footprints (a moved or
@@ -613,8 +627,8 @@ export function planPartialScene(input: PlanPartialInput): PartialPlan {
     dirtyTexels: 0,
     dispatchTexels: totalTexels,
     totalTexels,
-    candidateSurfaceCount: 0,
-    culledSurfaceCount: 0,
+    estimatedCandidateSurfaceCount: 0,
+    estimatedCulledSurfaceCount: 0,
     dirtyRect: null,
     band: null,
   };
@@ -650,7 +664,7 @@ export function planPartialScene(input: PlanPartialInput): PartialPlan {
   const dispatchTexels = input.renderWidth * (band.y1 - band.y0 + 1);
   const dirtyTexels = dirtyRect.width * dirtyRect.height;
   const coverage = dispatchTexels / totalTexels;
-  const { candidateSurfaceCount, culledSurfaceCount } = candidateCounts(
+  const { estimatedCandidateSurfaceCount, estimatedCulledSurfaceCount } = candidateCounts(
     input.nextBytes,
     dirtyRect,
     input.dpr,
@@ -662,8 +676,8 @@ export function planPartialScene(input: PlanPartialInput): PartialPlan {
     dirtyTileCount: dirtyTiles.length,
     dirtyTexels,
     dispatchTexels,
-    candidateSurfaceCount,
-    culledSurfaceCount,
+    estimatedCandidateSurfaceCount,
+    estimatedCulledSurfaceCount,
     dirtyRect,
   };
   if (dispatchTexels >= totalTexels || coverage > PARTIAL_DISPATCH_RATIO) {
@@ -689,7 +703,7 @@ export function candidateCounts(
   dpr: number,
   renderWidth: number,
   renderHeight: number,
-): { readonly candidateSurfaceCount: number; readonly culledSurfaceCount: number } {
+): { readonly estimatedCandidateSurfaceCount: number; readonly estimatedCulledSurfaceCount: number } {
   const header = parseHeader(bytes);
   const surfacesOffset = HEADER_SIZE;
   let candidates = 0;
@@ -701,8 +715,8 @@ export function candidateCounts(
     }
   }
   return {
-    candidateSurfaceCount: candidates,
-    culledSurfaceCount: header.surfaceCount - candidates,
+    estimatedCandidateSurfaceCount: candidates,
+    estimatedCulledSurfaceCount: header.surfaceCount - candidates,
   };
 }
 

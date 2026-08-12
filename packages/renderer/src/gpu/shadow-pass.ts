@@ -12,6 +12,8 @@ import {
   SURFACE_STRIDE,
 } from "./layout";
 import type { GpuBufferLike, SceneBindings } from "./uploader";
+import type { BandRegion } from "./tiles";
+import { assertBandRegion } from "./tiles";
 import { validateEncodedScene } from "./validate";
 import {
   COMPUTE_STAGE_VISIBILITY,
@@ -201,6 +203,15 @@ export interface ShadowPassInput {
   readonly objectId: ShadowFieldBinding;
   /** CPU-compatible shadow options; sanitized like the oracle */
   readonly options?: ShadowOptions;
+  /**
+   * #32 optional dispatch region (inclusive texel rows): only those rows
+   * are computed (`ceil(bandTexels / SHADOW_WORKGROUP_SIZE)` workgroups;
+   * the in-shader index adds `y0 * width`), so texels outside the band are
+   * never written. The march samples the retained height fields outside the
+   * band (the scheduler guarantees they are unaffected). Bounds-safe by
+   * construction; `undefined` keeps the historical full-frame dispatch.
+   */
+  readonly region?: BandRegion;
 }
 
 /** Stable read-only output binding for later lighting/presentation. */
@@ -397,7 +408,19 @@ export class ShadowPass {
       );
     }
     const workgroupCountX = Math.ceil(texelCount / SHADOW_WORKGROUP_SIZE);
-    this.assertDeviceLimits(workgroupCountX);
+    // #32 region dispatch: only the band rows are dispatched; the in-shader
+    // guard is the exclusive region end, so the band stays in bounds and its
+    // dispatch padding never writes a retained texel.
+    const region = assertBandRegion(input.region, header.renderHeight);
+    const bandRows = region === null ? header.renderHeight : region.y1 - region.y0 + 1;
+    const bandTexels = header.renderWidth * bandRows;
+    const dispatchCountX = Math.ceil(bandTexels / SHADOW_WORKGROUP_SIZE);
+    const yOffset = region === null ? 0 : region.y0 * header.renderWidth;
+    // exclusive texel end of the dispatched region: 0 = full-frame sentinel;
+    // on a band the shader guard regionEnd != 0 && g >= regionEnd stops the
+    // dispatch padding from ever writing a retained texel outside the band
+    const regionEnd = region === null ? 0 : yOffset + bandTexels;
+    this.assertDeviceLimits(dispatchCountX);
     const outputBytes = texelCount * SHADOW_OUTPUT_BYTES_PER_TEXEL;
     const fieldBindingBytes = texelCount * 4;
     const surfacesBindingBytes = Math.max(header.surfaceCount * SURFACE_STRIDE, SURFACE_STRIDE);
@@ -415,7 +438,7 @@ export class ShadowPass {
 
     this.ensureAllocation("uniform", SHADOW_PARAMS_BYTE_LENGTH, GPU_USAGE_UNIFORM | GPU_USAGE_COPY_DST);
     this.ensureAllocation("outVisibility", outputBytes, SHADOW_PASS_OUTPUT_USAGE);
-    this.packUniform(header, parsed, options, stepCount, caster);
+    this.packUniform(header, parsed, options, stepCount, caster, yOffset, regionEnd);
     const uniform = this.allocation("uniform");
     this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
 
@@ -458,14 +481,14 @@ export class ShadowPass {
     const pass = encoder.beginComputePass();
     pass.setPipeline(cached.pipeline);
     pass.setBindGroup(0, group);
-    pass.dispatchWorkgroups(workgroupCountX);
+    pass.dispatchWorkgroups(dispatchCountX);
     pass.end();
     this.device.queue.submit([encoder.finish()]);
 
     this.lastDispatch = {
       renderWidth: header.renderWidth,
       renderHeight: header.renderHeight,
-      workgroupCountX,
+      workgroupCountX: dispatchCountX,
       stepCount,
       surfaceCount: header.surfaceCount,
       casterSurfaceCount: caster.casterSurfaceCount,
@@ -751,6 +774,8 @@ export class ShadowPass {
     options: ShadowEffectiveOptions,
     stepCount: number,
     caster: CasterInfo,
+    yOffset: number,
+    regionEnd: number,
   ): void {
     const view = new DataView(this.uniformBytes.buffer);
     view.setFloat32(0, header.dpr, true);
@@ -771,8 +796,8 @@ export class ShadowPass {
     view.setUint32(60, header.surfaceCount, true);
     view.setUint32(64, stepCount, true);
     view.setUint32(68, caster.hasCasters ? 1 : 0, true);
-    view.setUint32(72, 0, true);
-    view.setUint32(76, 0, true);
+    view.setUint32(72, yOffset, true);
+    view.setUint32(76, regionEnd, true);
   }
 
   // -- pipeline and bind group ----------------------------------------------

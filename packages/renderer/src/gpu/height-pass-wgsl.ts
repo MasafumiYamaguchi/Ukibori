@@ -52,8 +52,20 @@ import { WGSL_SCENE_BASE, WGSL_SCENE_BINDINGS } from "./wgsl";
  * | 0      | 4    | totalMaskCells (u32) | sum over masks of (w+2)*(h+2)
  * |        |      |                  | padded cells (genuinely derived)      |
  * | 4      | 4    | workgroupSize (u32) | documented dispatch workgroup size |
- * | 8      | 4    | _pad0 (u32)      | 0                                     |
- * | 12     | 4    | _pad1 (u32)      | 0                                     |
+ * | 8      | 4    | yOffset (u32)    | #32 texel-row dispatch offset: the   |
+ * |        |      |                  | first global texel of the dispatched  |
+ * |        |      |                  | region, `y0 * renderWidth` (0 for a   |
+ * |        |      |                  | full frame; the compose passes index  |
+ * |        |      |                  | `g = gid.x + yOffset`)               |
+ * | 12     | 4    | regionEnd (u32)  | #32 EXCLUSIVE texel end of the        |
+ * |        |      |                  | dispatched region (0 = full-frame     |
+ * |        |      |                  | sentinel — a band may legitimately    |
+ * |        |      |                  | start at y0 = 0, so the region is     |
+ * |        |      |                  | signaled by regionEnd alone; the      |
+ * |        |      |                  | compose passes guard `regionEnd != 0  |
+ * |        |      |                  | && g >= regionEnd`, so dispatch       |
+ * |        |      |                  | padding never writes a retained       |
+ * |        |      |                  | texel outside the band)               |
  *
  * All other pass inputs come from the scene header itself
  * (`sceneHeader.maskCount` etc.), so no host-copied counts are needed.
@@ -82,8 +94,8 @@ const PARAMS_STRUCT = /* wgsl */ `
 struct HeightPassParams {
   totalMaskCells: u32,   //  0 (sum of (mask.width+2)*(mask.height+2) padded cells)
   workgroupSize: u32,    //  4 (documented dispatch workgroup size)
-  _pad0: u32,            //  8
-  _pad1: u32,            // 12
+  yOffset: u32,          //  8 (#32 region dispatch texel offset; 0 = full frame)
+  regionEnd: u32,        // 12 (#32 exclusive region end; 0 = full frame)
 }                        // size 16, align 16
 
 const WORKGROUP_SIZE: u32 = ${WORKGROUP_SIZE}u;
@@ -395,10 +407,21 @@ fn casterOwnerAt(sx: f32, sy: f32) -> OwnerResult {
 const COMPOSE_MAIN_PRELUDE = /* wgsl */ `
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-  let g = gid.x;
+  // #32 region dispatch: yOffset (0 on a full frame) shifts the 1D texel
+  // index into the band the host dispatched, so a clipped region writes
+  // exactly its rows and every other texel stays retained. The first guard
+  // is the historical full-frame bound; the second uses regionEnd (0 =
+  // full-frame sentinel; a band may legitimately start at y0 = 0, so the
+  // region is signaled by regionEnd alone) to stop the tail workgroup's
+  // padded invocations, which lie inside the buffer but past the band end,
+  // so they can never write a retained texel outside the band.
+  let g = gid.x + params.yOffset;
   let texelCount = sceneHeader.renderWidth * sceneHeader.renderHeight;
   if (g >= texelCount) {
     return; // in-shader bounds guard
+  }
+  if (params.regionEnd != 0u && g >= params.regionEnd) {
+    return; // #32 region-bound guard (padding-safe; never active on a full frame)
   }
   let tx = g % sceneHeader.renderWidth;
   let ty = g / sceneHeader.renderWidth;

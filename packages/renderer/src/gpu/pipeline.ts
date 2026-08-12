@@ -36,6 +36,9 @@ import { computeFrameKey, reportInvalidations } from "./dirty";
 import type { FrameKey, InvalidationReport } from "./dirty";
 import { GpuPipelineProfiler } from "./profiler";
 import type { CumulativeProfile, FrameProfile, ProfilerStageRecord } from "./profiler";
+import { bytesEqual, computeTileGrid, planPartialScene } from "./tiles";
+import type { BandRegion, PartialPlan } from "./tiles";
+import { parseHeader } from "./encode";
 
 /**
  * #31 `GpuScenePipeline` — the #29 full-chain orchestrator rebuilt around
@@ -64,6 +67,29 @@ import type { CumulativeProfile, FrameProfile, ProfilerStageRecord } from "./pro
  * - normal/shadow/lighting option changes -> only the affected pass(es)
  *   and their downstream dependencies re-run (provenance is unchanged).
  * - composite/debug target changes -> presentation only.
+ *
+ * ## #32 conservative tile planning (partial recompute)
+ *
+ * When a frame invalidates the FULL chain because of a scene change, the
+ * deterministic planner (`gpu/tiles.ts`) diffs the EXACT retained bytes
+ * against the fresh encoding (never the hash alone), derives the dirty
+ * scene rect (added/removed/changed surfaces plus mask references),
+ * expands it by the shadow receiver halo (down-light of every changed
+ * region by the effective shadow maxDistance) and the 1-texel
+ * profile/normal halo, and bins it into the explicit tile grid
+ * (`input.tileSize`, default 64). The four compute passes then dispatch
+ * ONLY the full-width band covering the dirty tiles (each pass packs the
+ * band into its params uniform; the in-shader guard `regionEnd != 0 &&
+ * g >= regionEnd` keeps dispatch padding from ever touching a retained
+ * texel). Outputs outside the band stay retained and every pass shares
+ * the fresh per-dispatch provenance token. Light/environment/exposure,
+ * material-table, viewport and unknown mutations fall back to the full
+ * path with a documented reason; the partial path is chosen only when the
+ * band covers at most half the frame (`PARTIAL_DISPATCH_RATIO`, a
+ * deterministic coverage ratio — never a timing). The per-frame
+ * `planning` report exposes the decision, reason, tile/dirty counts,
+ * ESTIMATED candidate/culled surfaces and the planner's own host
+ * wall-clock overhead.
  *
  * Each `render()` reports the invalidation reasons, the executed/skipped
  * stage sets, per-stage statistics, a per-frame profile and the cumulative
@@ -126,6 +152,28 @@ export interface GpuScenePipelineInput {
    * dirty reason already includes it; this flag only adds it otherwise.
    */
   readonly repaint?: boolean;
+  /**
+   * #32: explicit conservative tile size (texels) for the partial-region
+   * planner. Clamped into `[TILE_SIZE_MIN, TILE_SIZE_MAX]` (8..512) with a
+   * documented default of 64; benchmark code may configure it. The tile
+   * grid is only used for dirty-region binning and the partial/full
+   * decision — it never changes the produced pixels.
+   */
+  readonly tileSize?: number;
+}
+
+/**
+ * #32 per-frame partial/full planning report — the deterministic tile
+ * binning, dirty-region and cost-policy diagnostics plus the planner's own
+ * host wall-clock time (labeled as host time, never GPU time).
+ */
+export interface PartialPlanReport extends PartialPlan {
+  /**
+   * Host wall-clock milliseconds spent inside the planner (grid, exact
+   * scene diff, halo expansion, binning and the cost decision), reported
+   * SEPARATELY from the submitted GPU work.
+   */
+  readonly planningHostMs: number;
 }
 
 export interface GpuScenePipelineFrameStats {
@@ -134,6 +182,14 @@ export interface GpuScenePipelineFrameStats {
   readonly dpr: number;
   /** the #31 scheduler report: reasons + executed/skipped stages */
   readonly invalidation: InvalidationReport;
+  /**
+   * #32 deterministic partial/full planning report: tile size/count, dirty
+   * tile/texel counts, ESTIMATED candidate/culled surface counts (the
+   * passes still iterate every surface; the in-shader ABI-bounds check is
+   * the actual culling), the decision and its reason, and the planner's
+   * host wall-clock overhead.
+   */
+  readonly planning: PartialPlanReport;
   readonly upload: UploadStats;
   readonly height: HeightPassDispatchStats;
   readonly normal: NormalPassDispatchStats;
@@ -287,20 +343,48 @@ export class GpuScenePipeline {
   private renderFrame(input: GpuScenePipelineInput): GpuScenePipelineFrameStats {
     this.assertUsable();
     const encoded = encodeScene(input.scene, input.dpr);
-    const key = computeFrameKey(encoded, input);
-    const report = reportInvalidations(key, this.lastKey, input.repaint === true);
+    let key = computeFrameKey(encoded, input);
+    let report = reportInvalidations(key, this.lastKey, input.repaint === true);
+    // #32 hash-collision hardening: the stable scene fingerprint is only an
+    // ACCELERATOR for the skip/partial decisions; the exact bytes authorize
+    // them. A collision (fingerprint equal, bytes different) must never
+    // silently preserve wrong output, so it degrades to a conservative
+    // first-frame recompute.
+    if (
+      this.lastKey !== null &&
+      this.lastEncoded !== null &&
+      key.scene === this.lastKey.scene &&
+      !bytesEqual(this.lastEncoded.bytes, encoded.bytes)
+    ) {
+      this.lastKey = null;
+      key = computeFrameKey(encoded, input);
+      report = reportInvalidations(key, null, input.repaint === true);
+    }
     const executed = new Set(report.executed);
     const records: ProfilerStageRecord[] = [];
+
+    // #32 deterministic partial/full planning. The planner is pure host
+    // work: its wall-clock time is reported separately (planningHostMs,
+    // labeled HOST time) and never mixed into GPU completion times.
+    const planningStart = performance.now();
+    const plan = this.planFrame(encoded, report, input);
+    const planningHostMs = performance.now() - planningStart;
+    const region: BandRegion | undefined =
+      plan.mode === "partial" && plan.band !== null ? plan.band : undefined;
+    const dispatchRegion = region === undefined ? undefined : { region };
     // A content-identical encoding reuses the retained bytes object so the
     // uploader bindings and the HeightPass provenance (both object-identity
     // based, #24/#28) stay valid without re-uploading. This is exactly the
     // case where the scheduler skips the upload stage; every dirty upload
-    // (first frame / viewport / scene) uses the fresh encoding below.
+    // (first frame / viewport / scene) uses the fresh encoding below. The
+    // reuse is authorized by EXACT byte equality, never by the fingerprint
+    // alone (#32 collision hardening).
     const scene =
       this.lastEncoded !== null &&
       this.lastKey !== null &&
       key.scene === this.lastKey.scene &&
-      key.viewport === this.lastKey.viewport
+      key.viewport === this.lastKey.viewport &&
+      bytesEqual(this.lastEncoded.bytes, encoded.bytes)
         ? this.lastEncoded
         : encoded;
 
@@ -328,7 +412,7 @@ export class GpuScenePipeline {
     let height: HeightPassDispatchStats;
     if (executed.has("height")) {
       const t0 = performance.now();
-      height = this.heightPass.dispatch(scene, bindings);
+      height = this.heightPass.dispatch(scene, bindings, dispatchRegion);
       const hostMs = performance.now() - t0;
       records.push({
         stage: "height",
@@ -350,6 +434,7 @@ export class GpuScenePipeline {
       normal = this.normalPass.dispatch({
         height: normalHeightBindingFromHeightPass(heightSnapshot),
         options: input.normalOptions,
+        region,
       });
       const hostMs = performance.now() - t0;
       records.push({
@@ -374,6 +459,7 @@ export class GpuScenePipeline {
         bindings,
         ...shadowHeightBindingsFromHeightPass(heightSnapshot),
         options: input.shadowOptions,
+        region,
       });
       const hostMs = performance.now() - t0;
       records.push({
@@ -400,6 +486,7 @@ export class GpuScenePipeline {
         normal: lightingNormalBindingFromNormalPass(normalSnapshot),
         visibility: lightingVisibilityBindingFromShadowPass(shadowSnapshot),
         options: input.lightingOptions,
+        region,
       });
       const hostMs = performance.now() - t0;
       records.push({
@@ -469,6 +556,7 @@ export class GpuScenePipeline {
       renderHeight: heightSnapshot.height,
       dpr: heightSnapshot.dpr,
       invalidation: report,
+      planning: { ...plan, planningHostMs },
       upload,
       height,
       normal,
@@ -478,6 +566,81 @@ export class GpuScenePipeline {
       frame,
       totals,
     };
+  }
+
+  /**
+   * #32 deterministic partial/full planning for one frame. Only a frame
+   * whose invalidation runs the FULL chain because of a scene change can
+   * ever take the partial path; everything else is a conservative full
+   * recompute with a deterministic reason (documented planner/fallback
+   * rules):
+   *
+   * - no retained frame, an option-only change, a viewport/DPR change, or
+   *   pass-option changes mixed with the scene change -> full
+   * - light direction/intensity, exposure, environment, material-table or
+   *   unknown byte mutations -> full ("light-or-environment-change",
+   *   "material-table-change", "unknown-mutation"; locality cannot be
+   *   proven)
+   * - the exact per-surface/mask diff yields the dirty scene rect, expanded
+   *   by the shadow receiver halo and the 1-texel profile/normal halo; the
+   *   dispatch band covering the dirty tiles is partial only when it covers
+   *   at most PARTIAL_DISPATCH_RATIO of the frame (deterministic coverage
+   *   ratio, never a timing), otherwise full ("band-coverage ...").
+   *
+   * The scene fingerprint is never trusted alone: `planPartialScene` diffs
+   * the EXACT retained bytes against the fresh encoding.
+   */
+  private planFrame(
+    encoded: EncodedScene,
+    report: InvalidationReport,
+    input: GpuScenePipelineInput,
+  ): PartialPlan {
+    const full = (reason: string): PartialPlan => {
+      const header = parseHeader(encoded.bytes);
+      const grid = computeTileGrid(header.renderWidth, header.renderHeight, input.tileSize);
+      const totalTexels = header.renderWidth * header.renderHeight;
+      return {
+        mode: "full",
+        reason,
+        tileSize: grid.tileSize,
+        totalTileCount: grid.tileCount,
+        dirtyTileCount: 0,
+        dirtyTexels: 0,
+        dispatchTexels: totalTexels,
+        totalTexels,
+        estimatedCandidateSurfaceCount: 0,
+        estimatedCulledSurfaceCount: 0,
+        dirtyRect: null,
+        band: null,
+      };
+    };
+    if (this.lastEncoded === null || this.lastKey === null) {
+      return full("first-frame");
+    }
+    if (!report.reasons.includes("scene")) {
+      return full("no-scene-change");
+    }
+    if (report.reasons.includes("viewport")) {
+      return full("viewport-change");
+    }
+    if (
+      report.reasons.some(
+        (reason) =>
+          reason === "normal-options" || reason === "shadow-options" || reason === "lighting-options",
+      )
+    ) {
+      return full("option-change-with-scene");
+    }
+    const header = parseHeader(encoded.bytes);
+    return planPartialScene({
+      prevBytes: this.lastEncoded.bytes,
+      nextBytes: encoded.bytes,
+      dpr: header.dpr,
+      renderWidth: header.renderWidth,
+      renderHeight: header.renderHeight,
+      shadowOptions: input.shadowOptions,
+      tileSize: input.tileSize,
+    });
   }
 
   /**
