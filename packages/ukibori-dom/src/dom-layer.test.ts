@@ -458,6 +458,95 @@ describe("UkiboriDom — DOM integration", () => {
     layer.dispose();
   });
 
+  it("passes environment/exposure through and re-renders without touching the registry", () => {
+    const fake = makeFakeOverlay();
+    const layer = new UkiboriDom({
+      overlay: { factory: () => fake.overlay },
+      schedule: (cb) => cb(),
+      observe: false,
+      environment: { intensity: 0 },
+      exposure: 1,
+    });
+    layer.register(button, BUTTON_OPTIONS);
+    layer.render();
+    const lastImage = () => {
+      const all = fake.calls.filter((c) => c.type === "paint");
+      return all[all.length - 1]!.image!;
+    };
+    // Button center pixel in the region grid: (144, 86) with width 288.
+    const p = (86 * 288 + 144) * 4;
+
+    // environment OFF: the pre-#22 ambient + direct response.
+    const envOff = lastImage().data[p];
+    // Retained update: environment ON re-renders the SAME layer and registry.
+    layer.setEnvironment({ intensity: 1 });
+    layer.render();
+    expect(layer).toBeDefined();
+    expect(layer.registry.size).toBe(1);
+    expect(layer.registry.get("primary")).toBeDefined();
+    const envOn = lastImage().data[p];
+    expect(envOn).toBeGreaterThan(envOff);
+    // Full replacement: absent shares reset to their defaults.
+    expect(layer.debugEnvironment()).toEqual({ intensity: 1, diffuseIntensity: 1, specularIntensity: 1 });
+
+    // exposure 0: the linear result collapses to black (still finite/opaque).
+    layer.setExposure(0);
+    layer.render();
+    const zero = lastImage().data;
+    expect(zero[p]).toBe(0);
+    expect(zero[p + 1]).toBe(0);
+    expect(zero[p + 2]).toBe(0);
+    expect(zero[p + 3]).toBe(255);
+    expect(layer.debugExposure()).toBe(0);
+    layer.dispose();
+  });
+
+  it("propagates the environment specular share through the retained setter", () => {
+    const fake = makeFakeOverlay();
+    const layer = new UkiboriDom({
+      overlay: { factory: () => fake.overlay },
+      schedule: (cb) => cb(),
+      observe: false,
+      // A tilted light keeps the metal plateau below direct-specular
+      // saturation, so the environment specular share is observable there.
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+      environment: { intensity: 1, specularIntensity: 1 },
+    });
+    layer.register(button, { ...BUTTON_OPTIONS, material: "metal" });
+    layer.render();
+    const lastImage = () => {
+      const all = fake.calls.filter((c) => c.type === "paint");
+      return all[all.length - 1]!.image!;
+    };
+    const p = (86 * 288 + 144) * 4;
+    const withSpecular = lastImage().data[p];
+
+    // Specular share 0: the metal's environment lift disappears while the
+    // intensity stays on (metal has no environment diffuse).
+    layer.setEnvironment({ intensity: 1, specularIntensity: 0 });
+    layer.render();
+    expect(layer.debugEnvironment()).toEqual({ intensity: 1, diffuseIntensity: 1, specularIntensity: 0 });
+    const withoutSpecular = lastImage().data[p];
+    expect(withoutSpecular).toBeLessThan(withSpecular);
+    layer.dispose();
+  });
+
+  it("sanitizes invalid environment/exposure to the defaults", () => {
+    const layer = new UkiboriDom({
+      schedule: (cb) => cb(),
+      observe: false,
+      environment: { intensity: NaN, specularIntensity: 2 },
+      exposure: -2,
+    });
+    expect(layer.debugEnvironment()).toEqual({ intensity: 0.5, diffuseIntensity: 1, specularIntensity: 1 });
+    expect(layer.debugExposure()).toBe(1);
+    layer.setEnvironment({ intensity: -1, diffuseIntensity: Infinity });
+    layer.setExposure(Infinity);
+    expect(layer.debugEnvironment()).toEqual({ intensity: 0.5, diffuseIntensity: 1, specularIntensity: 1 });
+    expect(layer.debugExposure()).toBe(1);
+    layer.dispose();
+  });
+
   it("setMargin resets to the default when given undefined", () => {
     const layer = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
     layer.setMargin(32);

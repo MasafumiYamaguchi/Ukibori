@@ -1,3 +1,5 @@
+import { sanitizeEnvironment, sanitizeExposure } from "./environment";
+import type { EnvironmentLight } from "./environment";
 import { isFiniteNumber, normalizeVec3 } from "./math";
 import { resolveMaterial, sanitizeMaterialTable } from "./material";
 import type { Material } from "./material";
@@ -144,6 +146,18 @@ export interface Scene {
   surfaces: SurfaceNode[];
   light: DirectionalLight;
   /**
+   * Shared uniform environment illumination (#22), independent of the
+   * directional light: environment intensity 0 disables it. Finite >= 0;
+   * sanitized on creation (invalid falls back to 0.5).
+   */
+  environment: EnvironmentLight;
+  /**
+   * Exposure multiplier applied to the LINEAR lighting result (ambient +
+   * direct + environment) before sRGB encoding. Finite >= 0; sanitized on
+   * creation (invalid falls back to 1).
+   */
+  exposure: number;
+  /**
    * Material overrides keyed by `MaterialRef`; built-in presets
    * (silicone / matte / metal) fill the gaps. Values are sanitized on
    * creation. A surface referencing an unknown material throws.
@@ -156,6 +170,8 @@ export interface SceneInput {
   height: number;
   surfaces?: SurfaceNode[];
   light?: Partial<DirectionalLight>;
+  environment?: Partial<EnvironmentLight>;
+  exposure?: number;
   materials?: Record<string, Material>;
 }
 
@@ -172,6 +188,9 @@ export const DEFAULT_LIGHT_DIRECTION: Vec3 = { x: 0, y: 0, z: 1 };
  *   clamped roughness/metallic).
  * - `light.direction` and `light.intensity` are SANITIZED: invalid direction
  *   falls back to +z, invalid intensity falls back to 1
+ * - `environment` and `exposure` (#22) are SANITIZED: invalid environment
+ *   intensity falls back to 0.5, invalid exposure falls back to 1; zero is
+ *   always preserved for both (environment OFF / exposure black)
  */
 export function createScene(input: SceneInput): Scene {
   assertPositiveInt(input.width, "scene width");
@@ -198,6 +217,8 @@ export function createScene(input: SceneInput): Scene {
     surfaces,
     materials,
     light: { direction, intensity },
+    environment: sanitizeEnvironment(input.environment),
+    exposure: sanitizeExposure(input.exposure),
   };
 }
 

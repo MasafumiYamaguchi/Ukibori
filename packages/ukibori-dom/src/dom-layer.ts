@@ -1,4 +1,7 @@
 import {
+  DEFAULT_ENVIRONMENT_INTENSITY,
+  DEFAULT_ENVIRONMENT_SHARE,
+  DEFAULT_EXPOSURE,
   DEFAULT_LIGHT_DIRECTION,
   composeSdfHeightField,
   lightScene,
@@ -15,6 +18,7 @@ import { buildScene } from "./scene-builder";
 import type {
   CompositeOptions,
   DomDebugState,
+  DomEnvironmentState,
   DomLightState,
   DomShadowOptions,
   DomSurfaceOptions,
@@ -44,13 +48,18 @@ import type {
  * - viewport resize: node dirty + scene dirty (devicePixelRatio may have
  *   changed)
  * - font load (`document.fonts` loadingdone): node dirty + scene dirty
- * - light / intensity / materials updates: scene dirty
+ * - light / intensity / environment / exposure / materials updates: scene dirty
  *
  * All invalidation coalesces through a single rAF-throttled `render()`.
  */
 
 export interface UkiboriDomOptions {
   light?: Partial<DomLightState>;
+  /** shared environment illumination (#22): uniform, intensity 0 = off; the
+   * diffuse/specular shares independently zero out each term */
+  environment?: Partial<DomEnvironmentState>;
+  /** exposure multiplier applied before sRGB encoding (#22) */
+  exposure?: number;
   /** material overrides keyed by ref; built-in presets fill the gaps */
   materials?: Record<string, Material>;
   /** cast-shadow pass options forwarded to the renderer (#17) */
@@ -88,7 +97,6 @@ export interface UkiboriDomOptions {
 
 const DEFAULT_MARGIN = 64;
 const DEFAULT_INTENSITY = 1;
-
 /**
  * Document-level observer config: ANY DOM mutation (attributes, child lists,
  * text) anywhere can move or resize a registered element through ancestors
@@ -114,6 +122,8 @@ export class UkiboriDom {
   private shadowOptions: DomShadowOptions;
 
   private light: DomLightState;
+  private environment: DomEnvironmentState;
+  private exposure: number;
   private materials: Record<string, Material> | undefined;
 
   private readonly resizeObserver: ResizeObserver | null;
@@ -153,6 +163,11 @@ export class UkiboriDom {
           ? (options.light?.intensity ?? DEFAULT_INTENSITY)
           : DEFAULT_INTENSITY,
     };
+    this.environment = sanitizeEnvironmentState(options.environment);
+    this.exposure =
+      Number.isFinite(options.exposure) && (options.exposure ?? 0) >= 0
+        ? (options.exposure ?? DEFAULT_EXPOSURE)
+        : DEFAULT_EXPOSURE;
     this.materials = options.materials;
     this.overlay =
       options.overlay?.factory !== undefined
@@ -307,6 +322,29 @@ export class UkiboriDom {
     this.scheduleRender();
   }
 
+  /**
+   * Replace the shared environment illumination state (#22). FULL
+   * replacement: fields absent from `environment` (including on later
+   * calls) resolve to their defaults — nothing is merged, so removed
+   * controls never stay stale. `intensity` 0 disables the environment;
+   * `diffuseIntensity` / `specularIntensity` independently zero out each
+   * term.
+   */
+  setEnvironment(environment: Partial<DomEnvironmentState>): void {
+    this.throwIfDisposed();
+    this.environment = sanitizeEnvironmentState(environment);
+    this.sceneDirty = true;
+    this.scheduleRender();
+  }
+
+  /** Replace the exposure multiplier applied before sRGB encoding. */
+  setExposure(exposure: number): void {
+    this.throwIfDisposed();
+    this.exposure = Number.isFinite(exposure) && exposure >= 0 ? exposure : DEFAULT_EXPOSURE;
+    this.sceneDirty = true;
+    this.scheduleRender();
+  }
+
   /** Replace the material override table (presets still resolve). */
   setMaterials(materials: Record<string, Material>): void {
     this.throwIfDisposed();
@@ -442,6 +480,8 @@ export class UkiboriDom {
         region,
         dpr,
         light: this.light,
+        environment: this.environment,
+        exposure: this.exposure,
         materials: this.materials,
       });
       // Compose the height field once for the ownership buffer (#18 objectId);
@@ -495,6 +535,16 @@ export class UkiboriDom {
   /** Current shadow pass options (debug views / tests). */
   debugShadowOptions(): Readonly<DomShadowOptions> {
     return this.shadowOptions;
+  }
+
+  /** Current environment illumination state (debug views / tests). */
+  debugEnvironment(): Readonly<DomEnvironmentState> {
+    return { ...this.environment };
+  }
+
+  /** Current exposure multiplier (debug views / tests). */
+  debugExposure(): number {
+    return this.exposure;
   }
 
   debugState(): DomDebugState {
@@ -567,4 +617,30 @@ function defaultScheduler(cb: () => void): void {
   } else {
     setTimeout(cb, 0);
   }
+}
+
+/**
+ * Sanitize a partial environment state into a full one (renderer #22
+ * policy): intensity finite >= 0 (invalid -> 0.5), shares finite clamped
+ * to [0, 1] (invalid -> 1). 0 is preserved for all three controls.
+ */
+function sanitizeEnvironmentState(
+  environment: Partial<DomEnvironmentState> | undefined,
+): DomEnvironmentState {
+  const intensity = environment?.intensity;
+  return {
+    intensity:
+      typeof intensity === "number" && Number.isFinite(intensity) && intensity >= 0
+        ? intensity
+        : DEFAULT_ENVIRONMENT_INTENSITY,
+    diffuseIntensity: sanitizeShare(environment?.diffuseIntensity),
+    specularIntensity: sanitizeShare(environment?.specularIntensity),
+  };
+}
+
+function sanitizeShare(v: number | undefined): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) {
+    return DEFAULT_ENVIRONMENT_SHARE;
+  }
+  return v < 0 ? 0 : v > 1 ? 1 : v;
 }

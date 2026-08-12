@@ -1,0 +1,31 @@
+{
+  "brief": "ISSUE_26_IMPLEMENTATION_BRIEF.md",
+  "checkpoint": "ISSUE-26",
+  "maxIterations": 5,
+  "model": "opencode-go/deepseek-v4-flash",
+  "variant": "max",
+  "implementationTimeoutMs": 1800000,
+  "reviewTimeoutMs": 900000,
+  "reviewPaths": [
+    "ISSUE_26_IMPLEMENTATION_BRIEF.md",
+    "package.json",
+    "package-lock.json",
+    "packages/renderer/src/backend",
+    "packages/renderer/src/gpu",
+    "packages/renderer/src/compose.ts",
+    "packages/renderer/src/geometry.ts",
+    "packages/renderer/src/mask.ts",
+    "packages/renderer/src/profile.ts",
+    "packages/renderer/src/scene.ts",
+    "packages/renderer/src/index.ts",
+    "packages/renderer/package.json",
+    "packages/renderer/scripts",
+    "packages/renderer/test-browser"
+  ],
+  "verificationCommands": [
+    "npm run typecheck",
+    "npm test",
+    "npm run build",
+    "npm run test:webgpu -w ukibori-renderer"
+  ]
+}

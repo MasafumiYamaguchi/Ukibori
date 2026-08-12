@@ -3,6 +3,13 @@ import { clamp } from "./math";
 import { composeCasterHeightField, composeSdfHeightField } from "./geometry";
 import { computeVisibility } from "./shadow";
 import { brdfDirect } from "./brdf";
+import {
+  accumulateLinear,
+  applyExposure,
+  evaluateEnvironment,
+  sanitizeEnvironment,
+  sanitizeExposure,
+} from "./environment";
 import { BASE_MATERIAL, resolveMaterial } from "./material";
 import type { Material } from "./material";
 import { NO_OWNER } from "./compose";
@@ -135,14 +142,20 @@ export function computeNormals(height: HostBuffer, options: NormalOptions = {}):
  *   (`objectId` -> `scene.surfaces[i].material`); pixels without an owner
  *   use the base-plane material
  * - cast-shadow visibility (#17) scales the DIRECT terms (diffuse +
- *   specular + the final direct contribution); the ambient fill is
- *   unaffected — a fully shadowed pixel keeps its ambient base color
+ *   specular + the final direct contribution); the ambient fill and the
+ *   #22 environment are unaffected — a fully shadowed pixel keeps its
+ *   ambient + environment response
  * - `scene.light.intensity` scales the direct terms as well; intensity 0
- *   leaves ambient only
+ *   leaves ambient + environment only
+ * - environment (#22): uniform shared illumination from `scene.environment`
+ *   (baseColor-scaled diffuse + F0/roughness specular), independent of the
+ *   directional light and NOT scaled by cast-shadow visibility
+ * - exposure (#22): the whole linear result (ambient + direct +
+ *   environment) is multiplied by `scene.exposure` before sRGB encoding
  * - the degenerate half-vector `L = -V` (direction `{0, 0, -1}`) yields no
  *   half vector; specular resolves safely to 0 (no NaN)
- * - color = baseColor * ambient + visibility * intensity * NdotL *
- *   (diffuse + specular), encoded to sRGB8
+ * - color = (baseColor * ambient + visibility * intensity * NdotL *
+ *   (diffuse + specular) + environment) * exposure, encoded to sRGB8
  */
 export function shadeHeightField(
   scene: Scene,
@@ -154,6 +167,8 @@ export function shadeHeightField(
   const normal = computeNormals(height, options.normal);
   const ambient = clamp(sanitizeFinite(options.ambient, DEFAULT_AMBIENT), 0, 1);
   const intensity = sanitizeNonNegative(scene.light.intensity, 1);
+  const environment = sanitizeEnvironment(scene.environment);
+  const exposure = sanitizeExposure(scene.exposure);
   const { width, height: h } = height.spec;
   const diffuse = new HostBuffer({ width, height: h, channels: 1, format: "f32" });
   const specular = new HostBuffer({ width, height: h, channels: 1, format: "f32" });
@@ -202,9 +217,17 @@ export function shadeHeightField(
 
       const base = material.baseColor;
       const direct = intensity * cosine * vis;
-      color.set(x, y, 0, srgbEncodeChannel(base.r * ambient + direct * (brdf.diffuse.r + brdf.specular.r)));
-      color.set(x, y, 1, srgbEncodeChannel(base.g * ambient + direct * (brdf.diffuse.g + brdf.specular.g)));
-      color.set(x, y, 2, srgbEncodeChannel(base.b * ambient + direct * (brdf.diffuse.b + brdf.specular.b)));
+      const env = evaluateEnvironment(material, environment);
+      // #22 linear accumulation: saturated arithmetic keeps every finite
+      // input (including Number.MAX_VALUE-scale intensity/environment)
+      // producing a finite pre-encode LinearRgb.
+      const linear = accumulateLinear(base, ambient, direct, brdf, env);
+      // #22 exposure boundary: the pure function between linear RGB and the
+      // sRGB encoder (the future tone mapper replaces `applyExposure` here).
+      const exposed = applyExposure(linear, exposure);
+      color.set(x, y, 0, srgbEncodeChannel(exposed.r));
+      color.set(x, y, 1, srgbEncodeChannel(exposed.g));
+      color.set(x, y, 2, srgbEncodeChannel(exposed.b));
       color.set(x, y, 3, 255);
     }
   }

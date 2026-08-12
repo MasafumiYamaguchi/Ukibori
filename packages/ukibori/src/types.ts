@@ -1,5 +1,11 @@
 import type { ComponentPropsWithRef, CSSProperties, ElementType, ReactNode } from "react";
-import type { CompositeOptions, DomShadowOptions, DomShape, UkiboriDom } from "ukibori-dom";
+import type {
+  CompositeOptions,
+  DomEnvironmentState,
+  DomShadowOptions,
+  DomShape,
+  UkiboriDom,
+} from "ukibori-dom";
 import type { HeightProfile } from "ukibori-renderer";
 import type { MaterialTokensOverride } from "./core/materials";
 
@@ -68,6 +74,27 @@ export interface UkiboriProps {
    * light). Used by the physical layer and the CSS fallback. */
   light?: LightVector;
   intensity?: number;
+  /**
+   * Shared environment illumination for the physical layer (#22): a uniform
+   * fill independent of the directional light, applied BEFORE exposure and
+   * sRGB encoding. Three independent scene/shared controls:
+   *
+   * - `intensity`: overall strength (0 disables the environment; the output
+   *   stays close to the ambient + direct response). Finite >= 0; default 0.5.
+   * - `diffuseIntensity`: 0..1 share of the environment applied to diffuse
+   *   (0 = no environment diffuse). Default 1.
+   * - `specularIntensity`: 0..1 share of the environment applied to
+   *   specular (0 = no environment specular, the metal black-drop lift is
+   *   off). Default 1.
+   */
+  environment?: Partial<DomEnvironmentState>;
+  /**
+   * Exposure multiplier for the physical layer (#22): applied to the
+   * linear lighting result (ambient + direct + environment) before sRGB
+   * encoding. 0 = black, very large finite values saturate to white.
+   * Finite >= 0; default 1.
+   */
+  exposure?: number;
   /** Base color for the CSS approximation fallback. */
   color?: string;
   /**

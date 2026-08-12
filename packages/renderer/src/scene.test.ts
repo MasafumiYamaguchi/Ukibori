@@ -80,6 +80,36 @@ describe("createScene", () => {
     expect(createScene({ width: 4, height: 4, light: { intensity: 2.5 } }).light.intensity).toBe(2.5);
   });
 
+  it("defaults environment to 0.5 and exposure to 1", () => {
+    const scene = createScene({ width: 4, height: 4 });
+    expect(scene.environment).toEqual({
+      intensity: 0.5,
+      diffuseIntensity: 1,
+      specularIntensity: 1,
+    });
+    expect(scene.exposure).toBe(1);
+  });
+
+  it("keeps valid environment intensity and exposure, preserving zero", () => {
+    const scene = createScene({ width: 4, height: 4, environment: { intensity: 0 }, exposure: 0 });
+    expect(scene.environment.intensity).toBe(0);
+    expect(scene.exposure).toBe(0);
+    const scene2 = createScene({ width: 4, height: 4, environment: { intensity: 2 }, exposure: 3.5 });
+    expect(scene2.environment.intensity).toBe(2);
+    expect(scene2.exposure).toBe(3.5);
+  });
+
+  it("falls back to defaults for invalid environment intensity and exposure", () => {
+    for (const intensity of [NaN, Infinity, -Infinity, -1]) {
+      expect(
+        createScene({ width: 4, height: 4, environment: { intensity } as never }).environment.intensity,
+      ).toBe(0.5);
+    }
+    for (const exposure of [NaN, Infinity, -Infinity, -1]) {
+      expect(createScene({ width: 4, height: 4, exposure } as never).exposure).toBe(1);
+    }
+  });
+
   it("throws on invalid scene dimensions", () => {
     expect(() => createScene({ width: 0, height: 4 })).toThrow(TypeError);
     expect(() => createScene({ width: 4.5, height: 4 })).toThrow(TypeError);

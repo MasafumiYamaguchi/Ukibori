@@ -200,6 +200,117 @@ describe("capability resolution and retained provider", () => {
     expect(setLightSpy).toHaveBeenCalled();
     expect(setDprSpy).toHaveBeenCalled();
   });
+
+  it("pushes environment/exposure prop updates to the retained layer without recreation", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    let layer: UkiboriDom | null = null;
+    const tree = (
+      environment: { intensity: number; diffuseIntensity?: number; specularIntensity?: number } | undefined,
+      exposure: number,
+    ) => (
+      <Ukibori
+        schedule={(cb) => cb()}
+        onReady={(l) => (layer = l)}
+        environment={environment}
+        exposure={exposure}
+      >
+        <Surface sceneId="a" elevation={2} thickness={1}>
+          A
+        </Surface>
+      </Ukibori>
+    );
+    const { rerender } = render(tree({ intensity: 0.5 }, 1));
+    await flushAsync();
+    const first = layer!;
+    const entryBefore = first.registry.get("a")!;
+    const setEnvironmentSpy = vi.spyOn(first, "setEnvironment");
+    const setExposureSpy = vi.spyOn(first, "setExposure");
+    expect(first.debugEnvironment()).toEqual({ intensity: 0.5, diffuseIntensity: 1, specularIntensity: 1 });
+    expect(first.debugExposure()).toBe(1);
+
+    // Env/exposure are ordinary value props: the EXISTING layer is updated
+    // through its setters — no dispose/recreate, no re-registration. The
+    // specular share reaches the retained setter like the other controls.
+    rerender(tree({ intensity: 0, specularIntensity: 0 }, 2));
+    await flushAsync();
+    expect(layer).toBe(first);
+    expect(first.registry.get("a")).toBe(entryBefore);
+    expect(first.registry.size).toBe(1);
+    expect(setEnvironmentSpy).toHaveBeenLastCalledWith({
+      intensity: 0,
+      diffuseIntensity: 1,
+      specularIntensity: 0,
+    });
+    expect(setExposureSpy).toHaveBeenCalledWith(2);
+    expect(first.debugEnvironment()).toEqual({ intensity: 0, diffuseIntensity: 1, specularIntensity: 0 });
+    expect(first.debugExposure()).toBe(2);
+
+    // Removing the props resets both to their defaults through the setters.
+    rerender(<Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+      <Surface sceneId="a" elevation={2} thickness={1}>
+        A
+      </Surface>
+    </Ukibori>);
+    await flushAsync();
+    expect(setEnvironmentSpy).toHaveBeenLastCalledWith({
+      intensity: 0.5,
+      diffuseIntensity: 1,
+      specularIntensity: 1,
+    });
+    expect(setExposureSpy).toHaveBeenLastCalledWith(1);
+    expect(first.debugEnvironment()).toEqual({ intensity: 0.5, diffuseIntensity: 1, specularIntensity: 1 });
+    expect(first.debugExposure()).toBe(1);
+  });
+
+  it("matches the renderer sanitization policy at the React entry (#22)", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    let layer: UkiboriDom | null = null;
+    const tree = (environment?: { intensity?: number; diffuseIntensity?: number; specularIntensity?: number }, exposure?: number) => (
+      <Ukibori
+        schedule={(cb) => cb()}
+        onReady={(l) => (layer = l)}
+        environment={environment}
+        exposure={exposure}
+      >
+        <Surface sceneId="a" elevation={2} thickness={1}>
+          A
+        </Surface>
+      </Ukibori>
+    );
+    const { rerender } = render(tree());
+    await flushAsync();
+    const first = layer!;
+    expect(first.debugEnvironment()).toEqual({ intensity: 0.5, diffuseIntensity: 1, specularIntensity: 1 });
+    expect(first.debugExposure()).toBe(1);
+
+    // Negative FINITE intensity/exposure fall back to the renderer defaults
+    // (0.5 / 1) — they must NOT clamp to 0 like the shares.
+    rerender(tree({ intensity: -1 }, -2));
+    await flushAsync();
+    expect(first.debugEnvironment().intensity).toBe(0.5);
+    expect(first.debugExposure()).toBe(1);
+    expect(first.debugEnvironment().diffuseIntensity).toBe(1);
+
+    // Negative finite SHARES clamp to 0; above-1 finite shares clamp to 1.
+    rerender(tree({ intensity: 2, diffuseIntensity: -0.5, specularIntensity: 3 }, 4));
+    await flushAsync();
+    expect(first.debugEnvironment()).toEqual({ intensity: 2, diffuseIntensity: 0, specularIntensity: 1 });
+    expect(first.debugExposure()).toBe(4);
+
+    // Non-finite values (NaN / Infinity) fall back to the defaults on all
+    // controls, exactly like the renderer scene sanitizers.
+    rerender(
+      tree(
+        { intensity: NaN, diffuseIntensity: Infinity, specularIntensity: -Infinity },
+        Infinity,
+      ),
+    );
+    await flushAsync();
+    expect(first.debugEnvironment()).toEqual({ intensity: 0.5, diffuseIntensity: 1, specularIntensity: 1 });
+    expect(first.debugExposure()).toBe(1);
+  });
 });
 
 describe("provider option reset and identity semantics", () => {
