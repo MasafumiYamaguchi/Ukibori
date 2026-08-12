@@ -160,6 +160,30 @@ export type {
   ShadowSanitizeContext,
 } from "./gpu/shadow-pass";
 export {
+  LIGHTING_OUTPUT_BYTES_PER_TEXEL,
+  LIGHTING_PARAMS_BYTE_LENGTH,
+  LIGHTING_PASS_WGSL,
+  LIGHTING_WORKGROUP_SIZE,
+} from "./gpu/lighting-pass-wgsl";
+export {
+  DEFAULT_AMBIENT,
+  LIGHTING_PASS_OUTPUT_USAGE,
+  LightingPass,
+  lightingMaterialIdBindingFromHeightPass,
+  lightingNormalBindingFromNormalPass,
+  lightingVisibilityBindingFromShadowPass,
+  sanitizeAmbient,
+} from "./gpu/lighting-pass";
+export type {
+  LightingFieldBinding,
+  LightingOutputBinding,
+  LightingPassDispatchStats,
+  LightingPassInput,
+  LightingPassLastDispatch,
+  LightingPassOptions,
+  LightingPassSnapshot,
+} from "./gpu/lighting-pass";
+export {
   UkiboriRenderer,
   createRenderer,
   testPatternBytes,
@@ -207,8 +231,15 @@ export {
   sanitizeExposure,
 } from "./environment";
 export type { EnvironmentLight, EnvironmentResult } from "./environment";
-export { computeNormals, lightScene, shadeHeightField } from "./lighting";
-export type { LightingBuffers, LightingOptions, NormalOptions, ShadeInput } from "./lighting";
+export { computeNormals, lightScene, shadeHeightField, shadePreparedFields } from "./lighting";
+export type {
+  LightingBuffers,
+  LightingOptions,
+  NormalOptions,
+  PreparedFieldShadeInput,
+  PreparedFieldShadingBuffers,
+  ShadeInput,
+} from "./lighting";
 export {
   computeVisibility,
   isOccludedWithContext,
@@ -244,3 +275,46 @@ export {
   sceneMaterials,
 } from "./compose";
 export type { ComposeOptions, ComposeResult, SurfaceHeightAt, TieBreak } from "./compose";
+export {
+  DEFAULT_SHADOW_ALPHA,
+  DEFAULT_SHADOW_COLOR,
+  compositePixelBytes,
+  compositeShadowAlphaByte,
+  compositeShadowPremultipliedBytes,
+  sanitizeCompositeOptions,
+} from "./gpu/composite";
+export type { CompositeOptions, EffectiveCompositeOptions } from "./gpu/composite";
+export { PRESENTATION_PARAMS_BYTE_LENGTH, PRESENTATION_PASS_WGSL } from "./gpu/presentation-pass-wgsl";
+export {
+  FRAGMENT_STAGE_VISIBILITY,
+  GPU_USAGE_RENDER_ATTACHMENT,
+  PRESENTATION_ALPHA_MODE,
+  PRESENTATION_COLOR_SPACE,
+  PresentationPass,
+  presentationColorBindingFromLightingPass,
+  presentationObjectIdBindingFromHeightPass,
+  presentationVisibilityBindingFromShadowPass,
+} from "./gpu/presentation-pass";
+export type {
+  Canvas8BitFormat,
+  GpuCanvasConfigurationLike,
+  GpuCanvasContextLike,
+  GpuPresentationDeviceLike,
+  GpuPresentationEncoderLike,
+  GpuPresentationLimitsLike,
+  GpuRenderPassEncoderLike,
+  GpuRenderPipelineLike,
+  GpuTextureLike,
+  GpuTextureViewLike,
+  PresentationInputBinding,
+  PresentationPassInput,
+  PresentationPassSnapshot,
+  PresentationPassStats,
+} from "./gpu/presentation-pass";
+export { GpuScenePipeline } from "./gpu/pipeline";
+export type {
+  GpuPipelineDeviceLike,
+  GpuScenePipelineFrameStats,
+  GpuScenePipelineInput,
+  GpuScenePipelineSnapshot,
+} from "./gpu/pipeline";

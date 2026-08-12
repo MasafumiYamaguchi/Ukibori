@@ -1,0 +1,97 @@
+# #30 real-WebGPU golden gate.
+#
+# Runs on a GitHub-hosted macOS job with real Chrome and the REAL WebGPU
+# runner (never --disable-gpu, never mocks):
+#
+#   1. npm ci
+#   2. golden/contract tests (npm test -w ukibori-renderer includes the
+#      static-CPU-golden verification and the source-level contract tests)
+#   3. the real WebGPU runner (`npm run test:webgpu -w ukibori-renderer`)
+#      with the FULL harness log captured as an artifact; the runner
+#      additionally writes the harness result block to webgpu-result.txt
+#      (first line = the anchored marker) for the gate
+#   4. the anchored-marker CI gate (scripts/summarize-webgpu.mjs):
+#      PASS exits zero; SKIP is a capability-dependent non-failing outcome
+#      ONLY when the first line carries the parsed UKIBORI_WEBGPU_SKIP
+#      marker; FAIL and malformed/missing markers fail the job. FAIL can
+#      never be converted to SKIP/PASS (never decided by substring search).
+#   5. a concise job summary (adapter/backend when exposed, marker, fixture
+#      totals, per-pass mismatch totals) from the harness SUMMARY line.
+#
+# The CPU oracle, catalog and comparison policies are vendor-neutral: no
+# vendor-specific expected pixels or adapter names anywhere in the gate.
+
+name: webgpu-golden-gate
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: webgpu-golden-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  real-webgpu-golden:
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Golden/contract tests (npm test)
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Static CPU golden verification
+        run: npm run test:golden -w ukibori-renderer
+
+      # The local runner keeps its strict semantics (SKIP exits nonzero).
+      # Capture the FULL log as the artifact AND the harness result block to
+      # webgpu-result.txt (first line = the anchored marker; npm banners in
+      # the log never precede it). The nonzero runner status is recorded;
+      # the next step decides from the parsed marker and the artifact upload
+      # runs regardless of that decision.
+      - name: Real-WebGPU parity (full log captured)
+        id: webgpu
+        run: |
+          set +e
+          WEBGPU_RESULT_PATH=webgpu-result.txt npm run test:webgpu -w ukibori-renderer > webgpu.log 2>&1
+          runner_exit=$?
+          set -e
+          echo "runner_exit=$runner_exit" >> "$GITHUB_OUTPUT"
+          echo "raw runner exit code: $runner_exit (decided by the anchored marker below)"
+          cat webgpu.log
+
+      - name: Anchored-marker CI gate + job summary
+        id: gate
+        run: |
+          node packages/renderer/scripts/summarize-webgpu.mjs webgpu-result.txt
+
+      - name: Upload full harness log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webgpu-harness-log
+          path: |
+            webgpu.log
+            webgpu-result.txt
+          if-no-files-found: error
