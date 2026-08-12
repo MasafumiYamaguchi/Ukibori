@@ -77,3 +77,35 @@ verification, commits, and integration.
 
 Run workspace typecheck, all tests, build, CPU golden verification, browser WASM
 parity/lifecycle tests, and the real WebGPU gate. Do not commit or push.
+
+## Implementation status (filled in during implementation)
+
+- WASM kernel: deterministic builder `packages/renderer/scripts/build-wasm.mjs`
+  (no external toolchain; every opcode in its table verified empirically
+  against the engine) -> checked-in base64 `src/wasm/normal-kernel.base64.ts`,
+  pinned byte-for-byte by `src/wasm/determinism.test.ts`. Human-audit WAT:
+  `src/wasm/normal-kernel.wat`.
+- Ported stage: normal generation (`computeNormals`, the first measured,
+  batch-friendly dense-field bottleneck; ~2x faster than the oracle at the
+  probe workload). All other fallback stages stay on the existing TypeScript
+  reference stages (`composeSdfHeightField` / `computeVisibility` /
+  `shadePreparedFields`) — `WasmCpuPipeline` composes the complete output and
+  reports per-stage provenance (`wasmStages`), labeling a result WASM only
+  when the normal stage actually ran in WASM.
+- Selection: `selectWasmBackend` requires WebAssembly support + bounded probe
+  with exact oracle parity + documented benefit (wasm < ts*0.9); decisions
+  are cached (`resetWasmSelectionCache`), deterministic force overrides for
+  tests/callers. `createRenderer({ backend: "auto"|"wasm" })`; `auto` starts
+  WebGPU detection FIRST and never awaits WASM work; a winning WebGPU
+  releases the optional WASM kernel off its critical path.
+- Same-thread by design (documented in `pipeline.ts`): the kernel is one
+  synchronous batch call and the remaining stages are the same-thread
+  TypeScript oracle, so a worker would offload only the fastest fraction.
+- Browser gate: `test-browser/wasm-parity.html/.mjs` + `scripts/
+  test-wasm-browser.mjs` (real Chrome, anchored first-line marker
+  UKIBORI_WASM_PASS/FAIL/SKIP); `npm run test:wasm-browser -w ukibori-renderer`.
+- Demo: `/wasm-debug.html` under `npm run dev` (vite input registered) —
+  selection state/reason, load/probe metrics, actual WASM stage, transfer
+  sizes, memory pages/growth, cancellation/disposal state, parity result and
+  TS/WASM/WebGPU benchmark rows (honest host wall-clock; WebGPU reports
+  "unavailable" rather than fake timings).

@@ -20,6 +20,7 @@ export default defineConfig({
         "renderer-debug": resolve("./renderer-debug.html"),
         "dom-debug": resolve("./dom-debug.html"),
         "scheduler-debug": resolve("./scheduler-debug.html"),
+        "wasm-debug": resolve("./wasm-debug.html"),
       },
     },
   },

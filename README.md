@@ -102,7 +102,24 @@ DOM所有のアクセシブルなテキスト(`<span>`)を描画し、その**�
 
 - `/` — #21 React APIデモ(物理層 + PLAY glyph + backend切替)
 - `/renderer-debug.html` — レンダラー中間bufferデバッグ(#14–#19)
+- `/scheduler-debug.html` — #31/#32 dirtyスケジューラ + tileプランナデバッグ
+- `/wasm-debug.html` — #33 WASM CPUフォールバック診断(選択状態 / ステージ実績 / 転送量 / メモリ / パリティ / TS・WASM・WebGPUベンチマーク)
 - `/dom-debug.html` — #20 DOM統合デモ(実DOM button + text)
+
+## #33 WASM-assisted CPU fallback (WASM CPUフォールバック)
+
+- TypeScript CPU実装をセマンティック・オラクルとして維持し、正規生成(`computeNormals`)だけを
+  batch型WASMカーネルに移植。カーネルは決定的ビルドスクリプト
+  (`packages/renderer/scripts/build-wasm.mjs` → `src/wasm/normal-kernel.base64.ts`)で生成され、
+  外部ツールチェーン不要。出力はオラクルとビット一致(厳密パリティ検証済み)。
+- `createRenderer({ backend: "auto" | "wasm" })` / `WasmCpuPipeline` はステージ実績
+  (`wasmStages`: normalのみ `"wasm"`、他は `"typescript"`)を必ず報告します。
+  TypeScriptのみで実行した結果をWASMとラベル付けすることはありません。
+- 選択は「WebAssembly対応 + 有界プローブが厳密パリティと文書化された利益(ratio < 0.9)を示す」
+  場合のみWASMを選び、決定をキャッシュします(`resetWasmSelectionCache()`でクリア)。
+  `auto`はWebGPU検出を最優先で開始し、WASMのロード/ベンチマークで遅延させません。
+- 検証: `npm run test:wasm-browser -w ukibori-renderer`(実Chromeでパリティ+ライフサイクル)、
+  vitestの厳密パリティ/ライフサイクル/選択規則テスト、`npm run test:webgpu -w ukibori-renderer`。
 
 ## 開発コマンド
 
@@ -116,4 +133,5 @@ npm run dev        # デモを起動
 
 ## ステータス
 
-#21(React API)実装済み。進行は [DEEPSEEK_IMPLEMENTATION_BRIEF.md](./DEEPSEEK_IMPLEMENTATION_BRIEF.md) のチェックポイント方式とGitHub Issue(#12〜)に従っています。
+#21(React API)実装済み。#33(WASM-assisted CPU fallback)実装済み。
+進行は [DEEPSEEK_IMPLEMENTATION_BRIEF.md](./DEEPSEEK_IMPLEMENTATION_BRIEF.md) のチェックポイント方式とGitHub Issue(#12〜)に従っています。
