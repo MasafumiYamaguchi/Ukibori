@@ -93,11 +93,14 @@ export function NeumorphismDemo() {
       className="aura-stage"
       color="#e7ecf2"
       compositing={{ shadowAlpha: 0.24 }}
+      // This is a full-page scene. Keep its 1D compute dispatch below the
+      // WebGPU per-dimension limit even on high-DPI displays; otherwise the
+      // demo honestly falls back to the much slower CPU reference path.
+      dpr={1}
       environment={{ intensity: 0.62, diffuseIntensity: 1, specularIntensity: 0.72 }}
       exposure={1.04}
       light={light}
       margin={38}
-      quality="medium"
       shadow={{ bias: 0.22, maxDistance: 100 }}
     >
       <div className="aura-shell">

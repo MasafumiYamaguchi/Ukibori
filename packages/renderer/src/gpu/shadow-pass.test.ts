@@ -513,8 +513,83 @@ describe("ShadowPass — direct input-buffer identity and provenance", () => {
     const { mock } = setup();
     const { input } = dispatchHeightAndInput(heightSetup(), shadowScene());
     const pass = new ShadowPass(mock);
-    const other = encodeScene(shadowScene(), 1);
-    expect(() => pass.dispatch({ ...input, scene: other })).toThrow(/provenance/);
+    // a DIFFERENT scene (different geometry bytes): the retained height
+    // fields are genuinely stale and must be rejected
+    const other = createScene({
+      ...shadowScene(),
+      surfaces: [
+        { ...shadowScene().surfaces[0]! },
+        { ...shadowScene().surfaces[1]!, elevation: 9 },
+      ],
+    });
+    const otherEncoded = encodeScene(other, 1);
+    const otherUploader = new SceneUploader(new MockDevice());
+    otherUploader.upload(otherEncoded);
+    expect(() =>
+      pass.dispatch({
+        scene: otherEncoded,
+        bindings: otherUploader.getBindings(),
+        height: input.height,
+        casterHeight: input.casterHeight,
+        objectId: input.objectId,
+      }),
+    ).toThrow(/height field provenance does not match/);
+    expect(mock.created).toHaveLength(0);
+  });
+
+  it("combines retained height fields with a freshly uploaded light-only scene", () => {
+    const { mock } = setup();
+    const { input } = dispatchHeightAndInput(heightSetup(), shadowScene());
+    const pass = new ShadowPass(mock);
+    pass.dispatch(input);
+    // A light-only change re-uploads the scene bytes but keeps the height/
+    // casterHeight/objectId fields: their exact height-dependent inputs
+    // (geometry header, surfaces, masks, mask pixels, material flags) are
+    // unchanged, so the retained fields are reusable with the new light.
+    const lighter = createScene({
+      ...shadowScene(),
+      light: { direction: { x: 0, y: 0, z: 1 }, intensity: 1 },
+    });
+    const lightEncoded = encodeScene(lighter, 1);
+    const lightUploader = new SceneUploader(new MockDevice());
+    lightUploader.upload(lightEncoded);
+    const stats = pass.dispatch({
+      scene: lightEncoded,
+      bindings: lightUploader.getBindings(),
+      height: input.height,
+      casterHeight: input.casterHeight,
+      objectId: input.objectId,
+    });
+    expect(stats.workgroupCountX).toBeGreaterThan(0);
+    // the pass's own snapshot still carries the retained provenance token
+    expect(pass.getSnapshot().provenance).toBe(input.height.provenance);
+  });
+
+  it("rejects retained height fields when the geometry bytes changed", () => {
+    const { mock } = setup();
+    const { input } = dispatchHeightAndInput(heightSetup(), shadowScene());
+    const pass = new ShadowPass(mock);
+    const moved = createScene({
+      ...shadowScene(),
+      surfaces: [
+        { ...shadowScene().surfaces[0]! },
+        { ...shadowScene().surfaces[1]!, position: { x: 40, y: 40 } },
+      ],
+    });
+    const movedEncoded = encodeScene(moved, 1);
+    const movedUploader = new SceneUploader(new MockDevice());
+    movedUploader.upload(movedEncoded);
+    // even with the NEW bindings, the retained fields are stale: the exact
+    // height-dependent sections differ, so the reuse must be rejected
+    expect(() =>
+      pass.dispatch({
+        scene: movedEncoded,
+        bindings: movedUploader.getBindings(),
+        height: input.height,
+        casterHeight: input.casterHeight,
+        objectId: input.objectId,
+      }),
+    ).toThrow(/height field provenance does not match/);
     expect(mock.created).toHaveLength(0);
   });
 

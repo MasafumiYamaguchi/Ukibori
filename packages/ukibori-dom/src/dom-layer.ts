@@ -12,6 +12,7 @@ import type {
   GpuCanvasContextLike,
   GpuPipelineDeviceLike,
   GpuScenePipelineFrameStats,
+  GpuTimestampFrameResult,
   HostBuffer,
   LightingBuffers,
   Material,
@@ -85,7 +86,10 @@ import type {
  * supply a mock instead of `navigator.gpu`.
  */
 export interface DomGpuAdapterLike {
-  requestDevice(): Promise<GpuPipelineDeviceLike & { destroy?: () => void }>;
+  readonly features?: { has(feature: string): boolean };
+  requestDevice(descriptor?: {
+    readonly requiredFeatures?: readonly string[];
+  }): Promise<GpuPipelineDeviceLike & { destroy?: () => void }>;
 }
 
 /**
@@ -340,7 +344,19 @@ export class UkiboriDom {
       if (adapter === null) {
         throw new Error("no WebGPU adapter available");
       }
-      const device = await adapter.requestDevice();
+      let device: GpuPipelineDeviceLike & { destroy?: () => void };
+      if (adapter.features?.has("timestamp-query") === true) {
+        try {
+          // Timestamp queries are optional telemetry. Ask for the feature
+          // only when the adapter advertises it, and retry without it if
+          // negotiation fails so profiling can never disable rendering.
+          device = await adapter.requestDevice({ requiredFeatures: ["timestamp-query"] });
+        } catch {
+          device = await adapter.requestDevice();
+        }
+      } else {
+        device = await adapter.requestDevice();
+      }
       const canvas = this.overlay.gpuCanvas();
       const context = canvas.getContext("webgpu") as unknown as GpuCanvasContextLike | null;
       if (context === null) {
@@ -731,7 +747,30 @@ export class UkiboriDom {
       });
       this.overlay.setBackend("webgpu");
       this.overlay.resizeAndPosition(region, dpr);
-      this.lastGpuFrame = { frame: stats, hostRenderMs: performance.now() - startedAt };
+      const frameState: DomGpuFrameState = {
+        frame: stats,
+        hostRenderMs: performance.now() - startedAt,
+        gpuTiming: null,
+      };
+      this.lastGpuFrame = frameState;
+      void stats.gpuTiming.then(
+        (gpuTiming: GpuTimestampFrameResult) => {
+          // A late readback must not overwrite a newer frame, a CPU
+          // fallback, or a disposed layer.
+          if (
+            !this.disposed &&
+            this.gpuPipeline === pipeline &&
+            this.lastGpuFrame === frameState
+          ) {
+            this.lastGpuFrame = { ...frameState, gpuTiming };
+          }
+        },
+        () => {
+          // The renderer contract always fulfills; guard defensively
+          // against a foreign implementation without creating an
+          // unhandled rejection in application code.
+        },
+      );
       this.lastBuffers = null;
       this.lastObjectId = null;
       this.lastRenderSize = { width: stats.renderWidth, height: stats.renderHeight };

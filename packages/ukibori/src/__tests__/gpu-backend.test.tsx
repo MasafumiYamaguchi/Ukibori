@@ -308,10 +308,20 @@ describe("React backend — WebGPU selection", () => {
     expect(device.submits.length).toBe(5);
     expect(layer!.debugBuffers()).toBeNull();
 
-    // Scene/environment/exposure/shadow options keep flowing on the GPU path.
+    // Scene/environment/exposure/shadow options keep flowing on the GPU path:
+    // an environment change now re-runs ONLY lighting+presentation (the
+    // height/normal fields stay retained).
     layer!.setEnvironment({ intensity: 0.2 });
     layer!.render();
-    expect(device.submits.length).toBe(10);
+    expect(device.submits.length).toBe(7);
+    expect(layer!.debugState().gpuFrame!.frame.invalidation.reasons).toEqual([
+      "environment",
+    ]);
+    expect(layer!.debugState().gpuFrame!.frame.invalidation.executed).toEqual([
+      "upload",
+      "lighting",
+      "presentation",
+    ]);
 
     unmount();
     restore();
