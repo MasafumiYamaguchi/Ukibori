@@ -7,19 +7,27 @@ import type {
   GpuPipelineDeviceLike,
   GpuScenePipelineFrameStats,
   InvalidationReport,
+  PartialPlanReport,
   PipelineStage,
 } from "ukibori-renderer";
 
 /**
- * #31 scheduler debug view: a human-drivable demo of the dirty-pass
- * scheduler. Every button triggers a different invalidation class (unchanged
- * / light / material-geometry / shadow / lighting-ambient / composite /
- * resize / forced-full / retained repaint) and the panel shows the dirty
- * reasons, executed/skipped passes, allocations, uploaded bytes, dispatches
- * and wall-clock host timings of the last frame plus cumulative totals.
+ * #31+#32 scheduler debug view: a human-drivable demo of the dirty-pass
+ * scheduler and the #32 conservative tile planner. Every button triggers a
+ * different invalidation class and the panel shows the dirty reasons,
+ * executed/skipped passes, the PARTIAL/FULL planning report (tile grid,
+ * dirty tile/texel counts, ESTIMATED candidate/culled surfaces, decision
+ * and reason, binning overhead) and allocations/uploaded bytes/dispatches/
+ * wall-clock host timings of the last frame plus cumulative totals.
+ *
+ * The overlay canvas draws the deterministic tile grid, the dirty texel
+ * rect (red) and the dispatched band (blue) of the last planned frame, so
+ * a human can see exactly which region the scheduler recomputed.
  *
  * All durations are labeled HOST ms (wall clock around the host-side device
- * calls); no GPU timestamps are fabricated.
+ * calls); no GPU timestamps are fabricated. The ESTIMATED candidate/culled
+ * surface counts are diagnostics: the compute passes still iterate every
+ * surface (the in-shader ABI-bounds check is the actual per-texel culling).
  */
 
 interface SceneCfg {
@@ -27,6 +35,8 @@ interface SceneCfg {
   elevation: number;
   light: { x: number; y: number; z: number };
   intensity: number;
+  /** button top-left; "btnOffset" edits are the #32 small/broad edit demos */
+  btn: { x: number; y: number };
 }
 
 interface LiveState {
@@ -41,17 +51,23 @@ const DEFAULT_SCENE: SceneCfg = {
   elevation: 4,
   light: { x: -0.6, y: -0.8, z: 1 },
   intensity: 1,
+  btn: { x: 30, y: 12 },
 };
+
+// Bounded shadow maxDistance keeps the #32 down-light halo small enough
+// that a small local edit takes the partial path (the default scene-
+// diagonal maxDistance would legitimately force the full path).
+const DEMO_SHADOW = { maxDistance: 18, stepSize: 0.5, bias: 0.5 };
 
 function makeScene(cfg: SceneCfg) {
   return createScene({
     width: 96,
-    height: 60,
+    height: 180,
     surfaces: [
       {
         id: "panel",
         position: { x: 0, y: 0 },
-        size: { x: 96, y: 60 },
+        size: { x: 96, y: 180 },
         elevation: 0,
         thickness: 0,
         shape: { kind: "roundedRect", radius: 0 },
@@ -62,7 +78,7 @@ function makeScene(cfg: SceneCfg) {
       },
       {
         id: "btn",
-        position: { x: 30, y: 12 },
+        position: cfg.btn,
         size: { x: 36, y: 32 },
         elevation: cfg.elevation,
         thickness: 2,
@@ -71,6 +87,18 @@ function makeScene(cfg: SceneCfg) {
         profile: { kind: "bevel" },
         material: cfg.material,
         castsShadow: true,
+        receivesShadow: true,
+      },
+      {
+        id: "anchor",
+        position: { x: 10, y: 150 },
+        size: { x: 14, y: 14 },
+        elevation: 1,
+        thickness: 1,
+        shape: { kind: "roundedRect", radius: 3 },
+        profile: { kind: "flat" },
+        material: "matte",
+        castsShadow: false,
         receivesShadow: true,
       },
     ],
@@ -107,8 +135,70 @@ function reportToLines(report: InvalidationReport): string[] {
   ];
 }
 
+function planToLines(planning: PartialPlanReport): string[] {
+  return [
+    `decision: ${planning.mode} (${planning.reason})`,
+    `tile ${planning.tileSize}px grid: ${planning.dirtyTileCount}/${planning.totalTileCount} dirty tiles`,
+    `dirty ${planning.dirtyTexels} / dispatch ${planning.dispatchTexels} / total ${planning.totalTexels} texels`,
+    `estimated candidates ${planning.estimatedCandidateSurfaceCount} / culled ${planning.estimatedCulledSurfaceCount}`,
+    `binning overhead ${planning.planningHostMs.toFixed(3)} host ms (separate from GPU work)`,
+  ];
+}
+
+/** Draw the tile grid, dirty rect and dispatch band on the overlay canvas. */
+function drawOverlay(
+  canvas: HTMLCanvasElement | null,
+  width: number,
+  height: number,
+  planning: PartialPlanReport,
+): void {
+  if (canvas === null) {
+    return;
+  }
+  if (canvas.width !== width) {
+    canvas.width = width;
+  }
+  if (canvas.height !== height) {
+    canvas.height = height;
+  }
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    return;
+  }
+  ctx.clearRect(0, 0, width, height);
+  // deterministic tile grid
+  ctx.strokeStyle = "rgba(255,255,255,0.35)";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x <= width; x += planning.tileSize) {
+    ctx.moveTo(x + 0.5, 0);
+    ctx.lineTo(x + 0.5, height);
+  }
+  for (let y = 0; y <= height; y += planning.tileSize) {
+    ctx.moveTo(0, y + 0.5);
+    ctx.lineTo(width, y + 0.5);
+  }
+  ctx.stroke();
+  if (planning.dirtyRect === null) {
+    return;
+  }
+  const { x, y, width: w, height: h } = planning.dirtyRect;
+  // true 2D dirty rect
+  ctx.fillStyle = "rgba(255,64,64,0.30)";
+  ctx.strokeStyle = "rgba(255,64,64,0.9)";
+  ctx.fillRect(x, y, w, h);
+  ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
+  // dispatched band (full-width rows covering the dirty tiles)
+  if (planning.band !== null) {
+    ctx.strokeStyle = "rgba(64,160,255,0.9)";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0.5, planning.band.y0 + 0.5, width - 1, planning.band.y1 - planning.band.y0);
+  }
+}
+
 export function SchedulerDebug(): ReactElement {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const overlayRef = useRef<HTMLCanvasElement>(null);
   const live = useRef<LiveState>({ pipeline: null, device: null, context: null, canvasFormat: "" });
   const [ready, setReady] = useState(false);
   const [status, setStatus] = useState<string>("initializing…");
@@ -116,9 +206,11 @@ export function SchedulerDebug(): ReactElement {
   const [last, setLast] = useState<GpuScenePipelineFrameStats | null>(null);
   const [cfg, setCfg] = useState<SceneCfg>(DEFAULT_SCENE);
   const [dpr, setDpr] = useState(1);
+  const [tileSize, setTileSize] = useState(32);
   const [shadowBias, setShadowBias] = useState(0.5);
   const [ambient, setAmbient] = useState(0.08);
   const [shadowAlpha, setShadowAlpha] = useState(0.3);
+  const [lastFullDispatch, setLastFullDispatch] = useState<number | null>(null);
 
   // One fresh device + canvas + pipeline for the whole page; the recovery
   // seam ("force full") disposes it and builds a replacement.
@@ -165,9 +257,12 @@ export function SchedulerDebug(): ReactElement {
         const stats = live.current.pipeline!.render({
           scene: makeScene(DEFAULT_SCENE),
           dpr: 1,
+          shadowOptions: DEMO_SHADOW,
+          tileSize: 32,
           debugReadback: false,
         });
         setLast(stats);
+        setLastFullDispatch(stats.frame.dispatchCount);
         setReady(true);
         setStatus(
           `WebGPU ready · first frame (full chain) · ${stats.renderWidth}x${stats.renderHeight} @ dpr ${stats.dpr}`,
@@ -188,6 +283,7 @@ export function SchedulerDebug(): ReactElement {
     (partial: {
       scene?: SceneCfg;
       dpr?: number;
+      tileSize?: number;
       shadowBias?: number;
       ambient?: number;
       shadowAlpha?: number;
@@ -198,6 +294,7 @@ export function SchedulerDebug(): ReactElement {
         try {
           const nextCfg = partial.scene ?? cfg;
           const nextDpr = partial.dpr ?? dpr;
+          const nextTile = partial.tileSize ?? tileSize;
           const nextBias = partial.shadowBias ?? shadowBias;
           const nextAmbient = partial.ambient ?? ambient;
           const nextAlpha = partial.shadowAlpha ?? shadowAlpha;
@@ -212,33 +309,41 @@ export function SchedulerDebug(): ReactElement {
           const stats = pipeline.render({
             scene: makeScene(nextCfg),
             dpr: nextDpr,
-            shadowOptions: { bias: nextBias },
+            shadowOptions: { ...DEMO_SHADOW, bias: nextBias },
             lightingOptions: { ambient: nextAmbient },
             compositeOptions: { shadowAlpha: nextAlpha },
+            tileSize: nextTile,
             repaint: partial.repaint === true,
           });
+          if (stats.invalidation.executed.length === 6 && stats.planning.mode === "full") {
+            setLastFullDispatch(stats.frame.dispatchCount);
+          }
           setCfg(nextCfg);
           setDpr(nextDpr);
+          setTileSize(nextTile);
           setShadowBias(nextBias);
           setAmbient(nextAmbient);
           setShadowAlpha(nextAlpha);
           setLast(stats);
           setStatus(
             `frame #${stats.totals.frames} · ${stats.renderWidth}x${stats.renderHeight} @ dpr ${stats.dpr} · ` +
-              `${stats.invalidation.executed.length === 0 ? "fully retained" : `executed ${stats.invalidation.executed.join("+")}`}`,
+              `${stats.invalidation.executed.length === 0 ? "fully retained" : `executed ${stats.invalidation.executed.join("+")}`} · ` +
+              `plan ${stats.planning.mode} (${stats.planning.reason})`,
           );
+          drawOverlay(overlayRef.current, stats.renderWidth, stats.renderHeight, stats.planning);
         } catch (e) {
           setError(e instanceof Error ? e.message : String(e));
         }
       })();
     },
-    [buildPipeline, disposePipeline, cfg, dpr, shadowBias, ambient, shadowAlpha],
+    [buildPipeline, disposePipeline, cfg, dpr, tileSize, shadowBias, ambient, shadowAlpha],
   );
 
   const run = useCallback(
     (partial: {
       scene?: SceneCfg;
       dpr?: number;
+      tileSize?: number;
       shadowBias?: number;
       ambient?: number;
       shadowAlpha?: number;
@@ -248,9 +353,14 @@ export function SchedulerDebug(): ReactElement {
     [render],
   );
 
+  const partialCompareNote =
+    last !== null && lastFullDispatch !== null && last.planning.mode === "partial"
+      ? ` (last full frame dispatched ${lastFullDispatch} compute calls; this partial frame ${last.frame.dispatchCount} calls at a smaller workgroup count)`
+      : "";
+
   return (
     <main>
-      <h1>Ukibori scheduler debug — #31 dirty-pass scheduling</h1>
+      <h1>Ukibori scheduler debug — #31 dirty scheduling + #32 tile planner</h1>
       {error !== null ? (
         <p style={{ color: "#a11" }}>
           Error: {error} · <a href="/renderer-debug.html">renderer debug</a>
@@ -263,14 +373,33 @@ export function SchedulerDebug(): ReactElement {
               <span className="badge">{status}</span>
               <span className="badge">host ms only — no GPU timestamps</span>
             </p>
-            <canvas ref={canvasRef} width={96} height={60} />
+            <div style={{ position: "relative", display: "inline-block" }}>
+              <canvas ref={canvasRef} width={96} height={180} />
+              <canvas
+                ref={overlayRef}
+                width={96}
+                height={180}
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  pointerEvents: "none",
+                  imageRendering: "pixelated",
+                }}
+              />
+            </div>
+            <p className="note">
+              Overlay: white = deterministic tile grid · red = true dirty texel rect · blue =
+              dispatched band (full-width rows covering the dirty tiles)
+            </p>
           </section>
           <section>
             <h2>Trigger an invalidation</h2>
             <p className="note">
-              Each button changes exactly one input class, so the reported dirty reasons show the
-              dependency graph in action. The scene object is recreated on every render call —
-              only the stable fingerprints matter.
+              Each button changes exactly one input class. The scene object is recreated on every
+              render call — only the stable fingerprints and the exact byte diff matter. Small
+              local edits take the #32 partial path (only the dirty band dispatches); broad edits
+              and global light/material changes fall back to the full path.
             </p>
             <div className="btn-row">
               <button type="button" onClick={run({})} disabled={!ready}>
@@ -286,6 +415,30 @@ export function SchedulerDebug(): ReactElement {
               </button>
               <button
                 type="button"
+                onClick={run({ scene: { ...cfg, btn: { x: cfg.btn.x + 2, y: cfg.btn.y + 1 } } })}
+                disabled={!ready}
+                title="#32: a small local edit — the planner should choose PARTIAL"
+              >
+                Small local edit (btn +2px)
+              </button>
+              <button
+                type="button"
+                onClick={run({ scene: { ...cfg, btn: { x: 40, y: 120 } } })}
+                disabled={!ready}
+                title="#32: a broad edit spanning many tile rows — the planner should choose FULL"
+              >
+                Broad edit (btn far)
+              </button>
+              <button
+                type="button"
+                onClick={run({ forceFull: true })}
+                disabled={!ready}
+                title="dispose and rebuild a fresh pipeline (the recovery seam / forced-full comparison)"
+              >
+                Forced-full recompute (fresh pipeline)
+              </button>
+              <button
+                type="button"
                 onClick={run({
                   scene: {
                     ...cfg,
@@ -294,7 +447,7 @@ export function SchedulerDebug(): ReactElement {
                 })}
                 disabled={!ready}
               >
-                Move light (scene)
+                Move light (full fallback)
               </button>
               <button
                 type="button"
@@ -337,25 +490,37 @@ export function SchedulerDebug(): ReactElement {
               >
                 Resize (DPR {dpr === 1 ? "1 → 2" : "2 → 1"})
               </button>
-              <button
-                type="button"
-                onClick={run({ forceFull: true })}
-                disabled={!ready}
-                title="dispose and rebuild a fresh pipeline (the recovery seam)"
-              >
-                Force full recompute (fresh pipeline)
-              </button>
             </div>
             <p className="note">
+              #32 tile size (configurable, bounded 8..512, default 64):{" "}
+              <select
+                value={tileSize}
+                onChange={(event) => run({ tileSize: Number(event.target.value) })()}
+                disabled={!ready}
+              >
+                <option value={8}>8</option>
+                <option value={16}>16</option>
+                <option value={32}>32</option>
+                <option value={64}>64</option>
+                <option value={128}>128</option>
+              </select>
+            </p>
+            <p className="note">
               current: material {cfg.material} · elevation {cfg.elevation} · light{" "}
-              {cfg.light.x.toFixed(2)},{cfg.light.y.toFixed(2)},{cfg.light.z.toFixed(2)} · dpr {dpr}{" "}
-              · shadow bias {shadowBias} · ambient {ambient} · composite shadowAlpha {shadowAlpha}
+              {cfg.light.x.toFixed(2)},{cfg.light.y.toFixed(2)},{cfg.light.z.toFixed(2)} · btn{" "}
+              {cfg.btn.x},{cfg.btn.y} · dpr {dpr} · tile {tileSize} · shadow bias {shadowBias} ·
+              ambient {ambient} · composite shadowAlpha {shadowAlpha}
             </p>
           </section>
           {last !== null ? (
             <section>
-              <h2>Last frame — scheduler report &amp; profiling</h2>
+              <h2>Last frame — scheduler report, #32 planning &amp; profiling</h2>
               <p className="note">{reportToLines(last.invalidation).join(" · ")}</p>
+              <h3>#32 tile planning</h3>
+              <p className="note">
+                {planToLines(last.planning).join(" · ")}
+                {partialCompareNote}
+              </p>
               <table>
                 <thead>
                   <tr>
