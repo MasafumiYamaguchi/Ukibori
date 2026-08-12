@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { UkiboriDom } from "ukibori-dom";
-import type { DomLightState, DomShadowOptions } from "ukibori-dom";
+import type { DomBackend, DomLightState, DomShadowOptions } from "ukibori-dom";
 import { sanitizeEnvironment, sanitizeExposure } from "ukibori-renderer";
 import {
   DEFAULT_COLOR,
@@ -30,15 +30,24 @@ import type { UkiboriMode, UkiboriProps, UkiboriQuality } from "../types";
  *   document / canvas / WebGPU / UkiboriDom touched.
  * - Post-hydration capability resolution: `backend="auto"` verifies that the
  *   real CPU/Canvas presentation path is usable (`detectCanvas2dSupport`)
- *   before entering physical mode. When Canvas2D is unavailable, the mode is
- *   the explicitly labeled CSS approximation fallback instead of suppressing
- *   DOM surfaces while an overlay silently paints nothing. WebGPU stays
- *   unselectable until a real compute pipeline exists.
+ *   before entering physical mode (the honest CPU fallback needs a 2d
+ *   context). When Canvas2D is unavailable, the mode is the explicitly
+ *   labeled CSS approximation fallback instead of suppressing DOM surfaces
+ *   while an overlay silently paints nothing.
  * - Enhancement (integration init -> surface registration): the layer is
- *   created once and the provider renders a wrapper element that becomes the
- *   #20 stage (the overlay canvas is inserted inside it; `overlay.stage`
- *   overrides). The stage relationship is disposed cleanly on unmount or on
- *   STRUCTURAL changes (backend / stage / high-contrast policy).
+ *   created through the ASYNC `UkiboriDom.create()` path (backend
+ *   auto/cpu/webgpu). `"auto"` requests a real `navigator.gpu`
+ *   adapter/device and uses the #29/#31 `GpuScenePipeline`'s DIRECT canvas
+ *   presentation (no readback, no 2D copy) when available; any GPU
+ *   init/render/device-loss failure switches once to the honest CPU
+ *   reference path. `"webgpu"` is WebGPU-only — when the GPU cannot be
+ *   initialized the provider reports the error and falls back to the labeled
+ *   CSS approximation. The provider renders a wrapper element that becomes
+ *   the #20 stage (the overlay canvas is inserted inside it;
+ *   `overlay.stage` overrides). The stage relationship is disposed cleanly
+ *   on unmount or on STRUCTURAL changes (backend / stage / high-contrast
+ *   policy), and a cancelled in-flight creation (StrictMode double-invoke,
+ *   structural switch) is disposed before it can leak.
  * - Ordinary physical prop changes (light, intensity, shadow, dpr, quality,
  *   margin, compositing) are pushed to the EXISTING layer through its setter
  *   APIs — the layer and every retained surface registration survive.
@@ -165,6 +174,10 @@ export function Ukibori({
   // ---- layer lifecycle ----
   const stageRef = useRef<HTMLDivElement | null>(null);
   const [layer, setLayer] = useState<UkiboriDom | null>(null);
+  // Explicit backend="webgpu" whose GPU init failed: the provider reports the
+  // error and enters the explicitly labeled CSS approximation so surfaces are
+  // never suppressed-but-unpainted.
+  const [webgpuFailed, setWebgpuFailed] = useState(false);
 
   const physicalRequested = backend !== "css" && !highContrastEnabled;
 
@@ -176,6 +189,7 @@ export function Ukibori({
   useEffect(() => {
     if (backend === "css" || highContrastEnabled) {
       setLayer(null);
+      setWebgpuFailed(false);
       onReadyRef.current?.(null);
       return;
     }
@@ -184,48 +198,72 @@ export function Ukibori({
       return;
     }
     if (!canvas2dAvailable) {
-      // Canvas2D presentation is unusable: the physical overlay could not
-      // present anything. Fall back to the explicitly labeled CSS
-      // approximation instead of suppressing DOM surfaces silently.
+      // Canvas2D presentation is unusable: the physical overlay (CPU and
+      // GPU fallback alike) could not present anything. Fall back to the
+      // explicitly labeled CSS approximation instead of suppressing DOM
+      // surfaces silently.
       reportError(
         new Error(
           "Ukibori: Canvas2D presentation unavailable — using the explicitly labeled CSS approximation fallback",
         ),
       );
       setLayer(null);
+      setWebgpuFailed(false);
       onReadyRef.current?.(null);
       return;
     }
+    const domBackend: DomBackend =
+      backend === "webgpu" ? "webgpu" : backend === "cpu" ? "cpu" : "auto";
+    let cancelled = false;
     let created: UkiboriDom | null = null;
-    try {
-      created = new UkiboriDom({
-        light: {
-          direction: cssEnv.light,
-          intensity: cssEnv.intensity,
-        } satisfies DomLightState,
-        environment: {
-          intensity: envEnv.intensity,
-          diffuseIntensity: envEnv.diffuseIntensity,
-          specularIntensity: envEnv.specularIntensity,
-        },
-        exposure: safeExposure,
-        margin,
-        shadow,
-        compositing,
-        dpr: dpr ?? (() => (window.devicePixelRatio ?? 1) * QUALITY_DPR[quality]),
-        schedule: scheduleRef.current,
-        overlay: { stage: stage ?? stageRef.current ?? undefined },
-        onError: reportError,
-      });
-    } catch (error) {
-      reportError(error);
-      onReadyRef.current?.(null);
-      return;
-    }
-    setLayer(created);
-    onReadyRef.current?.(created);
+    const init = async () => {
+      try {
+        created = await UkiboriDom.create({
+          backend: domBackend,
+          light: {
+            direction: cssEnv.light,
+            intensity: cssEnv.intensity,
+          } satisfies DomLightState,
+          environment: {
+            intensity: envEnv.intensity,
+            diffuseIntensity: envEnv.diffuseIntensity,
+            specularIntensity: envEnv.specularIntensity,
+          },
+          exposure: safeExposure,
+          margin,
+          shadow,
+          compositing,
+          dpr: dpr ?? (() => (window.devicePixelRatio ?? 1) * QUALITY_DPR[quality]),
+          schedule: scheduleRef.current,
+          overlay: { stage: stage ?? stageRef.current ?? undefined },
+          onError: reportError,
+        });
+      } catch (error) {
+        // Only an EXPLICIT webgpu request throws here (auto degrades to CPU
+        // inside create()); the failure is reported and the surfaces fall
+        // back to the labeled CSS approximation.
+        reportError(error);
+        onReadyRef.current?.(null);
+        if (!cancelled) {
+          setWebgpuFailed(domBackend === "webgpu");
+        }
+        return;
+      }
+      if (cancelled) {
+        // The effect was torn down while the async creation was in flight
+        // (StrictMode double-invoke, stage/backend switch, unmount): the
+        // late layer must never be published and is disposed immediately.
+        created.dispose();
+        return;
+      }
+      setWebgpuFailed(false);
+      setLayer(created);
+      onReadyRef.current?.(created);
+    };
+    void init();
     return () => {
-      created.dispose();
+      cancelled = true;
+      created?.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backend, stage, highContrastEnabled, canvas2dAvailable, reportError]);
@@ -273,7 +311,7 @@ export function Ukibori({
   }, [layer, updateDataKey, dpr]);
 
   const mode: UkiboriMode =
-    backend === "css"
+    backend === "css" || webgpuFailed
       ? "css"
       : physicalRequested && canvas2dAvailable === false
         ? "css"

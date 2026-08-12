@@ -37,17 +37,24 @@ export type Variant = "raised" | "inset";
 /**
  * Backend policy. Honest capability model:
  *
- * - `"auto"` / `"cpu"`: the physical layer via the CPU reference renderer —
- *   the only COMPLETE pipeline in this repository today. When a real WebGPU
- *   compute pipeline lands (the renderer's WebGPU backend currently reports
- *   `compute: false`), `"auto"` will prefer it. A selectable `"webgpu"`
- *   value is deliberately NOT offered until then — requesting a fake WebGPU
- *   path would misrepresent capabilities.
+ * - `"auto"` (default): the physical layer via the async `UkiboriDom.create()`
+ *   path — a real `navigator.gpu` adapter/device is requested FIRST and, when
+ *   available, the #29/#31 `GpuScenePipeline` presents directly to the overlay's
+ *   WebGPU canvas (no readback, no 2D copy). Any GPU init/render/device-loss
+ *   failure switches ONCE to the honest CPU reference path (`debugState()` on
+ *   the layer reports the actual backend and the fallback reason). When WebGPU
+ *   is unavailable, `"auto"` is the CPU reference renderer — the only complete
+ *   pipeline otherwise.
+ * - `"cpu"`: the physical layer via the CPU reference renderer (async path,
+ *   never touches `navigator.gpu`).
+ * - `"webgpu"`: WebGPU only. When the adapter/device/pipeline cannot be
+ *   initialized the provider reports the error and uses the explicitly labeled
+ *   CSS approximation fallback so surfaces are never suppressed-but-unpainted.
  * - `"css"`: the box-shadow approximation fallback, explicitly labeled as an
  *   approximation. It is not physical rendering and must not be advertised
  *   as such.
  */
-export type UkiboriBackend = "auto" | "cpu" | "css";
+export type UkiboriBackend = "auto" | "cpu" | "webgpu" | "css";
 
 /**
  * Enhancement mode of a Surface:
