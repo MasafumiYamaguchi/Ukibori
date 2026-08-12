@@ -95,6 +95,113 @@ describe("parity.mjs — #26 extreme normal fixtures", () => {
   });
 });
 
+describe("parity.mjs — #27 shadow fixtures and harness hardening", () => {
+  it("runs the real ShadowPass through the public helper on every scene fixture", () => {
+    expect(paritySource).toContain("shadowHeightBindingsFromHeightPass(snapshot)");
+    expect(paritySource).toContain("shadowPass = new ShadowPass(device);");
+    expect(paritySource).toContain(
+      "shadowSnapshot.output.buffer",
+    );
+    // the exact 0/1 comparison is tolerance-free
+    expect(paritySource).toContain(
+      "v !== 0 && v !== 1 ? `non-binary/non-finite ${v}` : v === oracle[g] ? null : `!= oracle ${oracle[g]}`",
+    );
+  });
+
+  it("pins the required shadow fixture set (brief fixture list)", () => {
+    for (const name of [
+      "shadow-two-level-light-right",
+      "shadow-two-level-light-left",
+      "shadow-occluder-removed",
+      "shadow-non-casting-top",
+      "shadow-panel-receives",
+      "shadow-receives-false",
+      "shadow-bilinear-boundary",
+      "shadow-equality-at-threshold",
+      "shadow-strict-above-threshold",
+      "shadow-tie-overlap-ordering",
+      "shadow-mask-caster",
+      "shadow-clipped-offscreen-caster",
+      "shadow-vertical-light",
+      "shadow-near-vertical-light",
+      "shadow-y-light-bottom-exit",
+      "shadow-y-light-top-exit",
+      "shadow-short-max-distance",
+      "shadow-custom-options-a",
+      "shadow-custom-options-b",
+      "shadow-non-binary-step-0.1",
+      "shadow-f32-vs-f64-equality",
+      "shadow-frac-dpr1",
+      "shadow-frac-dpr1.5",
+      "shadow-frac-dpr2",
+      "shadow-synth-self-shadow-bias-sets",
+    ]) {
+      expect(paritySource).toContain(`name: "${name}"`);
+    }
+  });
+
+  it("pins the +/-y edge-exit lights and the non-dyadic 0.1 step", () => {
+    // the y-lights must point along +y/-y so rays exit the bottom/top edge
+    expect(paritySource).toContain("twoLevelScene({ x: 0, y: 1, z: 1 })");
+    expect(paritySource).toContain("twoLevelScene({ x: 0, y: -1, z: 1 })");
+    // the 0.1 step pins the explicit f32-multiple march series
+    expect(paritySource).toContain('stepSize: 0.1, bias: 0.25, maxDistance: 10');
+  });
+
+  it("exempts only the two intentional equality fixtures from the perturbation pre-check", () => {
+    expect(paritySource).toContain("shadowThresholdExact: true");
+    expect(paritySource.match(/shadowThresholdExact: true/g)).toHaveLength(2);
+    expect(paritySource).toContain("exactThreshold = false");
+    expect(paritySource).toContain("if (exactThreshold) {");
+    // the exemption is NOT applied to ordinary fixtures
+    expect(paritySource).toContain("fixture.shadowThresholdExact === true");
+    // the fixture pins the f32-packed sample value f32(0.1 + 0.2)
+    expect(paritySource).toContain("thickness: 0.3");
+  });
+
+  it("reports the effective options in the benchmark output", () => {
+    expect(paritySource).toContain("const effectiveOptions = shadowPass.getSnapshot().options;");
+    expect(paritySource).toContain("(effective options ${JSON.stringify(benchmark.options)})");
+    expect(paritySource).toContain("casterMismatches: casterCompare.mismatches");
+    expect(paritySource).toContain("if (benchmarkParity.casterMismatches > 0) {");
+  });
+
+  it("runs the +/-5e-4 CPU stability pre-check before the GPU comparison", () => {
+    expect(paritySource).toContain("const SHADOW_PERTURBATION = 5e-4;");
+    expect(paritySource).toContain("height.map((v) => v + SHADOW_PERTURBATION)");
+    expect(paritySource).toContain("casterHeight.map((v) => v - SHADOW_PERTURBATION)");
+    expect(paritySource).toContain("height.map((v) => v - SHADOW_PERTURBATION)");
+    expect(paritySource).toContain("casterHeight.map((v) => v + SHADOW_PERTURBATION)");
+    expect(paritySource).toContain("razor-edge fixture texel");
+    expect(paritySource).toContain("stableShadowOracle(");
+    expect(paritySource).toContain("the CPU decision flips within ");
+    expect(paritySource).toContain("+/-${SHADOW_PERTURBATION} field perturbation");
+  });
+
+  it("checks the caster-height module and the shadow module for compilation", () => {
+    expect(paritySource).toContain('["COMPOSE_CASTER_HEIGHT_WGSL", COMPOSE_CASTER_HEIGHT_WGSL],');
+    expect(paritySource).toContain('["SHADOW_PASS_WGSL", SHADOW_PASS_WGSL],');
+  });
+
+  it("requires the 640x360 benchmark and the >= 2x material improvement", () => {
+    expect(paritySource).toContain("const BENCHMARK_WIDTH = 640;");
+    expect(paritySource).toContain("const BENCHMARK_HEIGHT = 360;");
+    expect(paritySource).toContain("const BENCHMARK_WARMUP = 5;");
+    expect(paritySource).toContain("const BENCHMARK_MIN_SPEEDUP = 2;");
+    expect(paritySource).toContain("benchmark blocker: speedup");
+    expect(paritySource).toContain("await device.queue.onSubmittedWorkDone();");
+    expect(paritySource).toContain("median GPU");
+  });
+
+  it("reports shadow visibility mismatches as a dedicated FAIL branch", () => {
+    const failIndex = paritySource.indexOf("if (totalShadowMismatches > 0) {");
+    const passIndex = paritySource.lastIndexOf("MARKER_PASS,");
+    expect(failIndex).toBeGreaterThan(-1);
+    expect(failIndex).toBeLessThan(passIndex);
+    expect(paritySource).toContain("exact 0/1 equality required");
+  });
+});
+
 describe("parity.mjs — checkShaders fails on ANY compilation message", () => {
   it("pushes every compilation message (error, warning, info) into the failure list", () => {
     expect(paritySource).toContain("for (const message of info.messages) {");

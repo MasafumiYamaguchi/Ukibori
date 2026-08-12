@@ -22,13 +22,16 @@ import { WGSL_SCENE_BASE, WGSL_SCENE_BINDINGS } from "./wgsl";
  * ## Passes
  *
  * The mask-SDF pass writes the padded signed-distance workspace. The
- * composition stage is split into FOUR output-specific compute passes
- * (height, coverage, objectId, materialId) so each stage stays within
- * `maxStorageBuffersPerShaderStage` (spec minimum 8): 5 scene storage
- * bindings + maskMeta + maskWorkspace + exactly ONE output storage = 8,
- * plus the uniform (which does not count). Each compose pass recomputes the
- * deterministic owner (`ownerAt`, pure function of the scene and texel), so
- * all four outputs agree. `HeightPass` documents `composePasses = 4`.
+ * composition stage is split into FIVE output-specific compute passes
+ * (height, coverage, objectId, materialId, casterHeight) so each stage
+ * stays within `maxStorageBuffersPerShaderStage` (spec minimum 8): 5 scene
+ * storage bindings + maskMeta + maskWorkspace + exactly ONE output storage
+ * = 8, plus the uniform (which does not count). Each compose pass recomputes
+ * the deterministic owner (`ownerAt`, pure function of the scene and texel),
+ * so the full-field outputs agree. The caster-height pass recomputes a
+ * CASTER-ONLY owner (`casterOwnerAt`) that searches only surfaces with the
+ * ABI `FLAG_CASTS_SHADOW` bit, so a non-casting top surface never hides a
+ * lower casting surface. `HeightPass` documents `composePasses = 5`.
  *
  * ## Pass bindings (group 1, owned by `HeightPass`)
  *
@@ -246,11 +249,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 `;
 
 // ---------------------------------------------------------------------------
-// Composition: four output-specific passes sharing one core. Each stage has
+// Composition: five output-specific passes sharing one core. Each stage has
 // 5 scene storage bindings + maskMeta + maskWorkspace + exactly ONE output
 // storage = 8 (plus the uniform), staying within the spec-minimum
 // maxStorageBuffersPerShaderStage of 8. The deterministic owner is
-// recomputed per pass, so all four outputs agree.
+// recomputed per pass, so the full-field outputs agree; the caster-height
+// pass independently searches only FLAG_CASTS_SHADOW surfaces.
 // ---------------------------------------------------------------------------
 
 const COMPOSE_GROUP1 = /* wgsl */ `
@@ -263,6 +267,8 @@ const SHAPE_MASK: u32 = 1u;
 const PROFILE_FLAT: u32 = 0u;
 const PROFILE_BEVEL: u32 = 1u;
 const NO_OWNER: u32 = 0xffffffffu;
+// ABI SurfaceRecord flags (offset 28): bit0 castsShadow, bit1 receivesShadow
+const FLAG_CASTS_SHADOW: u32 = 0x1u;
 // Most-negative f32: "no geometry" sentinel (CPU uses -Infinity; heights are
 // validated >= 0, so the h >= 0 test cleanly separates coverage from
 // no-coverage).
@@ -355,6 +361,37 @@ fn ownerAt(sx: f32, sy: f32) -> OwnerResult {
 }
 `;
 
+const COMPOSE_CASTER_CORE = /* wgsl */ `
+// CASTER-ONLY owner composition (#27): the search considers ONLY surfaces
+// with the ABI FLAG_CASTS_SHADOW bit set and otherwise uses the exact same
+// geometry/tie rules as ownerAt. This is the Hcaster field: a non-casting
+// top surface never hides a lower casting surface. Filtering the already
+// selected full owner would be incorrect (a texel owned by a non-casting
+// top would drop the casting surface below it); the search must be
+// independent. Writes 0.0 (base plane) for texels with no casting owner.
+fn casterOwnerAt(sx: f32, sy: f32) -> OwnerResult {
+  var best = 0.0;
+  var owner = NO_OWNER;
+  for (var i = 0u; i < sceneHeader.surfaceCount; i++) {
+    let s = surfaces[i];
+    if ((s.flags & FLAG_CASTS_SHADOW) == 0u) {
+      continue;
+    }
+    if (sx < s.bounds.x || sx > s.bounds.z || sy < s.bounds.y || sy > s.bounds.w) {
+      continue;
+    }
+    let h = shapeHeightAt(i, sx, sy);
+    if (h >= 0.0) {
+      if (h > best || h == best) {
+        best = h;
+        owner = i;
+      }
+    }
+  }
+  return OwnerResult(best, owner);
+}
+`;
+
 const COMPOSE_MAIN_PRELUDE = /* wgsl */ `
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
@@ -367,18 +404,25 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let ty = g / sceneHeader.renderWidth;
   let sx = (f32(tx) + 0.5) / sceneHeader.dpr;
   let sy = (f32(ty) + 0.5) / sceneHeader.dpr;
-  let r = ownerAt(sx, sy);
+  let r = OWNER_CALL;
 `;
 
 /** Build one output-specific composition module (all five scene bindings). */
-function composeModule(outputBinding: string, writeBody: string): string {
+function composeModule(
+  outputBinding: string,
+  writeBody: string,
+  ownerCall = "ownerAt(sx, sy)",
+  extraCore = "",
+): string {
+  const prelude = COMPOSE_MAIN_PRELUDE.replace("OWNER_CALL", ownerCall);
   return `${WGSL_SCENE_BASE}
 ${WGSL_SCENE_BINDINGS}
 ${PARAMS_STRUCT}
 ${COMPOSE_GROUP1}
 ${outputBinding}
 ${COMPOSE_CORE}
-${COMPOSE_MAIN_PRELUDE}
+${extraCore}
+${prelude}
 ${writeBody}
 }
 `;
@@ -426,4 +470,21 @@ export const COMPOSE_MATERIAL_ID_WGSL = composeModule(
   } else {
     outMaterialId[g] = NO_OWNER;
   }`,
+);
+
+/**
+ * Caster-height output pass (#27): writes the composed caster-only height
+ * field Hcaster — the same f32 absolute scene-space z layout as `outHeight`,
+ * but the owner search (`casterOwnerAt`) considers ONLY surfaces with the
+ * ABI `FLAG_CASTS_SHADOW` bit. `0.0` (base plane) where no casting surface
+ * owns the texel. Shadow visibility (#27 ShadowPass) samples this field
+ * bilinearly, so a non-casting top surface never hides a lower casting
+ * surface and caster boundaries follow the bilinear height semantics of
+ * `composeCasterHeightField`.
+ */
+export const COMPOSE_CASTER_HEIGHT_WGSL = composeModule(
+  "@group(1) @binding(3) var<storage, read_write> outCasterHeight: array<f32>;",
+  `  outCasterHeight[g] = select(0.0, r.best, r.owner != NO_OWNER);`,
+  "casterOwnerAt(sx, sy)",
+  COMPOSE_CASTER_CORE,
 );

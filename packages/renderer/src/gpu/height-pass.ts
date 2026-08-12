@@ -15,6 +15,7 @@ import {
 import type { GpuBufferLike, SceneBindings } from "./uploader";
 import { validateEncodedScene } from "./validate";
 import {
+  COMPOSE_CASTER_HEIGHT_WGSL,
   COMPOSE_COVERAGE_WGSL,
   COMPOSE_HEIGHT_WGSL,
   COMPOSE_MATERIAL_ID_WGSL,
@@ -29,8 +30,9 @@ import {
  * #25 height composition compute stage — the first real WebGPU compute
  * pipeline. It consumes the five frozen #24 `SceneUploader.getBindings()`
  * buffers DIRECTLY (never copied into new host/GPU buffers) and produces
- * GPU-resident height, coverage, objectId and materialId fields for the ABI
- * render extent, matching the CPU reference (`composeHeightField` +
+ * GPU-resident height, coverage, objectId, materialId and CASTER-HEIGHT
+ * fields for the ABI render extent, matching the CPU reference
+ * (`composeHeightField` + `composeCasterHeightField` +
  * `roundedRectSdf`/`evaluateProfile`/`computeMaskSdf`).
  *
  * ## All five scene buffers are genuinely consumed by the GPU
@@ -46,21 +48,24 @@ import {
  * ## Passes and the per-stage storage limit
  *
  * `maxStorageBuffersPerShaderStage` has a SPEC MINIMUM of 8, so the
- * composition stage is split into FOUR output-specific compute passes:
+ * composition stage is split into FIVE output-specific compute passes:
  *
  * - mask-SDF pass (only when the scene has masks): 5 scene storage +
  *   maskMeta + maskWorkspace = 7
- * - compose passes x4 (height f32, coverage u32, objectId u32,
- *   materialId u32), one per output allocation: 5 scene storage + maskMeta +
- *   maskWorkspace + exactly ONE output storage = 8, plus the uniform
- *   (uniforms do not count toward the limit)
+ * - compose passes x5 (height f32, coverage u32, objectId u32,
+ *   materialId u32, casterHeight f32), one per output allocation: 5 scene
+ *   storage + maskMeta + maskWorkspace + exactly ONE output storage = 8,
+ *   plus the uniform (uniforms do not count toward the limit)
  *
- * Every compose pass recomputes the deterministic owner from the same
- * pure scene+texel function, so all four outputs agree;
- * `getSnapshot().lastDispatch.composePasses` is 4. Each output lives in its
+ * Every full-field compose pass recomputes the deterministic owner from the
+ * same pure scene+texel function, so all four full outputs agree; the
+ * caster-height pass independently recomputes a CASTER-ONLY owner (surfaces
+ * with the ABI `FLAG_CASTS_SHADOW` bit only, see `casterOwnerAt`), so a
+ * non-casting top surface never hides a lower casting surface;
+ * `getSnapshot().lastDispatch.composePasses` is 5. Each output lives in its
  * own allocation; all outputs are `STORAGE | COPY_SRC | COPY_DST`, never
  * mapped, and exposed through the stable read-only snapshot for later
- * passes (#26 and beyond).
+ * passes (#26/#27 and beyond).
  *
  * ## Validation before ANY device call
  *
@@ -249,7 +254,7 @@ export interface HeightPassOutputBinding {
   readonly usage: number;
 }
 
-/** Stable read-only output binding snapshot for later passes (#26+). */
+/** Stable read-only output binding snapshot for later passes (#26/#27+). */
 export interface HeightPassOutputs {
   /** f32 absolute scene-space z (0 = background/base plane) */
   readonly height: HeightPassOutputBinding;
@@ -259,6 +264,13 @@ export interface HeightPassOutputs {
   readonly objectId: HeightPassOutputBinding;
   /** u32 ABI material index, or NO_OWNER */
   readonly materialId: HeightPassOutputBinding;
+  /**
+   * f32 caster-only height field (#27): same shape/profile/tie rules as
+   * `height`, but composed ONLY from surfaces with `FLAG_CASTS_SHADOW`; 0.0
+   * where no casting surface owns the texel. Sampled bilinearly by the
+   * #27 ShadowPass for occlusion.
+   */
+  readonly casterHeight: HeightPassOutputBinding;
 }
 
 export interface HeightPassLastDispatch {
@@ -270,8 +282,21 @@ export interface HeightPassLastDispatch {
   readonly totalMaskCells: number;
   /** 1 when the mask-SDF pass ran, 0 for mask-free scenes */
   readonly maskSdfPasses: number;
-  /** 4: height, coverage, objectId, materialId — one compute pass per output */
+  /** 5: height, coverage, objectId, materialId, casterHeight — one compute pass per output */
   readonly composePasses: number;
+}
+
+/**
+ * O(1) identity for one successful HeightPass dispatch. `sceneBytes`
+ * proves which encoded scene was consumed, while the provenance object
+ * itself is freshly allocated per dispatch so later passes can reject a
+ * mixture of fields from two executions of that same scene.
+ */
+export interface HeightPassProvenance {
+  readonly sceneBytes: Uint8Array;
+  readonly width: number;
+  readonly height: number;
+  readonly dpr: number;
 }
 
 export interface HeightPassSnapshot {
@@ -281,6 +306,13 @@ export interface HeightPassSnapshot {
   readonly workgroupSize: number;
   readonly outputs: HeightPassOutputs;
   readonly lastDispatch: HeightPassLastDispatch;
+  /**
+   * O(1) provenance identity of the last successful `dispatch()`. The
+   * object is unique per dispatch and holds the exact scene `bytes`
+   * reference, so later passes can reject both foreign scenes and mixed
+   * fields from separate dispatches of the same scene.
+   */
+  readonly provenance: HeightPassProvenance;
 }
 
 export interface HeightPassDispatchStats {
@@ -343,7 +375,8 @@ type AllocationName =
   | "outHeight"
   | "outCoverage"
   | "outObjectId"
-  | "outMaterialId";
+  | "outMaterialId"
+  | "outCasterHeight";
 
 /** Compose passes in dispatch order; one per output allocation. */
 const COMPOSE_PASSES: ReadonlyArray<{
@@ -355,6 +388,7 @@ const COMPOSE_PASSES: ReadonlyArray<{
   { name: "outCoverage", module: COMPOSE_COVERAGE_WGSL, format: "u32" },
   { name: "outObjectId", module: COMPOSE_OBJECT_ID_WGSL, format: "u32" },
   { name: "outMaterialId", module: COMPOSE_MATERIAL_ID_WGSL, format: "u32" },
+  { name: "outCasterHeight", module: COMPOSE_CASTER_HEIGHT_WGSL, format: "f32" },
 ];
 
 const SCENE_BINDING_MIN_SIZES: ReadonlyArray<readonly [number, number]> = [
@@ -381,6 +415,7 @@ export class HeightPass {
   private newAllocations = 0;
   private lastDispatch: HeightPassLastDispatch | null = null;
   private lastDpr = 0;
+  private lastProvenance: HeightPassProvenance | null = null;
   private pipelines: CachedPipelines | null = null;
 
   constructor(private readonly device: GpuComputeDeviceLike) {}
@@ -461,6 +496,12 @@ export class HeightPass {
       composePasses: COMPOSE_PASSES.length,
     };
     this.lastDpr = header.dpr;
+    this.lastProvenance = Object.freeze({
+      sceneBytes: scene.bytes,
+      width: header.renderWidth,
+      height: header.renderHeight,
+      dpr: header.dpr,
+    });
 
     const stats: HeightPassDispatchStats = {
       newAllocations: this.newAllocations,
@@ -475,7 +516,7 @@ export class HeightPass {
 
   /** Stable read-only snapshot; throws before the first successful dispatch. */
   getSnapshot(): HeightPassSnapshot {
-    if (this.lastDispatch === null) {
+    if (this.lastDispatch === null || this.lastProvenance === null) {
       throw new Error("no dispatch: dispatch() has not completed or dispose() was called");
     }
     return {
@@ -485,6 +526,7 @@ export class HeightPass {
       workgroupSize: WORKGROUP_SIZE,
       outputs: this.getOutputs(),
       lastDispatch: this.lastDispatch,
+      provenance: this.lastProvenance,
     };
   }
 
@@ -499,6 +541,7 @@ export class HeightPass {
       coverage: this.outputBinding("outCoverage", texelBytes, "u32"),
       objectId: this.outputBinding("outObjectId", texelBytes, "u32"),
       materialId: this.outputBinding("outMaterialId", texelBytes, "u32"),
+      casterHeight: this.outputBinding("outCasterHeight", texelBytes, "f32"),
     };
   }
 
@@ -512,6 +555,7 @@ export class HeightPass {
     this.newAllocations = 0;
     this.lastDispatch = null;
     this.lastDpr = 0;
+    this.lastProvenance = null;
   }
 
   // -- validation (all BEFORE any device call) ------------------------------
