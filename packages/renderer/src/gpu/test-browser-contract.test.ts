@@ -391,6 +391,54 @@ describe("test-webgpu.mjs — bounded child-exit wait before temp/profile cleanu
   });
 });
 
+describe("parity.mjs — #32 partial/full parity and scheduler counters", () => {
+  it("runs the partial/full parity section on the real adapter", () => {
+    expect(paritySource).toContain("async function runPartialParity(device)");
+    expect(paritySource).toContain("partial/full parity + counters on the real adapter");
+    expect(paritySource).toContain('new api.GpuScenePipeline(device, first.context, first.canvasFormat)');
+  });
+
+  it("requires a small local edit to take the partial path with fewer workgroups", () => {
+    expect(paritySource).toContain("small edit plan ${frameMove.planning.mode}");
+    expect(paritySource).toContain("a small edit must dispatch fewer workgroups");
+    expect(paritySource).toContain("frameMove.planning.dispatchTexels > frameMove.planning.totalTexels * 0.5");
+    expect(paritySource).toContain("partial frame reported zero dirty tiles/texels");
+    // the ESTIMATED culling counts are diagnostics, never a claim of reduced
+    // GPU surface work (the passes still iterate every surface)
+    expect(paritySource).toContain("estimatedCandidateSurfaceCount");
+  });
+
+  it("requires partial output to equal a forced-full recompute byte-for-byte", () => {
+    expect(paritySource).toContain("partial render differs from forced-full recompute (canvas bytes)");
+    expect(paritySource).toContain("forced full recompute on a FRESH pipeline must reproduce the");
+    expect(paritySource).toContain("scenarios = [\"add\", \"remove\", \"reorder\", \"light\", \"material\", \"viewport\"]");
+    expect(paritySource).toContain("${scenario} edit differs from forced-full recompute (canvas bytes)");
+  });
+
+  it("pins the documented full-fallback reasons for light/material/viewport", () => {
+    expect(paritySource).toContain('light: "light-or-environment-change"');
+    expect(paritySource).toContain('material: "material-table-change"');
+    expect(paritySource).toContain('viewport: "viewport-change"');
+  });
+
+  it("FAILs the gate on partial problems before the PASS marker", () => {
+    const failIndex = paritySource.indexOf("partial/full parity problems");
+    const passIndex = paritySource.lastIndexOf("MARKER_PASS,");
+    expect(failIndex).toBeGreaterThan(-1);
+    expect(failIndex).toBeLessThan(passIndex);
+    expect(paritySource).toContain("partial/full parity: PASS");
+  });
+
+  it("runs the tile benchmark with separate binning overhead and non-gating results", () => {
+    expect(paritySource).toContain("async function runTileBenchmark(device)");
+    expect(paritySource).toContain("Binning overhead (the planner's host wall-clock");
+    expect(paritySource).toContain("binningMs");
+    expect(paritySource).toContain("for (const tileSize of [16, 32, 64])");
+    expect(paritySource).toContain("the partial/full path is chosen by the deterministic");
+    expect(paritySource).toContain("never by timing");
+  });
+});
+
 describe("parseResultMarker — anchored first-line marker parsing", () => {
   it("returns the exact marker from the first line only", () => {
     expect(parseResultMarker("UKIBORI_WEBGPU_PASS real adapter parity: 79 fixtures")).toBe(

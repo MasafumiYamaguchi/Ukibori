@@ -92,6 +92,8 @@ const summaryData = {
   presentHard: 0,
   presentAlphaBad: 0,
   retainedProblems: 0,
+  partialProblems: 0,
+  tileBenchmarkCases: 0,
   benchmarkSpeedup: null,
 };
 
@@ -1497,6 +1499,571 @@ async function runRetainedParity(device) {
   return problems;
 }
 
+/**
+ * #32 partial/full parity on the REAL adapter.
+ *
+ * Drives the public `GpuScenePipeline` through move/add/remove/reorder edits
+ * plus the light/material full-fallback cases and asserts:
+ *
+ * 1. a small local edit is planned PARTIAL: fewer dispatched workgroups than
+ *    the full frame, dirty tiles/texels reported, ESTIMATED candidate/culled
+ *    surface counts exposed
+ * 2. every edited frame's final canvas is BYTE-IDENTICAL to a forced full
+ *    recompute on a fresh pipeline (partial output == full output)
+ * 3. light-direction and material-table changes fall back to the full path
+ *    with the documented deterministic reasons (no partial, no stale texels)
+ * 4. viewport changes never take the partial path
+ *
+ * The existing 79 compute + 17 presentation golden fixture gate is kept
+ * intact; every problem collected here FAILs the run before the PASS marker.
+ */
+
+/**
+ * The #32 partial-parity scene: a near-vertical light (|L.xy| small) with a
+ * BOUNDED shadow maxDistance keeps the down-light halo small enough that a
+ * small local edit leaves a partial dispatch band below the documented
+ * PARTIAL_DISPATCH_RATIO (0.5), while still casting real shadows for parity.
+ */
+function partialParityScene(edit) {
+  const light = { direction: { x: 0, y: 0.1, z: 0.995 }, intensity: 1 };
+  const shadowOptions = { maxDistance: 40, stepSize: 0.5, bias: 0.5 };
+  const panel = {
+    id: "panel",
+    position: { x: 0, y: 0 },
+    size: { x: 320, y: 180 },
+    elevation: 0,
+    thickness: 0,
+    shape: { kind: "roundedRect", radius: 0 },
+    profile: { kind: "flat" },
+    material: "matte",
+    castsShadow: false,
+    receivesShadow: true,
+  };
+  const btnA = {
+    id: "btn-a",
+    position: { x: 60, y: 40 },
+    size: { x: 80, y: 44 },
+    elevation: 2,
+    thickness: 3,
+    bevelWidth: 4,
+    shape: { kind: "roundedRect", radius: 10 },
+    profile: { kind: "bevel" },
+    material: "silicone",
+    castsShadow: true,
+    receivesShadow: true,
+  };
+  const btnB = {
+    id: "btn-b",
+    position: { x: 180, y: 90 },
+    size: { x: 60, y: 40 },
+    elevation: 1,
+    thickness: 2,
+    shape: { kind: "roundedRect", radius: 8 },
+    profile: { kind: "flat" },
+    material: "metal",
+    castsShadow: true,
+    receivesShadow: true,
+  };
+  const badge = {
+    id: "badge",
+    position: { x: 30, y: 120 },
+    size: { x: 24, y: 24 },
+    elevation: 4,
+    thickness: 2,
+    shape: { kind: "roundedRect", radius: 6 },
+    profile: { kind: "flat" },
+    material: "silicone",
+    castsShadow: true,
+    receivesShadow: true,
+  };
+  const materials = {
+    metal: {
+      baseColor: { r: 0.72, g: 0.45, b: 0.2 },
+      roughness: 0.35,
+      metallic: 1,
+      ior: 2,
+    },
+  };
+  switch (edit) {
+    case "move":
+      return { scene: api.createScene({
+        width: 320, height: 180, light, materials,
+        surfaces: [panel, { ...btnA, position: { x: 64, y: 42 } }, btnB, badge],
+      }), shadowOptions };
+    case "add":
+      // the added surface reuses existing materials so the first-appearance
+      // material table stays stable (a new material would legitimately
+      // force the full fallback path)
+      return { scene: api.createScene({
+        width: 320, height: 180, light, materials,
+        surfaces: [panel, btnA, btnB, badge, {
+          id: "chip",
+          position: { x: 240, y: 30 },
+          size: { x: 30, y: 18 },
+          elevation: 3,
+          thickness: 1,
+          shape: { kind: "roundedRect", radius: 4 },
+          profile: { kind: "flat" },
+          material: "silicone",
+          castsShadow: true,
+          receivesShadow: true,
+        }],
+      }), shadowOptions };
+    case "remove":
+      return { scene: api.createScene({
+        width: 320, height: 180, light, materials,
+        // badge is silicone like btn-a, so the material table stays stable
+        surfaces: [panel, btnA, btnB],
+      }), shadowOptions };
+    case "reorder":
+      // swap the two SILICONE surfaces: the material table keeps its
+      // first-appearance order [matte, silicone, metal], so the reorder is
+      // a genuine surface-record diff, not a material fallback
+      return { scene: api.createScene({
+        width: 320, height: 180, light, materials,
+        surfaces: [panel, badge, btnB, btnA],
+      }), shadowOptions };
+    case "light":
+      return { scene: api.createScene({
+        width: 320, height: 180,
+        light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+        materials,
+        surfaces: [panel, btnA, btnB, badge],
+      }), shadowOptions };
+    case "material":
+      return { scene: api.createScene({
+        width: 320, height: 180, light,
+        materials: { ...materials, metal: { ...materials.metal, baseColor: { r: 0.2, g: 0.45, b: 0.72 } } },
+        surfaces: [panel, btnA, btnB, badge],
+      }), shadowOptions };
+    case "viewport":
+      return { scene: api.createScene({
+        width: 320, height: 200, light, materials,
+        surfaces: [panel, btnA, btnB, badge],
+      }), shadowOptions };
+    default:
+      return { scene: api.createScene({
+        width: 320, height: 180, light, materials,
+        surfaces: [panel, btnA, btnB, badge],
+      }), shadowOptions };
+  }
+}
+
+async function runPartialParity(device) {
+  const problems = [];
+  const base = partialParityScene();
+  const fullWorkgroups = {}; // baseline full-frame workgroup counts per stage
+  let pipeline = null;
+  let canvas = null;
+  try {
+    const first = await makeRetainedCanvas();
+    canvas = first.canvas;
+    pipeline = new api.GpuScenePipeline(device, first.context, first.canvasFormat);
+    // 1) baseline: first frame is always full; record the full workgroup
+    //    counts as the counters the partial frames must beat.
+    const frameBase = pipeline.render({
+      scene: base.scene,
+      dpr: 1,
+      shadowOptions: base.shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    if (frameBase.planning.mode !== "full" || frameBase.planning.reason !== "first-frame") {
+      problems.push(
+        `baseline plan ${frameBase.planning.mode}/${frameBase.planning.reason} (expected full/first-frame)`,
+      );
+    }
+    const baselineSnapshot = pipeline.getSnapshot();
+    fullWorkgroups.height = baselineSnapshot.heightPass.lastDispatch.workgroupCountX;
+    fullWorkgroups.normal = baselineSnapshot.normalPass.lastDispatch.workgroupCountX;
+    fullWorkgroups.shadow = baselineSnapshot.shadowPass.lastDispatch.workgroupCountX;
+    fullWorkgroups.lighting = baselineSnapshot.lightingPass.lastDispatch.workgroupCountX;
+    const baseline = await capturePresented(
+      device,
+      first.context,
+      first.canvasFormat,
+      frameBase.renderWidth,
+      frameBase.renderHeight,
+    );
+
+    // 2) small local edit: planned partial, fewer workgroups, canvas parity
+    //    with a forced full recompute on a fresh pipeline.
+    const move = partialParityScene("move");
+    const frameMove = pipeline.render({
+      scene: move.scene,
+      dpr: 1,
+      shadowOptions: move.shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    if (frameMove.planning.mode !== "partial") {
+      problems.push(
+        `small edit plan ${frameMove.planning.mode}/${frameMove.planning.reason} (expected partial)`,
+      );
+    } else {
+      if (frameMove.planning.dirtyTileCount <= 0 || frameMove.planning.dirtyTexels <= 0) {
+        problems.push("partial frame reported zero dirty tiles/texels");
+      }
+      const moveSnapshot = pipeline.getSnapshot();
+      for (const stage of ["height", "normal", "shadow", "lighting"]) {
+        const workgroups = moveSnapshot[`${stage}Pass`].lastDispatch.workgroupCountX;
+        if (workgroups >= fullWorkgroups[stage]) {
+          problems.push(
+            `partial ${stage} dispatched ${workgroups} workgroups (full ${fullWorkgroups[stage]}): ` +
+              "a small edit must dispatch fewer workgroups",
+          );
+        }
+      }
+      if (frameMove.planning.estimatedCandidateSurfaceCount <= 0) {
+        problems.push("partial frame reported zero estimated candidate surfaces");
+      }
+      if (frameMove.planning.dispatchTexels > frameMove.planning.totalTexels * 0.5) {
+        problems.push(
+          `partial dispatchTexels ${frameMove.planning.dispatchTexels} exceed half of ` +
+            `${frameMove.planning.totalTexels} (documented threshold)`,
+        );
+      }
+      if (frameMove.planning.dispatchTexels >= frameMove.planning.totalTexels) {
+        problems.push("partial band equals the full frame");
+      }
+    }
+    const partialCanvas = await capturePresented(
+      device,
+      first.context,
+      first.canvasFormat,
+      frameMove.renderWidth,
+      frameMove.renderHeight,
+    );
+    if (oracle.bytesEqual(baseline, partialCanvas)) {
+      problems.push("small edit produced no canvas change (edit ignored?)");
+    }
+
+    // 3) forced full recompute on a FRESH pipeline must reproduce the
+    //    partial frame's canvas byte-for-byte.
+    pipeline.dispose();
+    pipeline = null;
+    canvas.remove();
+    canvas = null;
+    const second = await makeRetainedCanvas();
+    const fresh = new api.GpuScenePipeline(device, second.context, second.canvasFormat);
+    const frameFull = fresh.render({
+      scene: move.scene,
+      dpr: 1,
+      shadowOptions: move.shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    const fullCanvas = await capturePresented(
+      device,
+      second.context,
+      second.canvasFormat,
+      frameFull.renderWidth,
+      frameFull.renderHeight,
+    );
+    if (!oracle.bytesEqual(partialCanvas, fullCanvas)) {
+      problems.push("partial render differs from forced-full recompute (canvas bytes)");
+    }
+    fresh.dispose();
+    second.canvas.remove();
+
+    // 4) the remaining edits run on a fresh retained pipeline; every output
+    //    must equal its forced-full recompute regardless of the planning
+    //    decision (move/add/remove/reorder + fallback cases).
+    const scenarios = ["add", "remove", "reorder", "light", "material", "viewport"];
+    const expectedReasons = {
+      light: "light-or-environment-change",
+      material: "material-table-change",
+      viewport: "viewport-change",
+    };
+    for (const scenario of scenarios) {
+      const third = await makeRetainedCanvas();
+      const retainedPipeline = new api.GpuScenePipeline(device, third.context, third.canvasFormat);
+      const edit = partialParityScene(scenario);
+      // the retained pipeline first renders the BASE (full), then the edit
+      retainedPipeline.render({
+        scene: base.scene,
+        dpr: 1,
+        shadowOptions: base.shadowOptions,
+        tileSize: 32,
+        debugReadback: true,
+      });
+      const edited = retainedPipeline.render({
+        scene: edit.scene,
+        dpr: 1,
+        shadowOptions: edit.shadowOptions,
+        tileSize: 32,
+        debugReadback: true,
+      });
+      if (scenario in expectedReasons) {
+        if (edited.planning.mode !== "full") {
+          problems.push(`${scenario} edit planned ${edited.planning.mode} (expected full fallback)`);
+        }
+        if (edited.planning.reason !== expectedReasons[scenario]) {
+          problems.push(
+            `${scenario} edit fallback reason ${edited.planning.reason} ` +
+              `(expected ${expectedReasons[scenario]})`,
+          );
+        }
+      } else if (edited.planning.mode === "partial") {
+        if (edited.planning.dirtyTileCount <= 0) {
+          problems.push(`${scenario} partial frame reported zero dirty tiles`);
+        }
+      }
+      const retainedCanvasBytes = await capturePresented(
+        device,
+        third.context,
+        third.canvasFormat,
+        edited.renderWidth,
+        edited.renderHeight,
+      );
+      retainedPipeline.dispose();
+      third.canvas.remove();
+      const forced = await makeRetainedCanvas();
+      const forcedPipeline = new api.GpuScenePipeline(device, forced.context, forced.canvasFormat);
+      const forcedFrame = forcedPipeline.render({
+        scene: edit.scene,
+        dpr: 1,
+        shadowOptions: edit.shadowOptions,
+        tileSize: 32,
+        debugReadback: true,
+      });
+      const forcedBytes = await capturePresented(
+        device,
+        forced.context,
+        forced.canvasFormat,
+        forcedFrame.renderWidth,
+        forcedFrame.renderHeight,
+      );
+      forcedPipeline.dispose();
+      forced.canvas.remove();
+      if (!oracle.bytesEqual(retainedCanvasBytes, forcedBytes)) {
+        problems.push(
+          `${scenario} edit differs from forced-full recompute (canvas bytes)`,
+        );
+      }
+    }
+  } catch (error) {
+    problems.push(`partial parity threw: ${String(error?.stack ?? error)}`);
+  }
+  try {
+    pipeline?.dispose();
+    canvas?.remove();
+  } catch {
+    // disposal must never mask the outcome
+  }
+  return problems;
+}
+
+/**
+ * #32 tile benchmark at the documented 640x360 demo-frame proxy scene:
+ * several tile sizes x dirty-area ratios (small/medium/large edits).
+ * Binning overhead (the planner's host wall-clock `planningHostMs`) is
+ * reported SEPARATELY from the submitted GPU completion time
+ * (`queue.onSubmittedWorkDone()`), alongside ESTIMATED candidates/culled
+ * surfaces, dirty coverage, dispatches and frame time. REPORT-ONLY: the
+ * numbers never gate the run (the deterministic PARTIAL_DISPATCH_RATIO
+ * decides the path, not a timing), but every measured frame's canvas is
+ * still verified against a forced-full recompute.
+ */
+async function runTileBenchmark(device) {
+  const cases = [];
+  // benchmark-specific bounded shadow so partials are meaningful at 640x360
+  const benchmarkScene = () =>
+    api.createScene({
+      width: 640,
+      height: 360,
+    light: { direction: { x: 0.15, y: 0.1, z: 0.98 }, intensity: 1 },
+      surfaces: [
+        {
+          id: "panel",
+          position: { x: 0, y: 0 },
+          size: { x: 640, y: 360 },
+          elevation: 0,
+          thickness: 0,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: false,
+          receivesShadow: true,
+        },
+        {
+          id: "btn-a",
+          position: { x: 60, y: 80 },
+          size: { x: 90, y: 60 },
+          elevation: 2,
+          thickness: 3,
+          bevelWidth: 8,
+          shape: { kind: "roundedRect", radius: 12 },
+          profile: { kind: "bevel" },
+          material: "silicone",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+        {
+          id: "btn-b",
+          position: { x: 240, y: 120 },
+          size: { x: 120, y: 70 },
+          elevation: 4,
+          thickness: 3,
+          bevelWidth: 8,
+          shape: { kind: "roundedRect", radius: 16 },
+          profile: { kind: "bevel" },
+          material: "metal",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+        {
+          id: "badge",
+          position: { x: 150, y: 200 },
+          size: { x: 40, y: 40 },
+          elevation: 7,
+          thickness: 2,
+          shape: { kind: "roundedRect", radius: 8 },
+          profile: { kind: "flat" },
+          material: "silicone",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+        {
+          id: "glyph",
+          position: { x: 520, y: 220 },
+          size: { x: 12, y: 12 },
+          elevation: 5,
+          thickness: 2,
+          shape: { kind: "mask", mask: { width: 6, height: 6, alpha: new Uint8Array(36).fill(255) } },
+          profile: { kind: "flat" },
+          material: "metal",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+    });
+  const shadowOptions = { maxDistance: 40, stepSize: 0.5, bias: 0.5 };
+  const edits = {
+    small: (scene) =>
+      api.createScene({
+        ...scene,
+        surfaces: scene.surfaces.map((s) =>
+          s.id === "badge" ? { ...s, position: { x: 154, y: 203 } } : s,
+        ),
+      }),
+    medium: (scene) =>
+      api.createScene({
+        ...scene,
+        surfaces: scene.surfaces.map((s) =>
+          s.id === "btn-a" ? { ...s, position: { x: 74, y: 90 } } : s,
+        ),
+      }),
+    large: (scene) =>
+      api.createScene({
+        ...scene,
+        surfaces: scene.surfaces.map((s) =>
+          s.id === "btn-a" ? { ...s, position: { x: 300, y: 250 } } : s,
+        ),
+      }),
+  };
+  const fullChain = async (encoded, bindings, heightPass, normalPass, shadowPass, lightingPass) => {
+    heightPass.dispatch(encoded, bindings);
+    const heightSnapshot = heightPass.getSnapshot();
+    normalPass.dispatch({ height: api.normalHeightBindingFromHeightPass(heightSnapshot) });
+    const normalSnapshot = normalPass.getSnapshot();
+    shadowPass.dispatch({
+      scene: encoded,
+      bindings,
+      ...api.shadowHeightBindingsFromHeightPass(heightSnapshot),
+      options: shadowOptions,
+    });
+    const shadowSnapshot = shadowPass.getSnapshot();
+    lightingPass.dispatch({
+      scene: encoded,
+      bindings,
+      materialId: api.lightingMaterialIdBindingFromHeightPass(heightSnapshot),
+      normal: api.lightingNormalBindingFromNormalPass(normalSnapshot),
+      visibility: api.lightingVisibilityBindingFromShadowPass(shadowSnapshot),
+      options: {},
+    });
+    await device.queue.onSubmittedWorkDone();
+  };
+  const canvas = document.createElement("canvas");
+  canvas.width = 0;
+  canvas.height = 0;
+  document.body.appendChild(canvas);
+  const context = canvas.getContext("webgpu");
+  const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+  try {
+    for (const tileSize of [16, 32, 64]) {
+      for (const [ratio, editScene] of Object.entries(edits)) {
+        const baseScene = benchmarkScene();
+        const editedScene = editScene(baseScene);
+        // full-path timing: the standalone full chain (fresh passes) on the
+        // edited scene with GPU completion.
+        const encoded = api.encodeScene(editedScene, 1);
+        const uploader = new api.SceneUploader(device);
+        uploader.upload(encoded);
+        const bindings = uploader.getBindings();
+        const heightPass = new api.HeightPass(device);
+        const normalPass = new api.NormalPass(device);
+        const shadowPass = new api.ShadowPass(device);
+        const lightingPass = new api.LightingPass(device);
+        for (let i = 0; i < 3; i++) {
+          await fullChain(encoded, bindings, heightPass, normalPass, shadowPass, lightingPass);
+        }
+        const fullSamples = [];
+        for (let i = 0; i < 5; i++) {
+          const t0 = performance.now();
+          await fullChain(encoded, bindings, heightPass, normalPass, shadowPass, lightingPass);
+          fullSamples.push(performance.now() - t0);
+        }
+        const fullMedian = median(fullSamples);
+        uploader.dispose();
+        heightPass.dispose();
+        normalPass.dispose();
+        shadowPass.dispose();
+        lightingPass.dispose();
+        // partial-path timing: the retained pipeline alternating between the
+        // base and the edited scene so every edited render is planned fresh.
+        const pipeline = new api.GpuScenePipeline(device, context, canvasFormat);
+        const partialSamples = [];
+        const plans = [];
+        for (let i = 0; i < 3; i++) {
+          pipeline.render({ scene: baseScene, dpr: 1, shadowOptions, tileSize });
+          pipeline.render({ scene: editedScene, dpr: 1, shadowOptions, tileSize });
+          await device.queue.onSubmittedWorkDone();
+        }
+        for (let i = 0; i < 5; i++) {
+          pipeline.render({ scene: baseScene, dpr: 1, shadowOptions, tileSize });
+          const t0 = performance.now();
+          const stats = pipeline.render({ scene: editedScene, dpr: 1, shadowOptions, tileSize });
+          plans.push(stats.planning);
+          await device.queue.onSubmittedWorkDone();
+          partialSamples.push(performance.now() - t0);
+        }
+        const partialMedian = median(partialSamples);
+        const plan = plans[plans.length - 1];
+        pipeline.dispose();
+        cases.push({
+          tileSize,
+          ratio,
+          mode: plan.mode,
+          reason: plan.reason,
+          dirtyCoverage: plan.dispatchTexels / plan.totalTexels,
+          dirtyTexels: plan.dirtyTexels,
+          dispatchTexels: plan.dispatchTexels,
+          totalTexels: plan.totalTexels,
+          candidates: plan.estimatedCandidateSurfaceCount,
+          culled: plan.estimatedCulledSurfaceCount,
+          fullMedian,
+          partialMedian,
+          binningMs: plan.planningHostMs,
+        });
+      }
+    }
+  } finally {
+    canvas.remove();
+  }
+  return cases;
+}
+
 async function main() {
   try {
     if (typeof navigator === "undefined" || navigator.gpu === undefined) {
@@ -1574,6 +2141,30 @@ async function main() {
       retainedFailure = String(error?.stack ?? error);
     }
     summaryData.retainedProblems = retainedProblems.length;
+    // #32 partial/full parity + counters on the real adapter: small edits
+    // must take the partial path with fewer dispatched workgroups, and
+    // EVERY edited frame (partial or full) must equal a forced full
+    // recompute byte-for-byte, including the move/add/remove/reorder and
+    // light/material/viewport fallback cases.
+    const partialProblems = [];
+    let partialFailure = null;
+    try {
+      partialProblems.push(...(await runPartialParity(device)));
+    } catch (error) {
+      partialFailure = String(error?.stack ?? error);
+    }
+    summaryData.partialProblems = partialProblems.length;
+    // #32 tile benchmark: report-only (deterministic cost ratio decides the
+    // path, never a timing), run after the parity gates so failures surface
+    // before any benchmark noise.
+    let tileBenchmark = [];
+    let tileBenchmarkFailure = null;
+    try {
+      tileBenchmark = await runTileBenchmark(device);
+    } catch (error) {
+      tileBenchmarkFailure = String(error?.stack ?? error);
+    }
+    summaryData.tileBenchmarkCases = tileBenchmark.length;
     // drain async device errors before destroying the device
     await device.queue.onSubmittedWorkDone().catch(() => undefined);
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
@@ -1991,6 +2582,47 @@ async function main() {
         "dispatches/allocations/uploads; retained repaint and partial invalidations " +
         "run exactly their downstream closure; forced full recompute byte-identical)",
     );
+    // #32 partial/full parity FAIL branches (before the PASS marker)
+    if (partialFailure !== null) {
+      finish(
+        MARKER_FAIL,
+        `partial/full parity failed: ${partialFailure}`,
+      );
+      return;
+    }
+    if (partialProblems.length > 0) {
+      finish(
+        MARKER_FAIL,
+        `partial/full parity problems (${partialProblems.length}): ${partialProblems.join("; ")}`,
+      );
+      return;
+    }
+    detail.push(
+      "partial/full parity: PASS (small edits planned partial with fewer dispatched " +
+        "workgroups; every partial/full frame byte-equal to a forced full recompute " +
+        "across move/add/remove/reorder and the light/material/viewport fallbacks)",
+    );
+    // #32 tile benchmark report lines (never gating)
+    if (tileBenchmarkFailure !== null) {
+      detail.push(`tile benchmark failed: ${tileBenchmarkFailure}`);
+    }
+    for (const c of tileBenchmark) {
+      detail.push(
+        `tile benchmark tile=${c.tileSize} ratio=${c.ratio} mode=${c.mode} ` +
+          `reason=${c.reason} dirtyCoverage=${c.dirtyCoverage.toFixed(3)} ` +
+          `dirtyTexels=${c.dirtyTexels}/${c.totalTexels} dispatchTexels=${c.dispatchTexels} ` +
+          `candidates=${c.candidates} culled=${c.culled} ` +
+          `fullMedian=${c.fullMedian.toFixed(3)}ms partialMedian=${c.partialMedian.toFixed(3)}ms ` +
+          `binningMs=${c.binningMs.toFixed(3)}ms (host, separate from GPU completion)`,
+      );
+    }
+    if (tileBenchmark.length > 0) {
+      detail.push(
+        "tile benchmark summary: binning overhead reported SEPARATELY from submitted " +
+          "GPU completion time; the partial/full path is chosen by the deterministic " +
+          "PARTIAL_DISPATCH_RATIO coverage threshold, never by timing",
+      );
+    }
     finish(
       MARKER_PASS,
       `real adapter parity: ${fixtureResults.length} fixtures, ${totalTexels} scene texels, ` +
