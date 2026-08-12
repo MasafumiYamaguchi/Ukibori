@@ -116,6 +116,11 @@ export const DEFAULT_KERNEL_CACHE_KEY = "ukibori-normal-kernel-v1";
 // instance. Entries are deleted on FAILURE (retryable) and on disposal.
 const loadCache = new Map<string, Promise<WasmNormalKernel>>();
 
+/** Clear the shared-load cache (test/lifecycle seam). */
+export function resetKernelLoadCache(): void {
+  loadCache.clear();
+}
+
 export class WasmNormalKernel {
   /** Reject new work after disposal; idempotent. */
   private disposed = false;

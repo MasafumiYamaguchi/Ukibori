@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { WasmCpuBackend } from "./backend";
-import { WasmNormalKernel } from "./kernel";
+import { WasmNormalKernel, resetKernelLoadCache } from "./kernel";
 import { selectWasmBackend, resetWasmSelectionCache } from "./selection";
 import { byteLength } from "../buffer";
 import type { BufferSpec } from "../types";
@@ -15,6 +15,7 @@ const SPEC: BufferSpec = { width: 4, height: 3, channels: 4, format: "u8" };
 
 afterEach(() => {
   resetWasmSelectionCache();
+  resetKernelLoadCache();
 });
 
 describe("#33 WasmCpuBackend", () => {

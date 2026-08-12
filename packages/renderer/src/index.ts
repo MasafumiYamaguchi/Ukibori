@@ -48,6 +48,7 @@ export {
   NORMAL_KERNEL_WORK_BYTES_PER_TEXEL,
   WasmNormalKernel,
   decodeDefaultModule,
+  resetKernelLoadCache,
 } from "./wasm/kernel";
 export type {
   WasmKernelLoadOptions,

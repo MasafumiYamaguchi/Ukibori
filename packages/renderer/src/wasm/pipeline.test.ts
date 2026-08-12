@@ -5,6 +5,7 @@ import type { LightingOptions } from "../lighting";
 import { HostBuffer } from "../buffer";
 import { WasmCpuPipeline } from "./pipeline";
 import { selectWasmBackend, resetWasmSelectionCache } from "./selection";
+import { resetKernelLoadCache } from "./kernel";
 import type { WasmSelectionReport } from "./selection";
 // @ts-expect-error - test-browser modules are plain ESM without declarations
 import { createCatalog } from "../../test-browser/catalog.mjs";
@@ -23,6 +24,7 @@ import * as api from "../index";
 
 afterEach(() => {
   resetWasmSelectionCache();
+  resetKernelLoadCache();
 });
 
 async function buildPipeline(): Promise<{ pipeline: WasmCpuPipeline; selection: WasmSelectionReport }> {

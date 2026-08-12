@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { createRenderer } from "../renderer";
 import { resetWasmSelectionCache, selectWasmBackend } from "../wasm/selection";
+import { resetKernelLoadCache } from "../wasm/kernel";
 
 /**
  * #33 `createRenderer` backend selection integration.
@@ -17,6 +18,7 @@ import { resetWasmSelectionCache, selectWasmBackend } from "../wasm/selection";
 
 afterEach(() => {
   resetWasmSelectionCache();
+  resetKernelLoadCache();
 });
 
 /** Install a fake navigator.gpu whose adapter resolves after `delayMs`. */
