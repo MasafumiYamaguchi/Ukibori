@@ -63,7 +63,7 @@ React層は薄いlifecycle/API層であり、rendererのセマンティクスを
 | prop | 説明 |
 | --- | --- |
 | `light` / `intensity` | 共有方向光(#13: receiver→光源方向。`{ x: -0.6, y: -0.8, z: 1 }`は左上前方) |
-| `backend` | `"auto"` / `"cpu"` / `"css"`。auto/cpu=物理層(CPU reference renderer)。`"css"`=**明示的に近似とラベル付けされたbox-shadowフォールバック**(物理レンダリングではない)。WebGPUはcompute pipelineが未実装(`compute: false`)のため選択肢に存在しません — 存在しない能力をfakeしません |
+| `backend` | `"auto"` / `"cpu"` / `"webgpu"` / `"css"`。auto=実WebGPU(直接canvas提示)を最優先、失敗時はCPU reference rendererへ一度だけfallback。`"cpu"`=物理層(CPU reference renderer)。`"webgpu"`=WebGPU専用(失敗時は明示ラベルのCSS近似へ)。`"css"`=**明示的に近似とラベル付けされたbox-shadowフォールバック**(物理レンダリングではない) |
 | `quality` / `dpr` | レンダーターゲットのスケール方針(`low` 0.75× / `medium` 1× / `high` 1.5× devicePixelRatio)。scene単位は常にCSS px(#13) |
 | `stage` | #20 stage-root overlay契約。既定はprovider自身のwrapper要素(surfaceはその中に置く)。unmountでクリーンに破棄 |
 | `shadow` / `margin` / `compositing` | 影パス(#17、CSS px、DPR不変) / シーン余白 / overlay合成マッピング |
@@ -96,7 +96,7 @@ DOM所有のアクセシブルなテキスト(`<span>`)を描画し、その**�
 
 - 物理層は単一height fieldモデル(#18): オーバーハング・同一画素への複数surfaceの積み重ね・彫り込み(inset)は表現できません(insetはCSS近似でのみ利用可能)
 - overlayはstage-root契約(#20): surfaceはstage要素内に置く必要があります。transform祖先・iframeは非対象
-- 初期実装はCPU reference renderer。WebGPU compute pipelineは未実装(`compute: false`)で、選択肢として公開されません
+- `backend="auto"`のWebGPU経路は#29/#31 `GpuScenePipeline`の直接canvas提示です(readbackなし・2D copyなし)。GPUの初期化/描画/device-loss失敗時は**一度だけ**CPU reference rendererへ切替わり(`debugState().backend` / `gpuFallbackReason` / `gpuFrame`で検証可能)。ホスト側の計測はすべてhost wall-clockであり、GPU完了時間を偽装しません
 
 ## デモページ
 
@@ -133,5 +133,5 @@ npm run dev        # デモを起動
 
 ## ステータス
 
-#21(React API)実装済み。#33(WASM-assisted CPU fallback)実装済み。
+#21(React API)実装済み。#33(WASM-assisted CPU fallback)実装済み。WebGPU統合(auto/cpu/webgpu backend、直接canvas提示、honest CPU fallback)実装済み。
 進行は [DEEPSEEK_IMPLEMENTATION_BRIEF.md](./DEEPSEEK_IMPLEMENTATION_BRIEF.md) のチェックポイント方式とGitHub Issue(#12〜)に従っています。

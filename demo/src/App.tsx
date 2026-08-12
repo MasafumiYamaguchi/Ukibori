@@ -105,13 +105,16 @@ export function App() {
                 value={backend}
                 onChange={(event) => setBackend(event.target.value as UkiboriBackend)}
               >
-                <option value="auto">auto — physical (CPU renderer)</option>
+                <option value="auto">auto — WebGPU direct canvas, CPU fallback</option>
+                <option value="webgpu">webgpu — WebGPU only (falls back to the labeled CSS approximation on failure)</option>
                 <option value="cpu">cpu — physical (CPU renderer)</option>
                 <option value="css">css — approximation fallback (not physical)</option>
               </select>
               <p className="hint">
-                The CSS path is the explicitly labeled box-shadow approximation. WebGPU is not
-                selectable: its compute pipeline is not implemented (honest capability policy).
+                auto requests a real navigator.gpu adapter/device and presents the #29/#31 GPU
+                pipeline directly to the overlay canvas (no readback). Any GPU failure switches
+                once to the honest CPU reference path. The CSS path is the explicitly labeled
+                box-shadow approximation.
               </p>
             </div>
             <SliderControl
