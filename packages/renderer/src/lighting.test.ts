@@ -295,6 +295,30 @@ describe("shading", () => {
     ).toThrow(/unknown material "nope"/);
   });
 
+  it("falls back to the base material for an invalid non-sentinel owner", () => {
+    const scene = createScene({
+      width: 4,
+      height: 4,
+      light: { direction: { x: 0, y: 0, z: 1 }, intensity: 1 },
+    });
+    const flat = heightFrom(
+      Array.from({ length: 4 }, () => Array(4).fill(0)),
+      4,
+      4,
+    );
+    const invalidOwner = noOwnerObjectId(4, 4);
+    invalidOwner.fill(0); // invalid because this scene has no surfaces
+
+    const fallback = shadeHeightField(scene, { height: flat, objectId: invalidOwner });
+    const base = shadeHeightField(scene, {
+      height: flat,
+      objectId: noOwnerObjectId(4, 4),
+    });
+
+    expect(Array.from(fallback.color.data)).toEqual(Array.from(base.color.data));
+    expect(Array.from(fallback.specular.data)).toEqual(Array.from(base.specular.data));
+  });
+
   it("applies scene material overrides to the combined color", () => {
     const scene = (material: string) =>
       createScene({

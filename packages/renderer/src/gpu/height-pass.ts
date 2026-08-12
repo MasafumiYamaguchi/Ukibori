@@ -13,13 +13,18 @@ import {
   sceneSectionLayout,
 } from "./layout";
 import type { GpuBufferLike, SceneBindings } from "./uploader";
+import type { BandRegion } from "./tiles";
+import { assertBandRegion } from "./tiles";
 import { validateEncodedScene } from "./validate";
 import {
+  COMPOSE_CASTER_HEIGHT_WGSL,
   COMPOSE_COVERAGE_WGSL,
   COMPOSE_HEIGHT_WGSL,
   COMPOSE_MATERIAL_ID_WGSL,
   COMPOSE_OBJECT_ID_WGSL,
   HEIGHT_PASS_PARAMS_BYTE_LENGTH,
+  MASK_META_CANDIDATE_BASE,
+  MASK_META_FULL_SENTINEL,
   MASK_META_STRIDE,
   MASK_SDF_WGSL,
   WORKGROUP_SIZE,
@@ -29,8 +34,9 @@ import {
  * #25 height composition compute stage — the first real WebGPU compute
  * pipeline. It consumes the five frozen #24 `SceneUploader.getBindings()`
  * buffers DIRECTLY (never copied into new host/GPU buffers) and produces
- * GPU-resident height, coverage, objectId and materialId fields for the ABI
- * render extent, matching the CPU reference (`composeHeightField` +
+ * GPU-resident height, coverage, objectId, materialId and CASTER-HEIGHT
+ * fields for the ABI render extent, matching the CPU reference
+ * (`composeHeightField` + `composeCasterHeightField` +
  * `roundedRectSdf`/`evaluateProfile`/`computeMaskSdf`).
  *
  * ## All five scene buffers are genuinely consumed by the GPU
@@ -46,21 +52,24 @@ import {
  * ## Passes and the per-stage storage limit
  *
  * `maxStorageBuffersPerShaderStage` has a SPEC MINIMUM of 8, so the
- * composition stage is split into FOUR output-specific compute passes:
+ * composition stage is split into FIVE output-specific compute passes:
  *
  * - mask-SDF pass (only when the scene has masks): 5 scene storage +
  *   maskMeta + maskWorkspace = 7
- * - compose passes x4 (height f32, coverage u32, objectId u32,
- *   materialId u32), one per output allocation: 5 scene storage + maskMeta +
- *   maskWorkspace + exactly ONE output storage = 8, plus the uniform
- *   (uniforms do not count toward the limit)
+ * - compose passes x5 (height f32, coverage u32, objectId u32,
+ *   materialId u32, casterHeight f32), one per output allocation: 5 scene
+ *   storage + maskMeta + maskWorkspace + exactly ONE output storage = 8,
+ *   plus the uniform (uniforms do not count toward the limit)
  *
- * Every compose pass recomputes the deterministic owner from the same
- * pure scene+texel function, so all four outputs agree;
- * `getSnapshot().lastDispatch.composePasses` is 4. Each output lives in its
+ * Every full-field compose pass recomputes the deterministic owner from the
+ * same pure scene+texel function, so all four full outputs agree; the
+ * caster-height pass independently recomputes a CASTER-ONLY owner (surfaces
+ * with the ABI `FLAG_CASTS_SHADOW` bit only, see `casterOwnerAt`), so a
+ * non-casting top surface never hides a lower casting surface;
+ * `getSnapshot().lastDispatch.composePasses` is 5. Each output lives in its
  * own allocation; all outputs are `STORAGE | COPY_SRC | COPY_DST`, never
  * mapped, and exposed through the stable read-only snapshot for later
- * passes (#26 and beyond).
+ * passes (#26/#27 and beyond).
  *
  * ## Validation before ANY device call
  *
@@ -249,7 +258,7 @@ export interface HeightPassOutputBinding {
   readonly usage: number;
 }
 
-/** Stable read-only output binding snapshot for later passes (#26+). */
+/** Stable read-only output binding snapshot for later passes (#26/#27+). */
 export interface HeightPassOutputs {
   /** f32 absolute scene-space z (0 = background/base plane) */
   readonly height: HeightPassOutputBinding;
@@ -259,6 +268,13 @@ export interface HeightPassOutputs {
   readonly objectId: HeightPassOutputBinding;
   /** u32 ABI material index, or NO_OWNER */
   readonly materialId: HeightPassOutputBinding;
+  /**
+   * f32 caster-only height field (#27): same shape/profile/tie rules as
+   * `height`, but composed ONLY from surfaces with `FLAG_CASTS_SHADOW`; 0.0
+   * where no casting surface owns the texel. Sampled bilinearly by the
+   * #27 ShadowPass for occlusion.
+   */
+  readonly casterHeight: HeightPassOutputBinding;
 }
 
 export interface HeightPassLastDispatch {
@@ -270,8 +286,21 @@ export interface HeightPassLastDispatch {
   readonly totalMaskCells: number;
   /** 1 when the mask-SDF pass ran, 0 for mask-free scenes */
   readonly maskSdfPasses: number;
-  /** 4: height, coverage, objectId, materialId — one compute pass per output */
+  /** 5: height, coverage, objectId, materialId, casterHeight — one compute pass per output */
   readonly composePasses: number;
+}
+
+/**
+ * O(1) identity for one successful HeightPass dispatch. `sceneBytes`
+ * proves which encoded scene was consumed, while the provenance object
+ * itself is freshly allocated per dispatch so later passes can reject a
+ * mixture of fields from two executions of that same scene.
+ */
+export interface HeightPassProvenance {
+  readonly sceneBytes: Uint8Array;
+  readonly width: number;
+  readonly height: number;
+  readonly dpr: number;
 }
 
 export interface HeightPassSnapshot {
@@ -281,6 +310,13 @@ export interface HeightPassSnapshot {
   readonly workgroupSize: number;
   readonly outputs: HeightPassOutputs;
   readonly lastDispatch: HeightPassLastDispatch;
+  /**
+   * O(1) provenance identity of the last successful `dispatch()`. The
+   * object is unique per dispatch and holds the exact scene `bytes`
+   * reference, so later passes can reject both foreign scenes and mixed
+   * fields from separate dispatches of the same scene.
+   */
+  readonly provenance: HeightPassProvenance;
 }
 
 export interface HeightPassDispatchStats {
@@ -343,7 +379,8 @@ type AllocationName =
   | "outHeight"
   | "outCoverage"
   | "outObjectId"
-  | "outMaterialId";
+  | "outMaterialId"
+  | "outCasterHeight";
 
 /** Compose passes in dispatch order; one per output allocation. */
 const COMPOSE_PASSES: ReadonlyArray<{
@@ -355,6 +392,7 @@ const COMPOSE_PASSES: ReadonlyArray<{
   { name: "outCoverage", module: COMPOSE_COVERAGE_WGSL, format: "u32" },
   { name: "outObjectId", module: COMPOSE_OBJECT_ID_WGSL, format: "u32" },
   { name: "outMaterialId", module: COMPOSE_MATERIAL_ID_WGSL, format: "u32" },
+  { name: "outCasterHeight", module: COMPOSE_CASTER_HEIGHT_WGSL, format: "f32" },
 ];
 
 const SCENE_BINDING_MIN_SIZES: ReadonlyArray<readonly [number, number]> = [
@@ -378,9 +416,12 @@ export class HeightPass {
   private readonly allocationSizes = new Map<AllocationName, number>();
   private readonly uniformBytes = new Uint8Array(HEIGHT_PASS_PARAMS_BYTE_LENGTH);
   private maskMetaBytes = new Uint8Array(MIN_PASS_ALLOCATION_BYTES);
+  /** logical byte length of the CURRENT frame's maskMeta layout */
+  private maskMetaLogicalBytes = MIN_PASS_ALLOCATION_BYTES;
   private newAllocations = 0;
   private lastDispatch: HeightPassLastDispatch | null = null;
   private lastDpr = 0;
+  private lastProvenance: HeightPassProvenance | null = null;
   private pipelines: CachedPipelines | null = null;
 
   constructor(private readonly device: GpuComputeDeviceLike) {}
@@ -391,8 +432,29 @@ export class HeightPass {
    * limits and allocation bounds all run BEFORE any device call; normal
    * execution then performs only GPU uploads and compute submission (no
    * map, no readback).
+   *
+   * `options.region` (#32) restricts the five compose passes to the
+   * inclusive texel rows `[y0, y1]` (a full-width dispatch band): the SDF
+   * pass always runs in full, every compose pass dispatches
+   * `ceil(bandTexels / WORKGROUP_SIZE)` workgroups and the in-shader index
+   * adds `y0 * renderWidth`, so texels outside the band are never written
+   * (they are retained by the scheduler). The band is bounds-safe by
+   * construction (it never exceeds the render extent). `undefined` keeps
+   * the historical full-frame behavior byte-for-byte.
+   *
+   * `options.candidates` (#32) is the ACTUAL conservative culling bin: the
+   * ORIGINAL surface indices the compose passes iterate on a partial
+   * frame, packed into the reused `maskMeta` buffer (element 0 = count,
+   * elements 1..count = original indices; `null` packs the full-frame
+   * sentinel and the shaders iterate every original index). A zero-length
+   * list is legal (a zero-candidate band — the shaders write the
+   * cleared/background outputs without iterating).
    */
-  dispatch(scene: EncodedScene, bindings: SceneBindings): HeightPassDispatchStats {
+  dispatch(
+    scene: EncodedScene,
+    bindings: SceneBindings,
+    options?: { readonly region?: BandRegion; readonly candidates?: readonly number[] },
+  ): HeightPassDispatchStats {
     const validation = validateEncodedScene(scene.bytes);
     if (!validation.ok || validation.header === undefined) {
       throw new Error(`invalid encoded scene: ${validation.errors.join("; ")}`);
@@ -406,6 +468,17 @@ export class HeightPass {
     }
     const layout = sceneSectionLayout(header);
     this.assertDispatchInput(header, layout, bindings);
+    // #32 ACTUAL surface culling: the candidate bin is only meaningful with
+    // a partial dispatch region (the sentinel covers full frames), and must
+    // be unique, strictly ascending, valid ORIGINAL surface indices.
+    const region = assertBandRegion(options?.region, header.renderHeight);
+    const candidates = this.assertCandidates(options?.candidates, header.surfaceCount);
+    if (candidates !== null && region === null) {
+      throw new Error(
+        "candidate surface indices require a partial dispatch region: full frames " +
+          "use the maskMeta sentinel and iterate every original index",
+      );
+    }
     const { offsets: maskOffsets, workspaceBytes } = this.readMaskWorkspaceOffsets(
       scene.bytes,
       header,
@@ -413,17 +486,33 @@ export class HeightPass {
     );
     const totalMaskCells = workspaceBytes / 4;
     const texelCount = header.renderWidth * header.renderHeight;
-    const composeWorkgroups = ceilDiv(texelCount, WORKGROUP_SIZE);
+    // #32 region dispatch: the compose passes cover only the band rows; the
+    // SDF pass (mask workspace generation) always runs in full.
+    const bandRows = region === null ? header.renderHeight : region.y1 - region.y0 + 1;
+    const bandTexels = header.renderWidth * bandRows;
+    const yOffset = region === null ? 0 : region.y0 * header.renderWidth;
+    // exclusive texel end of the dispatched region: 0 = full-frame sentinel;
+    // on a band the shader guard regionEnd != 0 && g >= regionEnd stops the
+    // dispatch padding from ever writing a retained texel outside the band
+    const regionEnd = region === null ? 0 : yOffset + bandTexels;
+    const composeWorkgroups = ceilDiv(bandTexels, WORKGROUP_SIZE);
     const sdfWorkgroups = totalMaskCells > 0 ? ceilDiv(totalMaskCells, WORKGROUP_SIZE) : 0;
     this.assertDeviceLimits(composeWorkgroups, sdfWorkgroups);
-    this.ensureAllocations(maskOffsets.length, texelCount, totalMaskCells);
+    this.ensureAllocations(maskOffsets.length, header.surfaceCount, texelCount, totalMaskCells);
 
-    this.packUniform(totalMaskCells);
-    this.packMaskMeta(maskOffsets);
+    this.packUniform(totalMaskCells, yOffset, regionEnd);
+    this.packMaskMeta(maskOffsets, header.surfaceCount, candidates);
     const uniform = this.allocation("uniform");
     const maskMeta = this.allocation("maskMeta");
     this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
-    this.device.queue.writeBuffer(maskMeta, 0, this.maskMetaBytes);
+    // write only the logical bytes (the reusable buffer may be larger than
+    // this frame's 1 + surfaceCount + maskCount layout; the zero-fill in
+    // packMaskMeta keeps every freshly-written element deterministic)
+    this.device.queue.writeBuffer(
+      maskMeta,
+      0,
+      this.maskMetaBytes.subarray(0, this.maskMetaLogicalBytes),
+    );
 
     const cached = this.ensurePipelines();
     const sceneGroup = this.createSceneBindGroup(bindings, cached.sceneLayout);
@@ -461,6 +550,12 @@ export class HeightPass {
       composePasses: COMPOSE_PASSES.length,
     };
     this.lastDpr = header.dpr;
+    this.lastProvenance = Object.freeze({
+      sceneBytes: scene.bytes,
+      width: header.renderWidth,
+      height: header.renderHeight,
+      dpr: header.dpr,
+    });
 
     const stats: HeightPassDispatchStats = {
       newAllocations: this.newAllocations,
@@ -475,7 +570,7 @@ export class HeightPass {
 
   /** Stable read-only snapshot; throws before the first successful dispatch. */
   getSnapshot(): HeightPassSnapshot {
-    if (this.lastDispatch === null) {
+    if (this.lastDispatch === null || this.lastProvenance === null) {
       throw new Error("no dispatch: dispatch() has not completed or dispose() was called");
     }
     return {
@@ -485,6 +580,7 @@ export class HeightPass {
       workgroupSize: WORKGROUP_SIZE,
       outputs: this.getOutputs(),
       lastDispatch: this.lastDispatch,
+      provenance: this.lastProvenance,
     };
   }
 
@@ -499,6 +595,7 @@ export class HeightPass {
       coverage: this.outputBinding("outCoverage", texelBytes, "u32"),
       objectId: this.outputBinding("outObjectId", texelBytes, "u32"),
       materialId: this.outputBinding("outMaterialId", texelBytes, "u32"),
+      casterHeight: this.outputBinding("outCasterHeight", texelBytes, "f32"),
     };
   }
 
@@ -512,6 +609,7 @@ export class HeightPass {
     this.newAllocations = 0;
     this.lastDispatch = null;
     this.lastDpr = 0;
+    this.lastProvenance = null;
   }
 
   // -- validation (all BEFORE any device call) ------------------------------
@@ -646,12 +744,15 @@ export class HeightPass {
 
   private ensureAllocations(
     maskCount: number,
+    surfaceCount: number,
     texelCount: number,
     totalMaskCells: number,
   ): void {
     const workspaceBytes = totalMaskCells * 4;
     const texelBytes = texelCount * 4;
-    const maskMetaBytes = maskCount * MASK_META_STRIDE;
+    // #32 layout: element 0 (sentinel/count) + candidate elements
+    // 1..1+surfaceCount + mask workspace offsets at 1+surfaceCount+i
+    const maskMetaBytes = (MASK_META_CANDIDATE_BASE + surfaceCount + maskCount) * MASK_META_STRIDE;
     this.assertAllocationWithinLimits(HEIGHT_PASS_PARAMS_BYTE_LENGTH, "params uniform");
     if (!Number.isSafeInteger(maskMetaBytes) || maskMetaBytes > U32_MAX) {
       throw new Error(`mask meta allocation of ${maskMetaBytes} bytes exceeds u32 (${U32_MAX})`);
@@ -666,7 +767,7 @@ export class HeightPass {
     );
     this.ensureAllocation(
       "maskMeta",
-      Math.max(maskCount * MASK_META_STRIDE, MASK_META_STRIDE),
+      Math.max(maskMetaBytes, MASK_META_STRIDE),
       GPU_USAGE_STORAGE | GPU_USAGE_COPY_DST,
     );
     this.ensureAllocation("maskWorkspace", workspaceBytes, GPU_USAGE_STORAGE | GPU_USAGE_COPY_SRC);
@@ -718,22 +819,88 @@ export class HeightPass {
 
   // -- host packing (little-endian, offsets pinned by height-pass-wgsl.ts) --
 
-  private packUniform(totalMaskCells: number): void {
+  private packUniform(totalMaskCells: number, yOffset: number, regionEnd: number): void {
     const view = new DataView(this.uniformBytes.buffer);
     view.setUint32(0, totalMaskCells, true);
     view.setUint32(4, WORKGROUP_SIZE, true);
+    view.setUint32(8, yOffset, true);
+    view.setUint32(12, regionEnd, true);
   }
 
-  private packMaskMeta(offsets: readonly number[]): void {
-    const byteLength = Math.max(offsets.length * MASK_META_STRIDE, MIN_PASS_ALLOCATION_BYTES);
+  /**
+   * #32 pack the reused maskMeta buffer: element 0 = full-frame sentinel or
+   * the partial candidate count; elements `1..1+count` = the candidate
+   * ORIGINAL surface indices (zeroed on full frames); the per-mask
+   * workspace byte offsets at the fixed base `1 + surfaceCount`. The buffer
+   * is zero-filled BEFORE packing, so stale bytes from a larger previous
+   * frame can never be read: the shaders only access element 0, elements
+   * `< 1 + candidateCount`, and the current mask offsets at
+   * `1 + surfaceCount + i` — every one freshly written here.
+   */
+  private packMaskMeta(
+    offsets: readonly number[],
+    surfaceCount: number,
+    candidates: readonly number[] | null,
+  ): void {
+    const byteLength = Math.max(
+      (MASK_META_CANDIDATE_BASE + surfaceCount + offsets.length) * MASK_META_STRIDE,
+      MIN_PASS_ALLOCATION_BYTES,
+    );
     if (this.maskMetaBytes.byteLength < byteLength) {
       this.maskMetaBytes = new Uint8Array(byteLength);
     }
+    this.maskMetaLogicalBytes = byteLength;
     this.maskMetaBytes.fill(0);
     const view = new DataView(this.maskMetaBytes.buffer);
-    for (let i = 0; i < offsets.length; i++) {
-      view.setUint32(i * MASK_META_STRIDE, offsets[i], true);
+    if (candidates === null) {
+      view.setUint32(0, MASK_META_FULL_SENTINEL, true);
+    } else {
+      view.setUint32(0, candidates.length, true);
+      for (let i = 0; i < candidates.length; i++) {
+        view.setUint32((MASK_META_CANDIDATE_BASE + i) * MASK_META_STRIDE, candidates[i], true);
+      }
     }
+    const maskBase = MASK_META_CANDIDATE_BASE + surfaceCount;
+    for (let i = 0; i < offsets.length; i++) {
+      view.setUint32((maskBase + i) * MASK_META_STRIDE, offsets[i], true);
+    }
+  }
+
+  /**
+   * #32 validate the candidate bin: a `null`/`undefined` list packs the
+   * full-frame sentinel; a provided list must contain valid ORIGINAL
+   * surface indices in strict ascending order (deterministic, no
+   * duplicates). An EMPTY list is legal (a zero-candidate band — the
+   * compose shaders write the cleared/background outputs directly).
+   */
+  private assertCandidates(
+    candidates: readonly number[] | undefined,
+    surfaceCount: number,
+  ): readonly number[] | null {
+    if (candidates === undefined || candidates === null) {
+      return null;
+    }
+    let previous = -1;
+    for (let i = 0; i < candidates.length; i++) {
+      const index = candidates[i];
+      if (!Number.isInteger(index) || index < 0 || index >= surfaceCount) {
+        throw new RangeError(
+          `candidate surface index ${index} out of range 0..${surfaceCount - 1}`,
+        );
+      }
+      if (i > 0 && index <= previous) {
+        throw new RangeError(
+          "candidate surface indices must be strictly ascending and unique",
+        );
+      }
+      previous = index;
+    }
+    if (candidates.length > surfaceCount) {
+      throw new RangeError(
+        `candidate count ${candidates.length} exceeds surfaceCount ${surfaceCount}`,
+      );
+    }
+    return candidates;
   }
 
   // -- pipelines and bind groups --------------------------------------------

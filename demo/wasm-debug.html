@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ukibori WASM Diagnostics (#33)</title>
+    <style>
+      body {
+        font: 14px/1.6 system-ui, sans-serif;
+        margin: 24px;
+        color: #222;
+        background: #fafafa;
+      }
+      canvas {
+        border: 1px solid #ccc;
+        image-rendering: pixelated;
+        margin: 8px 16px 8px 0;
+        background: #fff;
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+      h2 {
+        font-size: 15px;
+        margin: 16px 0 4px;
+      }
+      .badge {
+        display: inline-block;
+        padding: 1px 8px;
+        border-radius: 999px;
+        background: #e4e8ef;
+        margin-right: 8px;
+        font-size: 12px;
+      }
+      .badge.ok {
+        background: #cdebd5;
+      }
+      .badge.bad {
+        background: #f6cdcd;
+      }
+      .btn-row button {
+        margin: 0 6px 6px 0;
+        padding: 5px 10px;
+        font-size: 13px;
+      }
+      table {
+        border-collapse: collapse;
+        font-size: 12px;
+        margin: 8px 0;
+      }
+      td,
+      th {
+        border: 1px solid #ccc;
+        padding: 2px 8px;
+        text-align: right;
+      }
+      td:first-child,
+      th:first-child {
+        text-align: left;
+      }
+      .note {
+        color: #666;
+        font-size: 12px;
+        max-width: 760px;
+      }
+      pre.state {
+        background: #f1f3f7;
+        border: 1px solid #dde3ec;
+        padding: 8px 10px;
+        font-size: 12px;
+        overflow-x: auto;
+        max-width: 900px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/wasm-debug/main.tsx"></script>
+  </body>
+</html>

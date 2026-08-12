@@ -60,10 +60,26 @@ describe("UkiboriRenderer", () => {
     renderer.dispose();
   });
 
-  it("auto backend selection falls back to CPU without WebGPU", async () => {
-    const { renderer, capabilities, backend } = await createRenderer();
+  it("auto backend selection prefers the WASM-assisted CPU path without WebGPU", async () => {
+    const { renderer, capabilities, backend, wasmSelection } = await createRenderer({
+      wasm: { force: "wasm" },
+    });
+    // #33: without WebGPU, "auto" falls back to the WASM-assisted CPU path
+    // when the bounded probe passes (exact oracle parity + documented
+    // benefit), and only then to the plain CPU backend.
+    expect(backend.kind).toBe("wasm");
+    expect(capabilities.backend).toBe("wasm");
+    expect(wasmSelection?.stage).toBe("normal");
+    renderer.dispose();
+  });
+
+  it("auto backend selection falls back to plain CPU when WASM is declined", async () => {
+    const { renderer, capabilities, backend, wasmSelection } = await createRenderer({
+      wasm: { force: "cpu" },
+    });
     expect(backend.kind).toBe("cpu");
     expect(capabilities.backend).toBe("cpu");
+    expect(wasmSelection?.selected).toBe("cpu");
     renderer.dispose();
   });
 

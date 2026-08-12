@@ -1,6 +1,10 @@
 import { CpuBackend } from "./backend/cpu";
 import { createWebGpuBackend } from "./backend/webgpu";
 import { assertValidSpec, byteLength, elementSize } from "./buffer";
+import { WasmCpuBackend } from "./wasm/backend";
+import { WasmNormalKernel } from "./wasm/kernel";
+import { selectWasmBackend } from "./wasm/selection";
+import type { WasmSelectionOptions, WasmSelectionReport } from "./wasm/selection";
 import type {
   BackendCapabilities,
   BufferSpec,
@@ -118,20 +122,51 @@ export class UkiboriRenderer {
 }
 
 export interface CreateRendererOptions extends RendererOptions {
-  /** "auto" prefers WebGPU and falls back to CPU. */
-  backend?: "auto" | "webgpu" | "cpu";
+  /**
+   * Backend policy:
+   * - "auto" (default): WebGPU detection/initialization STARTS FIRST and is
+   *   never delayed by WASM compilation or benchmarking. When WebGPU
+   *   succeeds it is used and the optional WASM load is abandoned
+   *   (disposed asynchronously, off the critical path). When WebGPU is
+   *   unavailable, the WASM-assisted CPU path is selected if WebAssembly is
+   *   supported and a bounded startup probe demonstrates a documented
+   *   benefit; otherwise the plain CPU (TypeScript oracle) backend is used.
+   * - "webgpu": WebGPU only (throws when unavailable).
+   * - "wasm": WASM-assisted CPU path (falls back to plain CPU when
+   *   unsupported or when probe parity fails; never throws).
+   * - "cpu": the plain TypeScript oracle backend.
+   */
+  backend?: "auto" | "webgpu" | "wasm" | "cpu";
+  /** WASM selection options (probe size, iterations, deterministic
+   * overrides). Ignored when WebGPU is selected. */
+  wasm?: WasmSelectionOptions;
 }
 
 export interface CreatedRenderer {
   renderer: UkiboriRenderer;
   backend: RenderBackend;
   capabilities: BackendCapabilities;
+  /**
+   * WASM selection evidence when the WASM path was evaluated (auto/wasm),
+   * including the decision, probe timing/parity and the fallback reason.
+   * `null` when WebGPU was selected first or `backend: "cpu"` was explicit.
+   */
+  wasmSelection: WasmSelectionReport | null;
+}
+
+/** The loaded kernel of a WASM selection (guaranteed when selected). */
+function selectedKernel(selection: WasmSelectionReport): WasmNormalKernel {
+  if (selection.selected !== "wasm" || selection.kernel === null) {
+    throw new Error("internal: WASM selection without a loaded kernel");
+  }
+  return selection.kernel;
 }
 
 export async function createRenderer(
   options: CreateRendererOptions = {},
 ): Promise<CreatedRenderer> {
   let backend: RenderBackend;
+  let wasmSelection: WasmSelectionReport | null = null;
   if (options.backend === "cpu") {
     backend = new CpuBackend();
   } else if (options.backend === "webgpu") {
@@ -140,10 +175,34 @@ export async function createRenderer(
       throw new Error("WebGPU backend requested but unavailable");
     }
     backend = gpu;
+  } else if (options.backend === "wasm") {
+    const selection = await selectWasmBackend(options.wasm ?? {});
+    wasmSelection = selection;
+    backend = selection.selected === "wasm" ? new WasmCpuBackend(selectedKernel(selection), selection) : new CpuBackend();
   } else {
-    const gpu = await createWebGpuBackend();
-    backend = gpu ?? new CpuBackend();
+    // "auto": WebGPU detection starts FIRST; the WASM path is evaluated in
+    // parallel but is never awaited for the WebGPU decision and is never on
+    // WebGPU's critical path.
+    const gpuPromise = createWebGpuBackend();
+    const wasmPromise = selectWasmBackend(options.wasm ?? {});
+    const gpu = await gpuPromise;
+    if (gpu !== null) {
+      // WebGPU wins: release the optional WASM kernel off the critical path.
+      void wasmPromise.then((selection) => {
+        if (selection.selected === "wasm") {
+          selection.kernel?.dispose();
+        }
+      });
+      backend = gpu;
+    } else {
+      const selection = await wasmPromise;
+      wasmSelection = selection;
+      backend =
+        selection.selected === "wasm"
+          ? new WasmCpuBackend(selectedKernel(selection), selection)
+          : new CpuBackend();
+    }
   }
   const renderer = new UkiboriRenderer(backend, options);
-  return { renderer, backend, capabilities: backend.capabilities };
+  return { renderer, backend, capabilities: backend.capabilities, wasmSelection };
 }

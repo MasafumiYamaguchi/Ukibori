@@ -22,13 +22,16 @@ import { WGSL_SCENE_BASE, WGSL_SCENE_BINDINGS } from "./wgsl";
  * ## Passes
  *
  * The mask-SDF pass writes the padded signed-distance workspace. The
- * composition stage is split into FOUR output-specific compute passes
- * (height, coverage, objectId, materialId) so each stage stays within
- * `maxStorageBuffersPerShaderStage` (spec minimum 8): 5 scene storage
- * bindings + maskMeta + maskWorkspace + exactly ONE output storage = 8,
- * plus the uniform (which does not count). Each compose pass recomputes the
- * deterministic owner (`ownerAt`, pure function of the scene and texel), so
- * all four outputs agree. `HeightPass` documents `composePasses = 4`.
+ * composition stage is split into FIVE output-specific compute passes
+ * (height, coverage, objectId, materialId, casterHeight) so each stage
+ * stays within `maxStorageBuffersPerShaderStage` (spec minimum 8): 5 scene
+ * storage bindings + maskMeta + maskWorkspace + exactly ONE output storage
+ * = 8, plus the uniform (which does not count). Each compose pass recomputes
+ * the deterministic owner (`ownerAt`, pure function of the scene and texel),
+ * so the full-field outputs agree. The caster-height pass recomputes a
+ * CASTER-ONLY owner (`casterOwnerAt`) that searches only surfaces with the
+ * ABI `FLAG_CASTS_SHADOW` bit, so a non-casting top surface never hides a
+ * lower casting surface. `HeightPass` documents `composePasses = 5`.
  *
  * ## Pass bindings (group 1, owned by `HeightPass`)
  *
@@ -49,20 +52,45 @@ import { WGSL_SCENE_BASE, WGSL_SCENE_BINDINGS } from "./wgsl";
  * | 0      | 4    | totalMaskCells (u32) | sum over masks of (w+2)*(h+2)
  * |        |      |                  | padded cells (genuinely derived)      |
  * | 4      | 4    | workgroupSize (u32) | documented dispatch workgroup size |
- * | 8      | 4    | _pad0 (u32)      | 0                                     |
- * | 12     | 4    | _pad1 (u32)      | 0                                     |
+ * | 8      | 4    | yOffset (u32)    | #32 texel-row dispatch offset: the   |
+ * |        |      |                  | first global texel of the dispatched  |
+ * |        |      |                  | region, `y0 * renderWidth` (0 for a   |
+ * |        |      |                  | full frame; the compose passes index  |
+ * |        |      |                  | `g = gid.x + yOffset`)               |
+ * | 12     | 4    | regionEnd (u32)  | #32 EXCLUSIVE texel end of the        |
+ * |        |      |                  | dispatched region (0 = full-frame     |
+ * |        |      |                  | sentinel — a band may legitimately    |
+ * |        |      |                  | start at y0 = 0, so the region is     |
+ * |        |      |                  | signaled by regionEnd alone; the      |
+ * |        |      |                  | compose passes guard `regionEnd != 0  |
+ * |        |      |                  | && g >= regionEnd`, so dispatch       |
+ * |        |      |                  | padding never writes a retained       |
+ * |        |      |                  | texel outside the band)               |
  *
  * All other pass inputs come from the scene header itself
  * (`sceneHeader.maskCount` etc.), so no host-copied counts are needed.
  *
- * ## maskMeta — array<u32>, one u32 per mask
+ * ## maskMeta — array<u32>, #32 candidate bin + per-mask workspace offsets
  *
- * `maskMeta[i]` is the BYTE offset of mask i's padded SDF grid inside
- * `maskWorkspace` — the only genuinely derived per-mask metadata the host
- * provides (cumulative padded-cell bytes). Mask dimensions, format and
- * `pixelOffset` are read DIRECTLY from the ABI `MaskRecord` (the absolute
- * `pixelOffset` is converted to a section-relative blob offset in-shader by
- * subtracting the mask-pixel section base derived from the header).
+ * `maskMeta` is REUSED as the deterministic surface-candidate bin for the
+ * #32 partial recompute (no new storage binding, ABI unchanged):
+ *
+ * | element | meaning                                                   |
+ * |---------|-----------------------------------------------------------|
+ * | 0       | full-frame sentinel `0xFFFFFFFF`, or the PARTIAL candidate|
+ * |         | count (0 = a zero-candidate band: write cleared/background)|
+ * | 1..1+count | ORIGINAL surface indices the compose passes iterate    |
+ * |         | (partial frames only; elements stay zero on full frames) |
+ * | 1+surfaceCount+i | mask i's workspace BYTE offset (the SDF grid base,|
+ * |         | shifted after the fixed `1 + surfaceCount` base)         |
+ *
+ * On full frames the sentinel makes the compose passes iterate every
+ * ORIGINAL index `0..surfaceCount-1`; on partial frames they iterate only
+ * the candidate ORIGINAL indices, so `objectId`/owner identity is
+ * preserved. Mask dimensions, format and `pixelOffset` are read DIRECTLY
+ * from the ABI `MaskRecord`; the SDF pass and the compose mask branch both
+ * resolve the workspace offset through the shifted base, keeping the
+ * lookup deterministic on every path.
  */
 
 /** Dispatch workgroup size for every pass (documented, injected into WGSL). */
@@ -71,23 +99,73 @@ export const WORKGROUP_SIZE = 64;
 /** HeightPassParams uniform byte length (16 bytes, 16-byte aligned). */
 export const HEIGHT_PASS_PARAMS_BYTE_LENGTH = 16;
 
-/** maskMeta stride: one u32 (workspace byte offset) per mask. */
+/** maskMeta stride: one u32 per element (candidate bin + mask offsets). */
 export const MASK_META_STRIDE = 4;
+
+/**
+ * maskMeta element 0 on a FULL frame: the compose passes then iterate
+ * every ORIGINAL surface index (identity). A partial frame writes the
+ * candidate count here instead (0 = zero-candidate band; the compose
+ * passes write the cleared/background outputs directly).
+ */
+export const MASK_META_FULL_SENTINEL = 0xffffffff;
+
+/**
+ * maskMeta layout: element 0 is the sentinel/count, elements
+ * `1..1+surfaceCount` hold the candidate ORIGINAL surface indices, and the
+ * per-mask workspace offsets start at `1 + surfaceCount` (mirrored by the
+ * host packer and the WGSL `maskMetaOffset` helper).
+ */
+export const MASK_META_CANDIDATE_BASE = 1;
 
 const PARAMS_STRUCT = /* wgsl */ `
 // #25 pass params (16 bytes, align 16; offsets pinned by height-pass.ts)
 struct HeightPassParams {
   totalMaskCells: u32,   //  0 (sum of (mask.width+2)*(mask.height+2) padded cells)
   workgroupSize: u32,    //  4 (documented dispatch workgroup size)
-  _pad0: u32,            //  8
-  _pad1: u32,            // 12
+  yOffset: u32,          //  8 (#32 region dispatch texel offset; 0 = full frame)
+  regionEnd: u32,        // 12 (#32 exclusive region end; 0 = full frame)
 }                        // size 16, align 16
 
 const WORKGROUP_SIZE: u32 = ${WORKGROUP_SIZE}u;
 
 @group(1) @binding(0) var<uniform> params: HeightPassParams;
-// maskMeta[i]: byte offset of mask i's padded SDF grid inside maskWorkspace
+// #32 candidate bin + mask workspace offsets (see the module doc): element
+// 0 is the full-frame sentinel or the partial candidate count, elements
+// 1..1+surfaceCount hold the candidate ORIGINAL surface indices, and mask i
+// workspace offsets live at 1 + surfaceCount + i.
 @group(1) @binding(1) var<storage, read> maskMeta: array<u32>;
+`;
+
+const CANDIDATE_CORE = /* wgsl */ `
+const MASK_META_FULL_SENTINEL: u32 = ${MASK_META_FULL_SENTINEL}u;
+
+// Mask i's workspace byte offset, resolved through the fixed candidate base
+// (1 + surfaceCount). Deterministic on full and partial frames.
+fn maskMetaOffset(maskIndex: u32) -> u32 {
+  return maskMeta[1u + sceneHeader.surfaceCount + maskIndex];
+}
+
+// The surface iteration count for the compose loops: the full-frame
+// sentinel means every ORIGINAL index (identity); otherwise element 0 is
+// the partial candidate count (0 = a zero-candidate band, so the loops
+// never run and the cleared/background outputs are written directly).
+fn composeSurfaceCount() -> u32 {
+  if (maskMeta[0] == MASK_META_FULL_SENTINEL) {
+    return sceneHeader.surfaceCount;
+  }
+  return maskMeta[0];
+}
+
+// The ORIGINAL surface index of the k-th iteratee: identity on full frames
+// (the sentinel path), the binned ORIGINAL index on partial frames, so the
+// objectId/owner written to the outputs is the ABI surface index.
+fn composeSurfaceIndex(k: u32) -> u32 {
+  if (maskMeta[0] == MASK_META_FULL_SENTINEL) {
+    return k;
+  }
+  return maskMeta[1u + k];
+}
 `;
 
 const SDF_GROUP1 = /* wgsl */ `
@@ -167,6 +245,7 @@ export const MASK_SDF_WGSL = /* wgsl */ `
 ${WGSL_SCENE_BASE}
 ${WGSL_SCENE_BINDINGS}
 ${PARAMS_STRUCT}
+${CANDIDATE_CORE}
 ${SDF_GROUP1}
 
 @compute @workgroup_size(WORKGROUP_SIZE)
@@ -240,17 +319,18 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let dist2x = min(vert, min(hor, sqrt(corner)));
   let distance = dist2x * 0.5; // 2x units -> mask-pixel units
   let inside = inkAt(maskIndex, r, c);
-  maskWorkspace[(maskMeta[maskIndex] >> 2u) + r * pw + c] =
+  maskWorkspace[(maskMetaOffset(maskIndex) >> 2u) + r * pw + c] =
     select(distance, -distance, inside);
 }
 `;
 
 // ---------------------------------------------------------------------------
-// Composition: four output-specific passes sharing one core. Each stage has
+// Composition: five output-specific passes sharing one core. Each stage has
 // 5 scene storage bindings + maskMeta + maskWorkspace + exactly ONE output
 // storage = 8 (plus the uniform), staying within the spec-minimum
 // maxStorageBuffersPerShaderStage of 8. The deterministic owner is
-// recomputed per pass, so all four outputs agree.
+// recomputed per pass, so the full-field outputs agree; the caster-height
+// pass independently searches only FLAG_CASTS_SHADOW surfaces.
 // ---------------------------------------------------------------------------
 
 const COMPOSE_GROUP1 = /* wgsl */ `
@@ -263,6 +343,8 @@ const SHAPE_MASK: u32 = 1u;
 const PROFILE_FLAT: u32 = 0u;
 const PROFILE_BEVEL: u32 = 1u;
 const NO_OWNER: u32 = 0xffffffffu;
+// ABI SurfaceRecord flags (offset 28): bit0 castsShadow, bit1 receivesShadow
+const FLAG_CASTS_SHADOW: u32 = 0x1u;
 // Most-negative f32: "no geometry" sentinel (CPU uses -Infinity; heights are
 // validated >= 0, so the h >= 0 test cleanly separates coverage from
 // no-coverage).
@@ -307,7 +389,7 @@ fn shapeHeightAt(i: u32, sx: f32, sy: f32) -> f32 {
     let y1 = min(y0 + 1u, ph - 1u);
     let tx = fx - f32(x0);
     let ty = fy - f32(y0);
-    let base = maskMeta[maskIndex] >> 2u;
+    let base = maskMetaOffset(maskIndex) >> 2u;
     let v00 = maskWorkspace[base + y0 * pw + x0];
     let v10 = maskWorkspace[base + y0 * pw + x1];
     let v01 = maskWorkspace[base + y1 * pw + x0];
@@ -334,12 +416,54 @@ fn shapeHeightAt(i: u32, sx: f32, sy: f32) -> f32 {
 // f32 height wins, exact ties go to the later surface (paint order == array
 // order); background has height 0 and no owner. Every compose pass calls
 // this, so height/coverage/objectId/materialId always agree.
+//
+// #32: the loop iterates ONLY the binned candidate surfaces (ORIGINAL
+// indices) on a partial frame, or every ORIGINAL index on a full frame
+// (the maskMeta[0] sentinel path). A zero-candidate band never runs the
+// loop and falls through to the background owner below. The owner written
+// is the ORIGINAL ABI surface index, so objectId identity is preserved
+// exactly.
 fn ownerAt(sx: f32, sy: f32) -> OwnerResult {
   var best = 0.0;
   var owner = NO_OWNER;
-  for (var i = 0u; i < sceneHeader.surfaceCount; i++) {
+  let candidateCount = composeSurfaceCount();
+  for (var k = 0u; k < candidateCount; k++) {
+    let i = composeSurfaceIndex(k);
     let s = surfaces[i];
     // Conservative ABI bounds cull before SDF evaluation.
+    if (sx < s.bounds.x || sx > s.bounds.z || sy < s.bounds.y || sy > s.bounds.w) {
+      continue;
+    }
+    let h = shapeHeightAt(i, sx, sy);
+    if (h >= 0.0) {
+      if (h > best || h == best) {
+        best = h;
+        owner = i;
+      }
+    }
+  }
+  return OwnerResult(best, owner);
+}
+`;
+
+const COMPOSE_CASTER_CORE = /* wgsl */ `
+// CASTER-ONLY owner composition (#27): the search considers ONLY surfaces
+// with the ABI FLAG_CASTS_SHADOW bit set and otherwise uses the exact same
+// geometry/tie rules as ownerAt. This is the Hcaster field: a non-casting
+// top surface never hides a lower casting surface. Filtering the already
+// selected full owner would be incorrect (a texel owned by a non-casting
+// top would drop the casting surface below it); the search must be
+// independent. Writes 0.0 (base plane) for texels with no casting owner.
+fn casterOwnerAt(sx: f32, sy: f32) -> OwnerResult {
+  var best = 0.0;
+  var owner = NO_OWNER;
+  let candidateCount = composeSurfaceCount();
+  for (var k = 0u; k < candidateCount; k++) {
+    let i = composeSurfaceIndex(k);
+    let s = surfaces[i];
+    if ((s.flags & FLAG_CASTS_SHADOW) == 0u) {
+      continue;
+    }
     if (sx < s.bounds.x || sx > s.bounds.z || sy < s.bounds.y || sy > s.bounds.w) {
       continue;
     }
@@ -358,27 +482,46 @@ fn ownerAt(sx: f32, sy: f32) -> OwnerResult {
 const COMPOSE_MAIN_PRELUDE = /* wgsl */ `
 @compute @workgroup_size(WORKGROUP_SIZE)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-  let g = gid.x;
+  // #32 region dispatch: yOffset (0 on a full frame) shifts the 1D texel
+  // index into the band the host dispatched, so a clipped region writes
+  // exactly its rows and every other texel stays retained. The first guard
+  // is the historical full-frame bound; the second uses regionEnd (0 =
+  // full-frame sentinel; a band may legitimately start at y0 = 0, so the
+  // region is signaled by regionEnd alone) to stop the tail workgroup's
+  // padded invocations, which lie inside the buffer but past the band end,
+  // so they can never write a retained texel outside the band.
+  let g = gid.x + params.yOffset;
   let texelCount = sceneHeader.renderWidth * sceneHeader.renderHeight;
   if (g >= texelCount) {
     return; // in-shader bounds guard
+  }
+  if (params.regionEnd != 0u && g >= params.regionEnd) {
+    return; // #32 region-bound guard (padding-safe; never active on a full frame)
   }
   let tx = g % sceneHeader.renderWidth;
   let ty = g / sceneHeader.renderWidth;
   let sx = (f32(tx) + 0.5) / sceneHeader.dpr;
   let sy = (f32(ty) + 0.5) / sceneHeader.dpr;
-  let r = ownerAt(sx, sy);
+  let r = OWNER_CALL;
 `;
 
 /** Build one output-specific composition module (all five scene bindings). */
-function composeModule(outputBinding: string, writeBody: string): string {
+function composeModule(
+  outputBinding: string,
+  writeBody: string,
+  ownerCall = "ownerAt(sx, sy)",
+  extraCore = "",
+): string {
+  const prelude = COMPOSE_MAIN_PRELUDE.replace("OWNER_CALL", ownerCall);
   return `${WGSL_SCENE_BASE}
 ${WGSL_SCENE_BINDINGS}
 ${PARAMS_STRUCT}
+${CANDIDATE_CORE}
 ${COMPOSE_GROUP1}
 ${outputBinding}
 ${COMPOSE_CORE}
-${COMPOSE_MAIN_PRELUDE}
+${extraCore}
+${prelude}
 ${writeBody}
 }
 `;
@@ -426,4 +569,21 @@ export const COMPOSE_MATERIAL_ID_WGSL = composeModule(
   } else {
     outMaterialId[g] = NO_OWNER;
   }`,
+);
+
+/**
+ * Caster-height output pass (#27): writes the composed caster-only height
+ * field Hcaster — the same f32 absolute scene-space z layout as `outHeight`,
+ * but the owner search (`casterOwnerAt`) considers ONLY surfaces with the
+ * ABI `FLAG_CASTS_SHADOW` bit. `0.0` (base plane) where no casting surface
+ * owns the texel. Shadow visibility (#27 ShadowPass) samples this field
+ * bilinearly, so a non-casting top surface never hides a lower casting
+ * surface and caster boundaries follow the bilinear height semantics of
+ * `composeCasterHeightField`.
+ */
+export const COMPOSE_CASTER_HEIGHT_WGSL = composeModule(
+  "@group(1) @binding(3) var<storage, read_write> outCasterHeight: array<f32>;",
+  `  outCasterHeight[g] = select(0.0, r.best, r.owner != NO_OWNER);`,
+  "casterOwnerAt(sx, sy)",
+  COMPOSE_CASTER_CORE,
 );

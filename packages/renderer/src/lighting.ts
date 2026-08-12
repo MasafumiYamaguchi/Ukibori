@@ -74,6 +74,37 @@ export interface LightingBuffers {
   color: HostBuffer;
 }
 
+/**
+ * Prepared-field shading input: the caller already has a normal field
+ * (f32 x3, computed by `computeNormals` or a GPU normal stage), per-pixel
+ * ownership (u32 ABI surface index, `NO_OWNER` = base plane) and optional
+ * cast-shadow visibility. This is the #28 oracle seam: the real-GPU harness
+ * feeds the same render extent, f32-packed scene values, effective normal
+ * options and stable visibility into the SEMANTIC reference so the WGSL
+ * lighting shader is compared against the actual TypeScript implementation
+ * (never a second JavaScript copy of the formulas).
+ */
+export interface PreparedFieldShadeInput {
+  /** f32 x3: normalized surface normals (xyz -> +z is flat) */
+  normal: HostBuffer;
+  /** u32 scalar: owning surface index per pixel (NO_OWNER = base plane) */
+  objectId: HostBuffer;
+  /** f32 scalar: hard cast-shadow visibility 0..1; omit to skip shadows (treated as 1) */
+  visibility?: HostBuffer;
+}
+
+/** Prepared-field shading outputs (no height/normal pass inside). */
+export interface PreparedFieldShadingBuffers {
+  /** f32 scalar: raw N dot L, 0..1 (material-independent light response) */
+  diffuse: HostBuffer;
+  /** f32 scalar: specular direct contribution, luminance(Fr) * NdotL * visibility, clamped 0..1 (before light intensity) */
+  specular: HostBuffer;
+  /** RGBA8: combined lit color, sRGB-encoded */
+  color: HostBuffer;
+  /** f32 scalar: hard cast-shadow visibility, 0 or 1 (present when a shadow pass ran) */
+  visibility?: HostBuffer;
+}
+
 const DEFAULT_NORMAL: Required<NormalOptions> = {
   scaleX: 0.5,
   scaleY: 0.5,
@@ -163,13 +194,53 @@ export function shadeHeightField(
   options: LightingOptions = {},
 ): LightingBuffers {
   const { height, objectId } = input;
-  const visibility = input.visibility ?? null;
+  const visibility = input.visibility ?? undefined;
   const normal = computeNormals(height, options.normal);
+  const shaded = shadePreparedFields(scene, { normal, objectId, visibility }, options);
+  return { height, normal, ...shaded };
+}
+
+/**
+ * Shade a PREPARED normal/ownership/visibility triple into the diffuse,
+ * specular and final sRGB color buffers — the exact per-texel evaluation
+ * `shadeHeightField` runs after its internal normal pass (mirrored 1:1 by
+ * the #28 GPU lighting shader). The normal field is consumed as-is (never
+ * recomputed), ownership resolves the material table (`NO_OWNER` = base
+ * material, invalid ids fall back defensively), and the shadow visibility
+ * scales ONLY the direct terms.
+ *
+ * - diffuse: `max(N dot L, 0)` (L points toward the light, #13 convention)
+ * - BRDF: Cook-Torrance with the owning surface's material per pixel
+ *   (`objectId` -> `scene.surfaces[i].material`); pixels without an owner
+ *   use the base-plane material
+ * - cast-shadow visibility (#17) scales the DIRECT terms (diffuse +
+ *   specular + the final direct contribution); the ambient fill and the
+ *   #22 environment are unaffected — a fully shadowed pixel keeps its
+ *   ambient + environment response
+ * - `scene.light.intensity` scales the direct terms as well; intensity 0
+ *   leaves ambient + environment only
+ * - environment (#22): uniform shared illumination from `scene.environment`
+ *   (baseColor-scaled diffuse + F0/roughness specular), independent of the
+ *   directional light and NOT scaled by cast-shadow visibility
+ * - exposure (#22): the whole linear result (ambient + direct +
+ *   environment) is multiplied by `scene.exposure` before sRGB encoding
+ * - the degenerate half-vector `L = -V` (direction `{0, 0, -1}`) yields no
+ *   half vector; specular resolves safely to 0 (no NaN)
+ * - color = (baseColor * ambient + visibility * intensity * NdotL *
+ *   (diffuse + specular) + environment) * exposure, encoded to sRGB8
+ */
+export function shadePreparedFields(
+  scene: Scene,
+  input: PreparedFieldShadeInput,
+  options: LightingOptions = {},
+): PreparedFieldShadingBuffers {
+  const { normal, objectId } = input;
+  const visibility = input.visibility ?? null;
   const ambient = clamp(sanitizeFinite(options.ambient, DEFAULT_AMBIENT), 0, 1);
   const intensity = sanitizeNonNegative(scene.light.intensity, 1);
   const environment = sanitizeEnvironment(scene.environment);
   const exposure = sanitizeExposure(scene.exposure);
-  const { width, height: h } = height.spec;
+  const { width, height: h } = normal.spec;
   const diffuse = new HostBuffer({ width, height: h, channels: 1, format: "f32" });
   const specular = new HostBuffer({ width, height: h, channels: 1, format: "f32" });
   const color = new HostBuffer(COLOR_SPEC(width, h));
@@ -187,9 +258,13 @@ export function shadeHeightField(
     if (owner === NO_OWNER) {
       return BASE_MATERIAL;
     }
+    const surface = scene.surfaces[owner];
+    if (surface === undefined) {
+      return BASE_MATERIAL;
+    }
     let material = materials.get(owner);
     if (material === undefined) {
-      material = resolveMaterial(scene.materials, scene.surfaces[owner].material);
+      material = resolveMaterial(scene.materials, surface.material);
       materials.set(owner, material);
     }
     return material;
@@ -231,7 +306,7 @@ export function shadeHeightField(
       color.set(x, y, 3, 255);
     }
   }
-  return { height, normal, diffuse, specular, color, visibility: visibility ?? undefined };
+  return { diffuse, specular, color, visibility: visibility ?? undefined };
 }
 
 /** Compose the SDF height field, ownership, cast shadows and light it. */

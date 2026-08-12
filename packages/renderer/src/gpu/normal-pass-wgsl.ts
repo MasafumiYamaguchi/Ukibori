@@ -27,9 +27,19 @@
  * | 8      | 4    | normalScale (f32) | z component before normalization (> 0)    |
  * | 12     | 4    | width (u32)    | render width (texels)                        |
  * | 16     | 4    | height (u32)   | render height (texels)                       |
- * | 20     | 4    | workgroupSize (u32) | documented dispatch workgroup size      |
- * | 24     | 4    | _pad0 (u32)    | 0                                           |
- * | 28     | 4    | _pad1 (u32)    | 0                                           |
+ * | 20     | 4    | workgroupSize (u32) | documented dispatch workgroup size  |
+ * | 24     | 4    | yOffset (u32)   | #32 region dispatch texel offset     |
+ * |        |      |                 | (0 = full frame; the shader indexes  |
+ * |        |      |                 | `g = gid.x + yOffset`)              |
+ * | 28     | 4    | regionEnd (u32) | #32 exclusive texel end of the       |
+ * |        |      |                 | dispatched region (0 = full-frame    |
+ * |        |      |                 | sentinel — a band may legitimately   |
+ * |        |      |                 | start at y0 = 0, so the region is    |
+ * |        |      |                 | signaled by regionEnd alone; the     |
+ * |        |      |                 | shader guards `regionEnd != 0 &&     |
+ * |        |      |                 | g >= regionEnd`, so dispatch         |
+ * |        |      |                 | padding never writes a retained      |
+ * |        |      |                 | texel outside the band)              |
  *
  * `width`/`height` are host-validated (positive integers, u32-bounded texel
  * count, and byte-length-consistent with the bound height field) so the
@@ -103,8 +113,8 @@ struct NormalPassParams {
   width: u32,         // 12 render width (texels)
   height: u32,        // 16 render height (texels)
   workgroupSize: u32, // 20 documented dispatch workgroup size
-  _pad0: u32,         // 24
-  _pad1: u32,         // 28
+  yOffset: u32,       // 24 #32 region dispatch texel offset (0 = full frame)
+  regionEnd: u32,     // 28 #32 exclusive region end (0 = full frame)
 }                     // size 32, align 16
 
 const NORMAL_WORKGROUP_SIZE: u32 = ${NORMAL_WORKGROUP_SIZE}u;
@@ -175,10 +185,20 @@ fn alignedValue(value: f32, sharedExponent: i32) -> f32 {
 
 @compute @workgroup_size(NORMAL_WORKGROUP_SIZE)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
-  let g = gid.x;
+  // #32 region dispatch: yOffset (0 on a full frame) shifts the 1D texel
+  // index into the dispatched band. The first guard is the historical
+  // full-frame bound; the second uses regionEnd (0 = full-frame sentinel; a
+  // band may legitimately start at y0 = 0, so the region is signaled by
+  // regionEnd alone) to stop the tail workgroup's padded invocations, which
+  // lie inside the buffer but past the band end, so they can never write a
+  // retained texel outside the band.
+  let g = gid.x + params.yOffset;
   let texelCount = params.width * params.height;
   if (g >= texelCount) {
     return; // in-shader bounds guard
+  }
+  if (params.regionEnd != 0u && g >= params.regionEnd) {
+    return; // #32 region-bound guard (padding-safe; never active on a full frame)
   }
   let tx = g % params.width;
   let ty = g / params.width;

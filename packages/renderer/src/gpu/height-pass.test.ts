@@ -25,11 +25,13 @@ import type {
   GpuShaderModuleLike,
 } from "./height-pass";
 import {
+  COMPOSE_CASTER_HEIGHT_WGSL,
   COMPOSE_COVERAGE_WGSL,
   COMPOSE_HEIGHT_WGSL,
   COMPOSE_MATERIAL_ID_WGSL,
   COMPOSE_OBJECT_ID_WGSL,
   HEIGHT_PASS_PARAMS_BYTE_LENGTH,
+  MASK_META_FULL_SENTINEL,
   MASK_META_STRIDE,
   MASK_SDF_WGSL,
   WORKGROUP_SIZE,
@@ -333,7 +335,13 @@ function setup() {
   return { mock, uploader, pass };
 }
 
-const COMPOSE_MODULES = [COMPOSE_HEIGHT_WGSL, COMPOSE_COVERAGE_WGSL, COMPOSE_OBJECT_ID_WGSL, COMPOSE_MATERIAL_ID_WGSL];
+const COMPOSE_MODULES = [
+  COMPOSE_HEIGHT_WGSL,
+  COMPOSE_COVERAGE_WGSL,
+  COMPOSE_OBJECT_ID_WGSL,
+  COMPOSE_MATERIAL_ID_WGSL,
+  COMPOSE_CASTER_HEIGHT_WGSL,
+];
 
 // ---------------------------------------------------------------------------
 
@@ -341,28 +349,28 @@ describe("HeightPass — pipeline caching and explicit layouts", () => {
   it("creates shader modules, layouts and pipelines once and reuses them", () => {
     const { mock, uploader, pass } = setup();
     uploadAndDispatch(mock, uploader, pass, simpleScene());
-    expect(mock.shaderModules).toHaveLength(5); // SDF + 4 compose modules
+    expect(mock.shaderModules).toHaveLength(6); // SDF + 5 compose modules
     expect(mock.bindGroupLayouts).toHaveLength(3); // scene + sdf + compose
     expect(mock.pipelineLayouts).toHaveLength(2); // sdf + shared compose
-    expect(mock.pipelines).toHaveLength(5); // SDF + 4 output-specific pipelines
+    expect(mock.pipelines).toHaveLength(6); // SDF + 5 output-specific pipelines
 
     uploadAndDispatch(mock, uploader, pass, simpleScene());
-    expect(mock.shaderModules).toHaveLength(5); // cached, no recompile
+    expect(mock.shaderModules).toHaveLength(6); // cached, no recompile
     expect(mock.bindGroupLayouts).toHaveLength(3);
     expect(mock.pipelineLayouts).toHaveLength(2);
-    expect(mock.pipelines).toHaveLength(5);
+    expect(mock.pipelines).toHaveLength(6);
 
     uploadAndDispatch(mock, uploader, pass, maskScene());
-    expect(mock.shaderModules).toHaveLength(5); // still cached across scenes
-    expect(mock.pipelines).toHaveLength(5);
+    expect(mock.shaderModules).toHaveLength(6); // still cached across scenes
+    expect(mock.pipelines).toHaveLength(6);
   });
 
   it("uses explicit pipeline layouts (never layout: 'auto')", () => {
     const { mock, uploader, pass } = setup();
     uploadAndDispatch(mock, uploader, pass, simpleScene());
     expect(mock.pipelines[0].layout).toBe(mock.pipelineLayouts[0].layout); // SDF
-    // all four compose pipelines share the same explicit layout
-    for (let i = 1; i < 5; i++) {
+    // all five compose pipelines share the same explicit layout
+    for (let i = 1; i < 6; i++) {
       expect(mock.pipelines[i].layout).toBe(mock.pipelineLayouts[1].layout);
     }
     // every pipeline binds the FULL five-buffer scene layout at group 0
@@ -438,17 +446,18 @@ describe("HeightPass — complete bind groups", () => {
     }
   });
 
-  it("carries every pass binding in the sdf and four compose bind groups", () => {
+  it("carries every pass binding in the sdf and five compose bind groups", () => {
     const { mock, uploader, pass } = setup();
     uploadAndDispatch(mock, uploader, pass, maskScene());
-    // creation order: scene(5), sdf(3), compose-height, -coverage, -objectId, -materialId
+    // creation order: scene(5), sdf(3), compose-height, -coverage, -objectId,
+    // -materialId, -casterHeight
     const sdfGroup = mock.bindGroups[1];
     expect(sdfGroup.entries).toHaveLength(3);
     for (const entry of sdfGroup.entries) {
       expect(entry.resource.buffer.size).toBeGreaterThan(0);
     }
-    const outputNames = ["outHeight", "outCoverage", "outObjectId", "outMaterialId"];
-    for (let i = 0; i < 4; i++) {
+    const outputNames = ["outHeight", "outCoverage", "outObjectId", "outMaterialId", "outCasterHeight"];
+    for (let i = 0; i < 5; i++) {
       const group = mock.bindGroups[2 + i];
       expect(group.entries).toHaveLength(4);
       for (let b = 0; b < 4; b++) {
@@ -465,7 +474,7 @@ describe("HeightPass — complete bind groups", () => {
     }
     // workspace buffer is shared by every pass bind group
     const workspace = mock.bindGroups[1].entries[2].resource.buffer;
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       expect(mock.bindGroups[2 + i].entries[2].resource.buffer).toBe(workspace);
     }
   });
@@ -474,7 +483,7 @@ describe("HeightPass — complete bind groups", () => {
     const { mock, uploader, pass } = setup();
     uploadAndDispatch(mock, uploader, pass, maskScene());
     const encoder = mock.encoders[0];
-    expect(encoder.passes).toHaveLength(5); // SDF + 4 compose passes
+    expect(encoder.passes).toHaveLength(6); // SDF + 5 compose passes
     for (const computePass of encoder.passes) {
       expect(computePass.calls.bindGroups[0].index).toBe(0);
       expect(computePass.calls.bindGroups[0].bindGroup).toBe(mock.bindGroups[0].bindGroup);
@@ -488,12 +497,12 @@ describe("HeightPass — command ordering and dispatch dims", () => {
     const { mock, uploader, pass } = setup();
     uploadAndDispatch(mock, uploader, pass, maskScene()); // 20x20=400 texels, 2x2 mask -> 16 cells
     const encoder = mock.encoders[0];
-    expect(encoder.passes).toHaveLength(5);
+    expect(encoder.passes).toHaveLength(6);
     const sdf = encoder.passes[0];
     expect(sdf.calls.pipeline).toBe(mock.pipelines[0].pipeline);
     expect(sdf.log).toEqual(["setPipeline", "setBindGroup(0)", "setBindGroup(1)", "dispatch(1)", "end"]);
     expect(sdf.calls.dispatch[0]).toEqual({ x: Math.ceil(16 / WORKGROUP_SIZE), y: 1, z: 1 });
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 5; i++) {
       const compose = encoder.passes[1 + i];
       expect(compose.calls.pipeline).toBe(mock.pipelines[1 + i].pipeline);
       expect(compose.log).toEqual(["setPipeline", "setBindGroup(0)", "setBindGroup(1)", "dispatch(7)", "end"]);
@@ -504,19 +513,19 @@ describe("HeightPass — command ordering and dispatch dims", () => {
     expect(mock.submits[0]).toHaveLength(1);
   });
 
-  it("runs exactly the four compose passes for mask-free scenes", () => {
+  it("runs exactly the five compose passes for mask-free scenes", () => {
     const { mock, uploader, pass } = setup();
     const { stats } = uploadAndDispatch(mock, uploader, pass, simpleScene());
     expect(stats.maskSdfPasses).toBe(0);
-    expect(stats.composePasses).toBe(4);
+    expect(stats.composePasses).toBe(5);
     const encoder = mock.encoders[0];
-    expect(encoder.passes).toHaveLength(4);
-    for (let i = 0; i < 4; i++) {
+    expect(encoder.passes).toHaveLength(5);
+    for (let i = 0; i < 5; i++) {
       expect(encoder.passes[i].calls.pipeline).toBe(mock.pipelines[1 + i].pipeline);
     }
     const snapshot = pass.getSnapshot();
     expect(snapshot.lastDispatch.maskSdfPasses).toBe(0);
-    expect(snapshot.lastDispatch.composePasses).toBe(4);
+    expect(snapshot.lastDispatch.composePasses).toBe(5);
   });
 
   it("ceil-divides the texel dispatch from the documented workgroup size", () => {
@@ -531,17 +540,17 @@ describe("HeightPass — command ordering and dispatch dims", () => {
 });
 
 describe("HeightPass — allocation reuse and growth", () => {
-  it("allocates all seven pass buffers on the first dispatch and reuses them", () => {
+  it("allocates all eight pass buffers on the first dispatch and reuses them", () => {
     const { mock, uploader, pass } = setup();
     const { stats } = uploadAndDispatch(mock, uploader, pass, simpleScene());
-    expect(stats.newAllocations).toBe(7); // uniform, maskMeta, workspace, 4 outputs
-    expect(stats.allocationCount).toBe(7);
-    // uploader owns 5 scene buffers; the pass owns the next 7
-    expect(mock.created).toHaveLength(12);
+    expect(stats.newAllocations).toBe(8); // uniform, maskMeta, workspace, 5 outputs
+    expect(stats.allocationCount).toBe(8);
+    // uploader owns 5 scene buffers; the pass owns the next 8
+    expect(mock.created).toHaveLength(13);
     const passBuffers = mock.created.slice(5).map((c) => c.buffer);
     const next = uploadAndDispatch(mock, uploader, pass, simpleScene());
     expect(next.stats.newAllocations).toBe(0);
-    expect(mock.created).toHaveLength(12);
+    expect(mock.created).toHaveLength(13);
     expect(mock.created.slice(5).map((c) => c.buffer)).toEqual(passBuffers);
   });
 
@@ -570,8 +579,8 @@ describe("HeightPass — allocation reuse and growth", () => {
 
     // wideScene: 300x200 render (60000 texels) outgrows the 100x80 outputs.
     const wide = uploadAndDispatch(mock, uploader, pass, wideScene());
-    expect(wide.stats.newAllocations).toBe(4); // only the four outputs grow
-    expect(passBuffers.filter((b) => b.destroyed)).toHaveLength(5); // 1 + 4 outputs
+    expect(wide.stats.newAllocations).toBe(5); // only the five outputs grow
+    expect(passBuffers.filter((b) => b.destroyed)).toHaveLength(6); // 1 + 5 outputs
 
     // back to a smaller scene: nothing shrinks, everything is reused.
     const again = uploadAndDispatch(mock, uploader, pass, simpleScene());
@@ -583,7 +592,7 @@ describe("HeightPass — allocation reuse and growth", () => {
     uploadAndDispatch(mock, uploader, pass, simpleScene());
     pass.dispose();
     const after = uploadAndDispatch(mock, uploader, pass, simpleScene());
-    expect(after.stats.newAllocations).toBe(7);
+    expect(after.stats.newAllocations).toBe(8);
   });
 });
 
@@ -597,7 +606,7 @@ describe("HeightPass — usage flags audit", () => {
     expect(byLabel.get("ukibori-uniform")).toBe(0x40 | 0x8); // UNIFORM | COPY_DST
     expect(byLabel.get("ukibori-maskMeta")).toBe(0x80 | 0x8); // STORAGE | COPY_DST
     expect(byLabel.get("ukibori-maskWorkspace")).toBe(0x80 | 0x4); // STORAGE | COPY_SRC
-    for (const name of ["outHeight", "outCoverage", "outObjectId", "outMaterialId"]) {
+    for (const name of ["outHeight", "outCoverage", "outObjectId", "outMaterialId", "outCasterHeight"]) {
       expect(byLabel.get(`ukibori-${name}`)).toBe(0x80 | 0x4 | 0x8); // STORAGE | COPY_SRC | COPY_DST
     }
     // no MAP_READ anywhere
@@ -660,7 +669,7 @@ describe("HeightPass — validation and rejection", () => {
     expect(() => pass.dispatch(encodedB, bindings)).toThrow(/provenance/);
     // works with the correct scene afterwards
     expect(() => pass.dispatch(encodedA, bindings)).not.toThrow();
-    expect(mock.created).toHaveLength(5 + 7); // uploader + pass allocations only after a valid dispatch
+    expect(mock.created).toHaveLength(5 + 8); // uploader + pass allocations only after a valid dispatch
   });
 
   it("rejects mismatched scene bindings before any device call", () => {
@@ -749,8 +758,9 @@ describe("HeightPass — validation and rejection", () => {
   });
 
   it("validates maskMeta allocation bytes before ensureAllocation", () => {
-    // 1025 one-pixel masks: maskMeta needs 4100 bytes > the 4096-byte limit;
-    // the mask-meta check runs before the workspace/output checks
+    // 1025 one-pixel masks + 1025 surfaces: the #32 maskMeta layout needs
+    // (1 + 1025 surfaces + 1025 masks) * 4 = 8204 bytes > the 4096-byte
+    // limit; the mask-meta check runs before the workspace/output checks
     const surfaces: Scene["surfaces"] = [];
     for (let i = 0; i < 1025; i++) {
       surfaces.push({
@@ -772,7 +782,7 @@ describe("HeightPass — validation and rejection", () => {
     const encoded = encodeScene(createScene({ width: 100, height: 80, surfaces }), 1);
     uploader.upload(encoded);
     expect(() => pass.dispatch(encoded, uploader.getBindings())).toThrow(
-      /mask meta allocation of 4100 bytes exceeds device limits/,
+      /mask meta allocation of 8204 bytes exceeds device limits/,
     );
     expect(mock.created).toHaveLength(5);
   });
@@ -805,18 +815,20 @@ describe("HeightPass — output snapshot", () => {
       maskCount: 1,
       totalMaskCells: 16,
       maskSdfPasses: 1,
-      composePasses: 4,
+      composePasses: 5,
     });
     const outputs = snapshot.outputs;
     expect(outputs.height.format).toBe("f32");
     expect(outputs.coverage.format).toBe("u32");
     expect(outputs.objectId.format).toBe("u32");
     expect(outputs.materialId.format).toBe("u32");
+    expect(outputs.casterHeight.format).toBe("f32");
     for (const out of [
       outputs.height,
       outputs.coverage,
       outputs.objectId,
       outputs.materialId,
+      outputs.casterHeight,
     ]) {
       expect(out.byteLength).toBe(900 * 4);
       expect(out.usage).toBe(HEIGHT_PASS_OUTPUT_USAGE);
@@ -836,14 +848,136 @@ describe("HeightPass — output snapshot", () => {
     const view = new DataView(uniformWrite.bytes.buffer);
     expect(view.getUint32(0, true)).toBe(16); // totalMaskCells (4x4 padded)
     expect(view.getUint32(4, true)).toBe(WORKGROUP_SIZE);
-    expect(view.getUint32(8, true)).toBe(0); // pad
-    expect(view.getUint32(12, true)).toBe(0); // pad
+    expect(view.getUint32(8, true)).toBe(0); // yOffset (full frame)
+    expect(view.getUint32(12, true)).toBe(0); // regionEnd (full-frame sentinel)
 
+    // #32 maskMeta layout on a FULL frame: element 0 is the sentinel,
+    // elements 1..1+surfaceCount are the (zeroed) candidate bin, and the
+    // mask workspace offsets live at the fixed 1 + surfaceCount base.
     const metaWrite = passWrites[1];
-    expect(metaWrite.bytes.byteLength).toBe(16); // one mask, padded to the 16-byte floor
+    expect(metaWrite.bytes.byteLength).toBe(16); // (1 + 1 surface + 1 mask) * 4, 16-byte floor
     const meta = new DataView(metaWrite.bytes.buffer);
-    expect(meta.getUint32(0, true)).toBe(0); // mask[0] workspaceByteOffset
-    expect(meta.getUint32(4, true)).toBe(0); // pad
+    expect(meta.getUint32(0, true)).toBe(MASK_META_FULL_SENTINEL); // full-frame sentinel
+    expect(meta.getUint32(4, true)).toBe(0); // candidate element 1 (zeroed on full frames)
+    expect(meta.getUint32(8, true)).toBe(0); // mask[0] workspaceByteOffset at base 1+surfaceCount
+  });
+
+  it("packs a partial candidate bin (count + ORIGINAL indices) with the sentinel absent", () => {
+    const { mock, uploader, pass } = setup();
+    // 2 surfaces + 1 mask: maskMeta layout = [count, c0, c1, mask0 offset]
+    const encoded = encodeScene(
+      createScene({
+        width: 20,
+        height: 20,
+        surfaces: [
+          {
+            id: "r",
+            position: { x: 0, y: 0 },
+            size: { x: 5, y: 5 },
+            elevation: 0,
+            thickness: 1,
+            shape: { kind: "roundedRect", radius: 0 },
+            profile: { kind: "flat" },
+            material: "silicone",
+            castsShadow: false,
+            receivesShadow: false,
+          },
+          {
+            id: "m",
+            position: { x: 10, y: 10 },
+            size: { x: 8, y: 8 },
+            elevation: 0,
+            shape: { kind: "mask", mask: { width: 2, height: 2, alpha: new Uint8Array([0, 128, 255, 64]) } },
+            profile: { kind: "flat" },
+            material: "silicone",
+            castsShadow: false,
+            receivesShadow: false,
+          },
+        ],
+      }),
+      1,
+    );
+    uploader.upload(encoded);
+    pass.dispatch(encoded, uploader.getBindings());
+    const passBuffers = mock.created.slice(5).map((c) => c.buffer);
+    // a partial dispatch over rows 0..7 with the validated ascending bin
+    pass.dispatch(encoded, uploader.getBindings(), {
+      region: { y0: 0, y1: 7 },
+      candidates: [0, 1],
+    });
+    const metaWrite = mock.writes.filter((w) => passBuffers.includes(w.buffer)).at(-1)!;
+    expect(metaWrite.bytes.byteLength).toBe(16); // (1 + 2 surfaces + 1 mask) * 4
+    const meta = new DataView(metaWrite.bytes.buffer);
+    expect(meta.getUint32(0, true)).toBe(2); // candidate count (NOT the sentinel)
+    expect(meta.getUint32(4, true)).toBe(0); // candidate[0] == ORIGINAL index 0
+    expect(meta.getUint32(8, true)).toBe(1); // candidate[1] == ORIGINAL index 1
+    expect(meta.getUint32(12, true)).toBe(0); // mask[0] workspaceByteOffset at 1+surfaceCount
+  });
+
+  it("supports a zero-candidate partial band (count 0, cleared outputs)", () => {
+    const { mock, uploader, pass } = setup();
+    const encoded = encodeScene(simpleScene(), 1);
+    uploader.upload(encoded);
+    pass.dispatch(encoded, uploader.getBindings());
+    const passBuffers = mock.created.slice(5).map((c) => c.buffer);
+    pass.dispatch(encoded, uploader.getBindings(), {
+      region: { y0: 8, y1: 15 },
+      candidates: [],
+    });
+    const metaWrite = mock.writes.filter((w) => passBuffers.includes(w.buffer)).at(-1)!;
+    const meta = new DataView(metaWrite.bytes.buffer);
+    expect(meta.getUint32(0, true)).toBe(0); // zero candidates
+    expect(meta.getUint32(4, true)).toBe(0);
+    expect(meta.getUint32(8, true)).toBe(0);
+  });
+
+  it("rejects candidate bins that are invalid or not paired with a region", () => {
+    const { mock, uploader, pass } = setup();
+    const encoded = encodeScene(maskScene(), 1);
+    uploader.upload(encoded);
+    const bindings = uploader.getBindings();
+    const region = { y0: 0, y1: 7 };
+    expect(() =>
+      pass.dispatch(encoded, bindings, { region, candidates: [0, 0] }),
+    ).toThrow(/strictly ascending/);
+    expect(() =>
+      pass.dispatch(encoded, bindings, { region, candidates: [2] }),
+    ).toThrow(/out of range/);
+    expect(() =>
+      pass.dispatch(encoded, bindings, { region, candidates: [0, -1] }),
+    ).toThrow(/out of range/);
+    // partial candidates REQUIRE a partial region (full frames use the sentinel)
+    expect(() =>
+      pass.dispatch(encoded, bindings, { candidates: [0] }),
+    ).toThrow(/require a partial dispatch region/);
+  });
+
+  it("records a unique per-dispatch provenance token tied to the exact scene bytes", () => {
+    const { mock, uploader, pass } = setup();
+    const first = encodeScene(simpleScene(), 1);
+    uploader.upload(first);
+    pass.dispatch(first, uploader.getBindings());
+    const firstProvenance = pass.getSnapshot().provenance;
+    expect(firstProvenance.sceneBytes).toBe(first.bytes);
+    expect(firstProvenance).toBe(pass.getSnapshot().provenance);
+    expect(firstProvenance).toMatchObject({ width: 100, height: 80, dpr: 1 });
+
+    // A second dispatch of the SAME bytes object gets a new execution token,
+    // allowing later passes to detect a mixed set of otherwise-identical
+    // fields from two dispatches.
+    pass.dispatch(first, uploader.getBindings());
+    const repeatedProvenance = pass.getSnapshot().provenance;
+    expect(repeatedProvenance).not.toBe(firstProvenance);
+    expect(repeatedProvenance.sceneBytes).toBe(first.bytes);
+
+    // a different encoded scene object (identical bytes content) has a
+    // different scene-byte identity as well
+    const second = encodeScene(simpleScene(), 1);
+    expect(second.bytes).not.toBe(first.bytes);
+    uploader.upload(second);
+    pass.dispatch(second, uploader.getBindings());
+    expect(pass.getSnapshot().provenance.sceneBytes).toBe(second.bytes);
+    expect(pass.getSnapshot().provenance).not.toBe(repeatedProvenance);
   });
 });
 
@@ -1042,5 +1176,46 @@ describe("HeightPass shaders — CPU semantics pinned in WGSL", () => {
     expect(MASK_SDF_WGSL).toContain("bitcast<f32>(maskPixels[(blobSectionOffset + index * 4u) >> 2u])");
     expect(MASK_SDF_WGSL).toContain("let blob = mask.pixelOffset - maskPixelsSectionBase();");
     expect(MASK_SDF_WGSL).toContain("fn maskPixelsSectionBase() -> u32");
+  });
+});
+
+describe("HeightPass shaders — caster-only composition (#27)", () => {
+  it("searches ONLY FLAG_CASTS_SHADOW surfaces with an independent owner scan", () => {
+    // the caster pass must not filter the already selected full owner: the
+    // WGSL must contain the FLAG_CASTS_SHADOW gate INSIDE its own surface
+    // loop (an independent caster-only search)
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("const FLAG_CASTS_SHADOW: u32 = 0x1u;");
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain(
+      'if ((s.flags & FLAG_CASTS_SHADOW) == 0u) {',
+    );
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("fn casterOwnerAt(sx: f32, sy: f32) -> OwnerResult");
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("let r = casterOwnerAt(sx, sy);");
+    // same composition rule as the full field: larger f32 height wins,
+    // exact ties go to the later surface
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("if (h > best || h == best) {");
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("let s = surfaces[i];");
+    // writes the caster owner's height, 0.0 for no casting owner
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain(
+      "outCasterHeight[g] = select(0.0, r.best, r.owner != NO_OWNER);",
+    );
+    // the FULL-field passes never reference the caster-only path and the
+    // caster module never references ownerAt
+    expect(COMPOSE_HEIGHT_WGSL).not.toContain("casterOwnerAt");
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).not.toContain("let r = ownerAt(sx, sy);");
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).not.toContain("outObjectId");
+  });
+
+  it("keeps the caster pass inside the same group-1 binding budget", () => {
+    // one uniform + maskMeta + maskWorkspace + exactly ONE output = the
+    // standard compose layout (5 scene storage + 3 = 8)
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("@group(1) @binding(0) var<uniform> params: HeightPassParams;");
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("@group(1) @binding(1) var<storage, read> maskMeta: array<u32>;");
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("@group(1) @binding(2) var<storage, read> maskWorkspace: array<f32>;");
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain(
+      "@group(1) @binding(3) var<storage, read_write> outCasterHeight: array<f32>;",
+    );
+    // same DPR-aware texel sampling and bounds guard as every compose pass
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("let sx = (f32(tx) + 0.5) / sceneHeader.dpr;");
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("if (g >= texelCount) {");
   });
 });

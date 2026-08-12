@@ -21,6 +21,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:webgpu": "node scripts/test-webgpu.mjs",
+    "test:wasm-browser": "node scripts/test-wasm-browser.mjs",
+    "test:golden": "node scripts/golden-cpu.mjs --verify",
+    "goldens:update": "node scripts/golden-cpu.mjs --update",
     "clean": "rimraf dist"
   },
   "devDependencies": {
