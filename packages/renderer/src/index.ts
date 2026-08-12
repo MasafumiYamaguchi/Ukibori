@@ -38,6 +38,41 @@ export {
 export { CpuBackend } from "./backend/cpu";
 export { WebGpuBackend, createWebGpuBackend, isWebGpuSupported } from "./backend/webgpu";
 export {
+  DEFAULT_KERNEL_CACHE_KEY,
+  DEFAULT_WASM_PAGE_BYTES,
+  NORMAL_KERNEL_GUARD_BYTES,
+  NORMAL_KERNEL_INPUT_BASE,
+  NORMAL_KERNEL_INPUT_BYTES_PER_TEXEL,
+  NORMAL_KERNEL_MAX_TEXELS,
+  NORMAL_KERNEL_OUTPUT_BYTES_PER_TEXEL,
+  NORMAL_KERNEL_WORK_BYTES_PER_TEXEL,
+  WasmNormalKernel,
+  decodeDefaultModule,
+} from "./wasm/kernel";
+export type {
+  WasmKernelLoadOptions,
+  WasmKernelStats,
+  WasmNormalComputeResult,
+} from "./wasm/kernel";
+export {
+  DEFAULT_PROBE_BUDGET_MS,
+  DEFAULT_PROBE_HEIGHT,
+  DEFAULT_PROBE_ITERATIONS,
+  DEFAULT_PROBE_WIDTH,
+  WASM_BENEFIT_MARGIN,
+  resetWasmSelectionCache,
+  selectWasmBackend,
+} from "./wasm/selection";
+export type { WasmSelectionOptions, WasmSelectionReport } from "./wasm/selection";
+export { WasmCpuBackend } from "./wasm/backend";
+export { WasmCpuPipeline } from "./wasm/pipeline";
+export type {
+  WasmPipelineOptions,
+  WasmRenderRequest,
+  WasmRenderResult,
+  WasmStageProvenance,
+} from "./wasm/pipeline";
+export {
   ABI_MAGIC,
   ABI_VERSION,
   ALPHA_FORMAT_F32,

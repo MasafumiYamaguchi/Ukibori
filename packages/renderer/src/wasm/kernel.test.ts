@@ -171,7 +171,7 @@ async function kernel(): Promise<Kernel> {
       }
       const inView = new Float32Array(memory.buffer, 0, n);
       inView.set(field);
-      instance.exports.compute_normals(width, height, scaleX, scaleY, normalScale);
+      (instance.exports.compute_normals as (...a: number[]) => number)(width, height, scaleX, scaleY, normalScale);
       return new Float32Array(memory.buffer, 4 * n, 3 * n);
     },
   };
@@ -386,7 +386,7 @@ describe("#33 WASM kernel — oracle parity (exact bit-for-bit)", () => {
       // must avoid).
       const inView = new Float32Array(memory.buffer, 0, n);
       inView.set(field);
-      instance.exports.compute_normals(width, height, 0.5, 0.5, 1);
+      (instance.exports.compute_normals as (...a: number[]) => number)(width, height, 0.5, 0.5, 1);
       return new Float32Array(new Float32Array(memory.buffer, 4 * n, 3 * n));
     };
     // 16x16 needs 4 KiB -> fits in the initial 64 KiB page (no growth)

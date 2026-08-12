@@ -41,7 +41,7 @@ export interface BufferData {
 }
 
 export interface BackendCapabilities {
-  backend: "webgpu" | "cpu";
+  backend: "webgpu" | "cpu" | "wasm";
   /** height/normal/lighting/shadow pipeline can run on this backend */
   compute: boolean;
   readback: boolean;
@@ -49,7 +49,7 @@ export interface BackendCapabilities {
 }
 
 export interface RenderBackend {
-  readonly kind: "webgpu" | "cpu";
+  readonly kind: "webgpu" | "cpu" | "wasm";
   readonly capabilities: BackendCapabilities;
   createBuffer(spec: BufferSpec): Promise<RenderBuffer>;
   dispose(): void;
