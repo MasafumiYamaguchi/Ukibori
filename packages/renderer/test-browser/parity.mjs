@@ -91,6 +91,7 @@ const summaryData = {
   presentTexels: 0,
   presentHard: 0,
   presentAlphaBad: 0,
+  retainedProblems: 0,
   benchmarkSpeedup: null,
 };
 
@@ -1241,6 +1242,261 @@ async function runPresentationBenchmark(device) {
   }
 }
 
+/**
+ * #31 retained-frame parity + scheduler counters on the REAL adapter.
+ *
+ * Drives the full public `GpuScenePipeline` (dirty-pass scheduler) and
+ * asserts:
+ *
+ * 1. the FIRST render executes the full chain and the canvas readback is
+ *    the parity baseline
+ * 2. a byte-identical repeated frame is FULLY RETAINED (zero dispatches,
+ *    zero allocations, zero uploaded bytes, zero submissions) while the
+ *    scheduler report lists every stage as skipped
+ * 3. an explicit `repaint: true` re-presents ONLY the presentation stage
+ *    from retained outputs, and the canvas readback is byte-identical to
+ *    the baseline
+ * 4. a presentation-only (composite) change executes ONLY the presentation
+ *    stage and changes the canvas (shadow alpha), proving the counters
+ *    track real invalidation
+ * 5. a normal-options change executes ONLY normal/lighting/presentation and
+ *    changes the canvas (normals drive the lighting)
+ * 6. a fresh pipeline on a fresh canvas (forced full recompute) reproduces
+ *    the byte-identical baseline output, so retained results are equivalent
+ *    to a full recompute
+ *
+ * The existing 79 compute + 17 presentation golden fixture gate is kept
+ * intact; every problem collected here FAILs the run before the PASS marker.
+ */
+/**
+ * The retained-parity scene: a panel that does NOT cover the whole canvas,
+ * so the button's long cast shadow falls on the NO_OWNER base plane too —
+ * composite (shadow alpha) changes are then observable on the canvas. The
+ * flat light keeps the march short enough for a stable termination count.
+ */
+function retainedParityScene() {
+  return api.createScene({
+    width: 96,
+    height: 60,
+    surfaces: [
+      {
+        id: "panel",
+        position: { x: 10, y: 6 },
+        size: { x: 76, y: 48 },
+        elevation: 0,
+        thickness: 0,
+        shape: { kind: "roundedRect", radius: 0 },
+        profile: { kind: "flat" },
+        material: "matte",
+        castsShadow: false,
+        receivesShadow: true,
+      },
+      {
+        id: "btn",
+        position: { x: 30, y: 12 },
+        size: { x: 36, y: 32 },
+        elevation: 4,
+        thickness: 2,
+        bevelWidth: 3,
+        shape: { kind: "roundedRect", radius: 8 },
+        profile: { kind: "bevel" },
+        material: "silicone",
+        castsShadow: true,
+        receivesShadow: true,
+      },
+    ],
+    light: { direction: { x: 0.4, y: 0.5, z: 0.2 }, intensity: 1 },
+  });
+}
+
+async function makeRetainedCanvas() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 0;
+  canvas.height = 0;
+  document.body.appendChild(canvas);
+  const context = canvas.getContext("webgpu");
+  // resolved ONCE at the real API boundary, exactly like the #29 contract
+  const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
+  return { canvas, context, canvasFormat };
+}
+
+/**
+ * Capture + read back the current canvas texture. `getCurrentTexture()` is
+ * called SYNCHRONOUSLY in the same task as the just-submitted presentation
+ * work (the #29 harness seam): the queued copy then reads the exact texture
+ * the presentation pass wrote, regardless of later animation-frame texture
+ * swaps.
+ */
+function capturePresented(device, context, canvasFormat, width, height) {
+  const captured = context.getCurrentTexture();
+  return presentReadback(device, context, width, height, canvasFormat, captured).then(
+    (raw) => normalizeCanvasBytes(raw, canvasFormat, width, height),
+  );
+}
+
+async function runRetainedParity(device) {
+  const scene = retainedParityScene();
+  const problems = [];
+  let pipeline = null;
+  let canvas = null;
+  try {
+    const first = await makeRetainedCanvas();
+    canvas = first.canvas;
+    pipeline = new api.GpuScenePipeline(device, first.context, first.canvasFormat);
+
+    // 1) baseline: full chain, first frame. The texture is captured in the
+    //    SAME task as the presentation submission (#29 harness seam).
+    const frameA = pipeline.render({ scene, dpr: 1, debugReadback: true });
+    const baseline = await capturePresented(
+      device,
+      first.context,
+      first.canvasFormat,
+      frameA.renderWidth,
+      frameA.renderHeight,
+    );
+    if (frameA.invalidation.executed.length !== 6) {
+      problems.push(`first frame executed ${frameA.invalidation.executed.join(",")} (expected all six)`);
+    }
+    const dispatchesAfterFirst = frameA.totals.dispatches;
+    const allocationsAfterFirst = frameA.totals.newAllocations;
+    const bytesAfterFirst = frameA.totals.bytesUploaded;
+
+    // 2) byte-identical repeated frame: fully retained (scheduler counters).
+    const frameB = pipeline.render({ scene, dpr: 1, debugReadback: true });
+    if (frameB.invalidation.retained !== true || frameB.invalidation.executed.length !== 0) {
+      problems.push(
+        `retained frame executed ${frameB.invalidation.executed.join(",")} ` +
+          `reasons=${frameB.invalidation.reasons.join(",")} (expected nothing)`,
+      );
+    }
+    if (frameB.totals.dispatches !== dispatchesAfterFirst) {
+      problems.push(
+        `retained frame issued ${frameB.totals.dispatches - dispatchesAfterFirst} extra dispatches`,
+      );
+    }
+    if (frameB.totals.newAllocations !== allocationsAfterFirst) {
+      problems.push("retained frame allocated new GPU buffers");
+    }
+    if (frameB.totals.bytesUploaded !== bytesAfterFirst) {
+      problems.push("retained frame re-uploaded host bytes");
+    }
+    if (frameB.frame.dispatchCount !== 0 || frameB.frame.submissions !== 0) {
+      problems.push(
+        `retained frame profile reports dispatchCount=${frameB.frame.dispatchCount} ` +
+          `submissions=${frameB.frame.submissions} (expected 0/0)`,
+      );
+    }
+
+    // 3) retained re-presentation: presentation-only, byte-identical output.
+    const frameC = pipeline.render({ scene, dpr: 1, debugReadback: true, repaint: true });
+    if (frameC.invalidation.executed.join(",") !== "presentation") {
+      problems.push(
+        `repaint executed ${frameC.invalidation.executed.join(",")} (expected presentation only)`,
+      );
+    }
+    if (frameC.frame.dispatchCount !== 0) {
+      problems.push("repaint issued compute dispatches");
+    }
+    const repainted = await capturePresented(
+      device,
+      first.context,
+      first.canvasFormat,
+      frameC.renderWidth,
+      frameC.renderHeight,
+    );
+    if (!oracle.bytesEqual(baseline, repainted)) {
+      problems.push("repaint of the retained frame changed the canvas bytes");
+    }
+
+    // 4) presentation-only invalidation (composite): only presentation runs
+    //    and the canvas actually changes (shadow alpha 0.3 -> 0.6).
+    const frameD = pipeline.render({
+      scene,
+      dpr: 1,
+      debugReadback: true,
+      compositeOptions: { shadowAlpha: 0.6 },
+    });
+    if (frameD.invalidation.executed.join(",") !== "presentation") {
+      problems.push(
+        `composite change executed ${frameD.invalidation.executed.join(",")} ` +
+          `(expected presentation only)`,
+      );
+    }
+    if (frameD.totals.dispatches !== dispatchesAfterFirst) {
+      problems.push("composite change issued compute dispatches");
+    }
+    const composite = await capturePresented(
+      device,
+      first.context,
+      first.canvasFormat,
+      frameD.renderWidth,
+      frameD.renderHeight,
+    );
+    if (oracle.bytesEqual(baseline, composite)) {
+      problems.push("composite change produced no canvas change (shadow alpha ignored?)");
+    }
+
+    // 5) normal-options invalidation: normal/lighting/presentation only
+    //    (normal 1 + lighting 1 = 2 compute dispatches this frame).
+    const frameE = pipeline.render({
+      scene,
+      dpr: 1,
+      debugReadback: true,
+      normalOptions: { scaleX: 0.9, scaleY: 0.4, normalScale: 1.25 },
+    });
+    if (frameE.invalidation.executed.join(",") !== "normal,lighting,presentation") {
+      problems.push(
+        `normal change executed ${frameE.invalidation.executed.join(",")} ` +
+          `(expected normal,lighting,presentation)`,
+      );
+    }
+    if (frameE.frame.dispatchCount !== 2) {
+      problems.push(`normal change dispatchCount=${frameE.frame.dispatchCount} (expected 2)`);
+    }
+    const normalChanged = await capturePresented(
+      device,
+      first.context,
+      first.canvasFormat,
+      frameE.renderWidth,
+      frameE.renderHeight,
+    );
+    if (oracle.bytesEqual(baseline, normalChanged)) {
+      problems.push("normal-options change produced no canvas change (options ignored?)");
+    }
+
+    // 6) forced full recompute on a fresh pipeline/canvas reproduces the
+    //    baseline bytes (retained results == full recompute equivalence).
+    pipeline.dispose();
+    pipeline = null;
+    canvas.remove();
+    canvas = null;
+    const second = await makeRetainedCanvas();
+    const fresh = new api.GpuScenePipeline(device, second.context, second.canvasFormat);
+    const frameF = fresh.render({ scene, dpr: 1, debugReadback: true });
+    const recomputed = await capturePresented(
+      device,
+      second.context,
+      second.canvasFormat,
+      frameF.renderWidth,
+      frameF.renderHeight,
+    );
+    if (!oracle.bytesEqual(baseline, recomputed)) {
+      problems.push("forced full recompute differs from the retained pipeline output");
+    }
+    fresh.dispose();
+    second.canvas.remove();
+  } catch (error) {
+    problems.push(`retained parity threw: ${String(error?.stack ?? error)}`);
+  }
+  try {
+    pipeline?.dispose();
+    canvas?.remove();
+  } catch {
+    // disposal must never mask the outcome
+  }
+  return problems;
+}
+
 async function main() {
   try {
     if (typeof navigator === "undefined" || navigator.gpu === undefined) {
@@ -1305,6 +1561,19 @@ async function main() {
     } catch (error) {
       presentationBenchmarkFailure = String(error?.stack ?? error);
     }
+    // #31 retained-frame parity + scheduler counters on the real adapter:
+    // a byte-identical repeated frame must do ZERO GPU work, retained
+    // re-presentation must reproduce the exact canvas bytes, partial
+    // invalidations must run exactly their downstream closure, and a
+    // forced full recompute must match the retained output byte-for-byte.
+    const retainedProblems = [];
+    let retainedFailure = null;
+    try {
+      retainedProblems.push(...(await runRetainedParity(device)));
+    } catch (error) {
+      retainedFailure = String(error?.stack ?? error);
+    }
+    summaryData.retainedProblems = retainedProblems.length;
     // drain async device errors before destroying the device
     await device.queue.onSubmittedWorkDone().catch(() => undefined);
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
@@ -1702,6 +1971,26 @@ async function main() {
       `presentation benchmark ${presentationBenchmark.width}x${presentationBenchmark.height} ` +
       `${presentationBenchmark.warmups} warmups, ${presentationBenchmark.samples} samples: ` +
       `present-only median ${presentationBenchmark.presentMedian.toFixed(3)}ms`;
+    // #31 retained-frame parity FAIL branch (before the PASS marker)
+    if (retainedFailure !== null) {
+      finish(
+        MARKER_FAIL,
+        `retained-frame parity failed: ${retainedFailure}`,
+      );
+      return;
+    }
+    if (retainedProblems.length > 0) {
+      finish(
+        MARKER_FAIL,
+        `retained-frame parity problems (${retainedProblems.length}): ${retainedProblems.join("; ")}`,
+      );
+      return;
+    }
+    detail.push(
+      "retained-frame parity: PASS (byte-identical frame fully retained with zero " +
+        "dispatches/allocations/uploads; retained repaint and partial invalidations " +
+        "run exactly their downstream closure; forced full recompute byte-identical)",
+    );
     finish(
       MARKER_PASS,
       `real adapter parity: ${fixtureResults.length} fixtures, ${totalTexels} scene texels, ` +

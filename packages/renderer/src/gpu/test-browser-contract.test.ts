@@ -334,6 +334,40 @@ describe("parity.mjs + catalog.mjs — #29 GPU canvas presentation", () => {
   });
 });
 
+describe("parity.mjs — #31 retained-frame parity and scheduler counters", () => {
+  it("runs the retained-frame parity section on the real adapter", () => {
+    expect(paritySource).toContain("async function runRetainedParity(device)");
+    expect(paritySource).toContain("retained-frame parity + scheduler counters");
+    expect(paritySource).toContain("new api.GpuScenePipeline(device, first.context, first.canvasFormat)");
+  });
+
+  it("requires a byte-identical repeated frame to do zero GPU work", () => {
+    expect(paritySource).toContain("frameB.invalidation.retained !== true");
+    expect(paritySource).toContain("retained frame issued");
+    expect(paritySource).toContain("retained frame allocated new GPU buffers");
+    expect(paritySource).toContain("retained frame re-uploaded host bytes");
+    expect(paritySource).toContain("frameB.frame.dispatchCount !== 0");
+  });
+
+  it("checks retained repaint parity and partial-invalidation closures", () => {
+    expect(paritySource).toContain("repaint of the retained frame changed the canvas bytes");
+    expect(paritySource).toContain('"normal,lighting,presentation"');
+    expect(paritySource).toContain("composite change issued compute dispatches");
+    expect(paritySource).toContain("normal change dispatchCount");
+  });
+
+  it("verifies forced-full-recompute equivalence and FAILs the gate on problems", () => {
+    expect(paritySource).toContain("forced full recompute differs from the retained pipeline output");
+    const failIndex = paritySource.indexOf("retained-frame parity problems");
+    const passIndex = paritySource.lastIndexOf("MARKER_PASS,");
+    expect(failIndex).toBeGreaterThan(-1);
+    expect(passIndex).toBeGreaterThan(-1);
+    expect(failIndex).toBeLessThan(passIndex);
+    expect(paritySource).toContain("retainedProblems");
+    expect(paritySource).toContain("retained-frame parity: PASS");
+  });
+});
+
 describe("test-webgpu.mjs — bounded child-exit wait before temp/profile cleanup", () => {
   it("awaits the Chrome exit (bounded) after SIGKILL instead of deleting immediately", () => {
     expect(runnerSource).toContain("chrome.once(\"exit\", resolveExit);");

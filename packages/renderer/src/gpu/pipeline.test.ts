@@ -125,6 +125,8 @@ class MockFullDevice {
   readonly created: MockBuffer[] = [];
   readonly renderPipelineFormats: string[] = [];
   readonly bindGroups: Array<{ entries: readonly GpuBindGroupEntryLike[] }> = [];
+  /** one-shot: the next createCommandEncoder call throws (mid-frame failure injection) */
+  failNextEncoder = false;
   private resolveLost: ((value: unknown) => void) | null = null;
   readonly lost: Promise<unknown>;
 
@@ -193,6 +195,12 @@ class MockFullDevice {
   }
 
   createCommandEncoder(): MockFullEncoder {
+    if (this.failNextEncoder) {
+      // one-shot failure injection: the next createCommandEncoder call
+      // throws (used to simulate a mid-frame stage failure)
+      this.failNextEncoder = false;
+      throw new Error("injected encoder failure");
+    }
     const encoder = new MockFullEncoder();
     this.encoders.push(encoder);
     return encoder;
@@ -396,6 +404,288 @@ describe("GpuScenePipeline — full-chain orchestrator", () => {
     expect(() => pipeline.present()).toThrow(/device is lost/);
     expect(() => pipeline.getSnapshot()).toThrow(/device is lost/);
     expect(device.submits.length).toBe(submissions);
+  });
+});
+
+describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources", () => {
+  const writePayloads = (device: MockFullDevice): number[][] =>
+    device.writes.map((write) => Array.from(write.bytes));
+
+  it("runs the full chain on the first frame and reports first-frame invalidation", () => {
+    const { device, pipeline } = setup();
+    const stats = pipeline.render({ scene: sceneA(), dpr: 1 });
+    expect(stats.invalidation.reasons).toEqual(["first-frame"]);
+    expect(stats.invalidation.executed).toEqual([
+      "upload",
+      "height",
+      "normal",
+      "shadow",
+      "lighting",
+      "presentation",
+    ]);
+    expect(stats.invalidation.skipped).toEqual([]);
+    expect(stats.invalidation.retained).toBe(false);
+    expect(device.submits).toHaveLength(5);
+    // per-frame profile: one dispatch per compute pass (height = sdf(0) +
+    // compose(5); normal/shadow/lighting = 1 each) and one queue.submit per
+    // stage that actually submits (upload only writeBuffer -> 0)
+    expect(stats.frame.dispatchCount).toBe(8);
+    expect(stats.frame.submissions).toBe(5);
+    expect(stats.frame.bytesUploaded).toBeGreaterThan(0);
+    expect(stats.frame.newAllocations).toBeGreaterThan(0);
+    expect(stats.totals.frames).toBe(1);
+    expect(stats.totals.dispatches).toBe(8);
+    expect(stats.totals.submissions).toBe(5);
+    // all durations are labeled host (wall-clock) values
+    for (const stage of ["upload", "height", "normal", "shadow", "lighting", "presentation"] as const) {
+      expect(stats.frame.passDurations[stage]).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("retains every resource on a byte-identical repeated frame (no upload, compute or presentation)", () => {
+    const { device, context, pipeline } = setup();
+    const first = pipeline.render({ scene: sceneA(), dpr: 1 });
+    const firstSnapshot = pipeline.getSnapshot();
+    const submits = device.submits.length;
+    const writes = device.writes.length;
+    const created = device.created.length;
+
+    const second = pipeline.render({ scene: sceneA(), dpr: 1 });
+    expect(second.invalidation.reasons).toEqual([]);
+    expect(second.invalidation.retained).toBe(true);
+    expect(second.invalidation.executed).toEqual([]);
+    expect(second.invalidation.skipped).toEqual([
+      "upload",
+      "height",
+      "normal",
+      "shadow",
+      "lighting",
+      "presentation",
+    ]);
+    // zero GPU work: no submissions, no writes, no allocations
+    expect(device.submits.length).toBe(submits);
+    expect(device.writes.length).toBe(writes);
+    expect(device.created.length).toBe(created);
+    // zeroed per-stage activity with retained allocation counts
+    expect(second.upload.writeCalls).toBe(0);
+    expect(second.upload.bytesUploaded).toBe(0);
+    expect(second.upload.allocationCount).toBe(first.upload.allocationCount);
+    expect(second.height.composePasses).toBe(0);
+    expect(second.height.allocationCount).toBe(first.height.allocationCount);
+    expect(second.frame.dispatchCount).toBe(0);
+    expect(second.frame.bytesUploaded).toBe(0);
+    // the canvas keeps the previously presented frame untouched
+    expect(context.canvas.width).toBe(100);
+    expect(context.canvas.height).toBe(80);
+    // the retained snapshot is IDENTICAL (same buffers, same provenance token)
+    const secondSnapshot = pipeline.getSnapshot();
+    expect(secondSnapshot.heightPass.provenance).toBe(firstSnapshot.heightPass.provenance);
+    expect(secondSnapshot.lightingPass.color.buffer).toBe(firstSnapshot.lightingPass.color.buffer);
+    expect(secondSnapshot.shadowPass.output.buffer).toBe(firstSnapshot.shadowPass.output.buffer);
+    // cumulative profiling: one retained (skipped) frame counted, no dispatches
+    expect(second.totals.frames).toBe(2);
+    expect(second.totals.dispatches).toBe(first.totals.dispatches);
+    expect(second.totals.skippedFrames).toBe(1);
+  });
+
+  it("re-presents a retained frame from retained outputs when repaint is requested", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const submits = device.submits.length;
+    const stats = pipeline.render({ scene: sceneA(), dpr: 1, repaint: true });
+    expect(stats.invalidation.reasons).toEqual([]);
+    expect(stats.invalidation.executed).toEqual(["presentation"]);
+    expect(stats.invalidation.retained).toBe(false);
+    // exactly one presentation submission, no compute encoders
+    expect(device.submits.length).toBe(submits + 1);
+    expect(stats.frame.dispatchCount).toBe(0);
+    expect(stats.frame.submissions).toBe(1);
+    expect(stats.presentation.workSubmitted).toBe(2);
+    expect(stats.presentation.configured).toBe(false);
+  });
+
+  it("re-runs the full chain on a geometry-only scene change", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const taller = sceneA();
+    taller.surfaces[0].elevation += 2;
+    const stats = pipeline.render({ scene: taller, dpr: 1 });
+    expect(stats.invalidation.reasons).toEqual(["scene"]);
+    expect(stats.invalidation.executed).toHaveLength(6);
+    expect(stats.invalidation.retained).toBe(false);
+    expect(stats.upload.bytesUploaded).toBeGreaterThan(0);
+    expect(stats.height.composePasses).toBe(5);
+    expect(device.submits.length).toBe(10);
+  });
+
+  it("propagates a normal-options change only to normal, lighting and presentation", () => {
+    const { device, pipeline } = setup();
+    const first = pipeline.render({ scene: sceneA(), dpr: 1 });
+    const submits = device.submits.length;
+    const stats = pipeline.render({
+      scene: sceneA(),
+      dpr: 1,
+      normalOptions: { scaleX: 0.9, scaleY: 0.4, normalScale: 1.25 },
+    });
+    expect(stats.invalidation.reasons).toEqual(["normal-options"]);
+    expect(stats.invalidation.executed).toEqual(["normal", "lighting", "presentation"]);
+    expect(stats.invalidation.skipped).toEqual(["upload", "height", "shadow"]);
+    expect(device.submits.length).toBe(submits + 3);
+    // upstream allocations are untouched (retained counts reported)
+    expect(stats.upload.allocationCount).toBe(first.upload.allocationCount);
+    expect(stats.height.allocationCount).toBe(first.height.allocationCount);
+    expect(stats.shadow.allocationCount).toBe(first.shadow.allocationCount);
+    // provenance is unchanged (height retained), so downstream mixes are legal
+    const snapshot = pipeline.getSnapshot();
+    expect(snapshot.normalPass.provenance).toBe(snapshot.heightPass.provenance);
+    expect(snapshot.lightingPass.provenance).toBe(snapshot.heightPass.provenance);
+  });
+
+  it("propagates a shadow-options change only to shadow, lighting and presentation", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const submits = device.submits.length;
+    const stats = pipeline.render({
+      scene: sceneA(),
+      dpr: 1,
+      shadowOptions: { bias: 0.25, stepSize: 0.5 },
+    });
+    expect(stats.invalidation.reasons).toEqual(["shadow-options"]);
+    expect(stats.invalidation.executed).toEqual(["shadow", "lighting", "presentation"]);
+    expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal"]);
+    expect(device.submits.length).toBe(submits + 3);
+  });
+
+  it("propagates a lighting-options (ambient) change only to lighting and presentation", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const submits = device.submits.length;
+    const stats = pipeline.render({ scene: sceneA(), dpr: 1, lightingOptions: { ambient: 0.3 } });
+    expect(stats.invalidation.reasons).toEqual(["lighting-options"]);
+    expect(stats.invalidation.executed).toEqual(["lighting", "presentation"]);
+    expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal", "shadow"]);
+    expect(device.submits.length).toBe(submits + 2);
+    // the effective ambient is the f32-packed value actually dispatched
+    expect(pipeline.getSnapshot().lightingPass.ambient).toBeCloseTo(0.3, 6);
+  });
+
+  it("propagates a composite-options change to presentation only", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const submits = device.submits.length;
+    const stats = pipeline.render({
+      scene: sceneA(),
+      dpr: 1,
+      compositeOptions: { shadowAlpha: 0.6 },
+    });
+    expect(stats.invalidation.reasons).toEqual(["composite-options"]);
+    expect(stats.invalidation.executed).toEqual(["presentation"]);
+    expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal", "shadow", "lighting"]);
+    expect(device.submits.length).toBe(submits + 1);
+  });
+
+  it("re-runs the full chain on a DPR (viewport) change and resizes the canvas", () => {
+    const { context, device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const stats = pipeline.render({ scene: sceneA(), dpr: 2 });
+    expect(stats.invalidation.reasons).toContain("viewport");
+    expect(stats.invalidation.executed).toHaveLength(6);
+    expect(stats.renderWidth).toBe(200);
+    expect(stats.renderHeight).toBe(160);
+    expect(context.canvas.width).toBe(200);
+    expect(context.canvas.height).toBe(160);
+    // the presentation configuration is reused across sizes (retained)
+    expect(context.configured).toHaveLength(1);
+  });
+
+  it("a forced full recompute re-uploads byte-identical payloads and reuses allocations", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const frame1Writes = writePayloads(device);
+    const frame1Provenance = pipeline.getSnapshot().heightPass.provenance;
+    pipeline.render({ scene: sceneA(), dpr: 1 }); // fully retained
+    pipeline.render({ scene: sceneB(), dpr: 1 }); // different scene
+    const writesBeforeReplay = device.writes.length;
+    const replayed = pipeline.render({ scene: sceneA(), dpr: 1 }); // forced full recompute
+    // sceneB differs in extent and shadow-context-dependent effective
+    // options, so the replay legitimately reports all three reasons
+    expect(replayed.invalidation.reasons).toContain("scene");
+    expect(replayed.invalidation.reasons).toContain("viewport");
+    expect(replayed.invalidation.executed).toHaveLength(6);
+    // the replayed upload bytes are byte-identical to frame 1 (deterministic
+    // encode) — the forced recompute produces the same effective payloads
+    const replayWrites = device.writes.slice(writesBeforeReplay).map((w) => Array.from(w.bytes));
+    expect(replayWrites).toEqual(frame1Writes);
+    // a fresh height dispatch produced a fresh per-dispatch provenance token
+    // (equivalent to a forced full recompute) while the pass allocations are
+    // reused (no new GPU buffers)
+    const snapshot = pipeline.getSnapshot();
+    expect(snapshot.heightPass.provenance).not.toBe(frame1Provenance);
+    expect(snapshot.heightPass.provenance.sceneBytes.byteLength).toBeGreaterThan(0);
+    expect(replayed.frame.newAllocations).toBe(0);
+    expect(replayed.totals.frames).toBe(4);
+  });
+
+  it("invalidates scheduler retention when a stage fails mid-frame and the next render fully recomputes", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    // Inject a failure in the NEXT frame AFTER the changed-scene upload has
+    // already mutated the uploader bindings: the height pass is the first
+    // stage that creates a command encoder.
+    device.failNextEncoder = true;
+    expect(() => pipeline.render({ scene: sceneB(), dpr: 1 })).toThrow(/injected encoder failure/);
+    // conservative invalidation: no usable stale snapshot or re-presentation
+    expect(() => pipeline.getSnapshot()).toThrow(/no frame rendered/);
+    expect(() => pipeline.present()).toThrow(/no frame rendered/);
+    // the same changed scene now fully recomputes and succeeds (first-frame
+    // path: no retained key/encoding to skip or mix)
+    const recovered = pipeline.render({ scene: sceneB(), dpr: 1 });
+    expect(recovered.invalidation.reasons).toEqual(["first-frame"]);
+    expect(recovered.invalidation.executed).toHaveLength(6);
+    expect(recovered.upload.bytesUploaded).toBeGreaterThan(0);
+    expect(recovered.height.composePasses).toBe(5);
+    const snapshot = pipeline.getSnapshot();
+    // every downstream stage shares the fresh per-dispatch provenance
+    expect(snapshot.normalPass.provenance).toBe(snapshot.heightPass.provenance);
+    expect(snapshot.shadowPass.provenance).toBe(snapshot.heightPass.provenance);
+    expect(snapshot.lightingPass.provenance).toBe(snapshot.heightPass.provenance);
+    // the pre-failure scene ALSO recovers: re-uploading sceneA must not
+    // skip the upload (no mixed provenance from the failed frame)
+    const replayA = pipeline.render({ scene: sceneA(), dpr: 1 });
+    expect(replayA.invalidation.executed).toHaveLength(6);
+    expect(replayA.upload.bytesUploaded).toBeGreaterThan(0);
+    expect(replayA.height.composePasses).toBe(5);
+    expect(pipeline.getSnapshot().heightPass.provenance).not.toBe(snapshot.heightPass.provenance);
+  });
+
+  it("recovers through a fresh pipeline after disposal (context recovery seam)", () => {
+    const first = setup();
+    first.pipeline.render({ scene: sceneA(), dpr: 1 });
+    first.pipeline.dispose();
+    expect(first.context.unconfigured).toBe(true);
+    // the recovery seam: a fresh device/context/pipeline starts clean and
+    // never touches the disposed pipeline's resources
+    const second = setup();
+    const stats = second.pipeline.render({ scene: sceneA(), dpr: 1 });
+    expect(stats.invalidation.reasons).toEqual(["first-frame"]);
+    expect(second.context.configured).toHaveLength(1);
+    expect(second.context.unconfigured).toBe(false);
+    // the first pipeline's device allocations were all destroyed
+    expect(first.device.created.every((buffer) => buffer.destroyed)).toBe(true);
+  });
+
+  it("recovers with a fresh pipeline after device loss", async () => {
+    const first = setup();
+    first.pipeline.render({ scene: sceneA(), dpr: 1 });
+    first.device.triggerLoss();
+    await new Promise((resolveSleep) => setTimeout(resolveSleep, 0));
+    expect(() => first.pipeline.render({ scene: sceneA(), dpr: 1 })).toThrow(/device is lost/);
+    first.pipeline.dispose(); // idempotent even after loss
+    first.pipeline.dispose();
+    const second = setup();
+    const stats = second.pipeline.render({ scene: sceneA(), dpr: 1 });
+    expect(stats.invalidation.retained).toBe(false);
+    expect(second.device.submits).toHaveLength(5);
   });
 });
 
