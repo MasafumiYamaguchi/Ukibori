@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ukibori Renderer Debug</title>
+    <title>Ukibori Scheduler Debug (#31)</title>
     <style>
       body {
         font: 14px/1.6 system-ui, sans-serif;
@@ -20,6 +20,7 @@
       .row {
         display: flex;
         flex-wrap: wrap;
+        align-items: flex-start;
       }
       h2 {
         font-size: 15px;
@@ -33,13 +34,35 @@
         margin-right: 8px;
         font-size: 12px;
       }
+      .btn-row button {
+        margin: 0 6px 6px 0;
+        padding: 5px 10px;
+        font-size: 13px;
+      }
+      table {
+        border-collapse: collapse;
+        font-size: 12px;
+        margin: 8px 0;
+      }
+      td,
+      th {
+        border: 1px solid #ccc;
+        padding: 2px 8px;
+        text-align: right;
+      }
+      td:first-child,
+      th:first-child {
+        text-align: left;
+      }
+      .note {
+        color: #666;
+        font-size: 12px;
+        max-width: 720px;
+      }
     </style>
   </head>
   <body>
-    <p>
-      <a href="/scheduler-debug.html">#31 scheduler debug (WebGPU dirty-pass scheduling)</a>
-    </p>
     <div id="root"></div>
-    <script type="module" src="/src/renderer-debug/main.tsx"></script>
+    <script type="module" src="/src/scheduler-debug/main.tsx"></script>
   </body>
 </html>
