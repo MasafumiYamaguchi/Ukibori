@@ -1641,6 +1641,51 @@ function partialParityScene(edit) {
         width: 320, height: 200, light, materials,
         surfaces: [panel, btnA, btnB, badge],
       }), shadowOptions };
+    case "zero-delete-base":
+      // no panel, so deleting the badge leaves a dirty band whose only
+      // footprint was the badge itself: ZERO remaining candidates (btnA and
+      // btnB sit above the deletion band; the material table keeps silicone)
+      return { scene: api.createScene({
+        width: 320, height: 180, light, materials,
+        surfaces: [btnA, { ...btnB, position: { x: 180, y: 30 } }, badge],
+      }), shadowOptions };
+    case "zero-delete":
+      return { scene: api.createScene({
+        width: 320, height: 180, light, materials,
+        surfaces: [btnA, { ...btnB, position: { x: 180, y: 30 } }],
+      }), shadowOptions };
+    case "mask-base":
+      return { scene: api.createScene({
+        width: 320, height: 180, light, materials,
+        surfaces: [panel, btnA, btnB, badge, {
+          id: "glyph",
+          position: { x: 200, y: 30 },
+          size: { x: 16, y: 16 },
+          elevation: 5,
+          thickness: 2,
+          shape: { kind: "mask", mask: { width: 4, height: 4, alpha: new Uint8Array(16).fill(255) } },
+          profile: { kind: "flat" },
+          material: "metal",
+          castsShadow: true,
+          receivesShadow: true,
+        }],
+      }), shadowOptions };
+    case "mask-edit":
+      return { scene: api.createScene({
+        width: 320, height: 180, light, materials,
+        surfaces: [panel, btnA, btnB, badge, {
+          id: "glyph",
+          position: { x: 204, y: 33 },
+          size: { x: 16, y: 16 },
+          elevation: 5,
+          thickness: 2,
+          shape: { kind: "mask", mask: { width: 4, height: 4, alpha: new Uint8Array(16).fill(255) } },
+          profile: { kind: "flat" },
+          material: "metal",
+          castsShadow: true,
+          receivesShadow: true,
+        }],
+      }), shadowOptions };
     default:
       return { scene: api.createScene({
         width: 320, height: 180, light, materials,
@@ -1714,8 +1759,8 @@ async function runPartialParity(device) {
           );
         }
       }
-      if (frameMove.planning.estimatedCandidateSurfaceCount <= 0) {
-        problems.push("partial frame reported zero estimated candidate surfaces");
+      if (frameMove.planning.candidateSurfaceCount <= 0) {
+        problems.push("partial frame reported zero candidate surfaces");
       }
       if (frameMove.planning.dispatchTexels > frameMove.planning.totalTexels * 0.5) {
         problems.push(
@@ -1736,6 +1781,26 @@ async function runPartialParity(device) {
     );
     if (oracle.bytesEqual(baseline, partialCanvas)) {
       problems.push("small edit produced no canvas change (edit ignored?)");
+    }
+    // capture the partial pipeline's compose fields BEFORE disposal: the
+    // ACTUAL candidate iteration must have produced byte-identical height
+    // and ORIGINAL-owner objectId fields vs the forced-full recompute
+    let partialHeight = null;
+    let partialObjectId = null;
+    try {
+      const partialSnapshot = pipeline.getSnapshot();
+      partialHeight = await readback(
+        device,
+        partialSnapshot.heightPass.outputs.height.buffer,
+        partialSnapshot.heightPass.outputs.height.byteLength,
+      );
+      partialObjectId = await readback(
+        device,
+        partialSnapshot.heightPass.outputs.objectId.buffer,
+        partialSnapshot.heightPass.outputs.objectId.byteLength,
+      );
+    } catch (error) {
+      problems.push(`partial field readback failed: ${String(error)}`);
     }
 
     // 3) forced full recompute on a FRESH pipeline must reproduce the
@@ -1762,6 +1827,27 @@ async function runPartialParity(device) {
     );
     if (!oracle.bytesEqual(partialCanvas, fullCanvas)) {
       problems.push("partial render differs from forced-full recompute (canvas bytes)");
+    }
+    if (partialHeight !== null) {
+      const forcedSnapshot = fresh.getSnapshot();
+      const forcedHeight = await readback(
+        device,
+        forcedSnapshot.heightPass.outputs.height.buffer,
+        forcedSnapshot.heightPass.outputs.height.byteLength,
+      );
+      if (!oracle.bytesEqual(partialHeight, forcedHeight)) {
+        problems.push("partial height field differs from forced-full (culled compose)");
+      }
+    }
+    if (partialObjectId !== null) {
+      const forcedObjectId = await readback(
+        device,
+        fresh.getSnapshot().heightPass.outputs.objectId.buffer,
+        fresh.getSnapshot().heightPass.outputs.objectId.byteLength,
+      );
+      if (!oracle.bytesEqual(partialObjectId, forcedObjectId)) {
+        problems.push("partial objectId field differs from forced-full (owner identity)");
+      }
     }
     fresh.dispose();
     second.canvas.remove();
@@ -1840,6 +1926,133 @@ async function runPartialParity(device) {
         problems.push(
           `${scenario} edit differs from forced-full recompute (canvas bytes)`,
         );
+      }
+    }
+
+    // 5) zero-candidate partial: deleting an isolated surface leaves a dirty
+    //    band with NO remaining surface footprint. The plan stays partial
+    //    with an EMPTY candidate bin and the compose clears the band; the
+    //    canvas must equal a forced full recompute (texels fall back to the
+    //    base plane / lower surfaces).
+    const zeroBase = partialParityScene("zero-delete-base");
+    const zeroEdit = partialParityScene("zero-delete");
+    {
+      const zc = await makeRetainedCanvas();
+      const zcPipeline = new api.GpuScenePipeline(device, zc.context, zc.canvasFormat);
+      zcPipeline.render({
+        scene: zeroBase.scene,
+        dpr: 1,
+        shadowOptions: zeroBase.shadowOptions,
+        tileSize: 32,
+        debugReadback: true,
+      });
+      const zcFrame = zcPipeline.render({
+        scene: zeroEdit.scene,
+        dpr: 1,
+        shadowOptions: zeroEdit.shadowOptions,
+        tileSize: 32,
+        debugReadback: true,
+      });
+      if (zcFrame.planning.mode !== "partial") {
+        problems.push(
+          `zero-candidate edit planned ${zcFrame.planning.mode}/${zcFrame.planning.reason} ` +
+            "(expected partial with an empty candidate bin)",
+        );
+      } else if (zcFrame.planning.candidateSurfaceCount !== 0) {
+        problems.push(
+          `zero-candidate edit reported ${zcFrame.planning.candidateSurfaceCount} candidates ` +
+            "(expected 0 — no surface footprint intersects the deletion band)",
+        );
+      }
+      const zcBytes = await capturePresented(
+        device,
+        zc.context,
+        zc.canvasFormat,
+        zcFrame.renderWidth,
+        zcFrame.renderHeight,
+      );
+      zcPipeline.dispose();
+      zc.canvas.remove();
+      const zcForced = await makeRetainedCanvas();
+      const zcForcedPipeline = new api.GpuScenePipeline(device, zcForced.context, zcForced.canvasFormat);
+      const zcForcedFrame = zcForcedPipeline.render({
+        scene: zeroEdit.scene,
+        dpr: 1,
+        shadowOptions: zeroEdit.shadowOptions,
+        tileSize: 32,
+        debugReadback: true,
+      });
+      const zcForcedBytes = await capturePresented(
+        device,
+        zcForced.context,
+        zcForced.canvasFormat,
+        zcForcedFrame.renderWidth,
+        zcForcedFrame.renderHeight,
+      );
+      zcForcedPipeline.dispose();
+      zcForced.canvas.remove();
+      if (!oracle.bytesEqual(zcBytes, zcForcedBytes)) {
+        problems.push("zero-candidate edit differs from forced-full recompute (canvas bytes)");
+      }
+    }
+
+    // 6) mask scenario: editing a MASK surface takes the partial path while
+    //    the SDF pass re-runs full; the shifted maskMeta mask base and the
+    //    candidate iteration must keep the output identical to a forced full
+    //    recompute.
+    const maskBase = partialParityScene("mask-base");
+    const maskEdit = partialParityScene("mask-edit");
+    {
+      const mc = await makeRetainedCanvas();
+      const mcPipeline = new api.GpuScenePipeline(device, mc.context, mc.canvasFormat);
+      mcPipeline.render({
+        scene: maskBase.scene,
+        dpr: 1,
+        shadowOptions: maskBase.shadowOptions,
+        tileSize: 32,
+        debugReadback: true,
+      });
+      const mcFrame = mcPipeline.render({
+        scene: maskEdit.scene,
+        dpr: 1,
+        shadowOptions: maskEdit.shadowOptions,
+        tileSize: 32,
+        debugReadback: true,
+      });
+      if (mcFrame.planning.mode !== "partial") {
+        problems.push(
+          `mask edit planned ${mcFrame.planning.mode}/${mcFrame.planning.reason} (expected partial)`,
+        );
+      }
+      const mcBytes = await capturePresented(
+        device,
+        mc.context,
+        mc.canvasFormat,
+        mcFrame.renderWidth,
+        mcFrame.renderHeight,
+      );
+      mcPipeline.dispose();
+      mc.canvas.remove();
+      const mcForced = await makeRetainedCanvas();
+      const mcForcedPipeline = new api.GpuScenePipeline(device, mcForced.context, mcForced.canvasFormat);
+      const mcForcedFrame = mcForcedPipeline.render({
+        scene: maskEdit.scene,
+        dpr: 1,
+        shadowOptions: maskEdit.shadowOptions,
+        tileSize: 32,
+        debugReadback: true,
+      });
+      const mcForcedBytes = await capturePresented(
+        device,
+        mcForced.context,
+        mcForced.canvasFormat,
+        mcForcedFrame.renderWidth,
+        mcForcedFrame.renderHeight,
+      );
+      mcForcedPipeline.dispose();
+      mcForced.canvas.remove();
+      if (!oracle.bytesEqual(mcBytes, mcForcedBytes)) {
+        problems.push("mask edit differs from forced-full recompute (canvas bytes)");
       }
     }
   } catch (error) {
@@ -2050,8 +2263,8 @@ async function runTileBenchmark(device) {
           dirtyTexels: plan.dirtyTexels,
           dispatchTexels: plan.dispatchTexels,
           totalTexels: plan.totalTexels,
-          candidates: plan.estimatedCandidateSurfaceCount,
-          culled: plan.estimatedCulledSurfaceCount,
+          candidates: plan.candidateSurfaceCount,
+          culled: plan.culledSurfaceCount,
           fullMedian,
           partialMedian,
           binningMs: plan.planningHostMs,

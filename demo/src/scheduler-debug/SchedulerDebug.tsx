@@ -16,7 +16,7 @@ import type {
  * scheduler and the #32 conservative tile planner. Every button triggers a
  * different invalidation class and the panel shows the dirty reasons,
  * executed/skipped passes, the PARTIAL/FULL planning report (tile grid,
- * dirty tile/texel counts, ESTIMATED candidate/culled surfaces, decision
+ * dirty tile/texel counts, ACTUAL candidate/culled surfaces, decision
  * and reason, binning overhead) and allocations/uploaded bytes/dispatches/
  * wall-clock host timings of the last frame plus cumulative totals.
  *
@@ -25,9 +25,12 @@ import type {
  * a human can see exactly which region the scheduler recomputed.
  *
  * All durations are labeled HOST ms (wall clock around the host-side device
- * calls); no GPU timestamps are fabricated. The ESTIMATED candidate/culled
- * surface counts are diagnostics: the compute passes still iterate every
- * surface (the in-shader ABI-bounds check is the actual per-texel culling).
+ * calls); no GPU timestamps are fabricated. The candidate/culled counts are
+ * ACTUAL for the height composition stage: on a partial frame the compose
+ * shaders iterate ONLY the band's candidate ORIGINAL surface indices
+ * (packed into the reused maskMeta buffer); culled surfaces are genuinely
+ * excluded from the per-texel loops. The normal/shadow/lighting stages
+ * perform no per-texel surface iteration.
  */
 
 interface SceneCfg {
@@ -140,7 +143,7 @@ function planToLines(planning: PartialPlanReport): string[] {
     `decision: ${planning.mode} (${planning.reason})`,
     `tile ${planning.tileSize}px grid: ${planning.dirtyTileCount}/${planning.totalTileCount} dirty tiles`,
     `dirty ${planning.dirtyTexels} / dispatch ${planning.dispatchTexels} / total ${planning.totalTexels} texels`,
-    `estimated candidates ${planning.estimatedCandidateSurfaceCount} / culled ${planning.estimatedCulledSurfaceCount}`,
+    `actual candidates ${planning.candidateSurfaceCount} / culled ${planning.culledSurfaceCount}`,
     `binning overhead ${planning.planningHostMs.toFixed(3)} host ms (separate from GPU work)`,
   ];
 }

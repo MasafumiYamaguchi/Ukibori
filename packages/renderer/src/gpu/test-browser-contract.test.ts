@@ -403,9 +403,19 @@ describe("parity.mjs — #32 partial/full parity and scheduler counters", () => 
     expect(paritySource).toContain("a small edit must dispatch fewer workgroups");
     expect(paritySource).toContain("frameMove.planning.dispatchTexels > frameMove.planning.totalTexels * 0.5");
     expect(paritySource).toContain("partial frame reported zero dirty tiles/texels");
-    // the ESTIMATED culling counts are diagnostics, never a claim of reduced
-    // GPU surface work (the passes still iterate every surface)
-    expect(paritySource).toContain("estimatedCandidateSurfaceCount");
+    // the ACTUAL height-stage culling counts: the compose shaders genuinely
+    // iterate ONLY the candidate ORIGINAL indices on a partial frame
+    expect(paritySource).toContain("candidateSurfaceCount");
+    expect(paritySource).toContain("partial height field differs from forced-full (culled compose)");
+    expect(paritySource).toContain("partial objectId field differs from forced-full (owner identity)");
+  });
+
+  it("covers the zero-candidate deletion and mask partial scenarios", () => {
+    expect(paritySource).toContain("zero-candidate partial: deleting an isolated surface");
+    expect(paritySource).toContain("zcFrame.planning.candidateSurfaceCount !== 0");
+    expect(paritySource).toContain("zero-candidate edit differs from forced-full recompute");
+    expect(paritySource).toContain("mask scenario: editing a MASK surface");
+    expect(paritySource).toContain("mask edit differs from forced-full recompute (canvas bytes)");
   });
 
   it("requires partial output to equal a forced-full recompute byte-for-byte", () => {
