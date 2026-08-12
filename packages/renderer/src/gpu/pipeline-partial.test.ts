@@ -6,6 +6,7 @@ import { computeFrameKey } from "./dirty";
 import type { FrameKey } from "./dirty";
 import { planPartialScene } from "./tiles";
 import { PARTIAL_DISPATCH_RATIO } from "./tiles";
+import { MASK_META_FULL_SENTINEL } from "./height-pass-wgsl";
 import type {
   GpuBindGroupEntryLike,
   GpuBindGroupLayoutLike,
@@ -297,12 +298,18 @@ function uniformWrites(device: MockFullDevice) {
     new DataView(w.bytes.buffer, w.bytes.byteOffset, w.bytes.byteLength);
   return {
     // 16 bytes, totalMaskCells 0 at 0, workgroupSize 64 at 4 (maskMeta is
-    // all-zero, lighting has the ambient f32 at 0)
+    // all-zero except element 0 / candidate bin; lighting has the ambient
+    // f32 at 0)
     height: all.filter(
       (w) =>
         w.bytes.byteLength === 16 &&
         view(w).getUint32(0, true) === 0 &&
         view(w).getUint32(4, true) === WORKGROUP,
+    ),
+    // #32 maskMeta: 16 bytes with the sentinel/count at 0 and NO
+    // workgroupSize at 4 (the height uniform carries 64 there)
+    maskMeta: all.filter(
+      (w) => w.bytes.byteLength === 16 && view(w).getUint32(4, true) !== WORKGROUP,
     ),
     // 32 bytes, width 100 at 12, workgroupSize 64 at 20 (the presentation
     // uniform is also 32 bytes but carries composite bytes there)
@@ -366,10 +373,26 @@ describe("GpuScenePipeline — #32 partial/full planning and band dispatch", () 
     expect(stats.planning.dirtyTileCount).toBeGreaterThan(0);
     expect(stats.planning.dirtyTileCount).toBeLessThan(stats.planning.totalTileCount);
     expect(stats.planning.dirtyTexels).toBeGreaterThan(0);
-    expect(stats.planning.estimatedCandidateSurfaceCount).toBeGreaterThan(0);
+    expect(stats.planning.candidateSurfaceCount).toBeGreaterThan(0);
     expect(
-      stats.planning.estimatedCandidateSurfaceCount + stats.planning.estimatedCulledSurfaceCount,
+      stats.planning.candidateSurfaceCount + stats.planning.culledSurfaceCount,
     ).toBe(3);
+    // the candidates are ACTUAL for the height stage: ORIGINAL surface
+    // indices, unique, ascending, covering the whole dispatch band, and
+    // genuinely packed into the reused maskMeta buffer for the compose
+    // shaders (count at element 0, indices from element 1)
+    expect(stats.planning.candidateIndices.length).toBe(stats.planning.candidateSurfaceCount);
+    expect(stats.planning.candidateIndices).toEqual(
+      [...stats.planning.candidateIndices].sort((a, b) => a - b),
+    );
+    const maskMetaView = new DataView(uniformWrites(device).maskMeta.at(-1)!.bytes.buffer);
+    expect(maskMetaView.getUint32(0, true)).toBe(stats.planning.candidateSurfaceCount);
+    for (let i = 0; i < stats.planning.candidateIndices.length; i++) {
+      expect(maskMetaView.getUint32((1 + i) * 4, true)).toBe(stats.planning.candidateIndices[i]);
+    }
+    // the full frame's maskMeta carried the sentinel (identity iteration)
+    const fullMeta = new DataView(uniformWrites(device).maskMeta[0].bytes.buffer);
+    expect(fullMeta.getUint32(0, true)).toBe(MASK_META_FULL_SENTINEL);
     // the deterministic coverage threshold governs the decision
     expect(stats.planning.dispatchTexels).toBeLessThanOrEqual(
       stats.planning.totalTexels * PARTIAL_DISPATCH_RATIO,
@@ -552,5 +575,41 @@ describe("GpuScenePipeline — #32 partial/full planning and band dispatch", () 
     expect(pipeline.getSnapshot().heightPass.lastDispatch.workgroupCountX).toBe(
       Math.ceil(TOTAL_TEXELS / WORKGROUP),
     );
+  });
+
+  it("handles a zero-candidate partial band: the compose clears it with count 0", () => {
+    // surfaces: a (silicone top), d (matte top anchor), b + c (lower,
+    // deleted). The anchor keeps the material table stable; deleting b and c
+    // leaves a dirty band with NO remaining surface footprint.
+    const zeroBase = createScene({
+      width: 100,
+      height: 200,
+      surfaces: [
+        { id: "a", position: { x: 10, y: 10 }, size: { x: 40, y: 30 }, elevation: 2, thickness: 2, shape: { kind: "roundedRect", radius: 0 }, profile: { kind: "flat" }, material: "silicone", castsShadow: true, receivesShadow: true },
+        { id: "d", position: { x: 80, y: 20 }, size: { x: 10, y: 10 }, elevation: 0, thickness: 1, shape: { kind: "roundedRect", radius: 0 }, profile: { kind: "flat" }, material: "matte", castsShadow: false, receivesShadow: true },
+        { id: "b", position: { x: 60, y: 140 }, size: { x: 20, y: 20 }, elevation: 1, thickness: 1, shape: { kind: "roundedRect", radius: 0 }, profile: { kind: "flat" }, material: "matte", castsShadow: true, receivesShadow: true },
+        { id: "c", position: { x: 10, y: 160 }, size: { x: 10, y: 10 }, elevation: 0, thickness: 1, shape: { kind: "roundedRect", radius: 0 }, profile: { kind: "flat" }, material: "matte", castsShadow: false, receivesShadow: true },
+      ],
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+    });
+    const zeroOptions = { maxDistance: 15, stepSize: 0.5, bias: 0.5 };
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: zeroBase, dpr: 1, shadowOptions: zeroOptions, tileSize: 32 });
+    const edited = createScene({
+      ...zeroBase,
+      surfaces: [zeroBase.surfaces[0], zeroBase.surfaces[1]],
+    });
+    const stats = pipeline.render({ scene: edited, dpr: 1, shadowOptions: zeroOptions, tileSize: 32 });
+    expect(stats.planning.mode).toBe("partial");
+    expect(stats.planning.candidateIndices).toEqual([]);
+    expect(stats.planning.candidateSurfaceCount).toBe(0);
+    expect(stats.planning.culledSurfaceCount).toBe(2);
+    // the height pass still dispatches the band with a ZERO-count bin: the
+    // compose shaders write cleared/background outputs without iterating
+    expect(pipeline.getSnapshot().heightPass.lastDispatch.workgroupCountX).toBeLessThan(
+      Math.ceil(TOTAL_TEXELS / WORKGROUP),
+    );
+    const maskMetaView = new DataView(uniformWrites(device).maskMeta.at(-1)!.bytes.buffer);
+    expect(maskMetaView.getUint32(0, true)).toBe(0);
   });
 });

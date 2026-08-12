@@ -15,8 +15,8 @@ import {
   TILE_SIZE_MAX,
   TILE_SIZE_MIN,
   bandForDirtyRect,
+  binSurfaceIndices,
   bytesEqual,
-  candidateCounts,
   clampTileSize,
   computeTileGrid,
   diffEncodedScenes,
@@ -524,11 +524,11 @@ describe("#32 partial/full policy", () => {
       surfaces: [{ ...BASE_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, BASE_SCENE.surfaces![1]!, BASE_SCENE.surfaces![2]!],
     };
     const result = plan(BASE_SCENE, next, 32, 1);
-    expect(result.estimatedCandidateSurfaceCount).toBeGreaterThan(0);
-    expect(result.estimatedCandidateSurfaceCount + result.estimatedCulledSurfaceCount).toBe(3);
+    expect(result.candidateSurfaceCount).toBeGreaterThan(0);
+    expect(result.candidateSurfaceCount + result.culledSurfaceCount).toBe(3);
     // the distant constant surface is culled while the edited one is a candidate
-    expect(result.estimatedCandidateSurfaceCount).toBe(1);
-    expect(result.estimatedCulledSurfaceCount).toBe(2);
+    expect(result.candidateSurfaceCount).toBe(1);
+    expect(result.culledSurfaceCount).toBe(2);
   });
 
   it("reports the default tile grid on no-change frames", () => {
@@ -718,14 +718,150 @@ describe("#32 exact comparisons (no hash shortcuts)", () => {
     expect(bytesEqual(new Uint8Array([1, 2]), new Uint8Array([1, 2, 0]))).toBe(false);
     expect(bytesEqual(new Uint8Array([]), new Uint8Array([]))).toBe(true);
   });
+});
 
-  it("candidateCounts is deterministic and complete", () => {
+// ---------------------------------------------------------------------------
+// ACTUAL surface binning: conservative candidate indices for the compose
+// shaders (band-scoped, original indices, deterministic)
+// ---------------------------------------------------------------------------
+
+describe("#32 binSurfaceIndices — conservative candidate bins", () => {
+  it("bins ORIGINAL indices whose footprint intersects the rect, deterministically", () => {
     const bytes = encodeScene(scene(), 1).bytes;
-    const dirty = { x: 9, y: 9, width: 42, height: 32 }; // surface a's footprint
-    const counts = candidateCounts(bytes, dirty, 1, 100, 200);
-    expect(counts.estimatedCandidateSurfaceCount).toBe(1);
-    expect(counts.estimatedCulledSurfaceCount).toBe(2);
-    const again = candidateCounts(bytes, dirty, 1, 100, 200);
-    expect(again).toEqual(counts);
+    // surface a (10,10)-(50,40) footprint 9..51 x 9..41; b (60,140)-(80,160);
+    // c (10,160)-(20,170)
+    const band = { x: 0, y: 32, width: 100, height: 32 }; // rows 32..63
+    const indices = binSurfaceIndices(bytes, band, 1, 100, 200);
+    expect(indices).toEqual([0]); // only a's footprint overlaps rows 32..63
+    const lower = binSurfaceIndices(bytes, { x: 0, y: 128, width: 100, height: 23 }, 1, 100, 200);
+    expect(lower).toEqual([1]); // b at 139..159 only (c starts at 159..171)
+    const bottom = binSurfaceIndices(bytes, { x: 0, y: 161, width: 100, height: 39 }, 1, 100, 200);
+    expect(bottom).toEqual([2]); // c at 158..171 only (b ends at 160)
+    // identical inputs -> identical bins
+    expect(binSurfaceIndices(bytes, band, 1, 100, 200)).toEqual(indices);
+  });
+
+  it("returns an empty bin for a rect no surface footprint touches", () => {
+    const bytes = encodeScene(scene(), 1).bytes;
+    expect(binSurfaceIndices(bytes, { x: 0, y: 0, width: 100, height: 8 }, 1, 100, 200)).toEqual([]);
+  });
+
+  it("a band bin is a superset of any narrow dirty-rect bin inside it", () => {
+    const bytes = encodeScene(scene(), 1).bytes;
+    const band = { x: 0, y: 128, width: 100, height: 64 };
+    const dirty = { x: 59, y: 139, width: 22, height: 22 };
+    const bandIndices = binSurfaceIndices(bytes, band, 1, 100, 200);
+    const dirtyIndices = binSurfaceIndices(bytes, dirty, 1, 100, 200);
+    expect(dirtyIndices).toEqual([1]);
+    for (const index of dirtyIndices) {
+      expect(bandIndices).toContain(index);
+    }
+  });
+
+  it("exposes the ACTUAL band candidates on a partial plan and every index on a full plan", () => {
+    const next = {
+      ...BASE_SCENE,
+      surfaces: [
+        { ...BASE_SCENE.surfaces![0]!, position: { x: 12, y: 11 } },
+        BASE_SCENE.surfaces![1]!,
+        BASE_SCENE.surfaces![2]!,
+      ],
+    };
+    const partial = planPartialScene({
+      prevBytes: encodeScene(scene(BASE_SCENE), 1).bytes,
+      nextBytes: encodeScene(scene(next), 1).bytes,
+      dpr: 1,
+      renderWidth: 100,
+      renderHeight: 200,
+      shadowOptions: smallShadowOptions,
+      tileSize: 32,
+    });
+    expect(partial.mode).toBe("partial");
+    // the candidates are ORIGINAL indices (never reindexed) covering the
+    // whole dispatch band, and the counts are actual (the height compose
+    // shaders iterate exactly this list)
+    expect(partial.candidateIndices.length).toBeGreaterThan(0);
+    for (const index of partial.candidateIndices) {
+      expect(Number.isInteger(index)).toBe(true);
+      expect(index).toBeGreaterThanOrEqual(0);
+      expect(index).toBeLessThan(3);
+    }
+    expect(partial.candidateIndices).toEqual([...partial.candidateIndices].sort((a, b) => a - b));
+    expect(partial.candidateSurfaceCount).toBe(partial.candidateIndices.length);
+    expect(partial.culledSurfaceCount).toBe(3 - partial.candidateIndices.length);
+    // the band candidates include every surface that could own a band texel:
+    // the CPU owner of any band texel is either NO_OWNER or a candidate
+    const band = { x: 0, y: partial.band!.y0, width: 100, height: partial.band!.y1 - partial.band!.y0 + 1 };
+    const s = scene(next);
+    for (let ty = band.y; ty < band.y + band.height; ty++) {
+      for (let tx = band.x; tx < band.x + band.width; tx++) {
+        const sx = tx + 0.5;
+        const sy = ty + 0.5;
+        let owner = NO_OWNER;
+        let best = 0;
+        for (let i = 0; i < s.surfaces.length; i++) {
+          const h = Math.fround(surfaceHeight(s.surfaces[i], sx, sy));
+          if (Number.isFinite(h) && h >= 0 && (h > best || h === best)) {
+            best = h;
+            owner = i;
+          }
+        }
+        if (owner !== NO_OWNER) {
+          expect(partial.candidateIndices).toContain(owner);
+        }
+      }
+    }
+    // a full plan carries every original index
+    const full = planPartialScene({
+      prevBytes: encodeScene(scene(BASE_SCENE), 1).bytes,
+      nextBytes: encodeScene(scene(BASE_SCENE), 1).bytes,
+      dpr: 1,
+      renderWidth: 100,
+      renderHeight: 200,
+      shadowOptions: smallShadowOptions,
+      tileSize: 32,
+    });
+    expect(full.mode).toBe("full");
+    expect(full.candidateIndices).toEqual([0, 1, 2]);
+    expect(full.candidateSurfaceCount).toBe(3);
+    expect(full.culledSurfaceCount).toBe(0);
+  });
+
+  it("handles a zero-candidate partial band (isolated surface deletion)", () => {
+    // deleting both lower surfaces leaves a dirty band with NO remaining
+    // surface footprint: the plan stays partial with an EMPTY candidate bin.
+    // The matte anchor sits BEFORE the deleted surfaces in array order, so
+    // its record index is stable and the material table keeps matte.
+    const base = createScene({
+      width: 100,
+      height: 200,
+      surfaces: [
+        { id: "a", position: { x: 10, y: 10 }, size: { x: 40, y: 30 }, elevation: 2, thickness: 2, shape: { kind: "roundedRect", radius: 0 }, profile: { kind: "flat" }, material: "silicone", castsShadow: true, receivesShadow: true },
+        { id: "d", position: { x: 80, y: 20 }, size: { x: 10, y: 10 }, elevation: 0, thickness: 1, shape: { kind: "roundedRect", radius: 0 }, profile: { kind: "flat" }, material: "matte", castsShadow: false, receivesShadow: true },
+        { id: "b", position: { x: 60, y: 140 }, size: { x: 20, y: 20 }, elevation: 1, thickness: 1, shape: { kind: "roundedRect", radius: 0 }, profile: { kind: "flat" }, material: "matte", castsShadow: true, receivesShadow: true },
+        { id: "c", position: { x: 10, y: 160 }, size: { x: 10, y: 10 }, elevation: 0, thickness: 1, shape: { kind: "roundedRect", radius: 0 }, profile: { kind: "flat" }, material: "matte", castsShadow: false, receivesShadow: true },
+      ],
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+    });
+    const edited = createScene({
+      ...base,
+      surfaces: [base.surfaces[0], base.surfaces[1]],
+    });
+    const plan = planPartialScene({
+      prevBytes: encodeScene(base, 1).bytes,
+      nextBytes: encodeScene(edited, 1).bytes,
+      dpr: 1,
+      renderWidth: 100,
+      renderHeight: 200,
+      shadowOptions: { maxDistance: 15, stepSize: 0.5, bias: 0.5 },
+      tileSize: 32,
+    });
+    expect(plan.mode).toBe("partial");
+    expect(plan.dirtyTexels).toBeGreaterThan(0);
+    // the deletion band (rows 128..191) contains no remaining surface: the
+    // compose shaders must clear it without iterating any surface
+    expect(plan.candidateIndices).toEqual([]);
+    expect(plan.candidateSurfaceCount).toBe(0);
+    expect(plan.culledSurfaceCount).toBe(2);
   });
 });

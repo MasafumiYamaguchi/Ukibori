@@ -87,12 +87,16 @@ import type { ShadowOptions } from "../shadow";
  * measured by the pipeline as host wall-clock `planningHostMs` and reported
  * separately from GPU work.
  *
- * The `estimatedCandidateSurfaceCount` / `estimatedCulledSurfaceCount`
- * fields are ESTIMATED diagnostics, not a promise of reduced GPU work: the
- * compute passes still bind and iterate every surface record (the real
- * per-texel culling is the in-shader ABI-bounds check inside the compose
- * shaders). A surface is "estimated candidate" when its conservative texel
- * footprint intersects the dirty rect; the rest are "estimated culled".
+ * The `candidateSurfaceCount` / `culledSurfaceCount` fields are ACTUAL for
+ * the height composition stage: `candidateIndices` lists the ORIGINAL
+ * surface indices the compose shaders genuinely iterate on a partial frame
+ * (surfaces whose conservative texel footprint intersects the dispatch
+ * band — the whole band is overwritten, so the band, not the narrow dirty
+ * rect, is the binning region). Culled surfaces are genuinely excluded
+ * from the per-texel compose loops. The normal/shadow/lighting stages
+ * perform no per-texel surface iteration at all. On full frames every
+ * surface is a candidate (the compose shaders iterate all original
+ * indices).
  */
 
 /** Default tile size (texels) — explicit, bounded, configurable. */
@@ -197,13 +201,20 @@ export interface PartialPlan {
   readonly dispatchTexels: number;
   readonly totalTexels: number;
   /**
-   * ESTIMATED (diagnostics only — the passes still iterate every surface;
-   * the in-shader ABI-bounds check is the actual per-texel culling):
-   * surfaces whose footprint intersects the dirty rect.
+   * ACTUAL for the height composition stage: ORIGINAL surface indices the
+   * compose shaders genuinely iterate on a partial frame (surfaces whose
+   * conservative footprint intersects the dispatch band). Full frames carry
+   * every index (`0..surfaceCount-1`). Empty on a zero-candidate band (the
+   * compose shaders then write the cleared/background outputs directly).
    */
-  readonly estimatedCandidateSurfaceCount: number;
-  /** ESTIMATED: surfaces fully outside the dirty rect. */
-  readonly estimatedCulledSurfaceCount: number;
+  readonly candidateIndices: readonly number[];
+  /**
+   * ACTUAL for the height composition stage: `candidateIndices.length`
+   * (== surfaceCount on full frames).
+   */
+  readonly candidateSurfaceCount: number;
+  /** ACTUAL: surfaces genuinely excluded from the compose loops. */
+  readonly culledSurfaceCount: number;
   /** the true 2D dirty texel rect (with all halos), clipped; null on full plans without a region */
   readonly dirtyRect: TileRect | null;
   /** the conservative dispatch band; non-null exactly when mode === "partial" */
@@ -614,10 +625,21 @@ export function diffEncodedScenes(prev: Uint8Array, next: Uint8Array): SceneDiff
 /**
  * The full deterministic partial/full decision for one frame. See the
  * module docs for the halo rules and the documented coverage threshold.
+ *
+ * `candidateIndices` are ACTUAL for the height composition stage and are
+ * derived from the DISPATCH BAND (not the narrow dirty rect): the band's
+ * texels are all overwritten by the compose passes, so every surface whose
+ * conservative footprint intersects the band must be iterated. Full frames
+ * carry the identity list `0..surfaceCount-1` (the compose shaders use the
+ * full-frame sentinel and iterate all original indices).
  */
 export function planPartialScene(input: PlanPartialInput): PartialPlan {
   const grid = computeTileGrid(input.renderWidth, input.renderHeight, input.tileSize);
   const totalTexels = input.renderWidth * input.renderHeight;
+  const header = parseHeader(input.nextBytes);
+  const allIndices = Array.from({ length: header.surfaceCount }, (_, i) => i);
+  const candidatesFor = (rect: TileRect): readonly number[] =>
+    binSurfaceIndices(input.nextBytes, rect, input.dpr, input.renderWidth, input.renderHeight);
   const base: PartialPlan = {
     mode: "full",
     reason: "no-scene-change",
@@ -627,8 +649,9 @@ export function planPartialScene(input: PlanPartialInput): PartialPlan {
     dirtyTexels: 0,
     dispatchTexels: totalTexels,
     totalTexels,
-    estimatedCandidateSurfaceCount: 0,
-    estimatedCulledSurfaceCount: 0,
+    candidateIndices: allIndices,
+    candidateSurfaceCount: header.surfaceCount,
+    culledSurfaceCount: 0,
     dirtyRect: null,
     band: null,
   };
@@ -639,7 +662,6 @@ export function planPartialScene(input: PlanPartialInput): PartialPlan {
   if (diff.dirtySceneRect === null) {
     return base;
   }
-  const header = parseHeader(input.nextBytes);
   const sceneDiagonal = Math.hypot(
     header.renderWidth / header.dpr,
     header.renderHeight / header.dpr,
@@ -664,20 +686,11 @@ export function planPartialScene(input: PlanPartialInput): PartialPlan {
   const dispatchTexels = input.renderWidth * (band.y1 - band.y0 + 1);
   const dirtyTexels = dirtyRect.width * dirtyRect.height;
   const coverage = dispatchTexels / totalTexels;
-  const { estimatedCandidateSurfaceCount, estimatedCulledSurfaceCount } = candidateCounts(
-    input.nextBytes,
-    dirtyRect,
-    input.dpr,
-    input.renderWidth,
-    input.renderHeight,
-  );
   const withDiagnostics: PartialPlan = {
     ...base,
     dirtyTileCount: dirtyTiles.length,
     dirtyTexels,
     dispatchTexels,
-    estimatedCandidateSurfaceCount,
-    estimatedCulledSurfaceCount,
     dirtyRect,
   };
   if (dispatchTexels >= totalTexels || coverage > PARTIAL_DISPATCH_RATIO) {
@@ -688,36 +701,53 @@ export function planPartialScene(input: PlanPartialInput): PartialPlan {
       band: null,
     };
   }
+  // ACTUAL height-stage culling: the compose passes overwrite the WHOLE
+  // band, so candidates are binned against the band rect (a zero-candidate
+  // band — e.g. an isolated surface deletion — stays partial: the compose
+  // shaders write the cleared/background outputs directly).
+  const candidateIndices = candidatesFor({
+    x: 0,
+    y: band.y0,
+    width: input.renderWidth,
+    height: band.y1 - band.y0 + 1,
+  });
   return {
     ...withDiagnostics,
     mode: "partial",
     reason: `band ${band.y0}..${band.y1} coverage ${coverage.toFixed(3)}`,
+    candidateIndices,
+    candidateSurfaceCount: candidateIndices.length,
+    culledSurfaceCount: header.surfaceCount - candidateIndices.length,
     band,
   };
 }
 
-/** Candidates (footprint intersects the dirty rect) vs culled surfaces. */
-export function candidateCounts(
+/**
+ * Deterministic conservative surface binning: the ORIGINAL surface indices
+ * whose conservative texel footprint (cell overlap + PROFILE_HALO_TEXELS,
+ * clipped) intersects `rect`, in ascending index order. This is the
+ * candidate list the height compose passes genuinely iterate on a partial
+ * frame; every other surface is culled (its footprint cannot cover any
+ * texel of `rect`, so no band texel can depend on it).
+ */
+export function binSurfaceIndices(
   bytes: Uint8Array,
-  dirtyRect: TileRect,
+  rect: TileRect,
   dpr: number,
   renderWidth: number,
   renderHeight: number,
-): { readonly estimatedCandidateSurfaceCount: number; readonly estimatedCulledSurfaceCount: number } {
+): number[] {
   const header = parseHeader(bytes);
   const surfacesOffset = HEADER_SIZE;
-  let candidates = 0;
+  const out: number[] = [];
   for (let i = 0; i < header.surfaceCount; i++) {
     const record = bytes.subarray(surfacesOffset + i * SURFACE_STRIDE, surfacesOffset + (i + 1) * SURFACE_STRIDE);
     const footprint = surfaceTexelFootprint(record, dpr, renderWidth, renderHeight);
-    if (footprint !== null && texelRectsOverlap(footprint, dirtyRect)) {
-      candidates += 1;
+    if (footprint !== null && texelRectsOverlap(footprint, rect)) {
+      out.push(i);
     }
   }
-  return {
-    estimatedCandidateSurfaceCount: candidates,
-    estimatedCulledSurfaceCount: header.surfaceCount - candidates,
-  };
+  return out;
 }
 
 /** True when two clipped texel rects share at least one texel. */

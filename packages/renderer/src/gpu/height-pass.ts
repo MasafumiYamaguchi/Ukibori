@@ -23,6 +23,8 @@ import {
   COMPOSE_MATERIAL_ID_WGSL,
   COMPOSE_OBJECT_ID_WGSL,
   HEIGHT_PASS_PARAMS_BYTE_LENGTH,
+  MASK_META_CANDIDATE_BASE,
+  MASK_META_FULL_SENTINEL,
   MASK_META_STRIDE,
   MASK_SDF_WGSL,
   WORKGROUP_SIZE,
@@ -414,6 +416,8 @@ export class HeightPass {
   private readonly allocationSizes = new Map<AllocationName, number>();
   private readonly uniformBytes = new Uint8Array(HEIGHT_PASS_PARAMS_BYTE_LENGTH);
   private maskMetaBytes = new Uint8Array(MIN_PASS_ALLOCATION_BYTES);
+  /** logical byte length of the CURRENT frame's maskMeta layout */
+  private maskMetaLogicalBytes = MIN_PASS_ALLOCATION_BYTES;
   private newAllocations = 0;
   private lastDispatch: HeightPassLastDispatch | null = null;
   private lastDpr = 0;
@@ -437,11 +441,19 @@ export class HeightPass {
    * (they are retained by the scheduler). The band is bounds-safe by
    * construction (it never exceeds the render extent). `undefined` keeps
    * the historical full-frame behavior byte-for-byte.
+   *
+   * `options.candidates` (#32) is the ACTUAL conservative culling bin: the
+   * ORIGINAL surface indices the compose passes iterate on a partial
+   * frame, packed into the reused `maskMeta` buffer (element 0 = count,
+   * elements 1..count = original indices; `null` packs the full-frame
+   * sentinel and the shaders iterate every original index). A zero-length
+   * list is legal (a zero-candidate band — the shaders write the
+   * cleared/background outputs without iterating).
    */
   dispatch(
     scene: EncodedScene,
     bindings: SceneBindings,
-    options?: { readonly region?: BandRegion },
+    options?: { readonly region?: BandRegion; readonly candidates?: readonly number[] },
   ): HeightPassDispatchStats {
     const validation = validateEncodedScene(scene.bytes);
     if (!validation.ok || validation.header === undefined) {
@@ -456,6 +468,17 @@ export class HeightPass {
     }
     const layout = sceneSectionLayout(header);
     this.assertDispatchInput(header, layout, bindings);
+    // #32 ACTUAL surface culling: the candidate bin is only meaningful with
+    // a partial dispatch region (the sentinel covers full frames), and must
+    // be unique, strictly ascending, valid ORIGINAL surface indices.
+    const region = assertBandRegion(options?.region, header.renderHeight);
+    const candidates = this.assertCandidates(options?.candidates, header.surfaceCount);
+    if (candidates !== null && region === null) {
+      throw new Error(
+        "candidate surface indices require a partial dispatch region: full frames " +
+          "use the maskMeta sentinel and iterate every original index",
+      );
+    }
     const { offsets: maskOffsets, workspaceBytes } = this.readMaskWorkspaceOffsets(
       scene.bytes,
       header,
@@ -465,7 +488,6 @@ export class HeightPass {
     const texelCount = header.renderWidth * header.renderHeight;
     // #32 region dispatch: the compose passes cover only the band rows; the
     // SDF pass (mask workspace generation) always runs in full.
-    const region = assertBandRegion(options?.region, header.renderHeight);
     const bandRows = region === null ? header.renderHeight : region.y1 - region.y0 + 1;
     const bandTexels = header.renderWidth * bandRows;
     const yOffset = region === null ? 0 : region.y0 * header.renderWidth;
@@ -476,14 +498,21 @@ export class HeightPass {
     const composeWorkgroups = ceilDiv(bandTexels, WORKGROUP_SIZE);
     const sdfWorkgroups = totalMaskCells > 0 ? ceilDiv(totalMaskCells, WORKGROUP_SIZE) : 0;
     this.assertDeviceLimits(composeWorkgroups, sdfWorkgroups);
-    this.ensureAllocations(maskOffsets.length, texelCount, totalMaskCells);
+    this.ensureAllocations(maskOffsets.length, header.surfaceCount, texelCount, totalMaskCells);
 
     this.packUniform(totalMaskCells, yOffset, regionEnd);
-    this.packMaskMeta(maskOffsets);
+    this.packMaskMeta(maskOffsets, header.surfaceCount, candidates);
     const uniform = this.allocation("uniform");
     const maskMeta = this.allocation("maskMeta");
     this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
-    this.device.queue.writeBuffer(maskMeta, 0, this.maskMetaBytes);
+    // write only the logical bytes (the reusable buffer may be larger than
+    // this frame's 1 + surfaceCount + maskCount layout; the zero-fill in
+    // packMaskMeta keeps every freshly-written element deterministic)
+    this.device.queue.writeBuffer(
+      maskMeta,
+      0,
+      this.maskMetaBytes.subarray(0, this.maskMetaLogicalBytes),
+    );
 
     const cached = this.ensurePipelines();
     const sceneGroup = this.createSceneBindGroup(bindings, cached.sceneLayout);
@@ -715,12 +744,15 @@ export class HeightPass {
 
   private ensureAllocations(
     maskCount: number,
+    surfaceCount: number,
     texelCount: number,
     totalMaskCells: number,
   ): void {
     const workspaceBytes = totalMaskCells * 4;
     const texelBytes = texelCount * 4;
-    const maskMetaBytes = maskCount * MASK_META_STRIDE;
+    // #32 layout: element 0 (sentinel/count) + candidate elements
+    // 1..1+surfaceCount + mask workspace offsets at 1+surfaceCount+i
+    const maskMetaBytes = (MASK_META_CANDIDATE_BASE + surfaceCount + maskCount) * MASK_META_STRIDE;
     this.assertAllocationWithinLimits(HEIGHT_PASS_PARAMS_BYTE_LENGTH, "params uniform");
     if (!Number.isSafeInteger(maskMetaBytes) || maskMetaBytes > U32_MAX) {
       throw new Error(`mask meta allocation of ${maskMetaBytes} bytes exceeds u32 (${U32_MAX})`);
@@ -735,7 +767,7 @@ export class HeightPass {
     );
     this.ensureAllocation(
       "maskMeta",
-      Math.max(maskCount * MASK_META_STRIDE, MASK_META_STRIDE),
+      Math.max(maskMetaBytes, MASK_META_STRIDE),
       GPU_USAGE_STORAGE | GPU_USAGE_COPY_DST,
     );
     this.ensureAllocation("maskWorkspace", workspaceBytes, GPU_USAGE_STORAGE | GPU_USAGE_COPY_SRC);
@@ -795,16 +827,80 @@ export class HeightPass {
     view.setUint32(12, regionEnd, true);
   }
 
-  private packMaskMeta(offsets: readonly number[]): void {
-    const byteLength = Math.max(offsets.length * MASK_META_STRIDE, MIN_PASS_ALLOCATION_BYTES);
+  /**
+   * #32 pack the reused maskMeta buffer: element 0 = full-frame sentinel or
+   * the partial candidate count; elements `1..1+count` = the candidate
+   * ORIGINAL surface indices (zeroed on full frames); the per-mask
+   * workspace byte offsets at the fixed base `1 + surfaceCount`. The buffer
+   * is zero-filled BEFORE packing, so stale bytes from a larger previous
+   * frame can never be read: the shaders only access element 0, elements
+   * `< 1 + candidateCount`, and the current mask offsets at
+   * `1 + surfaceCount + i` — every one freshly written here.
+   */
+  private packMaskMeta(
+    offsets: readonly number[],
+    surfaceCount: number,
+    candidates: readonly number[] | null,
+  ): void {
+    const byteLength = Math.max(
+      (MASK_META_CANDIDATE_BASE + surfaceCount + offsets.length) * MASK_META_STRIDE,
+      MIN_PASS_ALLOCATION_BYTES,
+    );
     if (this.maskMetaBytes.byteLength < byteLength) {
       this.maskMetaBytes = new Uint8Array(byteLength);
     }
+    this.maskMetaLogicalBytes = byteLength;
     this.maskMetaBytes.fill(0);
     const view = new DataView(this.maskMetaBytes.buffer);
-    for (let i = 0; i < offsets.length; i++) {
-      view.setUint32(i * MASK_META_STRIDE, offsets[i], true);
+    if (candidates === null) {
+      view.setUint32(0, MASK_META_FULL_SENTINEL, true);
+    } else {
+      view.setUint32(0, candidates.length, true);
+      for (let i = 0; i < candidates.length; i++) {
+        view.setUint32((MASK_META_CANDIDATE_BASE + i) * MASK_META_STRIDE, candidates[i], true);
+      }
     }
+    const maskBase = MASK_META_CANDIDATE_BASE + surfaceCount;
+    for (let i = 0; i < offsets.length; i++) {
+      view.setUint32((maskBase + i) * MASK_META_STRIDE, offsets[i], true);
+    }
+  }
+
+  /**
+   * #32 validate the candidate bin: a `null`/`undefined` list packs the
+   * full-frame sentinel; a provided list must contain valid ORIGINAL
+   * surface indices in strict ascending order (deterministic, no
+   * duplicates). An EMPTY list is legal (a zero-candidate band — the
+   * compose shaders write the cleared/background outputs directly).
+   */
+  private assertCandidates(
+    candidates: readonly number[] | undefined,
+    surfaceCount: number,
+  ): readonly number[] | null {
+    if (candidates === undefined || candidates === null) {
+      return null;
+    }
+    let previous = -1;
+    for (let i = 0; i < candidates.length; i++) {
+      const index = candidates[i];
+      if (!Number.isInteger(index) || index < 0 || index >= surfaceCount) {
+        throw new RangeError(
+          `candidate surface index ${index} out of range 0..${surfaceCount - 1}`,
+        );
+      }
+      if (i > 0 && index <= previous) {
+        throw new RangeError(
+          "candidate surface indices must be strictly ascending and unique",
+        );
+      }
+      previous = index;
+    }
+    if (candidates.length > surfaceCount) {
+      throw new RangeError(
+        `candidate count ${candidates.length} exceeds surfaceCount ${surfaceCount}`,
+      );
+    }
+    return candidates;
   }
 
   // -- pipelines and bind groups --------------------------------------------

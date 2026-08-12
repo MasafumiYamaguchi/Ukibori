@@ -31,6 +31,7 @@ import {
   COMPOSE_MATERIAL_ID_WGSL,
   COMPOSE_OBJECT_ID_WGSL,
   HEIGHT_PASS_PARAMS_BYTE_LENGTH,
+  MASK_META_FULL_SENTINEL,
   MASK_META_STRIDE,
   MASK_SDF_WGSL,
   WORKGROUP_SIZE,
@@ -757,8 +758,9 @@ describe("HeightPass — validation and rejection", () => {
   });
 
   it("validates maskMeta allocation bytes before ensureAllocation", () => {
-    // 1025 one-pixel masks: maskMeta needs 4100 bytes > the 4096-byte limit;
-    // the mask-meta check runs before the workspace/output checks
+    // 1025 one-pixel masks + 1025 surfaces: the #32 maskMeta layout needs
+    // (1 + 1025 surfaces + 1025 masks) * 4 = 8204 bytes > the 4096-byte
+    // limit; the mask-meta check runs before the workspace/output checks
     const surfaces: Scene["surfaces"] = [];
     for (let i = 0; i < 1025; i++) {
       surfaces.push({
@@ -780,7 +782,7 @@ describe("HeightPass — validation and rejection", () => {
     const encoded = encodeScene(createScene({ width: 100, height: 80, surfaces }), 1);
     uploader.upload(encoded);
     expect(() => pass.dispatch(encoded, uploader.getBindings())).toThrow(
-      /mask meta allocation of 4100 bytes exceeds device limits/,
+      /mask meta allocation of 8204 bytes exceeds device limits/,
     );
     expect(mock.created).toHaveLength(5);
   });
@@ -846,14 +848,108 @@ describe("HeightPass — output snapshot", () => {
     const view = new DataView(uniformWrite.bytes.buffer);
     expect(view.getUint32(0, true)).toBe(16); // totalMaskCells (4x4 padded)
     expect(view.getUint32(4, true)).toBe(WORKGROUP_SIZE);
-    expect(view.getUint32(8, true)).toBe(0); // pad
-    expect(view.getUint32(12, true)).toBe(0); // pad
+    expect(view.getUint32(8, true)).toBe(0); // yOffset (full frame)
+    expect(view.getUint32(12, true)).toBe(0); // regionEnd (full-frame sentinel)
 
+    // #32 maskMeta layout on a FULL frame: element 0 is the sentinel,
+    // elements 1..1+surfaceCount are the (zeroed) candidate bin, and the
+    // mask workspace offsets live at the fixed 1 + surfaceCount base.
     const metaWrite = passWrites[1];
-    expect(metaWrite.bytes.byteLength).toBe(16); // one mask, padded to the 16-byte floor
+    expect(metaWrite.bytes.byteLength).toBe(16); // (1 + 1 surface + 1 mask) * 4, 16-byte floor
     const meta = new DataView(metaWrite.bytes.buffer);
-    expect(meta.getUint32(0, true)).toBe(0); // mask[0] workspaceByteOffset
-    expect(meta.getUint32(4, true)).toBe(0); // pad
+    expect(meta.getUint32(0, true)).toBe(MASK_META_FULL_SENTINEL); // full-frame sentinel
+    expect(meta.getUint32(4, true)).toBe(0); // candidate element 1 (zeroed on full frames)
+    expect(meta.getUint32(8, true)).toBe(0); // mask[0] workspaceByteOffset at base 1+surfaceCount
+  });
+
+  it("packs a partial candidate bin (count + ORIGINAL indices) with the sentinel absent", () => {
+    const { mock, uploader, pass } = setup();
+    // 2 surfaces + 1 mask: maskMeta layout = [count, c0, c1, mask0 offset]
+    const encoded = encodeScene(
+      createScene({
+        width: 20,
+        height: 20,
+        surfaces: [
+          {
+            id: "r",
+            position: { x: 0, y: 0 },
+            size: { x: 5, y: 5 },
+            elevation: 0,
+            thickness: 1,
+            shape: { kind: "roundedRect", radius: 0 },
+            profile: { kind: "flat" },
+            material: "silicone",
+            castsShadow: false,
+            receivesShadow: false,
+          },
+          {
+            id: "m",
+            position: { x: 10, y: 10 },
+            size: { x: 8, y: 8 },
+            elevation: 0,
+            shape: { kind: "mask", mask: { width: 2, height: 2, alpha: new Uint8Array([0, 128, 255, 64]) } },
+            profile: { kind: "flat" },
+            material: "silicone",
+            castsShadow: false,
+            receivesShadow: false,
+          },
+        ],
+      }),
+      1,
+    );
+    uploader.upload(encoded);
+    pass.dispatch(encoded, uploader.getBindings());
+    const passBuffers = mock.created.slice(5).map((c) => c.buffer);
+    // a partial dispatch over rows 0..7 with the validated ascending bin
+    pass.dispatch(encoded, uploader.getBindings(), {
+      region: { y0: 0, y1: 7 },
+      candidates: [0, 1],
+    });
+    const metaWrite = mock.writes.filter((w) => passBuffers.includes(w.buffer)).at(-1)!;
+    expect(metaWrite.bytes.byteLength).toBe(16); // (1 + 2 surfaces + 1 mask) * 4
+    const meta = new DataView(metaWrite.bytes.buffer);
+    expect(meta.getUint32(0, true)).toBe(2); // candidate count (NOT the sentinel)
+    expect(meta.getUint32(4, true)).toBe(0); // candidate[0] == ORIGINAL index 0
+    expect(meta.getUint32(8, true)).toBe(1); // candidate[1] == ORIGINAL index 1
+    expect(meta.getUint32(12, true)).toBe(0); // mask[0] workspaceByteOffset at 1+surfaceCount
+  });
+
+  it("supports a zero-candidate partial band (count 0, cleared outputs)", () => {
+    const { mock, uploader, pass } = setup();
+    const encoded = encodeScene(simpleScene(), 1);
+    uploader.upload(encoded);
+    pass.dispatch(encoded, uploader.getBindings());
+    const passBuffers = mock.created.slice(5).map((c) => c.buffer);
+    pass.dispatch(encoded, uploader.getBindings(), {
+      region: { y0: 8, y1: 15 },
+      candidates: [],
+    });
+    const metaWrite = mock.writes.filter((w) => passBuffers.includes(w.buffer)).at(-1)!;
+    const meta = new DataView(metaWrite.bytes.buffer);
+    expect(meta.getUint32(0, true)).toBe(0); // zero candidates
+    expect(meta.getUint32(4, true)).toBe(0);
+    expect(meta.getUint32(8, true)).toBe(0);
+  });
+
+  it("rejects candidate bins that are invalid or not paired with a region", () => {
+    const { mock, uploader, pass } = setup();
+    const encoded = encodeScene(maskScene(), 1);
+    uploader.upload(encoded);
+    const bindings = uploader.getBindings();
+    const region = { y0: 0, y1: 7 };
+    expect(() =>
+      pass.dispatch(encoded, bindings, { region, candidates: [0, 0] }),
+    ).toThrow(/strictly ascending/);
+    expect(() =>
+      pass.dispatch(encoded, bindings, { region, candidates: [2] }),
+    ).toThrow(/out of range/);
+    expect(() =>
+      pass.dispatch(encoded, bindings, { region, candidates: [0, -1] }),
+    ).toThrow(/out of range/);
+    // partial candidates REQUIRE a partial region (full frames use the sentinel)
+    expect(() =>
+      pass.dispatch(encoded, bindings, { candidates: [0] }),
+    ).toThrow(/require a partial dispatch region/);
   });
 
   it("records a unique per-dispatch provenance token tied to the exact scene bytes", () => {

@@ -88,7 +88,7 @@ import { parseHeader } from "./encode";
  * band covers at most half the frame (`PARTIAL_DISPATCH_RATIO`, a
  * deterministic coverage ratio — never a timing). The per-frame
  * `planning` report exposes the decision, reason, tile/dirty counts,
- * ESTIMATED candidate/culled surfaces and the planner's own host
+ * ACTUAL height-stage candidate/culled surfaces and the planner's own host
  * wall-clock overhead.
  *
  * Each `render()` reports the invalidation reasons, the executed/skipped
@@ -184,10 +184,12 @@ export interface GpuScenePipelineFrameStats {
   readonly invalidation: InvalidationReport;
   /**
    * #32 deterministic partial/full planning report: tile size/count, dirty
-   * tile/texel counts, ESTIMATED candidate/culled surface counts (the
-   * passes still iterate every surface; the in-shader ABI-bounds check is
-   * the actual culling), the decision and its reason, and the planner's
-   * host wall-clock overhead.
+   * tile/texel counts, ACTUAL height-stage candidate/culled surface counts
+   * (on a partial frame the height compose shaders genuinely iterate only
+   * the band's candidate ORIGINAL indices via the reused maskMeta bin; the
+   * normal/shadow/lighting stages perform no per-texel surface iteration),
+   * the decision and its reason, and the planner's host wall-clock
+   * overhead.
    */
   readonly planning: PartialPlanReport;
   readonly upload: UploadStats;
@@ -372,6 +374,14 @@ export class GpuScenePipeline {
     const region: BandRegion | undefined =
       plan.mode === "partial" && plan.band !== null ? plan.band : undefined;
     const dispatchRegion = region === undefined ? undefined : { region };
+    // #32 ACTUAL height-stage culling: on a partial frame the HeightPass
+    // compose shaders iterate ONLY the band's candidate ORIGINAL surface
+    // indices (packed into the reused maskMeta buffer); on full frames the
+    // sentinel path iterates every original index.
+    const heightOptions =
+      plan.mode === "partial" && plan.band !== null
+        ? { region: plan.band, candidates: plan.candidateIndices }
+        : undefined;
     // A content-identical encoding reuses the retained bytes object so the
     // uploader bindings and the HeightPass provenance (both object-identity
     // based, #24/#28) stay valid without re-uploading. This is exactly the
@@ -412,7 +422,7 @@ export class GpuScenePipeline {
     let height: HeightPassDispatchStats;
     if (executed.has("height")) {
       const t0 = performance.now();
-      height = this.heightPass.dispatch(scene, bindings, dispatchRegion);
+      height = this.heightPass.dispatch(scene, bindings, heightOptions);
       const hostMs = performance.now() - t0;
       records.push({
         stage: "height",
@@ -608,8 +618,9 @@ export class GpuScenePipeline {
         dirtyTexels: 0,
         dispatchTexels: totalTexels,
         totalTexels,
-        estimatedCandidateSurfaceCount: 0,
-        estimatedCulledSurfaceCount: 0,
+        candidateIndices: Array.from({ length: header.surfaceCount }, (_, i) => i),
+        candidateSurfaceCount: header.surfaceCount,
+        culledSurfaceCount: 0,
         dirtyRect: null,
         band: null,
       };
