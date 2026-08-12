@@ -1,5 +1,5 @@
 export { UkiboriDom } from "./dom-layer";
-export type { UkiboriDomOptions } from "./dom-layer";
+export type { DomGpuAdapterLike, DomGpuSource, UkiboriDomOptions } from "./dom-layer";
 export { SurfaceRegistry } from "./registry";
 export type { SurfaceEntry } from "./registry";
 export { assertValidId } from "./registry";
@@ -32,9 +32,12 @@ export {
 } from "./measure";
 export type {
   CompositeOptions,
+  DomBackend,
   DomDebugState,
   DomEnvironmentState,
+  DomGpuFrameState,
   DomLightState,
+  DomRenderBackend,
   DomShadowOptions,
   DomShape,
   DomSurfaceOptions,

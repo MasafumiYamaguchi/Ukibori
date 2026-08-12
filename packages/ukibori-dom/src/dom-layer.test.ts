@@ -15,7 +15,19 @@ function makeFakeOverlay() {
   const calls: FakeCall[] = [];
   let cleared = 0;
   let disposed = false;
+  let backend: "cpu" | "webgpu" = "cpu";
   const overlay: Overlay = {
+    get activeBackend() {
+      return backend;
+    },
+    setBackend(next: "cpu" | "webgpu") {
+      backend = next;
+    },
+    gpuCanvas() {
+      const canvas = document.createElement("canvas");
+      canvas.setAttribute("data-fake-gpu-canvas", "");
+      return canvas;
+    },
     resizeAndPosition(region, dpr) {
       calls.push({ type: "resize", region: { ...region }, dpr });
     },
@@ -34,6 +46,7 @@ function makeFakeOverlay() {
     calls,
     cleared: () => cleared,
     disposed: () => disposed,
+    activeBackend: () => backend,
   };
 }
 
@@ -910,6 +923,16 @@ describe("UkiboriDom — DOM integration", () => {
     expect(document.body.getAttribute("data-ukibori-stage")).toBe("");
     layer.dispose();
     expect(document.body.getAttribute("data-ukibori-stage")).toBeNull();
+  });
+
+  it("allows a late unregister after dispose", () => {
+    const layer = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
+    layer.register(button, BUTTON_OPTIONS);
+
+    layer.dispose();
+
+    expect(() => layer.unregister("primary")).not.toThrow();
+    expect(button.getAttribute("data-ukibori-surface")).toBeNull();
   });
 
   it("preserves a pre-existing app-owned stage attribute", () => {

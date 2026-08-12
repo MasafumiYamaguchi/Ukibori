@@ -3,11 +3,19 @@ import {
   DEFAULT_ENVIRONMENT_SHARE,
   DEFAULT_EXPOSURE,
   DEFAULT_LIGHT_DIRECTION,
+  GpuScenePipeline,
   composeSdfHeightField,
   lightScene,
   normalizeVec3,
 } from "ukibori-renderer";
-import type { HostBuffer, LightingBuffers, Material } from "ukibori-renderer";
+import type {
+  GpuCanvasContextLike,
+  GpuPipelineDeviceLike,
+  GpuScenePipelineFrameStats,
+  HostBuffer,
+  LightingBuffers,
+  Material,
+} from "ukibori-renderer";
 import { computeRegion, sanitizeDpr, scaleShadowOptions } from "./coords";
 import { compositeSurfaceImage } from "./compositor";
 import { geometriesEqual, measureSurfaceElement } from "./measure";
@@ -17,8 +25,10 @@ import { SurfaceRegistry, assertValidId } from "./registry";
 import { buildScene } from "./scene-builder";
 import type {
   CompositeOptions,
+  DomBackend,
   DomDebugState,
   DomEnvironmentState,
+  DomGpuFrameState,
   DomLightState,
   DomShadowOptions,
   DomSurfaceOptions,
@@ -51,9 +61,51 @@ import type {
  * - light / intensity / environment / exposure / materials updates: scene dirty
  *
  * All invalidation coalesces through a single rAF-throttled `render()`.
+ *
+ * ## Backends
+ *
+ * The SYNCHRONOUS constructor is always the CPU reference path (existing
+ * tests/compatibility contract) and never touches `navigator.gpu`. The ASYNC
+ * `UkiboriDom.create()` path additionally wires the #29/#31
+ * `GpuScenePipeline` when `backend` is `"auto"` (WebGPU first, honest CPU
+ * fallback) or `"webgpu"` (WebGPU only; throws when unavailable). On the GPU
+ * path the pipeline presents DIRECTLY to the overlay's dedicated WebGPU
+ * canvas — no readback, no 2D copy, no host pixel copies — while the overlay
+ * RETAINS its separate Canvas2D canvas so a GPU init/render/device-loss
+ * failure can switch ONCE to the CPU path without acquiring incompatible
+ * contexts on the same canvas. The fallback is never retried; the reason is
+ * reported in `debugState().gpuFallbackReason` (and to `onError` on render
+ * failure).
  */
 
+/**
+ * The minimal GPU adapter surface the layer needs (structural: the real
+ * `GPUAdapter` satisfies it; the cast happens at the `navigator.gpu`
+ * boundary, mirroring the renderer's own harness casts). A test seam can
+ * supply a mock instead of `navigator.gpu`.
+ */
+export interface DomGpuAdapterLike {
+  requestDevice(): Promise<GpuPipelineDeviceLike & { destroy?: () => void }>;
+}
+
+/**
+ * GPU acquisition source: the `navigator.gpu`-equivalent surface used by the
+ * async backend paths. Tests inject a fake via `options.gpu`.
+ */
+export interface DomGpuSource {
+  requestAdapter(): Promise<DomGpuAdapterLike | null>;
+  getPreferredCanvasFormat(): "rgba8unorm" | "bgra8unorm";
+}
+
 export interface UkiboriDomOptions {
+  /** backend policy for the ASYNC `UkiboriDom.create()` path (default
+   * "auto"). The synchronous constructor is always CPU: it never touches
+   * `navigator.gpu`, `"webgpu"` throws there (async creation is required),
+   * and `"auto"` there means the constructor alone will not attempt the GPU
+   * (call `create()` for the GPU-capable lifecycle). */
+  backend?: DomBackend;
+  /** test seam replacing `navigator.gpu` on the async GPU paths */
+  gpu?: DomGpuSource;
   light?: Partial<DomLightState>;
   /** shared environment illumination (#22): uniform, intensity 0 = off; the
    * diffuse/specular shares independently zero out each term */
@@ -116,6 +168,7 @@ export class UkiboriDom {
   private readonly overlay: Overlay;
   private readonly scheduler: (cb: () => void) => void;
   private readonly onError: (error: unknown) => void;
+  private readonly gpuSource: DomGpuSource;
   private margin: number;
   private dprSource: number | (() => number) | undefined;
   private compositeOptions: CompositeOptions;
@@ -134,6 +187,15 @@ export class UkiboriDom {
   private sceneDirty = true;
   private forceRender = true;
 
+  /** the #29/#31 pipeline while the WebGPU path is active (null = CPU path) */
+  private gpuPipeline: GpuScenePipeline | null = null;
+  /** Device requested by this layer, therefore also owned and destroyed by it. */
+  private gpuDevice: (GpuPipelineDeviceLike & { destroy?: () => void }) | null = null;
+  /** one-shot GPU attempt: a fallback is never retried (honest "switch once") */
+  private gpuAttempted = false;
+  private gpuFallbackReason: string | null = null;
+  private lastGpuFrame: DomGpuFrameState | null = null;
+
   private lastRegion: { x: number; y: number; w: number; h: number } | null = null;
   private lastDpr = 1;
   private lastRenderSize: { width: number; height: number } | null = null;
@@ -142,6 +204,12 @@ export class UkiboriDom {
   private lastObjectId: HostBuffer | null = null;
 
   constructor(options: UkiboriDomOptions = {}) {
+    if (options.backend === "webgpu") {
+      throw new TypeError(
+        "UkiboriDom: the synchronous constructor is CPU-only; WebGPU requires the async UkiboriDom.create() path",
+      );
+    }
+    this.gpuSource = options.gpu ?? defaultGpuSource();
     this.registry = new SurfaceRegistry();
     this.scheduler = options.schedule ?? defaultScheduler;
     this.onError = options.onError ?? ((error) => console.error(error));
@@ -227,6 +295,126 @@ export class UkiboriDom {
   }
 
   /**
+   * ASYNC creation/initialization path (the GPU-capable lifecycle; React
+   * `Ukibori` uses this for backend auto/cpu/webgpu).
+   *
+   * - `"cpu"`: the CPU reference path; `navigator.gpu` is never touched.
+   * - `"auto"` (default): a real `navigator.gpu` adapter/device is requested
+   *   and, when available, the `GpuScenePipeline` presents DIRECTLY to the
+   *   overlay's WebGPU canvas (no readback, no 2D copy). Any GPU failure
+   *   (unavailable adapter/device, missing webgpu context, render error,
+   *   device loss) switches ONCE to the honest CPU path; the reason stays
+   *   visible in `debugState().gpuFallbackReason`.
+   * - `"webgpu"`: WebGPU only — throws when the GPU path cannot initialize
+   *   (an explicit request is never silently downgraded).
+   */
+  static async create(options: UkiboriDomOptions = {}): Promise<UkiboriDom> {
+    const backend = options.backend ?? "auto";
+    if (backend === "cpu") {
+      return new UkiboriDom(options);
+    }
+    // The synchronous constructor is CPU-only by contract; enable the GPU
+    // through the async path here.
+    const layer = new UkiboriDom({ ...options, backend: "cpu" });
+    const ok = await layer.tryEnableWebGpu();
+    if (!ok && backend === "webgpu") {
+      const reason = layer.gpuFallbackReason ?? "unknown GPU initialization failure";
+      layer.dispose();
+      throw new Error(`UkiboriDom: WebGPU requested but unavailable (${reason})`);
+    }
+    return layer;
+  }
+
+  /** Request the WebGPU adapter/device and wire the `GpuScenePipeline`.
+   * Never throws: every failure is recorded as `gpuFallbackReason` and the
+   * layer stays on the CPU path. One-shot: after an attempt (success or
+   * failure) later calls return the cached outcome — a GPU fallback is never
+   * retried. */
+  private async tryEnableWebGpu(): Promise<boolean> {
+    if (this.gpuAttempted) {
+      return this.gpuPipeline !== null;
+    }
+    this.gpuAttempted = true;
+    try {
+      const adapter = await this.gpuSource.requestAdapter();
+      if (adapter === null) {
+        throw new Error("no WebGPU adapter available");
+      }
+      const device = await adapter.requestDevice();
+      const canvas = this.overlay.gpuCanvas();
+      const context = canvas.getContext("webgpu") as unknown as GpuCanvasContextLike | null;
+      if (context === null) {
+        throw new Error("WebGPU canvas context unavailable");
+      }
+      const canvasFormat = this.gpuSource.getPreferredCanvasFormat();
+      const pipeline = new GpuScenePipeline(device, context, canvasFormat);
+      this.gpuDevice = device;
+      this.gpuPipeline = pipeline;
+      this.gpuFallbackReason = null;
+      // Device loss fails the pipeline closed; switch once to CPU and
+      // re-render through the retained CPU canvas.
+      void device.lost.then(
+        () => {
+          this.onGpuDeviceLost();
+        },
+        () => {
+          this.onGpuDeviceLost();
+        },
+      );
+      this.overlay.setBackend("webgpu");
+      return true;
+    } catch (error) {
+      this.gpuFallbackReason = describeError(error);
+      this.disposeGpuResources();
+      this.overlay.setBackend("cpu");
+      return false;
+    }
+  }
+
+  /** The one-time GPU -> CPU switch (device loss or a failing render). After
+   * this, every render stays on the CPU path; the GPU pipeline is disposed
+   * and its resources released. `forceRender` guarantees the immediately
+   * scheduled re-render ignores the retained skip (the CPU canvas must be
+   * painted to replace the lost GPU frame). */
+  private onGpuDeviceLost(): void {
+    if (this.gpuPipeline === null || this.disposed) {
+      return;
+    }
+    this.gpuFallbackReason = "WebGPU device lost";
+    this.disposeGpuResources();
+    this.overlay.setBackend("cpu");
+    this.forceRender = true;
+    this.scheduleRender();
+  }
+
+  private disposeGpuResources(): void {
+    const pipeline = this.gpuPipeline;
+    const device = this.gpuDevice;
+    // Clear these first: destroying a real GPUDevice resolves `device.lost`,
+    // whose callback must see that the layer has already switched away.
+    this.gpuPipeline = null;
+    this.gpuDevice = null;
+    if (pipeline !== null) {
+      try {
+        pipeline.dispose();
+      } catch {
+        // disposal must never mask the primary outcome
+      }
+    }
+    try {
+      device?.destroy?.();
+    } catch {
+      // disposal must never mask the primary outcome
+    }
+    this.lastGpuFrame = null;
+  }
+
+  /** Honest reason WebGPU is not in use (null when the GPU path is active). */
+  debugGpuFallbackReason(): string | null {
+    return this.gpuFallbackReason;
+  }
+
+  /**
    * Register a DOM element as a Ukibori surface (mount). The element's own
    * background/shadow are suppressed via the managed `data-ukibori-surface`
    * attribute (stylesheet rule) and revealed again on `unregister`.
@@ -266,7 +454,12 @@ export class UkiboriDom {
 
   /** Remove a registered surface (unmount) and reveal its own styles. */
   unregister(id: string): void {
-    this.throwIfDisposed();
+    // React may dispose the provider before a child surface runs its passive
+    // cleanup. dispose() has already restored and cleared every surface, so a
+    // late unregister is an idempotent no-op rather than an application error.
+    if (this.disposed) {
+      return;
+    }
     const entry = this.registry.remove(id);
     if (entry === undefined) {
       return;
@@ -421,8 +614,12 @@ export class UkiboriDom {
 
   /**
    * Synchronous retained render: re-measure dirty nodes, skip when nothing
-   * changed, otherwise rebuild the scene (geometry + light + DPR), render via
-   * the CPU backend and composite onto the overlay.
+   * changed, otherwise rebuild the scene (geometry + light + DPR) and render
+   * through the ACTIVE backend — the `GpuScenePipeline` presenting directly
+   * to the WebGPU canvas when available, otherwise the CPU reference pipeline
+   * composited onto the Canvas2D canvas. A GPU render failure switches ONCE
+   * to the CPU path (recorded in `gpuFallbackReason`) and re-renders the same
+   * frame through it.
    */
   render(): void {
     if (this.disposed) {
@@ -461,11 +658,15 @@ export class UkiboriDom {
 
     const region = computeRegion(this.registry.measuredBoxes(), this.margin);
     if (region === null) {
+      // Nothing to render: show the cleared (transparent) CPU canvas and hide
+      // any WebGPU canvas — the GPU pipeline itself stays alive for reuse.
+      this.overlay.setBackend("cpu");
       this.overlay.clear();
       this.lastRegion = null;
       this.lastRenderSize = null;
       this.lastBuffers = null;
       this.lastObjectId = null;
+      this.lastGpuFrame = null;
       this.sceneDirty = false;
       this.lastRenderMs = performance.now() - startedAt;
       return;
@@ -473,7 +674,6 @@ export class UkiboriDom {
 
     const dpr = this.currentDpr();
     let scene: ReturnType<typeof buildScene>;
-    let buffers: LightingBuffers;
     try {
       scene = buildScene({
         registry: this.registry,
@@ -484,10 +684,87 @@ export class UkiboriDom {
         exposure: this.exposure,
         materials: this.materials,
       });
+    } catch (error) {
+      this.onError(error);
+      this.lastRenderMs = performance.now() - startedAt;
+      return;
+    }
+
+    const painted =
+      this.gpuPipeline !== null
+        ? this.renderGpuScene(scene, region, dpr, startedAt)
+        : this.renderCpuScene(scene, region, dpr, startedAt);
+    if (!painted) {
+      // the failure was already reported (or the GPU->CPU switch already
+      // re-rendered the frame); nothing was painted, so keep the previous
+      // committed state
+      return;
+    }
+
+    this.lastRegion = region;
+    this.lastDpr = dpr;
+    this.sceneDirty = false;
+    this.lastRenderMs = performance.now() - startedAt;
+  }
+
+  /**
+   * GPU frame path: drive the retained `GpuScenePipeline` end to end. The
+   * pipeline uploads the encoded scene, runs the compute chain and presents
+   * DIRECTLY to the overlay's WebGPU canvas — no readback and no 2D copy. A
+   * thrown stage (validation/device failure) switches ONCE to the CPU path
+   * and re-renders the same frame through it.
+   */
+  private renderGpuScene(
+    scene: ReturnType<typeof buildScene>,
+    region: { x: number; y: number; w: number; h: number },
+    dpr: number,
+    startedAt: number,
+  ): boolean {
+    try {
+      const pipeline = this.gpuPipeline!;
+      const stats: GpuScenePipelineFrameStats = pipeline.render({
+        scene,
+        dpr,
+        shadowOptions: scaleShadowOptions(this.shadowOptions, dpr),
+        lightingOptions: undefined,
+        compositeOptions: this.compositeOptions,
+      });
+      this.overlay.setBackend("webgpu");
+      this.overlay.resizeAndPosition(region, dpr);
+      this.lastGpuFrame = { frame: stats, hostRenderMs: performance.now() - startedAt };
+      this.lastBuffers = null;
+      this.lastObjectId = null;
+      this.lastRenderSize = { width: stats.renderWidth, height: stats.renderHeight };
+      return true;
+    } catch (error) {
+      // GPU path failed: switch once to CPU (never retried) and re-render
+      // the same frame through the retained Canvas2D canvas.
+      this.gpuFallbackReason = describeError(error);
+      this.onError(error);
+      this.disposeGpuResources();
+      this.overlay.setBackend("cpu");
+      return this.renderCpuScene(scene, region, dpr, startedAt);
+    }
+  }
+
+  /**
+   * CPU frame path (the reference implementation): compose the height field
+   * once for the ownership buffer, shade, composite and paint onto the
+   * Canvas2D canvas. The intermediate host buffers stay available for debug
+   * views (`debugBuffers` / `debugObjectId`).
+   */
+  private renderCpuScene(
+    scene: ReturnType<typeof buildScene>,
+    region: { x: number; y: number; w: number; h: number },
+    dpr: number,
+    startedAt: number,
+  ): boolean {
+    let buffers: LightingBuffers;
+    try {
       // Compose the height field once for the ownership buffer (#18 objectId);
       // `lightScene` re-runs the same composition internally for its shading
       // passes, so the two are guaranteed consistent. This CPU double-compose
-      // is the reference implementation cost; a backend (#21) can merge them.
+      // is the reference implementation cost; the GPU backend merges them.
       const composed = composeSdfHeightField(scene);
       // The scene is the dpr-scaled similarity image of the CSS-space scene;
       // shadow lengths must be mapped through the same transform (the
@@ -499,7 +776,7 @@ export class UkiboriDom {
     } catch (error) {
       this.onError(error);
       this.lastRenderMs = performance.now() - startedAt;
-      return;
+      return false;
     }
 
     const image = compositeSurfaceImage(
@@ -511,23 +788,25 @@ export class UkiboriDom {
       this.compositeOptions,
     );
 
+    this.overlay.setBackend("cpu");
     this.overlay.resizeAndPosition(region, dpr);
     this.overlay.paint(image);
 
-    this.lastRegion = region;
-    this.lastDpr = dpr;
     this.lastRenderSize = { width: image.width, height: image.height };
     this.lastBuffers = buffers;
-    this.sceneDirty = false;
-    this.lastRenderMs = performance.now() - startedAt;
+    this.lastGpuFrame = null;
+    return true;
   }
 
-  /** Intermediate renderer buffers from the last render (debug views). */
+  /** Intermediate renderer buffers from the last CPU render (debug views).
+   * Always null on the WebGPU path: the GPU frame never makes host pixel
+   * copies, so there is nothing honest to expose. */
   debugBuffers(): LightingBuffers | null {
     return this.lastBuffers;
   }
 
-  /** Owning-surface buffer (#18 objectId) from the last render (debug views). */
+  /** Owning-surface buffer (#18 objectId) from the last CPU render (debug
+   * views). Always null on the WebGPU path (no host copies). */
   debugObjectId(): HostBuffer | null {
     return this.lastObjectId;
   }
@@ -555,10 +834,14 @@ export class UkiboriDom {
       dpr: this.lastDpr,
       lastRenderMs: this.lastRenderMs,
       renderSize: this.lastRenderSize === null ? null : { ...this.lastRenderSize },
+      backend: this.gpuPipeline !== null ? "webgpu" : "cpu",
+      gpuFallbackReason: this.gpuFallbackReason,
+      gpuFrame: this.lastGpuFrame,
     };
   }
 
-  /** Remove the overlay, disconnect observers and reveal all surface styles. */
+  /** Remove the overlay, disconnect observers, dispose the GPU pipeline and
+   * reveal all surface styles. */
   dispose(): void {
     if (this.disposed) {
       return;
@@ -573,6 +856,7 @@ export class UkiboriDom {
     }
     this.resizeObserver?.disconnect();
     this.mutationObserver?.disconnect();
+    this.disposeGpuResources();
     for (const entry of this.registry.entries()) {
       restoreSurface(entry.element);
     }
@@ -643,4 +927,31 @@ function sanitizeShare(v: number | undefined): number {
     return DEFAULT_ENVIRONMENT_SHARE;
   }
   return v < 0 ? 0 : v > 1 ? 1 : v;
+}
+
+/**
+ * The real `navigator.gpu` acquisition surface. The GPU objects are cast at
+ * this boundary (the renderer's own harness-cast convention): the real
+ * `GPUAdapter`/`GPUDevice` structurally satisfy the narrow `DomGpuSource` /
+ * `GpuPipelineDeviceLike` surfaces. When `navigator.gpu` is missing the
+ * source simply reports no adapter, which makes the "auto" path fall back to
+ * CPU with an honest reason.
+ */
+function defaultGpuSource(): DomGpuSource {
+  const gpu = typeof navigator === "undefined" ? undefined : (navigator as { gpu?: DomGpuSource }).gpu;
+  if (gpu === undefined) {
+    return {
+      async requestAdapter(): Promise<DomGpuAdapterLike | null> {
+        return null;
+      },
+      getPreferredCanvasFormat(): "rgba8unorm" | "bgra8unorm" {
+        return "rgba8unorm";
+      },
+    };
+  }
+  return gpu;
+}
+
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

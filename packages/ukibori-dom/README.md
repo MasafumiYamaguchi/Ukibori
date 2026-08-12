@@ -180,8 +180,13 @@ becomes measurable again.
   should be registered inside the stage element (`overlay.stage`); surfaces
   outside it still render geometrically, but opaque ancestors between the
   stage and such a surface can hide its physical layer.
-- The initial implementation renders the full scene on the CPU backend;
-  WebGPU / region-scoped updates are backend work (#21).
+- The synchronous constructor renders on the CPU reference path. The ASYNC
+  `UkiboriDom.create()` path (`backend: "auto"`) additionally wires the
+  #29/#31 `GpuScenePipeline`: WebGPU adapter/device are requested first and
+  the pipeline presents DIRECTLY to the overlay's WebGPU canvas (no readback,
+  no 2D copy). Any GPU init/render/device-loss failure switches ONCE to the
+  retained CPU canvas (`debugState().backend` / `gpuFallbackReason` /
+  `gpuFrame` expose the honest state; fallbacks are never retried).
 
 ## Verification
 

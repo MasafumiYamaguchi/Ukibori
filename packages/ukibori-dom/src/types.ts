@@ -1,4 +1,4 @@
-import type { HeightProfile, MaskSource, Vec3 } from "ukibori-renderer";
+import type { GpuScenePipelineFrameStats, HeightProfile, MaskSource, Vec3 } from "ukibori-renderer";
 
 /**
  * #20 DOM integration layer — public types.
@@ -154,6 +154,43 @@ export interface DomShadowOptions {
   bias?: number;
 }
 
+/**
+ * Backend policy for the ASYNC `UkiboriDom.create()` path:
+ *
+ * - `"auto"` (default): WebGPU adapter/device are requested first; when they
+ *   succeed, the #29/#31 `GpuScenePipeline` presents DIRECTLY to the overlay's
+ *   WebGPU canvas (no readback, no 2D copy). Any init/render/device-loss
+ *   failure switches ONCE to the honest CPU path (never retried) and records
+ *   the reason in `DomDebugState.gpuFallbackReason`.
+ * - `"cpu"`: the CPU reference path only; `navigator.gpu` is never touched.
+ * - `"webgpu"`: WebGPU only. `UkiboriDom.create()` throws when the GPU path
+ *   cannot be initialized (an explicit request is never silently downgraded).
+ *
+ * The SYNCHRONOUS constructor is always CPU (existing tests/compatibility
+ * contract): passing `"webgpu"` there throws, and `"auto"` there means
+ * "CPU now, GPU never requested by the constructor itself" — the GPU path
+ * requires the async `create()`.
+ */
+export type DomBackend = "cpu" | "webgpu" | "auto";
+
+/** The ACTUAL backend of the current render path (honest, post-fallback). */
+export type DomRenderBackend = "cpu" | "webgpu";
+
+/**
+ * Host-side state of the last GPU-presented frame (debug/profiling signal).
+ *
+ * All timings inside `frame` are WALL-CLOCK HOST measurements — the
+ * `GpuScenePipeline` never fabricates GPU timestamps (`queue.onSubmittedWorkDone()`
+ * completion is never claimed). `hostRenderMs` is the whole dom-layer
+ * `render()` call that produced the frame.
+ */
+export interface DomGpuFrameState {
+  /** the full structured per-frame pipeline stats of the last GPU render */
+  readonly frame: GpuScenePipelineFrameStats;
+  /** host wall-clock ms of the whole dom-layer render() that produced the frame */
+  readonly hostRenderMs: number;
+}
+
 /** Snapshot of the layer's internal state for debugging / tests. */
 export interface DomDebugState {
   /** number of registered (non-removed) surfaces */
@@ -168,4 +205,17 @@ export interface DomDebugState {
   lastRenderMs: number;
   /** width/height texels of the last render target */
   renderSize: { width: number; height: number } | null;
+  /**
+   * ACTUAL backend of the current render path — "cpu" after any GPU
+   * init/render/device-loss fallback (a fallback is never silently retried).
+   * Browser tests use this to prove gpu vs cpu.
+   */
+  backend: DomRenderBackend;
+  /** honest reason WebGPU is not in use; null when `backend === "webgpu"` */
+  gpuFallbackReason: string | null;
+  /**
+   * Last GPU frame's structured pipeline stats + host timing; null on the
+   * CPU path. Never contains host copies of GPU pixels.
+   */
+  gpuFrame: DomGpuFrameState | null;
 }
