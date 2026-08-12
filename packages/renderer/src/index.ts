@@ -311,6 +311,23 @@ export type {
   PresentationPassSnapshot,
   PresentationPassStats,
 } from "./gpu/presentation-pass";
+export {
+  ALL_STAGES,
+  REASON_STAGES,
+  computeFrameKey,
+  computeInvalidationReasons,
+  fingerprintBytes,
+  reportInvalidations,
+  stagesForReasons,
+} from "./gpu/dirty";
+export type {
+  FrameKey,
+  InvalidationReason,
+  InvalidationReport,
+  PipelineStage,
+} from "./gpu/dirty";
+export { GpuPipelineProfiler } from "./gpu/profiler";
+export type { CumulativeProfile, FrameProfile, ProfilerStageRecord } from "./gpu/profiler";
 export { GpuScenePipeline } from "./gpu/pipeline";
 export type {
   GpuPipelineDeviceLike,
