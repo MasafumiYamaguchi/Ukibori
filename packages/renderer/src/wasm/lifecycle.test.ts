@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { HostBuffer, byteLength } from "../buffer";
 import { computeNormals } from "../lighting";
-import { WasmNormalKernel, decodeDefaultModule } from "./kernel";
+import { WasmNormalKernel, decodeDefaultModule, resetKernelLoadCache } from "./kernel";
 import { DEFAULT_KERNEL_CACHE_KEY } from "./kernel";
 
 /**
@@ -34,25 +34,81 @@ async function expectAbort(promise: Promise<unknown>): Promise<void> {
   }
 }
 
-describe("#33 WASM kernel — concurrent loads and retry", () => {
-  it("deduplicates concurrent loads with the same cache key", async () => {
+describe("#33 WASM kernel — concurrent loads, dedup and ownership", () => {
+  it("concurrent loads share compilation but yield independent instances", async () => {
     const [a, b] = await Promise.all([
       WasmNormalKernel.load({ cacheKey: "dedup-a" }),
       WasmNormalKernel.load({ cacheKey: "dedup-a" }),
     ]);
-    expect(a).toBe(b);
+    // dedup covers the expensive compile; each owner gets its own instance
+    expect(a).not.toBe(b);
+    // disposing one owner never invalidates the other
+    a.dispose();
+    const result = await b.computeNormals(validField(8, 6), 8, 6, {});
+    expect(result.normal.length).toBe(8 * 6 * 3);
+    b.dispose();
   });
 
-  it("keeps distinct instances for distinct cache keys", async () => {
+  it("keeps distinct compilation leases for distinct cache keys", async () => {
     const a = await WasmNormalKernel.load({ cacheKey: "distinct-a" });
     const b = await WasmNormalKernel.load({ cacheKey: "distinct-b" });
     expect(a).not.toBe(b);
   });
 
-  it("reuses the cached instance across sequential loads", async () => {
+  it("sequential loads share the compiled module but stay independent", async () => {
     const a = await WasmNormalKernel.load({ cacheKey: "sequential" });
     const b = await WasmNormalKernel.load({ cacheKey: "sequential" });
-    expect(a).toBe(b);
+    expect(a).not.toBe(b);
+    // both are usable simultaneously (two live owners)
+    await Promise.all([
+      a.computeNormals(validField(8, 6), 8, 6, {}),
+      b.computeNormals(validField(8, 6), 8, 6, {}),
+    ]);
+  });
+
+  it("the compiled module persists independently of instances; reload reuses it (no recompile)", async () => {
+    const key = "persist-module";
+    const compileSpy = vi.spyOn(WebAssembly, "compile");
+    try {
+      const a = await WasmNormalKernel.load({ cacheKey: key });
+      const compiledOnce = compileSpy.mock.calls.length;
+      expect(compiledOnce).toBeGreaterThan(0);
+      a.dispose();
+      // another owner with the same key: no new compile (persistent cache)
+      const b = await WasmNormalKernel.load({ cacheKey: key });
+      expect(b).not.toBe(a);
+      expect(compileSpy.mock.calls.length).toBe(compiledOnce);
+      b.dispose();
+      // even after ALL owners disposed, the compiled module stays cached
+      const c = await WasmNormalKernel.load({ cacheKey: key });
+      expect(compileSpy.mock.calls.length).toBe(compiledOnce);
+      const result = await c.computeNormals(validField(4, 4), 4, 4, {});
+      expect(result.normal.length).toBe(4 * 4 * 3);
+      c.dispose();
+      // an explicit reset invalidates the cache: the next load recompiles
+      resetKernelLoadCache();
+      const d = await WasmNormalKernel.load({ cacheKey: key });
+      expect(compileSpy.mock.calls.length).toBe(compiledOnce + 1);
+      d.dispose();
+    } finally {
+      compileSpy.mockRestore();
+    }
+  });
+
+  it("ownership regression: two live owners, one disposed, the other keeps working", async () => {
+    const [a, b] = await Promise.all([
+      WasmNormalKernel.load({ cacheKey: "ownership" }),
+      WasmNormalKernel.load({ cacheKey: "ownership" }),
+    ]);
+    const field = validField(16, 16);
+    const first = await a.computeNormals(field, 16, 16, {});
+    a.dispose();
+    // b is untouched by a's disposal
+    const second = await b.computeNormals(field, 16, 16, {});
+    expect(Array.from(second.normal)).toEqual(Array.from(first.normal));
+    // a rejects new work after its own disposal
+    await expect(a.computeNormals(field, 16, 16, {})).rejects.toThrow(/disposed/);
+    b.dispose();
   });
 
   it("a failed load is retryable and does not poison later attempts", async () => {
@@ -64,6 +120,7 @@ describe("#33 WASM kernel — concurrent loads and retry", () => {
     const field = validField(8, 6);
     const result = await good.computeNormals(field, 8, 6, {});
     expect(result.normal.length).toBe(8 * 6 * 3);
+    good.dispose();
   });
 
   it("rejects modules with a wrong ABI at load time", async () => {
@@ -210,11 +267,14 @@ describe("#33 WASM kernel — disposal", () => {
     ).rejects.toThrow(/disposed/);
   });
 
-  it("disposal of a shared instance releases the cache for the next caller", async () => {
+  it("disposal of one owner leaves the default-key lease usable for another", async () => {
     const a = await WasmNormalKernel.load({ cacheKey: DEFAULT_KERNEL_CACHE_KEY });
-    a.dispose();
     const b = await WasmNormalKernel.load({ cacheKey: DEFAULT_KERNEL_CACHE_KEY });
-    expect(b).not.toBe(a);
+    a.dispose();
+    // b (a different owner) is unaffected
+    const result = await b.computeNormals(validField(4, 4), 4, 4, {});
+    expect(result.normal.length).toBe(4 * 4 * 3);
+    b.dispose();
   });
 });
 

@@ -202,4 +202,28 @@ describe("#33 WasmCpuPipeline — cancellation and disposal", () => {
     expect(result.color.spec.width).toBe(32);
     fresh.dispose();
   });
+
+  it("ownership regression: two pipelines, dispose one, the other stays usable", async () => {
+    const { pipeline: first } = await buildPipeline();
+    const { pipeline: second } = await buildPipeline();
+    // both render fine concurrently (independent kernel instances)
+    const [a, b] = await Promise.all([
+      first.render({ scene: scene() }),
+      second.render({ scene: scene() }),
+    ]);
+    expect(a.wasmStages.normal).toBe("wasm");
+    expect(b.wasmStages.normal).toBe("wasm");
+    // disposing the FIRST pipeline must not invalidate the second
+    first.dispose();
+    const c = await second.render({ scene: scene() });
+    expect(c.color.spec.width).toBe(32);
+    // the disposed pipeline rejects new work
+    await expect(first.render({ scene: scene() })).rejects.toThrow(/disposed/);
+    second.dispose();
+    // after ALL owners dispose, a fresh pipeline reloads and works
+    const fresh = await WasmCpuPipeline.load();
+    const d = await fresh.render({ scene: scene() });
+    expect(d.color.spec.width).toBe(32);
+    fresh.dispose();
+  });
 });

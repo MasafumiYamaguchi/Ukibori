@@ -157,11 +157,40 @@ function oracleNormals(field: Float32Array, width: number, height: number): Floa
   return out;
 }
 
-// Cached decision per module identity (the checked-in module by default).
-const selectionCache = new Map<string, Promise<WasmSelectionReport>>();
+/**
+ * Cached DECISION (kernel-free) per module identity: the selection rules,
+ * probe timing and parity evidence. The kernel is deliberately NOT cached —
+ * every caller of `selectWasmBackend` receives its OWN live kernel instance
+ * (instances share the compiled module via `WasmNormalKernel.load`), so one
+ * owner disposing its kernel never invalidates another owner.
+ *
+ * Caching is CANONICAL-ONLY: only the default option set (`auto`, no
+ * moduleBytes, no probe/benefit overrides) is cached. Any non-default
+ * option (force overrides, custom module bytes, probe settings) bypasses
+ * the decision cache entirely, so a forced decision can never make a later
+ * default call skip the benefit gate, and different probe configurations
+ * can never collide on one cached decision. Custom module bytes additionally
+ * require a unique `cacheKey` (the kernel validates byte identity and
+ * rejects collisions).
+ */
+type WasmSelectionDecision = Omit<WasmSelectionReport, "kernel">;
+
+const selectionCache = new Map<string, Promise<WasmSelectionDecision>>();
 
 export function resetWasmSelectionCache(): void {
   selectionCache.clear();
+}
+
+/** Only the canonical default option set is cacheable. */
+function isCanonicalSelectionOptions(options: WasmSelectionOptions): boolean {
+  return (
+    (options.force === undefined || options.force === "auto") &&
+    options.moduleBytes === undefined &&
+    options.probeSize === undefined &&
+    options.probeIterations === undefined &&
+    options.probeBudgetMs === undefined &&
+    options.requireBenefit === undefined
+  );
 }
 
 function hasWebAssembly(): boolean {
@@ -234,8 +263,15 @@ async function runProbe(
 /**
  * Select the CPU fallback path: WASM-assisted or plain TypeScript.
  *
- * `cacheKey` is the shared-load cache identity (default: the checked-in
- * module). The decision is cached; clear with `resetWasmSelectionCache()`.
+ * Ownership model (regression-fixed): the SELECTION DECISION is cached per
+ * module identity, but the report's `kernel` is ALWAYS a per-caller live
+ * instance (all instances share the compiled module through
+ * `WasmNormalKernel.load`). One owner disposing its kernel — a backend, a
+ * pipeline, a `createRenderer` call, a demo page under React StrictMode —
+ * never invalidates another owner's instance.
+ *
+ * `cacheKey` is the shared-compilation cache identity (default: the
+ * checked-in module). Clear the decision with `resetWasmSelectionCache()`.
  */
 export async function selectWasmBackend(
   options: WasmSelectionOptions = {},
@@ -268,127 +304,139 @@ export async function selectWasmBackend(
     };
   }
 
-  const cached = selectionCache.get(cacheKey);
-  if (cached !== undefined) {
-    const report = await cached;
-    // A cached decision whose kernel was released (backend/pipeline
-    // disposal) is stale: re-select instead of handing out a disposed
-    // kernel. Never labels a TypeScript-only execution as WASM.
-    if (report.kernel === null || !report.kernel.isDisposed) {
-      return report;
-    }
-    selectionCache.delete(cacheKey);
-  }
-  const run = (async (): Promise<WasmSelectionReport> => {
-    const loadStart = performance.now();
-    let kernel: WasmNormalKernel;
-    try {
-      kernel = await WasmNormalKernel.load(
-        options.moduleBytes !== undefined ? { bytes: options.moduleBytes, cacheKey } : { cacheKey },
-      );
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        selected: "cpu",
-        stage: null,
-        kernel: null,
-        supported: true,
-        loaded: false,
-        kernelVersion: null,
-        loadMs: performance.now() - loadStart,
-        probeMs: 0,
-        probeIterations: 0,
-        probeSize: { width: 0, height: 0 },
-        tsMs: 0,
-        wasmMs: 0,
-        probeRatio: 0,
-        parityOk: false,
-        maxNormalError: 0,
-        fallbackReason: `module-load-failed (${message})`,
-        decision: `WASM module failed to load; using the TypeScript oracle ("${message}")`,
-        kernelStats: null,
-      };
-    }
-    const loadMs = performance.now() - loadStart;
+  const cacheable = isCanonicalSelectionOptions(options);
+  let run = cacheable ? selectionCache.get(cacheKey) : undefined;
+  if (run === undefined) {
+    run = (async (): Promise<WasmSelectionDecision> => {
+      const loadStart = performance.now();
+      const loadKernel = (): Promise<WasmNormalKernel> =>
+        WasmNormalKernel.load(
+          options.moduleBytes !== undefined ? { bytes: options.moduleBytes, cacheKey } : { cacheKey },
+        );
+      let kernel: WasmNormalKernel;
+      try {
+        kernel = await loadKernel();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return {
+          selected: "cpu",
+          stage: null,
+          supported: true,
+          loaded: false,
+          kernelVersion: null,
+          loadMs: performance.now() - loadStart,
+          probeMs: 0,
+          probeIterations: 0,
+          probeSize: { width: 0, height: 0 },
+          tsMs: 0,
+          wasmMs: 0,
+          probeRatio: 0,
+          parityOk: false,
+          maxNormalError: 0,
+          fallbackReason: `module-load-failed (${message})`,
+          decision: `WASM module failed to load; using the TypeScript oracle ("${message}")`,
+          kernelStats: null,
+        };
+      }
+      const loadMs = performance.now() - loadStart;
 
-    let evidence;
-    try {
-      evidence = await runProbe(kernel, options);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return {
-        selected: "cpu",
-        stage: null,
-        kernel,
-        supported: true,
-        loaded: true,
-        kernelVersion: kernel.kernelVersion,
-        loadMs,
-        probeMs: 0,
-        probeIterations: 0,
-        probeSize: { width: options.probeSize?.width ?? DEFAULT_PROBE_WIDTH, height: options.probeSize?.height ?? DEFAULT_PROBE_HEIGHT },
-        tsMs: 0,
-        wasmMs: 0,
-        probeRatio: 0,
-        parityOk: false,
-        maxNormalError: 0,
-        fallbackReason: `probe-failed (${message})`,
-        decision: `WASM probe failed; using the TypeScript oracle ("${message}")`,
-        kernelStats: null,
-      };
-    }
+      let evidence;
+      try {
+        evidence = await runProbe(kernel, options);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        kernel.dispose(); // the computation's own probe instance
+        return {
+          selected: "cpu",
+          stage: null,
+          supported: true,
+          loaded: true,
+          kernelVersion: kernel.kernelVersion,
+          loadMs,
+          probeMs: 0,
+          probeIterations: 0,
+          probeSize: { width: options.probeSize?.width ?? DEFAULT_PROBE_WIDTH, height: options.probeSize?.height ?? DEFAULT_PROBE_HEIGHT },
+          tsMs: 0,
+          wasmMs: 0,
+          probeRatio: 0,
+          parityOk: false,
+          maxNormalError: 0,
+          fallbackReason: `probe-failed (${message})`,
+          decision: `WASM probe failed; using the TypeScript oracle ("${message}")`,
+          kernelStats: null,
+        };
+      }
 
-    if (!evidence.parityOk) {
+      if (!evidence.parityOk) {
+        kernel.dispose();
+        return {
+          selected: "cpu",
+          stage: null,
+          supported: true,
+          loaded: true,
+          kernelVersion: kernel.kernelVersion,
+          loadMs,
+          ...evidence,
+          fallbackReason: `probe-parity-mismatch (max error ${evidence.maxNormalError.toExponential(2)})`,
+          decision: "WASM probe output diverged from the TypeScript oracle; using the oracle",
+        };
+      }
+
+      const requireBenefit = options.requireBenefit ?? force !== "wasm";
+      if (requireBenefit && !(evidence.wasmMs < evidence.tsMs * (1 - WASM_BENEFIT_MARGIN))) {
+        kernel.dispose();
+        return {
+          selected: "cpu",
+          stage: null,
+          supported: true,
+          loaded: true,
+          kernelVersion: kernel.kernelVersion,
+          loadMs,
+          ...evidence,
+          fallbackReason: `no-measured-benefit (wasm ${evidence.wasmMs.toFixed(3)} ms vs ts ${evidence.tsMs.toFixed(3)} ms)`,
+          decision:
+            `WASM probe showed no documented benefit (ratio ${evidence.probeRatio.toFixed(3)}); ` +
+            `using the TypeScript oracle`,
+        };
+      }
+
+      // WASM selected: the probe instance was the decision computation's own
+      // private instance — release it; every caller below loads its own live
+      // instance over the shared compiled module.
+      kernel.dispose();
       return {
-        selected: "cpu",
-        stage: null,
-        kernel,
+        selected: "wasm",
+        stage: "normal",
         supported: true,
         loaded: true,
         kernelVersion: kernel.kernelVersion,
         loadMs,
         ...evidence,
-        fallbackReason: `probe-parity-mismatch (max error ${evidence.maxNormalError.toExponential(2)})`,
-        decision: "WASM probe output diverged from the TypeScript oracle; using the oracle",
-      };
-    }
-
-    const requireBenefit = options.requireBenefit ?? force !== "wasm";
-    if (requireBenefit && !(evidence.wasmMs < evidence.tsMs * (1 - WASM_BENEFIT_MARGIN))) {
-      return {
-        selected: "cpu",
-        stage: null,
-        kernel,
-        supported: true,
-        loaded: true,
-        kernelVersion: kernel.kernelVersion,
-        loadMs,
-        ...evidence,
-        fallbackReason: `no-measured-benefit (wasm ${evidence.wasmMs.toFixed(3)} ms vs ts ${evidence.tsMs.toFixed(3)} ms)`,
+        fallbackReason: null,
         decision:
-          `WASM probe showed no documented benefit (ratio ${evidence.probeRatio.toFixed(3)}); ` +
-          `using the TypeScript oracle`,
+          `WASM normal kernel selected (probe ratio ${evidence.probeRatio.toFixed(3)}, ` +
+          `exact oracle parity, ${evidence.wasmMs.toFixed(3)} ms vs ${evidence.tsMs.toFixed(3)} ms per iteration)`,
       };
+    })();
+    const pendingRun = run;
+    if (cacheable) {
+      run.catch(() => {
+        if (selectionCache.get(cacheKey) === pendingRun) {
+          selectionCache.delete(cacheKey);
+        }
+      });
+      selectionCache.set(cacheKey, run);
     }
+  }
 
-    return {
-      selected: "wasm",
-      stage: "normal",
-      kernel,
-      supported: true,
-      loaded: true,
-      kernelVersion: kernel.kernelVersion,
-      loadMs,
-      ...evidence,
-      fallbackReason: null,
-      decision:
-        `WASM normal kernel selected (probe ratio ${evidence.probeRatio.toFixed(3)}, ` +
-        `exact oracle parity, ${evidence.wasmMs.toFixed(3)} ms vs ${evidence.tsMs.toFixed(3)} ms per iteration)`,
-    };
-  })();
-  selectionCache.set(cacheKey, run);
-  run.catch(() => {
-    selectionCache.delete(cacheKey);
-  });
-  return run;
+  const decision = await run;
+  if (decision.selected === "cpu") {
+    return { ...decision, kernel: null };
+  }
+  // Every caller owns an independent live instance (shared compilation);
+  // disposing one owner's kernel never affects another.
+  const kernel = await WasmNormalKernel.load(
+    options.moduleBytes !== undefined ? { bytes: options.moduleBytes, cacheKey } : { cacheKey },
+  );
+  return { ...decision, kernel };
 }

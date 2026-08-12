@@ -190,31 +190,57 @@ async function main() {
     if (auto.parityOk !== true || auto.maxNormalError !== 0) {
       recordFailure(`auto probe parity failed: ${auto.parityOk} maxError ${auto.maxNormalError}`);
     }
-    // decision caching
+    // canonical decision caching: reports are per-caller objects with
+    // independent kernels, but the DECISION evidence is reused
     const again = await selectWasmBackend({});
-    if (again !== auto) {
-      recordFailure("selection decision was not cached");
+    if (again === auto) {
+      recordFailure("reports must be per-caller objects (fresh kernel instance)");
     }
+    if (again.kernel === auto.kernel || again.kernel === null) {
+      recordFailure("each caller must own an independent live kernel instance");
+    }
+    if (again.decision !== auto.decision || again.probeRatio !== auto.probeRatio) {
+      recordFailure("cached canonical decision evidence was not reused");
+    }
+    auto.kernel?.dispose();
+    again.kernel?.dispose();
     resetWasmSelectionCache();
     resetKernelLoadCache();
     const afterReset = await selectWasmBackend({ force: "wasm" });
-    if (afterReset === auto) {
-      recordFailure("resetWasmSelectionCache did not clear the cached decision");
+    if (afterReset.kernel === null) {
+      recordFailure("post-reset selection produced no kernel");
+    } else {
+      const afterResetCompute = await afterReset.kernel.computeNormals(new Float32Array(16), 4, 4, {});
+      if (afterResetCompute.normal.length !== 4 * 4 * 3) {
+        recordFailure("post-reset selection kernel is not usable");
+      }
+      afterReset.kernel.dispose();
     }
-    afterReset.kernel?.dispose();
   }
 
   // -------------------------------------------------------------------
   // 3. lifecycle: dedup, load failure + retry, abort, disposal, growth
   // -------------------------------------------------------------------
   {
-    // concurrent load dedup
+    // concurrent loads: shared COMPILATION but independent live instances
+    // (ownership regression #33: one owner's dispose must not invalidate
+    // another owner)
     const [k1, k2] = await Promise.all([
       WasmNormalKernel.load({ cacheKey: "browser-dedup" }),
       WasmNormalKernel.load({ cacheKey: "browser-dedup" }),
     ]);
-    if (k1 !== k2) {
-      recordFailure("concurrent loads were not deduplicated");
+    if (k1 === k2) {
+      recordFailure("concurrent loads wrongly shared one instance (ownership regression)");
+    }
+    await Promise.all([
+      k1.computeNormals(new Float32Array(16), 4, 4, {}),
+      k2.computeNormals(new Float32Array(16), 4, 4, {}),
+    ]);
+    k1.dispose();
+    // k2 must remain fully usable after k1's disposal
+    const afterOtherDispose = await k2.computeNormals(new Float32Array(16), 4, 4, {});
+    if (afterOtherDispose.normal.length !== 4 * 4 * 3) {
+      recordFailure("owner B broken after owner A's disposal");
     }
     // load failure + retry (corrupt module bytes)
     const bad = new Uint8Array([0x00, 0x61, 0x73, 0x6d, 0xff, 0xff]);

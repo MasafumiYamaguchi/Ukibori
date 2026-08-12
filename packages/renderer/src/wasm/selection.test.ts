@@ -1,5 +1,6 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { selectWasmBackend, resetWasmSelectionCache } from "./selection";
+import { resetKernelLoadCache } from "./kernel";
 import { WasmNormalKernel } from "./kernel";
 import { WASM_BENEFIT_MARGIN } from "./selection";
 
@@ -21,6 +22,7 @@ const UNIQUE_KEY = () => `selection-${Math.random().toString(36).slice(2)}`;
 
 afterEach(() => {
   resetWasmSelectionCache();
+  resetKernelLoadCache();
 });
 
 describe("#33 WASM selection — deterministic overrides and gates", () => {
@@ -82,19 +84,110 @@ describe("#33 WASM selection — deterministic overrides and gates", () => {
     expect(report.fallbackReason).toMatch(/probe-failed .*budget/);
   });
 
-  it("caches the decision: a second call reuses the identical report", async () => {
+  it("caches the DECISION for canonical auto options: probe evidence is reused", async () => {
     const key = UNIQUE_KEY();
     const first = await selectWasmBackend({}, key);
     const second = await selectWasmBackend({}, key);
-    expect(second).toBe(first);
+    // the canonical decision (rules + probe timing/parity) is cached…
+    expect(second.selected).toBe(first.selected);
+    expect(second.probeRatio).toBe(first.probeRatio);
+    expect(second.probeMs).toBe(first.probeMs);
+    expect(second.parityOk).toBe(first.parityOk);
+    // …but each caller owns an INDEPENDENT live kernel instance: disposing
+    // one never invalidates the other (regression #33)
+    expect(second.kernel).not.toBeNull();
+    expect(first.kernel).not.toBeNull();
+    expect(first.kernel).not.toBe(second.kernel);
+    first.kernel!.dispose();
+    const result = await second.kernel!.computeNormals(new Float32Array(16), 4, 4, {});
+    expect(result.normal.length).toBe(4 * 4 * 3);
+    second.kernel!.dispose();
+  });
+
+  it("non-default options BYPASS the decision cache: a forced decision never satisfies a later auto call", async () => {
+    const key = UNIQUE_KEY();
+    // force: wasm (non-canonical) -> decision computed, NOT cached
+    const forced = await selectWasmBackend({ force: "wasm" }, key);
+    expect(forced.selected).toBe("wasm");
+    forced.kernel!.dispose();
+    // a later AUTO call under the same base cacheKey must re-run the full
+    // decision (including the benefit gate) — it can never reuse the forced
+    // decision. Observable: the auto call performs its own probe load.
+    const spy = vi.spyOn(WasmNormalKernel, "load");
+    try {
+      const auto = await selectWasmBackend({}, key);
+      expect(auto.selected).toBe("wasm");
+      // the auto run computed its OWN decision: a probe load PLUS a caller
+      // instance load (2). A cached decision would only need the caller
+      // instance load (1) — the forced decision was never cached.
+      expect(spy.mock.calls.length).toBe(2);
+      auto.kernel!.dispose();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it("different module bytes under one base cacheKey never reuse the decision or the module (validated collision)", async () => {
+    const key = UNIQUE_KEY();
+    const garbageModule = await buildZeroModule();
+    // forced parity-failing decision with custom bytes (non-canonical)
+    const forced = await selectWasmBackend({ force: "wasm", moduleBytes: garbageModule }, key);
+    expect(forced.selected).toBe("cpu");
+    expect(forced.fallbackReason).toMatch(/probe-parity-mismatch/);
+    // an auto call under the same base key must NOT reuse that cpu decision;
+    // the kernel validates the byte collision and reports it instead of
+    // silently reusing the wrong module
+    const auto = await selectWasmBackend({}, key);
+    expect(auto.selected).toBe("cpu");
+    expect(auto.fallbackReason).toMatch(/module-load-failed .*unique cacheKey/);
+    // with caches cleared and unique keys, custom bytes and the default
+    // module are independent
+    resetWasmSelectionCache();
+    resetKernelLoadCache();
+    const clean = await selectWasmBackend({ force: "wasm", moduleBytes: garbageModule }, key);
+    expect(clean.fallbackReason).toMatch(/probe-parity-mismatch/);
+    clean.kernel?.dispose();
+    const defaultKey = UNIQUE_KEY();
+    const cleanDefault = await selectWasmBackend({}, defaultKey);
+    expect(cleanDefault.selected).toBe("wasm");
+    cleanDefault.kernel!.dispose();
+  });
+
+  it("ownership regression: two concurrent selections, one disposed, other usable, then reload", async () => {
+    const key = UNIQUE_KEY();
+    const [a, b] = await Promise.all([
+      selectWasmBackend({ force: "wasm" }, key),
+      selectWasmBackend({ force: "wasm" }, key),
+    ]);
+    expect(a.selected).toBe("wasm");
+    expect(b.selected).toBe("wasm");
+    expect(a.kernel).not.toBeNull();
+    expect(b.kernel).not.toBeNull();
+    expect(a.kernel).not.toBe(b.kernel);
+    const field = new Float32Array(16);
+    const before = await a.kernel!.computeNormals(field, 4, 4, {});
+    a.kernel!.dispose();
+    const after = await b.kernel!.computeNormals(field, 4, 4, {});
+    expect(Array.from(after.normal)).toEqual(Array.from(before.normal));
+    b.kernel!.dispose();
+    // all owners disposed -> a fresh selection reloads and works
+    const c = await selectWasmBackend({ force: "wasm" }, key);
+    expect(c.selected).toBe("wasm");
+    expect(c.kernel).not.toBeNull();
+    const result = await c.kernel!.computeNormals(field, 4, 4, {});
+    expect(result.normal.length).toBe(4 * 4 * 3);
+    c.kernel!.dispose();
   });
 
   it("resetWasmSelectionCache clears the cached decision", async () => {
     const key = UNIQUE_KEY();
-    const first = await selectWasmBackend({}, key);
+    const first = await selectWasmBackend({ force: "wasm" }, key);
     resetWasmSelectionCache();
-    const second = await selectWasmBackend({}, key);
+    const second = await selectWasmBackend({ force: "wasm" }, key);
     expect(second).not.toBe(first);
+    expect(second.kernel).not.toBe(first.kernel);
+    first.kernel?.dispose();
+    second.kernel?.dispose();
   });
 });
 

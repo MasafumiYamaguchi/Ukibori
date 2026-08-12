@@ -112,22 +112,50 @@ function decodeDefaultModule(): Uint8Array {
 
 export const DEFAULT_KERNEL_CACHE_KEY = "ukibori-normal-kernel-v1";
 
-// Shared-load cache: concurrent loads with the same key resolve to the same
-// instance. Entries are deleted on FAILURE (retryable) and on disposal.
-const loadCache = new Map<string, Promise<WasmNormalKernel>>();
+/**
+ * Shared COMPILATION cache: concurrent loads with the same cache key share
+ * the expensive `WebAssembly.compile` step (the compiled Module is
+ * immutable and safe to share). Each load() caller receives its OWN live
+ * instance (instantiate is cheap); disposing an instance NEVER touches the
+ * compiled-module cache, so one owner's lifecycle cannot evict the shared
+ * compilation out from under another owner (nor the probe kernel, which is
+ * the decision computation's private instance).
+ *
+ * The cache persists INDEPENDENTLY of live instances until
+ * `resetKernelLoadCache()` (or a failed compile, which removes the entry so
+ * retries start fresh). It is bounded by the number of distinct cache keys.
+ * A key is bound to its FIRST module bytes: loading DIFFERENT bytes under
+ * an already-bound key is rejected (callers using custom modules must use a
+ * unique cacheKey) — a silent reuse of the wrong module is never possible.
+ */
+interface ModuleEntry {
+  module: WebAssembly.Module;
+  sourceBytes: Uint8Array;
+}
+const moduleCache = new Map<string, Promise<ModuleEntry>>();
 
-/** Clear the shared-load cache (test/lifecycle seam). */
+/** Clear the shared-compilation cache (test/lifecycle seam). */
 export function resetKernelLoadCache(): void {
-  loadCache.clear();
+  moduleCache.clear();
+}
+
+function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) {
+    return false;
+  }
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) {
+      return false;
+    }
+  }
+  return true;
 }
 
 export class WasmNormalKernel {
   /** Reject new work after disposal; idempotent. */
   private disposed = false;
-  private readonly moduleBytes: Uint8Array;
   private readonly instance: WebAssembly.Instance;
   private readonly memory: WebAssembly.Memory;
-  private readonly cacheKey: string;
   private readonly computeNormalsFn: (
     width: number,
     height: number,
@@ -138,14 +166,10 @@ export class WasmNormalKernel {
   private readonly stats: WasmKernelStats;
 
   private constructor(
-    moduleBytes: Uint8Array,
     instance: WebAssembly.Instance,
     loadMs: number,
-    cacheKey: string,
   ) {
-    this.moduleBytes = moduleBytes;
     this.instance = instance;
-    this.cacheKey = cacheKey;
     const exports = instance.exports as Record<string, unknown>;
     const memory = exports.memory as WebAssembly.Memory | undefined;
     const fn = exports.compute_normals as
@@ -192,11 +216,15 @@ export class WasmNormalKernel {
   }
 
   /**
-   * Load the kernel module. Concurrent calls with the same cache key share
-   * one load; failed loads are removed from the cache (retryable) and never
-   * affect other cache keys, WebGPU, or later attempts. `signal` cancels
-   * the CALLER's wait — the underlying shared load keeps running and stays
-   * cached, so a retry after abort is fast.
+   * Load the kernel module. Concurrent loads with the same cache key SHARE
+   * the compilation (the expensive step) but each caller receives an
+   * independent live instance: disposing one owner's kernel never
+   * invalidates another owner, and the compiled module persists in the
+   * shared cache until `resetKernelLoadCache()` (or a failed compile). A
+   * cache key is bound to its first module bytes — different bytes under an
+   * already-bound key are rejected (custom modules require a unique
+   * cacheKey). `signal` cancels the CALLER's wait — the underlying shared
+   * compile keeps running and stays cached, so a retry after abort is fast.
    */
   static load(
     options: WasmKernelLoadOptions = {},
@@ -204,32 +232,40 @@ export class WasmNormalKernel {
   ): Promise<WasmNormalKernel> {
     const cacheKey = options.cacheKey ?? DEFAULT_KERNEL_CACHE_KEY;
     const startMs = performance.now();
-    const doLoad = async (): Promise<WasmNormalKernel> => {
-      const bytes = options.bytes ?? decodeDefaultModule();
-      // V8 transfers (detaches) a typed array passed straight to
-      // WebAssembly.instantiate — compile the Module once (copies) and
-      // instantiate it; the module bytes stay usable for future loads.
-      const module = await WebAssembly.compile(bytes.slice());
-      const instance = await WebAssembly.instantiate(module, {});
-      const kernel = new WasmNormalKernel(bytes, instance, performance.now() - startMs, cacheKey);
-      // pin the resolved instance for in-flight dedup consumers; on reject,
-      // drop the entry so the next load retries cleanly
-      loadCache.set(cacheKey, Promise.resolve(kernel));
-      return kernel;
-    };
-    const cached = loadCache.get(cacheKey);
-    if (cached !== undefined) {
-      const outer = new Promise<WasmNormalKernel>((resolveOuter, rejectOuter) => {
-        cached.then(resolveOuter, rejectOuter);
+    const bytes = options.bytes ?? decodeDefaultModule();
+    const getEntry = (): Promise<ModuleEntry> => {
+      let entry = moduleCache.get(cacheKey);
+      if (entry === undefined) {
+        // V8 transfers (detaches) a typed array passed straight to
+        // WebAssembly.instantiate — compile the Module once (copies) and
+        // instantiate per caller; the module bytes stay usable.
+        const sourceBytes = bytes.slice();
+        entry = WebAssembly.compile(sourceBytes.slice()).then(
+          (module) => ({ module, sourceBytes }),
+        );
+        const pendingEntry = entry;
+        entry.catch(() => {
+          if (moduleCache.get(cacheKey) === pendingEntry) {
+            moduleCache.delete(cacheKey);
+          }
+        });
+        moduleCache.set(cacheKey, entry);
+        return entry;
+      }
+      return entry.then((existing) => {
+        if (!bytesEqual(bytes, existing.sourceBytes)) {
+          throw new TypeError(
+            `WasmNormalKernel: cacheKey "${cacheKey}" is already bound to different module ` +
+              `bytes — custom modules require a unique cacheKey (never reuse the default key)`,
+          );
+        }
+        return existing;
       });
-      return withAbort(outer, signal);
-    }
-    const loading = doLoad();
-    loading.catch(() => {
-      loadCache.delete(cacheKey);
+    };
+    return withAbort(getEntry(), signal).then(async (entry) => {
+      const instance = await WebAssembly.instantiate(entry.module, {});
+      return new WasmNormalKernel(instance, performance.now() - startMs);
     });
-    loadCache.set(cacheKey, loading);
-    return withAbort(loading, signal);
   }
 
   /**
@@ -343,16 +379,16 @@ export class WasmNormalKernel {
     return { normal, spec: NORMAL_SPEC(width, height), stats: this.getStats() };
   }
 
-  /** Idempotent disposal: rejects new work and releases the shared cache
-   * entry so a later load rebuilds a fresh instance. Late async completions
-   * are ignored (their results are plain copies; disposal is the only
-   * mutation). */
+  /**
+   * Idempotent disposal of THIS owner's instance: rejects new work through
+   * this kernel. The shared compiled module is NOT touched — other owners'
+   * instances remain fully usable, and the compilation persists in the
+   * shared cache until `resetKernelLoadCache()`. Late async completions are
+   * ignored (their results are plain copies; disposal is the only
+   * mutation).
+   */
   dispose(): void {
-    if (this.disposed) {
-      return;
-    }
     this.disposed = true;
-    loadCache.delete(this.cacheKey);
   }
 }
 

@@ -67,5 +67,33 @@ describe("#33 WasmCpuBackend", () => {
     const fresh = await selectWasmBackend({ force: "wasm" }, "backend-poison");
     expect(fresh.selected).toBe("wasm");
     expect(fresh.kernel).not.toBeNull();
+    fresh.kernel!.dispose();
+  });
+
+  it("ownership regression: two backends, dispose one, the other stays usable", async () => {
+    const [s1, s2] = await Promise.all([
+      selectWasmBackend({ force: "wasm" }, "backend-owners"),
+      selectWasmBackend({ force: "wasm" }, "backend-owners"),
+    ]);
+    const first = new WasmCpuBackend(s1.kernel!, s1);
+    const second = new WasmCpuBackend(s2.kernel!, s2);
+    expect(first.kernel).not.toBe(second.kernel);
+    // both create usable buffers concurrently
+    const b1 = await first.createBuffer(SPEC);
+    const b2 = await second.createBuffer(SPEC);
+    expect(b1.spec).toEqual(SPEC);
+    expect(b2.spec).toEqual(SPEC);
+    // disposing the first backend must not invalidate the second
+    first.dispose();
+    const bytes = new Uint8Array(byteLength(SPEC));
+    await b2.writeBytes(bytes);
+    await expect(first.createBuffer(SPEC)).rejects.toThrow(/disposed/);
+    second.dispose();
+    // all owners disposed -> a fresh selection reloads and works
+    const fresh = await selectWasmBackend({ force: "wasm" }, "backend-owners");
+    const backend = new WasmCpuBackend(fresh.kernel!, fresh);
+    const b3 = await backend.createBuffer(SPEC);
+    expect(b3.spec).toEqual(SPEC);
+    backend.dispose();
   });
 });
