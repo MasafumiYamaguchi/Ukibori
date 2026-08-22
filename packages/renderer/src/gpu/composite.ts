@@ -129,6 +129,51 @@ export function compositeShadowAlphaByte(alpha: number): number {
   return Math.round(alpha * 255);
 }
 
+/**
+ * #41: the PREMULTIPLIED canvas bytes for a base-plane texel at a
+ * CONTINUOUS occlusion strength `s = clamp(1 - visibility, 0, 1)`,
+ * mirroring the presentation WGSL op-for-op in IEEE f32:
+ *
+ *   alpha   = f32(saByte) * s            (canvas byte = round(a / 255 * 255))
+ *   channel = f32(c) * f32(saByte) / 255 * s   (same quantization)
+ *
+ * where `saByte` is the sanitized full-strength alpha byte. Strength 0 is
+ * fully transparent; strength 1 reproduces
+ * {@link compositeShadowPremultipliedBytes} exactly, so hard {0, 1}
+ * visibility inputs keep their historical bytes.
+ */
+export function compositeShadowPremultipliedStrengthBytes(
+  strength: number,
+  options: CompositeOptions = {},
+): readonly [number, number, number, number] {
+  const clamped = strength < 0 ? 0 : strength > 1 ? 1 : strength;
+  const s = Math.fround(clamped);
+  if (!(s > 0)) {
+    return [0, 0, 0, 0];
+  }
+  const opts = sanitizeCompositeOptions(options);
+  const saByte = compositeShadowAlphaByte(opts.shadowAlpha);
+  const UNORM_SCALE = 1 / 255;
+  // alpha: f32(saByte) * s -> unorm -> byte
+  const a1 = Math.fround(saByte * s);
+  const a2 = Math.fround(a1 * UNORM_SCALE);
+  const alphaByte = Math.round(a2 * 255);
+  // channels: f32(c) * f32(saByte) / 255 * s -> unorm -> byte
+  const ch = (c: number): number => {
+    const c1 = Math.fround(c * saByte);
+    const c2 = Math.fround(c1 / 255);
+    const c3 = Math.fround(c2 * s);
+    const c4 = Math.fround(c3 * UNORM_SCALE);
+    return Math.round(c4 * 255);
+  };
+  return [
+    ch(opts.shadowColor[0]),
+    ch(opts.shadowColor[1]),
+    ch(opts.shadowColor[2]),
+    alphaByte,
+  ];
+}
+
 function clampByte(v: number): number {
   return v < 0 ? 0 : v > 255 ? 255 : Math.round(v);
 }

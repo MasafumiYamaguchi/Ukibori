@@ -129,6 +129,8 @@ export interface ScaledShadowOptions {
   stepSize: number;
   bias: number;
   maxDistance?: number;
+  /** #41 area-light sample count, forwarded UNSCALED */
+  samples?: 1 | 4 | 8 | 16;
 }
 
 /**
@@ -145,8 +147,30 @@ export interface ScaledShadowOptions {
  * invariant. Invalid configured values fall back to the CSS-space defaults,
  * mirroring the renderer's sanitization.
  */
+/**
+ * Map CSS-space shadow options (#17/#41) through the dpr similarity transform.
+ *
+ * The renderer's shadow pass interprets `stepSize` / `bias` / `maxDistance`
+ * in SCENE units, and the scene is dpr-scaled by `buildScene`. To keep the
+ * cast-shadow geometry identical in CSS space at any dpr, every configured
+ * LENGTH is multiplied by dpr AND the renderer's defaults for step/bias are
+ * materialized here (0.5 CSS px) instead of being left to the renderer —
+ * the renderer default is a fixed scene-unit value, so it would silently
+ * shrink with dpr. `maxDistance` is only forwarded when configured; the
+ * renderer default derives from the dpr-scaled scene diagonal and is already
+ * invariant. Invalid configured values fall back to the CSS-space defaults,
+ * mirroring the renderer's sanitization.
+ *
+ * #41: `samples` is a COUNT, not a length — it is forwarded through
+ * UNSCALED (a sample count must never change with devicePixelRatio).
+ */
 export function scaleShadowOptions(
-  options: { stepSize?: number; bias?: number; maxDistance?: number },
+  options: {
+    stepSize?: number;
+    bias?: number;
+    maxDistance?: number;
+    samples?: 1 | 4 | 8 | 16;
+  },
   dpr: number,
 ): ScaledShadowOptions {
   const d = sanitizeDpr(dpr);
@@ -158,8 +182,13 @@ export function scaleShadowOptions(
     ? options.maxDistance! * d
     : undefined;
   return maxDistance === undefined
-    ? { stepSize, bias }
-    : { stepSize, bias, maxDistance };
+    ? { stepSize, bias, ...(options.samples !== undefined ? { samples: options.samples } : {}) }
+    : {
+        stepSize,
+        bias,
+        maxDistance,
+        ...(options.samples !== undefined ? { samples: options.samples } : {}),
+      };
 }
 
 function isFiniteStrictPositive(v: number | undefined): v is number {

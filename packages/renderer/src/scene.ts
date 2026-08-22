@@ -3,6 +3,7 @@ import type { EnvironmentLight } from "./environment";
 import { isFiniteNumber, normalizeVec3 } from "./math";
 import { resolveMaterial, sanitizeMaterialTable } from "./material";
 import type { Material } from "./material";
+import { sanitizeAngularRadius } from "./shadow-sampling";
 import type { Vec2, Vec3 } from "./types";
 
 /**
@@ -219,13 +220,10 @@ export function createScene(input: SceneInput): Scene {
   }
   const direction = normalizeVec3(input.light?.direction ?? DEFAULT_LIGHT_DIRECTION);
   const intensity = sanitizeIntensity(input.light?.intensity);
-  // #41 soft-shadow light size (radians): finite >= 0 after f32 packing,
-  // else 0 — the exact hard-shadow default. Mirrors the intensity policy.
-  const rawAngularRadius = input.light?.angularRadius;
-  const angularRadius =
-    typeof rawAngularRadius === "number" && Number.isFinite(rawAngularRadius) && rawAngularRadius > 0
-      ? Math.fround(rawAngularRadius)
-      : 0;
+  // #41 soft-shadow light size (radians): sanitizeAngularRadius is the
+  // SINGLE source of truth — NaN / +-Infinity / negative / values whose f32
+  // packing overflows to Infinity all fall back to the hard-shadow 0.
+  const angularRadius = sanitizeAngularRadius(input.light?.angularRadius);
   return {
     width: input.width,
     height: input.height,

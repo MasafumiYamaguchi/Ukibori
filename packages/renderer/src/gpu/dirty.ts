@@ -12,6 +12,7 @@ import {
   ENVIRONMENT_REGION,
   EXPOSURE_REGION,
   HEADER_GEOMETRY_REGIONS,
+  LIGHT_ANGULAR_RADIUS_REGION,
   LIGHT_DIRECTION_REGION,
   LIGHT_INTENSITY_REGION,
   materialFlagsRanges,
@@ -44,20 +45,21 @@ import { bytesEqual } from "./tiles";
  *
  * ## Invalidation reasons and their downstream closure
  *
- * | reason              | stages it invalidates                       |
- * |---------------------|---------------------------------------------|
- * | `first-frame`       | all six (nothing retained yet)              |
- * | `viewport`          | all six (render extent / DPR changed)       |
- * | `scene`             | all six (height-input geometry changed)     |
- * | `light-direction`   | upload, shadow, lighting, presentation      |
- * | `light-intensity`   | upload, lighting, presentation              |
- * | `environment`       | upload, lighting, presentation              |
- * | `material-values`   | upload, lighting, presentation              |
- * | `normal-options`    | normal, lighting, presentation              |
- * | `shadow-options`    | shadow, lighting, presentation              |
- * | `lighting-options`  | lighting, presentation                      |
- * | `composite-options` | presentation only                           |
- * | `debug-target`      | presentation only                           |
+ * | reason                | stages it invalidates                       |
+ * |-----------------------|---------------------------------------------|
+ * | `first-frame`         | all six (nothing retained yet)              |
+ * | `viewport`            | all six (render extent / DPR changed)       |
+ * | `scene`               | all six (height-input geometry changed)     |
+ * | `light-direction`     | upload, shadow, lighting, presentation      |
+ * | `light-angular-radius`| upload, shadow, lighting, presentation (#41)|
+ * | `light-intensity`     | upload, lighting, presentation              |
+ * | `environment`         | upload, lighting, presentation              |
+ * | `material-values`     | upload, lighting, presentation              |
+ * | `normal-options`      | normal, lighting, presentation              |
+ * | `shadow-options`      | shadow, lighting, presentation              |
+ * | `lighting-options`    | lighting, presentation                      |
+ * | `composite-options`   | presentation only                           |
+ * | `debug-target`        | presentation only                           |
  *
  * Scene changes are classified by EXACT byte comparison of the semantic ABI
  * regions (`gpu/height-inputs.ts`), never by a hash alone:
@@ -69,6 +71,9 @@ import { bytesEqual } from "./tiles";
  * - `light-direction` — only the header lightDirection vec4 changed: the
  *   scene bytes are re-uploaded, the shadow/lighting/presentation stages
  *   re-run against the retained height/normal fields.
+ * - `light-angular-radius` (#41) — only lightAngularRadius changed: same
+ *   closure as `light-direction` (the cone directions feed only the shadow
+ *   stage); height/normal stay retained.
  * - `light-intensity` — only lightIntensity changed: lighting +
  *   presentation.
  * - `environment` — only environment vec4 / exposure changed: lighting +
@@ -118,6 +123,7 @@ export type InvalidationReason =
   | "scene"
   | "light-direction"
   | "light-intensity"
+  | "light-angular-radius"
   | "environment"
   | "material-values"
   | "normal-options"
@@ -140,15 +146,19 @@ export const ALL_STAGES: readonly PipelineStage[] = [
  * invalidates (the brief's propagation rules). `viewport`/`scene` cascade
  * to the full chain because the encoded extent/bytes feed every stage and
  * the #25 provenance token changes. The semantic scene-change reasons
- * (`light-direction`/`light-intensity`/`environment`/`material-values`)
- * include `upload` (the changed bytes must reach the GPU) but keep the
- * height/normal stages retained.
+ * (`light-direction`/`light-intensity`/`light-angular-radius`/
+ * `environment`/`material-values`) include `upload` (the changed bytes must
+ * reach the GPU) but keep the height/normal stages retained.
  */
 export const REASON_STAGES: Readonly<Record<InvalidationReason, readonly PipelineStage[]>> = {
   "first-frame": ALL_STAGES,
   viewport: ALL_STAGES,
   scene: ALL_STAGES,
   "light-direction": ["upload", "shadow", "lighting", "presentation"],
+  // #41: the light angular radius feeds only the shadow cone directions
+  // (and downstream visibility consumers); the height/normal fields never
+  // read it, so they stay retained.
+  "light-angular-radius": ["upload", "shadow", "lighting", "presentation"],
   "light-intensity": ["upload", "lighting", "presentation"],
   environment: ["upload", "lighting", "presentation"],
   "material-values": ["upload", "lighting", "presentation"],
@@ -314,6 +324,9 @@ export function classifySceneChange(
   if (!regionEqual(prevBytes, nextBytes, LIGHT_DIRECTION_REGION)) {
     changes.push("light-direction");
   }
+  if (!regionEqual(prevBytes, nextBytes, LIGHT_ANGULAR_RADIUS_REGION)) {
+    changes.push("light-angular-radius");
+  }
   if (!regionEqual(prevBytes, nextBytes, LIGHT_INTENSITY_REGION)) {
     changes.push("light-intensity");
   }
@@ -386,6 +399,7 @@ export function computeInvalidationReasons(
       reason === "scene" ||
       reason === "viewport" ||
       reason === "light-direction" ||
+      reason === "light-angular-radius" ||
       reason === "first-frame",
   );
   if (key.shadow !== previous.shadow && !shadowAlreadyInvalidated) {

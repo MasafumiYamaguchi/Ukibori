@@ -11,6 +11,12 @@ import {
 } from "./shadow-sampling";
 import { createScene } from "./scene";
 import type { Scene } from "./scene";
+import { encodeScene, parseHeader } from "./gpu/encode";
+import { validateEncodedScene } from "./gpu/validate";
+import {
+  heightInputsMatchScene,
+  registerHeightInputProvenance,
+} from "./gpu/height-inputs";
 
 /**
  * #41 area-light soft-shadow tests.
@@ -36,6 +42,22 @@ function slabCaster(size = 16, x0 = 8, x1 = 13, y0 = 6, y1 = 9, top = 6): HostBu
     }
   }
   return buf;
+}
+
+/** A single casting slab surface for scene-level tests. */
+function slabSurface(overrides: Record<string, unknown> = {}) {
+  return {
+    id: "slab",
+    position: { x: 8, y: 2 },
+    size: { x: 6, y: 2 },
+    elevation: 6,
+    shape: { kind: "roundedRect", radius: 0 } as const,
+    profile: { kind: "flat" } as const,
+    material: "silicone",
+    castsShadow: true,
+    receivesShadow: true,
+    ...overrides,
+  };
 }
 
 function sceneWithLight(
@@ -106,6 +128,107 @@ describe("shadow-sampling — deterministic cone construction", () => {
       expect(dirs[i * 3 + 1]).toBe(Math.fround(LIGHT_FROM_RIGHT.y));
       expect(dirs[i * 3 + 2]).toBe(Math.fround(LIGHT_FROM_RIGHT.z));
     }
+  });
+
+  it("derives production cone directions from the canonical f32 light direction (#5)", () => {
+    // The x component carries sub-f32 precision, so the raw f64 direction
+    // and the encoded header's f32 direction genuinely differ.
+    const scene = createScene({
+      width: 16,
+      height: 16,
+      light: {
+        direction: { x: 0.30000000000000004, y: 0.1, z: Math.sqrt(1 - 0.1) },
+        intensity: 1,
+        angularRadius: Math.fround(0.15),
+      },
+    });
+    const ctx = prepareShadowContext(scene, flatReceivers(), { samples: 8 });
+    // The GPU consumes the ENCODED header's fround'ed components; the
+    // production CPU path must derive its cone from the SAME values.
+    const header = parseHeader(encodeScene(scene, 1).bytes);
+    const expected = computeSoftSampleDirections(
+      header.lightDirection,
+      Math.fround(0.15),
+      8,
+    );
+    expect(Array.from(ctx.sampleDirs!)).toEqual(Array.from(expected));
+  });
+
+  it("sanitizes hostile angular radii so createScene -> encode -> validate always holds (#6)", () => {
+    const hostile = [
+      Number.NaN,
+      Infinity,
+      -Infinity,
+      -1,
+      -1e-9,
+      1e300,
+      Number.MAX_VALUE, // finite in f64, overflows to Infinity in f32
+    ];
+    for (const raw of hostile) {
+      const scene = createScene({
+        width: 16,
+        height: 16,
+        light: { direction: LIGHT_FROM_RIGHT, intensity: 1, angularRadius: raw },
+      });
+      expect(scene.light.angularRadius).toBe(0);
+      const validation = validateEncodedScene(encodeScene(scene, 1).bytes);
+      expect(validation.ok).toBe(true);
+    }
+    // a large-but-f32-representable value survives verbatim (f32 max ~3.4e38)
+    const large = createScene({
+      width: 16,
+      height: 16,
+      light: { direction: LIGHT_FROM_RIGHT, intensity: 1, angularRadius: 3e38 },
+    });
+    expect(large.light.angularRadius).toBe(Math.fround(3e38));
+    expect(validateEncodedScene(encodeScene(large, 1).bytes).ok).toBe(true);
+    // a valid value survives the f32 round-trip
+    const ok = createScene({
+      width: 16,
+      height: 16,
+      light: { direction: LIGHT_FROM_RIGHT, intensity: 1, angularRadius: 0.2 },
+    });
+    expect(ok.light.angularRadius).toBe(Math.fround(0.2));
+    expect(validateEncodedScene(encodeScene(ok, 1).bytes).ok).toBe(true);
+  });
+
+  it("authorizes retained height fields across an angular-radius-only change (#4)", () => {
+    const hardBytes = encodeScene(
+      createScene({
+        width: 16,
+        height: 16,
+        surfaces: [slabSurface()],
+        light: { direction: LIGHT_FROM_RIGHT, intensity: 1 },
+      }),
+      1,
+    ).bytes;
+    const softBytes = encodeScene(
+      createScene({
+        width: 16,
+        height: 16,
+        surfaces: [slabSurface()],
+        light: { direction: LIGHT_FROM_RIGHT, intensity: 1, angularRadius: Math.fround(0.2) },
+      }),
+      1,
+    ).bytes;
+    const validation = validateEncodedScene(hardBytes);
+    expect(validation.ok).toBe(true);
+    const provenance = { sceneBytes: hardBytes };
+    registerHeightInputProvenance(provenance);
+    // the ONLY differing byte is the header's angular radius: the retained
+    // height/caster/objectId fields are authorized for the soft upload
+    expect(heightInputsMatchScene(provenance, softBytes)).toBe(true);
+    // a geometry change is never authorized
+    const movedBytes = encodeScene(
+      createScene({
+        width: 16,
+        height: 16,
+        surfaces: [slabSurface({ position: { x: 9, y: 2 } })],
+        light: { direction: LIGHT_FROM_RIGHT, intensity: 1, angularRadius: Math.fround(0.2) },
+      }),
+      1,
+    ).bytes;
+    expect(heightInputsMatchScene(provenance, movedBytes)).toBe(false);
   });
 });
 

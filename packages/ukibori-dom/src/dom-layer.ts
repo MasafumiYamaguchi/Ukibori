@@ -253,6 +253,13 @@ export class UkiboriDom {
         Number.isFinite(options.light?.intensity) && (options.light?.intensity ?? 0) >= 0
           ? (options.light?.intensity ?? DEFAULT_INTENSITY)
           : DEFAULT_INTENSITY,
+      // #41 soft-shadow light size (radians, dimensionless): finite >= 0 is
+      // forwarded; everything else (including undefined) means "renderer
+      // default" — createScene sanitizes to the hard-shadow 0.
+      ...(Number.isFinite(options.light?.angularRadius) &&
+      (options.light?.angularRadius ?? 0) >= 0
+        ? { angularRadius: options.light?.angularRadius }
+        : {}),
     };
     this.environment = sanitizeEnvironmentState(options.environment);
     this.exposure =
@@ -571,13 +578,29 @@ export class UkiboriDom {
     this.scheduleRender();
   }
 
-  /** Change the shared light. `direction` is normalized; invalid -> +z. */
-  setLight(direction: { x: number; y: number; z: number }, intensity?: number): void {
+  /**
+   * Change the shared light. `direction` is normalized; invalid -> +z.
+   * #41: pass `angularRadius` to set/clear the apparent light size
+   * (radians, dimensionless). `undefined` clears the override so the
+   * renderer default (0 = hard shadow) applies again.
+   */
+  setLight(
+    direction: { x: number; y: number; z: number },
+    intensity?: number,
+    angularRadius?: number,
+  ): void {
     this.throwIfDisposed();
     this.light.direction = normalizeVec3(direction, DEFAULT_LIGHT_DIRECTION);
     if (intensity !== undefined) {
       this.light.intensity =
         Number.isFinite(intensity) && intensity >= 0 ? intensity : DEFAULT_INTENSITY;
+    }
+    if (angularRadius !== undefined) {
+      if (Number.isFinite(angularRadius) && angularRadius >= 0) {
+        this.light.angularRadius = angularRadius;
+      } else {
+        delete this.light.angularRadius;
+      }
     }
     this.sceneDirty = true;
     this.scheduleRender();

@@ -56,6 +56,7 @@ export function createOracle(api) {
     sanitizeAmbient,
     compositePixelBytes,
     compositeShadowPremultipliedBytes,
+    compositeShadowPremultipliedStrengthBytes,
   } = api;
 
   /** DPR 1/1.5/2 sampling scales (scale = 0.5 * dpr), matching the catalog. */
@@ -905,12 +906,14 @@ export function createOracle(api) {
         visibility[g],
         compositeOptions,
       );
-      // the canvas is premultiplied: only the shadow texel's RGB is
-      // premultiplied (the shared premultiplied helper); surface (alpha 1)
-      // and transparent (0,0,0,0) texels are unchanged by premultiplication
+      // the canvas is premultiplied: the base-plane shadow tint scales with
+      // the #41 CONTINUOUS occlusion strength (1 - vis) — both alpha and the
+      // premultiplied RGB — mirroring the WGSL exactly. Hard inputs ({0, 1})
+      // reproduce the historical binary bytes; surface texels (alpha 1) and
+      // fully-lit base plane ((0,0,0,0)) are unchanged by premultiplication.
       let px = decision;
-      if (owner === NO_OWNER && visibility[g] < 0.5) {
-        px = compositeShadowPremultipliedBytes(compositeOptions);
+      if (owner === NO_OWNER) {
+        px = compositeShadowPremultipliedStrengthBytes(1 - visibility[g], compositeOptions);
       }
       ref.set(px, i);
     }

@@ -71,6 +71,7 @@ export function Ukibori({
   backend = "auto",
   light = DEFAULT_LIGHT,
   intensity = DEFAULT_INTENSITY,
+  angularRadius,
   environment = {},
   exposure = DEFAULT_EXPOSURE,
   color = DEFAULT_COLOR,
@@ -105,6 +106,11 @@ export function Ukibori({
     // same values even when the caller passes a fresh object.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [light.x, light.y, light.z, intensity, color]);
+
+  // #41 apparent light size (radians, dimensionless): finite >= 0 forwarded
+  // to the physical layer; anything else means "renderer default" (hard).
+  const safeAngularRadius =
+    Number.isFinite(angularRadius) && (angularRadius ?? 0) >= 0 ? angularRadius : undefined;
 
   // Physical-only image-level controls (#22): environment illumination and
   // exposure. Sanitized with the RENDERER's own policy so the React entry
@@ -223,6 +229,7 @@ export function Ukibori({
           light: {
             direction: cssEnv.light,
             intensity: cssEnv.intensity,
+            ...(safeAngularRadius !== undefined ? { angularRadius: safeAngularRadius } : {}),
           } satisfies DomLightState,
           environment: {
             intensity: envEnv.intensity,
@@ -275,6 +282,7 @@ export function Ukibori({
   // pushed to the layer.
   const updateDataKey = [
     cssEnv.key,
+    safeAngularRadius === undefined ? "" : String(safeAngularRadius),
     envEnv.key,
     safeExposure,
     JSON.stringify(shadow),
@@ -296,6 +304,7 @@ export function Ukibori({
     current.setLight(
       { x: cssEnv.light.x, y: cssEnv.light.y, z: cssEnv.light.z },
       cssEnv.intensity,
+      safeAngularRadius,
     );
     current.setEnvironment({
       intensity: envEnv.intensity,

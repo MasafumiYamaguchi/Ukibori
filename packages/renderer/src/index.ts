@@ -316,10 +316,11 @@ export type { ComposeOptions, ComposeResult, SurfaceHeightAt, TieBreak } from ".
 export {
   DEFAULT_SHADOW_ALPHA,
   DEFAULT_SHADOW_COLOR,
-  compositePixelBytes,
-  compositeShadowAlphaByte,
-  compositeShadowPremultipliedBytes,
-  sanitizeCompositeOptions,
+compositePixelBytes,
+compositeShadowAlphaByte,
+compositeShadowPremultipliedBytes,
+compositeShadowPremultipliedStrengthBytes,
+sanitizeCompositeOptions,
 } from "./gpu/composite";
 export type { CompositeOptions, EffectiveCompositeOptions } from "./gpu/composite";
 export { PRESENTATION_PARAMS_BYTE_LENGTH, PRESENTATION_PASS_WGSL } from "./gpu/presentation-pass-wgsl";

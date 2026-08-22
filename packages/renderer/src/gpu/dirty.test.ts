@@ -231,6 +231,28 @@ describe("#31 reportInvalidations", () => {
     expect(diff.retained).toBe(false);
   });
 
+  it("classifies a #41 light angular radius change as upload/shadow/lighting/presentation only", () => {
+    const prev = encoded();
+    const next = encoded({
+      light: {
+        direction: BASE.light?.direction ?? { x: 0, y: 0, z: 1 },
+        intensity: BASE.light?.intensity ?? 1,
+        angularRadius: Math.fround(0.15),
+      },
+    });
+    const diff = report(next, prev);
+    // The cone directions feed ONLY the shadow stage (and downstream
+    // visibility consumers): height/normal stay retained.
+    expect(diff.reasons).toEqual(["light-angular-radius"]);
+    expect(diff.executed).toEqual(["upload", "shadow", "lighting", "presentation"]);
+    expect(diff.skipped).toEqual(["height", "normal"]);
+    expect(diff.retained).toBe(false);
+    // and back: clearing the radius classifies the same way
+    const back = report(prev, next);
+    expect(back.reasons).toEqual(["light-angular-radius"]);
+    expect(back.skipped).toEqual(["height", "normal"]);
+  });
+
   it("classifies a light intensity change as upload/lighting/presentation only", () => {
     const prev = encoded();
     const next = encoded({

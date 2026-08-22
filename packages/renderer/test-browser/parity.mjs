@@ -1266,14 +1266,21 @@ async function runPresentationBenchmark(device) {
 
 // #41 shadow-pass sample-count benchmark: median HOST wall-clock per
 // ShadowPass.dispatch (submit + queue drain) on the 640x360 proxy scene at
-// the documented sample counts. Report-only: correctness is owned by the
-// parity fixtures.
+// the documented sample counts. The scene carries a POSITIVE light angular
+// radius so every dispatch runs the REAL soft path (a radius of 0 would
+// silently take the hard single-ray shortcut regardless of the count).
+// Report-only: correctness is owned by the parity fixtures.
 const SHADOW_BENCH_SAMPLE_COUNTS = [1, 4, 8, 16];
+const SHADOW_BENCH_ANGULAR_RADIUS = Math.fround(0.15);
 const SHADOW_BENCH_WARMUP = 3;
 const SHADOW_BENCH_SAMPLES = 10;
 
 async function runShadowSampleBenchmark(device) {
-  const scene = benchmarkProxyScene();
+  const base = benchmarkProxyScene();
+  const scene = {
+    ...base,
+    light: { ...base.light, angularRadius: SHADOW_BENCH_ANGULAR_RADIUS },
+  };
   const encoded = api.encodeScene(scene, 1);
   const uploader = new api.SceneUploader(device);
   uploader.upload(encoded);
@@ -1290,6 +1297,11 @@ async function runShadowSampleBenchmark(device) {
         pass.dispatch(input); // warm the cached pipelines/allocations
       }
       await device.queue.onSubmittedWorkDone();
+      // the EFFECTIVE count actually dispatched (sanitized; also documents
+      // whether the soft path was active for this row)
+      const effectiveSamples = pass.getSnapshot().options.samples;
+      const softActive =
+        SHADOW_BENCH_ANGULAR_RADIUS > 0 && effectiveSamples > 1;
       const timings = [];
       for (let i = 0; i < SHADOW_BENCH_SAMPLES; i++) {
         const t0 = performance.now();
@@ -1298,7 +1310,9 @@ async function runShadowSampleBenchmark(device) {
         timings.push(performance.now() - t0);
       }
       rows.push({
-        samples,
+        requestedSamples: samples,
+        effectiveSamples,
+        softActive,
         medianMs: median(timings),
         warmups: SHADOW_BENCH_WARMUP,
         samples_taken: SHADOW_BENCH_SAMPLES,
@@ -2647,18 +2661,27 @@ async function main() {
       detail.push(`presentation benchmark failed: ${presentationBenchmarkFailure}`);
     }
     // #41 shadow-pass sample-count benchmark (report-only): median host
-    // wall-clock per dispatch on the 640x360 proxy scene.
+    // wall-clock per dispatch on the 640x360 proxy scene, running the REAL
+    // soft path (positive angular radius) at every count.
     if (shadowSampleBench.length > 0) {
       detail.push(
         `shadow sample benchmark ${shadowSampleBench[0].width}x${shadowSampleBench[0].height} ` +
-          `${shadowSampleBench[0].warmups} warmups, ${shadowSampleBench[0].samples} samples: ` +
+          `(soft path, angularRadius ${SHADOW_BENCH_ANGULAR_RADIUS}) ` +
+          `${shadowSampleBench[0].warmups} warmups, ${shadowSampleBench[0].samples_taken} samples: ` +
           shadowSampleBench
-            .map((row) => `${row.samples} samples median ${row.medianMs.toFixed(3)}ms`)
+            .map(
+              (row) =>
+                `requested ${row.requestedSamples}/effective ${row.effectiveSamples}` +
+                `${row.softActive ? " (soft)" : " (hard)"} median ${row.medianMs.toFixed(3)}ms`,
+            )
             .join("; "),
       );
-      summaryData.shadowSampleBenchmark = shadowSampleBench.map((row) =>
-        Math.round(row.medianMs * 1000) / 1000,
-      );
+      summaryData.shadowSampleBenchmark = shadowSampleBench.map((row) => ({
+        requested: row.requestedSamples,
+        effective: row.effectiveSamples,
+        softActive: row.softActive,
+        medianMs: Math.round(row.medianMs * 1000) / 1000,
+      }));
     }
     if (shadowSampleBenchFailure !== null) {
       detail.push(`shadow sample benchmark failed: ${shadowSampleBenchFailure}`);

@@ -30,7 +30,7 @@
       "buffer": "visibility",
       "policy": "exact-0-1",
       "tolerance": 0,
-      "description": "shadow visibility: exact binary 0/1 (no tolerance)"
+      "description": "#17/#41 shadow visibility: exact equality, no tolerance. HARD shadow (angularRadius 0 or samples 1): exact binary 0/1. SOFT shadow (#41 area-light sampling): exact deterministic [0,1] fractional visibility (dyadic k/n fractions of identical f32 cone rays on both backends)"
     },
     {
       "buffer": "height",

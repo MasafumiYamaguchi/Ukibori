@@ -61,20 +61,28 @@ export const LIGHT_DIRECTION_REGION: SceneByteRegion = { offset: 64, byteLength:
 export const LIGHT_INTENSITY_REGION: SceneByteRegion = { offset: 80, byteLength: 4 };
 /** Header `exposure` f32 (offsets 84..88). Lighting-only input. */
 export const EXPOSURE_REGION: SceneByteRegion = { offset: 84, byteLength: 4 };
+/**
+ * Header #41 `lightAngularRadius` f32 (offsets 88..92): the apparent light
+ * size for soft cast shadows. It feeds ONLY the shadow stage's cone
+ * directions (and downstream lighting/presentation through visibility) —
+ * the height field never reads it, so an angular-radius-only change keeps
+ * the retained height/normal fields valid.
+ */
+export const LIGHT_ANGULAR_RADIUS_REGION: SceneByteRegion = { offset: 88, byteLength: 4 };
 /** Header `environment` vec4 (offsets 96..112). Lighting-only input. */
 export const ENVIRONMENT_REGION: SceneByteRegion = { offset: 96, byteLength: 16 };
 
 /**
  * Header bytes the height stage genuinely depends on: everything EXCEPT
- * light direction / intensity / exposure / environment. Covers the magic/
- * version/length fields, logical+render extents, DPR, section counts,
- * coordinate flags and the reserved words (always zero, strict-validated) —
- * so a count/layout change also lands here and forces the conservative full
- * chain.
+ * light direction / intensity / angular radius / exposure / environment.
+ * Covers the magic/version/length fields, logical+render extents, DPR,
+ * section counts, coordinate flags and the remaining reserved word
+ * (always zero, strict-validated) — so a count/layout change also lands
+ * here and forces the conservative full chain.
  */
 export const HEADER_GEOMETRY_REGIONS: readonly SceneByteRegion[] = [
   { offset: 0, byteLength: 64 },
-  { offset: 88, byteLength: 8 },
+  { offset: 92, byteLength: 4 },
   { offset: 112, byteLength: 16 },
 ];
 

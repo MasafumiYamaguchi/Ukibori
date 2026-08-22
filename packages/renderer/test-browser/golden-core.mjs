@@ -321,6 +321,33 @@ export function createGoldenRunner({ oracle, catalog }) {
       const records = await computeAll();
       const changes = [];
       const previous = digestIndex(goldens.goldens);
+      // The FILE HEADER (format/catalogVersion/policyTable) is part of the
+      // reviewable diff too: an intentional policy-description edit must be
+      // persistable via --update, otherwise the update pass silently exits
+      // "no changes" while verify keeps failing on the stale header.
+      const expectedHeader = goldenFile([]);
+      const checkedHeader = {
+        format: goldens.format,
+        catalogVersion: goldens.catalogVersion,
+        policyTable: goldens.policyTable,
+        generatedBy: goldens.generatedBy,
+      };
+      const currentHeader = {
+        format: expectedHeader.format,
+        catalogVersion: expectedHeader.catalogVersion,
+        policyTable: expectedHeader.policyTable,
+        generatedBy: expectedHeader.generatedBy,
+      };
+      if (JSON.stringify(checkedHeader) !== JSON.stringify(currentHeader)) {
+        changes.push({
+          fixtureId: "@golden-file",
+          buffer: "@metadata",
+          policy: "exact",
+          tolerance: 0,
+          oldDigest: JSON.stringify(checkedHeader),
+          newDigest: JSON.stringify(currentHeader),
+        });
+      }
       for (const record of records) {
         for (const buffer of record.buffers) {
           const oldDigest = previous.get(record.id)?.get(buffer.name)?.digest;

@@ -63,7 +63,11 @@ export const POLICY_TABLE = Object.freeze([
     buffer: "visibility",
     policy: "exact-0-1",
     tolerance: 0,
-    description: "shadow visibility: exact binary 0/1 (no tolerance)",
+    description:
+      "#17/#41 shadow visibility: exact equality, no tolerance. HARD shadow " +
+      "(angularRadius 0 or samples 1): exact binary 0/1. SOFT shadow (#41 " +
+      "area-light sampling): exact deterministic [0,1] fractional visibility " +
+      "(dyadic k/n fractions of identical f32 cone rays on both backends)",
   },
   {
     buffer: "height",
@@ -678,6 +682,29 @@ export function createCatalog(api) {
   }
 
   /**
+   * #41 soft variant of the mask/glyph caster: same geometry, cone-sampled
+   * light. The penumbra ring exercises fractional visibility through the
+   * mask SDF path on both backends.
+   */
+  function softShadowMaskCaster(angularRadius, samples) {
+    return {
+      scene: createScene({
+        width: 16,
+        height: 16,
+        surfaces: [shadowSurface({
+          id: "glyph",
+          position: { x: 6, y: 6 },
+          size: { x: 8, y: 8 },
+          elevation: 4,
+          shape: { kind: "mask", mask: { width: 4, height: 4, alpha: new Float32Array(16).fill(1) } },
+        })],
+        light: { direction: LIGHT_FROM_RIGHT, intensity: 1, angularRadius },
+      }),
+      shadowOptions: { samples },
+    };
+  }
+
+  /**
    * Clipped caster whose shadow reaches the visible field + offscreen caster.
    * The caster's left edge is offscreen (x -10) and its right edge (x 10) is
    * visible; with the light FROM THE LEFT the shadow falls onto the visible
@@ -805,6 +832,13 @@ export function createCatalog(api) {
     { ...strictThresholdScene(), name: "shadow-strict-above-threshold", dpr: 1 },
     { ...tieOverlapScene(), name: "shadow-tie-overlap-ordering", dpr: 1 },
     { ...maskCasterScene(), name: "shadow-mask-caster", dpr: 1 },
+    {
+      // #41 soft shadow cast by a MASK/GLYPH caster: exact fractional GPU
+      // parity through the mask SDF path
+      ...softShadowMaskCaster(Math.fround(0.25), 8),
+      name: "shadow-soft-mask-caster",
+      dpr: 1,
+    },
     { ...clippedCasterScene(), name: "shadow-clipped-offscreen-caster", dpr: 1 },
     { ...twoLevelScene(LIGHT_VERTICAL), name: "shadow-vertical-light", dpr: 1 },
     { ...twoLevelScene(LIGHT_NEAR_VERTICAL), name: "shadow-near-vertical-light", dpr: 1 },
@@ -1252,6 +1286,15 @@ export function createCatalog(api) {
       dpr: 1,
       compositeOptions: { shadowAlpha: 1 },
     },
+    // #41 soft shadow reaching the CANVAS: intermediate visibilities
+    // quantize the premultiplied tint through the continuous occlusion
+    // strength (custom tint/alpha so every channel is exercised)
+    {
+      name: "present-soft-shadow-custom-tint-alpha",
+      ...softShadowScene(Math.fround(0.25), 8, 6),
+      dpr: 1,
+      compositeOptions: { shadowColor: [200, 40, 220], shadowAlpha: 0.6 },
+    },
     // overlap/ownership, clipped/offscreen surfaces and empty scene behavior
     { name: "present-overlap-ownership", scene: tieOverlapScene().scene, dpr: 1 },
     { name: "present-clipped-offscreen", scene: clipScene(), dpr: 1 },
@@ -1412,6 +1455,7 @@ export function createCatalog(api) {
       "soft-shadow",
       "penumbra-separation",
     ],
+    "shadow-soft-mask-caster": ["shadow-visibility", "soft-shadow", "mask-shape", "glyph-shape"],
     "shadow-non-binary-step-0.1": ["shadow-visibility", "shadow-options"],
     "shadow-f32-vs-f64-equality": ["shadow-visibility", "threshold-equality"],
     "shadow-frac-dpr1": ["shadow-visibility", "dpr-1", "fractional-extent"],
@@ -1453,6 +1497,13 @@ export function createCatalog(api) {
     "present-shadow-custom-tint-alpha": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "translucent-shadow-pixels", "composite-options"],
     "present-shadow-alpha-0": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "composite-options"],
     "present-shadow-alpha-1": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "composite-options"],
+    "present-soft-shadow-custom-tint-alpha": [
+      "canvas-composition",
+      "canvas-format-normalization",
+      "canvas-transparency",
+      "composite-options",
+      "soft-shadow",
+    ],
     "present-overlap-ownership": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "overlap", "ownership-tie", "paint-order"],
     "present-clipped-offscreen": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "clipping", "offscreen", "canvas-clipped-output"],
     "present-empty-scene": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "empty-scene"],

@@ -230,15 +230,27 @@ export function prepareShadowContext(
   const sampleHeight = options.casterHeight ?? height;
   // #41 soft-shadow sampling state: the light's angular radius (radians,
   // f32-packed, 0 = hard) and the sanitized sample count. The cone
-  // directions are computed ONCE here in f64/f32 exactly like the array the
-  // GPU uniform packs, so both backends march identical f32 directions.
+  // directions are derived from the CANONICAL F32 light direction — the GPU
+  // marches the encoded header's fround'ed components, so the production
+  // CPU path must round-trip through the same packing before building the
+  // basis — and computed once here exactly like the array the GPU uniform
+  // packs, so both backends march identical f32 directions. The HARD march
+  // keeps consuming the historical (unrounded) context values.
   const angularRadius = sanitizeAngularRadius(
     typeof scene.light.angularRadius === "number" ? scene.light.angularRadius : undefined,
   );
   const samples = sanitizeShadowSamples(options.samples);
   const sampleDirs =
     angularRadius > 0 && samples > 1
-      ? computeSoftSampleDirections({ x: lx, y: ly, z: lz }, angularRadius, samples)
+      ? computeSoftSampleDirections(
+          {
+            x: Math.fround(lx),
+            y: Math.fround(ly),
+            z: Math.fround(lz),
+          },
+          angularRadius,
+          samples,
+        )
       : null;
   return {
     stepSize,

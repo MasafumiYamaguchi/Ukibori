@@ -82,6 +82,14 @@ export interface UkiboriProps {
   light?: LightVector;
   intensity?: number;
   /**
+   * #41 apparent light size for the physical layer: angular radius of the
+   * light cone in RADIANS (dimensionless, never dpr-scaled). 0/undefined
+   * keeps the exact hard-shadow semantics; a positive value softens cast
+   * shadows through deterministic multi-direction sampling. Pair with
+   * `shadow={{ samples }}` to control quality.
+   */
+  angularRadius?: number;
+  /**
    * Shared environment illumination for the physical layer (#22): a uniform
    * fill independent of the directional light, applied BEFORE exposure and
    * sRGB encoding. Three independent scene/shared controls:
