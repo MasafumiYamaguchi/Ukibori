@@ -5,9 +5,10 @@ import type { Overlay } from "./overlay";
 import type { Region, SurfaceImage } from "./types";
 
 interface FakeCall {
-  type: "resize" | "paint";
+  type: "resize" | "position" | "paint";
   region?: Region;
-  dpr?: number;
+  width?: number;
+  height?: number;
   image?: SurfaceImage;
 }
 
@@ -28,8 +29,11 @@ function makeFakeOverlay() {
       canvas.setAttribute("data-fake-gpu-canvas", "");
       return canvas;
     },
-    resizeAndPosition(region, dpr) {
-      calls.push({ type: "resize", region: { ...region }, dpr });
+    resizeBackingStore(width, height) {
+      calls.push({ type: "resize", width, height });
+    },
+    positionCanvases(region) {
+      calls.push({ type: "position", region: { ...region } });
     },
     paint(image) {
       calls.push({ type: "paint", image });
@@ -102,8 +106,10 @@ describe("UkiboriDom — DOM integration", () => {
 
     // The overlay covers the region (button rect inflated by the shadow margin).
     const resize = fake.calls.find((c) => c.type === "resize");
-    expect(resize?.region).toEqual({ x: 36, y: 136, w: 288, h: 172 });
-    expect(resize?.dpr).toBe(1);
+    expect(resize?.width).toBe(288);
+    expect(resize?.height).toBe(172);
+    const position = fake.calls.find((c) => c.type === "position");
+    expect(position?.region).toEqual({ x: 36, y: 136, w: 288, h: 172 });
 
     const paint = fake.calls.find((c) => c.type === "paint");
     expect(paint?.image?.width).toBe(288);
@@ -174,8 +180,8 @@ describe("UkiboriDom — DOM integration", () => {
     layer.invalidate("primary");
     layer.render();
 
-    const resizes = fake.calls.filter((c) => c.type === "resize");
-    const last = resizes[resizes.length - 1];
+    const positions = fake.calls.filter((c) => c.type === "position");
+    const last = positions[positions.length - 1];
     expect(last?.region).toEqual({ x: 36, y: 136, w: 348, h: 188 });
     layer.dispose();
   });
@@ -449,7 +455,9 @@ describe("UkiboriDom — DOM integration", () => {
     layer.setDpr(2);
     layer.render();
     const resizes = fake.calls.filter((c) => c.type === "resize");
-    expect(resizes[resizes.length - 1]?.dpr).toBe(2);
+    // dpr 2 doubles the backing store (288x172 CSS region -> 576x344 texels).
+    expect(resizes[resizes.length - 1]?.width).toBe(576);
+    expect(resizes[resizes.length - 1]?.height).toBe(344);
     expect(layer.debugState().dpr).toBe(2);
     const paintsBefore = fake.calls.filter((c) => c.type === "paint").length;
     layer.setShadow({ bias: 0.9 });
@@ -822,7 +830,7 @@ describe("UkiboriDom — DOM integration", () => {
     stubRectFor(button, { left: 100, top: 200, width: 160, height: 44 });
     layer.register(button, BUTTON_OPTIONS);
     layer.render();
-    const resizesBefore = fake.calls.filter((c) => c.type === "resize").length;
+    const resizesBefore = fake.calls.filter((c) => c.type === "position").length;
 
     const spacer = document.createElement("div");
     spacer.style.height = "80px";
@@ -831,7 +839,7 @@ describe("UkiboriDom — DOM integration", () => {
 
     // The document-level MutationObserver delivers asynchronously.
     await new Promise((resolve) => setTimeout(resolve, 0));
-    const resizes = fake.calls.filter((c) => c.type === "resize");
+    const resizes = fake.calls.filter((c) => c.type === "position");
     expect(resizes.length).toBeGreaterThan(resizesBefore);
     const last = resizes[resizes.length - 1];
     // Region follows the moved button (margin 64 around 100..260 x 280..324).
@@ -892,7 +900,7 @@ describe("UkiboriDom — DOM integration", () => {
     stubRectFor(hidden, { left: 300, top: 200, width: 60, height: 20 });
     layer.invalidate("hidden");
     layer.render();
-    const resizes = fake.calls.filter((c) => c.type === "resize");
+    const resizes = fake.calls.filter((c) => c.type === "position");
     const last = resizes[resizes.length - 1];
     // Region now covers both surfaces (button 100..260 x 200..244, badge
     // 300..360 x 200..220) inflated by the 16px margin.

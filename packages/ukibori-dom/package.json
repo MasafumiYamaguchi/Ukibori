@@ -20,6 +20,7 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:webgpu": "node scripts/test-webgpu-dom.mjs",
     "clean": "rimraf dist"
   },
   "dependencies": {

@@ -16,7 +16,7 @@ import type { GpuBufferLike, SceneBindings } from "./uploader";
 import type { HeightInputRange } from "./height-inputs";
 import { heightInputRanges, registerHeightInputProvenance } from "./height-inputs";
 import type { BandRegion } from "./tiles";
-import { assertBandRegion } from "./tiles";
+import { assertBandRegion, planDispatchChunks } from "./tiles";
 import type { GpuTimestampWritesLike } from "./timestamp-profiler";
 import { validateEncodedScene } from "./validate";
 import {
@@ -87,8 +87,11 @@ import {
  *    scene are rejected (O(1), no scene-section copy)
  * 3. section byte-length/buffer-size cross-checks against the header
  * 4. device limits: workgroup size, `maxStorageBuffersPerShaderStage >= 8`
- *    (when reported), and BOTH dispatch counts against
- *    `maxComputeWorkgroupsPerDimension` (default 65535)
+ *    (when reported), and the dispatch counts against
+ *    `maxComputeWorkgroupsPerDimension` (default 65535): an oversized
+ *    1D compose dispatch is SPLIT into sequential row-band chunks (the #32
+ *    region machinery, one params write + submission per chunk); only an
+ *    oversized mask-SDF workspace remains fatal
  * 5. u32-bounded host arithmetic: render texel counts, per-mask padded cell
  *    counts, workspace byte offsets, totalMaskCells and maskMeta allocation
  *    bytes are all checked against U32_MAX and safe integers
@@ -346,6 +349,13 @@ export interface HeightPassDispatchStats {
   readonly totalAllocationBytes: number;
   readonly maskSdfPasses: number;
   readonly composePasses: number;
+  /**
+   * queue.submit calls performed by this dispatch: 1 on the historical
+   * single-submission path, `1 + composeChunks` when the compose stage was
+   * limit-split into sequential band chunks (the SDF pass then owns its
+   * own submission).
+   */
+  readonly submissions: number;
 }
 
 /** u32-bounded mask-SDF workspace layout (see `computeMaskWorkspaceLayout`). */
@@ -522,7 +532,18 @@ export class HeightPass {
     const regionEnd = region === null ? 0 : yOffset + bandTexels;
     const composeWorkgroups = ceilDiv(bandTexels, WORKGROUP_SIZE);
     const sdfWorkgroups = totalMaskCells > 0 ? ceilDiv(totalMaskCells, WORKGROUP_SIZE) : 0;
-    this.assertDeviceLimits(composeWorkgroups, sdfWorkgroups);
+    // The per-dimension workgroup cap applies to EVERY dispatch dimension,
+    // so a 1D compose dispatch above it must be SPLIT into sequential band
+    // chunks (each within the cap; the #32 region machinery reused as-is).
+    // null = the whole band fits one dispatch (historical path).
+    const maxWorkgroups = this.assertDeviceLimits(composeWorkgroups, sdfWorkgroups);
+    const composeChunks = planDispatchChunks(
+      region === null ? 0 : region.y0,
+      region === null ? header.renderHeight - 1 : region.y1,
+      header.renderWidth,
+      WORKGROUP_SIZE,
+      maxWorkgroups,
+    );
     this.ensureAllocations(maskOffsets.length, header.surfaceCount, texelCount, totalMaskCells);
 
     this.packUniform(totalMaskCells, yOffset, regionEnd);
@@ -544,34 +565,93 @@ export class HeightPass {
     const sdfGroup = this.createSdfBindGroup(cached.sdfLayout);
     const composeGroups = this.createComposeBindGroups(cached.composeLayout);
 
-    const encoder = this.device.createCommandEncoder({ label: "ukibori-height-pass" });
     let maskSdfPasses = 0;
-    if (totalMaskCells > 0) {
-      const pass = encoder.beginComputePass(
-        timestampDescriptor(options?.timestampWrites, true, false),
-      );
-      pass.setPipeline(cached.sdfPipeline);
-      pass.setBindGroup(0, sceneGroup);
-      pass.setBindGroup(1, sdfGroup);
-      pass.dispatchWorkgroups(sdfWorkgroups);
-      pass.end();
-      maskSdfPasses = 1;
+    let submissions = 0;
+    if (composeChunks === null) {
+      // Historical frame: the SDF pass and all five compose passes share
+      // exactly one encoder and one queue submission.
+      const encoder = this.device.createCommandEncoder({ label: "ukibori-height-pass" });
+      if (totalMaskCells > 0) {
+        const pass = encoder.beginComputePass(
+          timestampDescriptor(options?.timestampWrites, true, false),
+        );
+        pass.setPipeline(cached.sdfPipeline);
+        pass.setBindGroup(0, sceneGroup);
+        pass.setBindGroup(1, sdfGroup);
+        pass.dispatchWorkgroups(sdfWorkgroups);
+        pass.end();
+        maskSdfPasses = 1;
+      }
+      for (let i = 0; i < COMPOSE_PASSES.length; i++) {
+        const pass = encoder.beginComputePass(
+          timestampDescriptor(
+            options?.timestampWrites,
+            totalMaskCells === 0 && i === 0,
+            i === COMPOSE_PASSES.length - 1,
+          ),
+        );
+        pass.setPipeline(cached.composePipelines[i]);
+        pass.setBindGroup(0, sceneGroup);
+        pass.setBindGroup(1, composeGroups[i]);
+        pass.dispatchWorkgroups(composeWorkgroups);
+        pass.end();
+      }
+      this.device.queue.submit([encoder.finish()]);
+      submissions = 1;
+    } else {
+      // Limit-split frame: the SDF pass runs ONCE in full (its own
+      // submission; it ignores yOffset/regionEnd), then each row chunk
+      // re-packs ONLY its yOffset/regionEnd params, writes them and
+      // submits the five compose passes. Queue operations execute in issue
+      // order, so every chunk's params write lands after the previous
+      // submission and before its own passes — each texel row is computed
+      // by exactly one chunk. The chunk regions are true partial bands
+      // (non-zero regionEnd even when the first chunk starts at row 0).
+      //
+      // Timestamps span the WHOLE stage across submissions exactly like the
+      // single-encoder path: the stage's beginning query lands on the first
+      // executed pass (the SDF pass when masks exist, else the first chunk's
+      // first compose pass) and the end query on the last compose pass of
+      // the LAST chunk.
+      if (totalMaskCells > 0) {
+        const encoder = this.device.createCommandEncoder({ label: "ukibori-height-pass" });
+        const pass = encoder.beginComputePass(
+          timestampDescriptor(options?.timestampWrites, true, false),
+        );
+        pass.setPipeline(cached.sdfPipeline);
+        pass.setBindGroup(0, sceneGroup);
+        pass.setBindGroup(1, sdfGroup);
+        pass.dispatchWorkgroups(sdfWorkgroups);
+        pass.end();
+        this.device.queue.submit([encoder.finish()]);
+        maskSdfPasses = 1;
+        submissions += 1;
+      }
+      for (let chunkIndex = 0; chunkIndex < composeChunks.length; chunkIndex++) {
+        const chunk = composeChunks[chunkIndex];
+        const isLastChunk = chunkIndex === composeChunks.length - 1;
+        const chunkYOffset = chunk.y0 * header.renderWidth;
+        this.packUniform(totalMaskCells, chunkYOffset, chunkYOffset + chunk.texels);
+        this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
+        const encoder = this.device.createCommandEncoder({ label: "ukibori-height-pass" });
+        for (let i = 0; i < COMPOSE_PASSES.length; i++) {
+          const pass = encoder.beginComputePass(
+            timestampDescriptor(
+              options?.timestampWrites,
+              totalMaskCells === 0 && chunkIndex === 0 && i === 0,
+              isLastChunk && i === COMPOSE_PASSES.length - 1,
+            ),
+          );
+          pass.setPipeline(cached.composePipelines[i]);
+          pass.setBindGroup(0, sceneGroup);
+          pass.setBindGroup(1, composeGroups[i]);
+          pass.dispatchWorkgroups(chunk.workgroups);
+          pass.end();
+        }
+        this.device.queue.submit([encoder.finish()]);
+        submissions += 1;
+      }
     }
-    for (let i = 0; i < COMPOSE_PASSES.length; i++) {
-      const pass = encoder.beginComputePass(
-        timestampDescriptor(
-          options?.timestampWrites,
-          totalMaskCells === 0 && i === 0,
-          i === COMPOSE_PASSES.length - 1,
-        ),
-      );
-      pass.setPipeline(cached.composePipelines[i]);
-      pass.setBindGroup(0, sceneGroup);
-      pass.setBindGroup(1, composeGroups[i]);
-      pass.dispatchWorkgroups(composeWorkgroups);
-      pass.end();
-    }
-    this.device.queue.submit([encoder.finish()]);
 
     this.lastDispatch = {
       renderWidth: header.renderWidth,
@@ -601,6 +681,7 @@ export class HeightPass {
       totalAllocationBytes: sumOf(this.allocationSizes),
       maskSdfPasses,
       composePasses: COMPOSE_PASSES.length,
+      submissions,
     };
     this.newAllocations = 0;
     return stats;
@@ -709,7 +790,15 @@ export class HeightPass {
     }
   }
 
-  private assertDeviceLimits(composeWorkgroups: number, sdfWorkgroups: number): void {
+  /**
+   * Device-capability checks shared by both stages. Returns the effective
+   * `maxComputeWorkgroupsPerDimension` so the caller can SPLIT an oversized
+   * 1D compose dispatch into sequential band chunks (`planDispatchChunks`).
+   * Only the mask-SDF stage stays fatal here: its padded workspace has no
+   * row structure to chunk along, so a linear dispatch above the cap has no
+   * in-pass remedy.
+   */
+  private assertDeviceLimits(composeWorkgroups: number, sdfWorkgroups: number): number {
     const limits = this.device.limits;
     const maxWorkgroupX = positiveLimit(limits.maxComputeWorkgroupSizeX, 256);
     const maxInvocations = positiveLimit(limits.maxComputeInvocationsPerWorkgroup, 256);
@@ -734,12 +823,13 @@ export class HeightPass {
       );
     }
     const maxWorkgroups = positiveLimit(limits.maxComputeWorkgroupsPerDimension, DEFAULT_MAX_WORKGROUPS);
-    if (!(composeWorkgroups <= maxWorkgroups && sdfWorkgroups <= maxWorkgroups)) {
+    if (sdfWorkgroups > maxWorkgroups) {
       throw new Error(
         `dispatch counts exceed maxComputeWorkgroupsPerDimension ${maxWorkgroups} ` +
           `(sdf ${sdfWorkgroups}, compose ${composeWorkgroups})`,
       );
     }
+    return maxWorkgroups;
   }
 
   private assertAllocationWithinLimits(byteLength: number, label: string): void {

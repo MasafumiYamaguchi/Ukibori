@@ -227,4 +227,10 @@ export interface DomDebugState {
    * CPU path. Never contains host copies of GPU pixels.
    */
   gpuFrame: DomGpuFrameState | null;
+  /**
+   * Bounded history of device `uncapturederror` messages from the WebGPU
+   * path (oldest first). These errors would otherwise fail silently (no-ops
+   * with healthy stats), so they are captured verbatim for diagnosis.
+   */
+  gpuDiagnostics: readonly string[];
 }

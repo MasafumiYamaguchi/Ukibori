@@ -1,4 +1,3 @@
-import { renderTargetSize, sanitizeDpr } from "./coords";
 import { readPageScroll } from "./measure";
 import type { Region, SurfaceImage } from "./types";
 
@@ -43,8 +42,18 @@ import type { Region, SurfaceImage } from "./types";
  *
  * The backing store is DPR-scaled (`floor(region.w * dpr)` texels) while the
  * CSS size stays in CSS pixels, so `putImageData` writes crisp device pixels
- * on the CPU canvas and the WebGPU presentation pass presents directly to
- * the GPU canvas's backing store (resized by the pipeline itself).
+ * on the CPU canvas. Backing-store sizing and CSS placement are DELIBERATELY
+ * separate responsibilities (`resizeBackingStore` / `positionCanvases`):
+ *
+ * - The CPU canvas's backing store is resized by the layer right BEFORE
+ *   `paint()`.
+ * - The WebGPU canvas's backing store is owned EXCLUSIVELY by the renderer's
+ *   `GpuScenePipeline`, which resizes it immediately before its own
+ *   presentation. Nothing here may write `width`/`height` on that canvas:
+ *   a post-presentation attribute write resets the canvas and discards the
+ *   presented frame (and retained scheduling would not re-present it).
+ *   `positionCanvases` therefore touches ONLY CSS placement, which never
+ *   resets a canvas bitmap/context.
  */
 
 /** Managed attribute marking a registered surface (suppressed appearance). */
@@ -200,8 +209,25 @@ export interface Overlay {
   /** which canvas is currently presented: the CPU Canvas2D canvas or the
    * WebGPU canvas */
   readonly activeBackend: "cpu" | "webgpu";
-  /** Resize + reposition the canvas(es) to cover `region` at `dpr`. */
-  resizeAndPosition(region: Region, dpr: number): void;
+  /**
+   * Resize the CPU canvas backing store to the exact device-pixel texel
+   * dimensions of the next `paint()` image. Same-value writes are NEVER
+   * issued: per the HTML spec a width/height attribute write resets the
+   * canvas bitmap/context "whether or not the value changes", so a redundant
+   * assignment would needlessly destroy the painted frame.
+   *
+   * The WebGPU canvas's backing store is intentionally OUT OF SCOPE: it is
+   * owned exclusively by the `GpuScenePipeline`, which resizes it as the
+   * LAST step before its own presentation. Callers must never resize it
+   * after a present.
+   */
+  resizeBackingStore(width: number, height: number): void;
+  /**
+   * CSS-place both overlay canvases over `region` (left/top/width/height
+   * STYLES only). Never touches the backing-store attributes, so it is safe
+   * to call at any time — including right after a WebGPU presentation.
+   */
+  positionCanvases(region: Region): void;
   /** Draw a full-scene image (1 texel = 1 canvas device pixel) onto the CPU
    * canvas (never the WebGPU canvas). */
   paint(image: SurfaceImage): void;
@@ -300,11 +326,22 @@ export class OverlayCanvas implements Overlay {
     }
   }
 
-  resizeAndPosition(region: Region, dpr: number): void {
-    const { width, height } = renderTargetSize(region, sanitizeDpr(dpr));
+  resizeBackingStore(width: number, height: number): void {
+    // Guarded writes: a same-value width/height assignment still resets the
+    // canvas per the HTML spec, so it must never be issued redundantly.
+    if (this.canvas.width !== width) {
+      this.canvas.width = width;
+    }
+    if (this.canvas.height !== height) {
+      this.canvas.height = height;
+    }
+  }
+
+  positionCanvases(region: Region): void {
+    // Pure CSS placement: style mutations never reset a canvas bitmap or
+    // its WebGPU configuration, so this is safe after a presentation. The
+    // backing-store attributes are deliberately not touched here.
     for (const canvas of this.allCanvases()) {
-      canvas.width = width;
-      canvas.height = height;
       const origin = containingBlockOrigin(canvas);
       canvas.style.left = `${region.x - origin.x}px`;
       canvas.style.top = `${region.y - origin.y}px`;

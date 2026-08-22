@@ -16,7 +16,7 @@ import type {
 import { GPU_USAGE_COPY_DST, GPU_USAGE_COPY_SRC, GPU_USAGE_STORAGE } from "./layout";
 import type { GpuBufferLike } from "./uploader";
 import type { BandRegion } from "./tiles";
-import { assertBandRegion } from "./tiles";
+import { assertBandRegion, planDispatchChunks } from "./tiles";
 import type { GpuTimestampWritesLike } from "./timestamp-profiler";
 import {
   NORMAL_OUTPUT_BYTES_PER_TEXEL,
@@ -210,6 +210,12 @@ export interface NormalPassDispatchStats {
   readonly allocationCount: number;
   readonly totalAllocationBytes: number;
   readonly workgroupCountX: number;
+  /**
+   * queue.submit calls performed by this dispatch: 1 on the historical
+   * single-submission path, more when the band was limit-split into
+   * sequential row chunks (`planDispatchChunks`).
+   */
+  readonly submissions: number;
 }
 
 /**
@@ -316,7 +322,18 @@ export class NormalPass {
     const yOffset = region === null ? 0 : region.y0 * height.width;
     const regionEnd = region === null ? 0 : yOffset + bandTexels;
     const workgroupCountX = Math.ceil(bandTexels / NORMAL_WORKGROUP_SIZE);
-    this.assertDeviceLimits(workgroupCountX);
+    // The per-dimension workgroup cap applies to EVERY dispatch dimension;
+    // an oversized 1D dispatch is SPLIT into sequential band chunks (each
+    // re-packing its yOffset/regionEnd params before its own submission).
+    // null = the whole band fits one dispatch (historical path).
+    const maxWorkgroups = this.assertDeviceLimits(workgroupCountX);
+    const chunks = planDispatchChunks(
+      region === null ? 0 : region.y0,
+      region === null ? height.height - 1 : region.y1,
+      height.width,
+      NORMAL_WORKGROUP_SIZE,
+      maxWorkgroups,
+    );
     const outputBytes = texelCount * NORMAL_OUTPUT_BYTES_PER_TEXEL;
     this.assertAllocationWithinLimits(NORMAL_PARAMS_BYTE_LENGTH, "params uniform");
     this.assertAllocationWithinLimits(outputBytes, "normal output");
@@ -327,9 +344,7 @@ export class NormalPass {
       GPU_USAGE_UNIFORM | GPU_USAGE_COPY_DST,
     );
     this.ensureAllocation("outNormal", outputBytes, NORMAL_PASS_OUTPUT_USAGE);
-    this.packUniform(height.width, height.height, options, yOffset, regionEnd);
     const uniform = this.allocation("uniform");
-    this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
 
     const cached = this.ensurePipeline();
     const group = this.device.createBindGroup({
@@ -344,17 +359,55 @@ export class NormalPass {
       ],
     });
 
-    const encoder = this.device.createCommandEncoder({ label: "ukibori-normal-pass" });
-    const pass = encoder.beginComputePass(
-      input.timestampWrites === undefined
-        ? undefined
-        : { timestampWrites: input.timestampWrites },
-    );
-    pass.setPipeline(cached.pipeline);
-    pass.setBindGroup(0, group);
-    pass.dispatchWorkgroups(workgroupCountX);
-    pass.end();
-    this.device.queue.submit([encoder.finish()]);
+    let submissions = 0;
+    if (chunks === null) {
+      // Historical frame: one params write + one encoder + one submission.
+      this.packUniform(height.width, height.height, options, yOffset, regionEnd);
+      this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
+      const encoder = this.device.createCommandEncoder({ label: "ukibori-normal-pass" });
+      const pass = encoder.beginComputePass(
+        input.timestampWrites === undefined
+          ? undefined
+          : { timestampWrites: input.timestampWrites },
+      );
+      pass.setPipeline(cached.pipeline);
+      pass.setBindGroup(0, group);
+      pass.dispatchWorkgroups(workgroupCountX);
+      pass.end();
+      this.device.queue.submit([encoder.finish()]);
+      submissions = 1;
+    } else {
+      // Limit-split frame: queue operations execute in issue order, so each
+      // chunk's params write lands after the previous submission and before
+      // its own pass — each texel row is computed by exactly one chunk.
+      //
+      // Timestamps span the WHOLE stage across chunks: the beginning query
+      // lands on the FIRST chunk's pass and the end query on the LAST
+      // chunk's pass (identical to the single-chunk path when no split
+      // happens).
+      for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+        const chunk = chunks[chunkIndex];
+        const chunkYOffset = chunk.y0 * height.width;
+        this.packUniform(
+          height.width,
+          height.height,
+          options,
+          chunkYOffset,
+          chunkYOffset + chunk.texels,
+        );
+        this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
+        const encoder = this.device.createCommandEncoder({ label: "ukibori-normal-pass" });
+        const pass = encoder.beginComputePass(
+          chunkTimestampDescriptor(input.timestampWrites, chunkIndex === 0, chunkIndex === chunks.length - 1),
+        );
+        pass.setPipeline(cached.pipeline);
+        pass.setBindGroup(0, group);
+        pass.dispatchWorkgroups(chunk.workgroups);
+        pass.end();
+        this.device.queue.submit([encoder.finish()]);
+        submissions += 1;
+      }
+    }
 
     this.lastDispatch = {
       renderWidth: height.width,
@@ -369,6 +422,7 @@ export class NormalPass {
       allocationCount: this.allocations.size,
       totalAllocationBytes: sumOf(this.allocationSizes),
       workgroupCountX,
+      submissions,
     };
     this.newAllocations = 0;
     return stats;
@@ -450,7 +504,13 @@ export class NormalPass {
     }
   }
 
-  private assertDeviceLimits(workgroupCountX: number): void {
+  /**
+   * Device-capability checks. Returns the effective
+   * `maxComputeWorkgroupsPerDimension` so the caller can SPLIT an oversized
+   * 1D dispatch into sequential band chunks (`planDispatchChunks`) instead
+   * of failing.
+   */
+  private assertDeviceLimits(workgroupCountX: number): number {
     const limits = this.device.limits;
     const maxWorkgroupX = positiveLimit(limits.maxComputeWorkgroupSizeX, 256);
     const maxInvocations = positiveLimit(limits.maxComputeInvocationsPerWorkgroup, 256);
@@ -461,12 +521,7 @@ export class NormalPass {
           `maxComputeInvocationsPerWorkgroup ${maxInvocations})`,
       );
     }
-    const maxWorkgroups = positiveLimit(limits.maxComputeWorkgroupsPerDimension, DEFAULT_MAX_WORKGROUPS);
-    if (workgroupCountX > maxWorkgroups) {
-      throw new Error(
-        `dispatch count ${workgroupCountX} exceeds maxComputeWorkgroupsPerDimension ${maxWorkgroups}`,
-      );
-    }
+    return positiveLimit(limits.maxComputeWorkgroupsPerDimension, DEFAULT_MAX_WORKGROUPS);
   }
 
   private assertAllocationWithinLimits(byteLength: number, label: string): void {
@@ -591,6 +646,34 @@ export class NormalPass {
 }
 
 // -- helpers ----------------------------------------------------------------
+
+/**
+ * Timestamp descriptor for ONE chunk of a limit-split stage: the beginning
+ * query is recorded only by the first chunk's pass and the end query only by
+ * the last chunk's pass, so the profiler measures the whole stage exactly
+ * like the unsplit single-pass path. Mirrors height-pass's
+ * `timestampDescriptor` semantics.
+ */
+function chunkTimestampDescriptor(
+  writes: GpuTimestampWritesLike | undefined,
+  isFirstChunk: boolean,
+  isLastChunk: boolean,
+): { readonly timestampWrites: GpuTimestampWritesLike } | undefined {
+  if (writes === undefined || (!isFirstChunk && !isLastChunk)) {
+    return undefined;
+  }
+  return {
+    timestampWrites: {
+      querySet: writes.querySet,
+      ...(isFirstChunk && writes.beginningOfPassWriteIndex !== undefined
+        ? { beginningOfPassWriteIndex: writes.beginningOfPassWriteIndex }
+        : {}),
+      ...(isLastChunk && writes.endOfPassWriteIndex !== undefined
+        ? { endOfPassWriteIndex: writes.endOfPassWriteIndex }
+        : {}),
+    },
+  };
+}
 
 function sumOf(sizes: Map<string, number>): number {
   let total = 0;

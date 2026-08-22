@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>ukibori-dom webgpu probe</title>
+  </head>
+  <body>
+    <!-- First line carries the marker token; the runner parses only it. -->
+    <pre id="result">PENDING</pre>
+    <script type="module">
+      import { runProbe } from "./dom-gpu-app.js";
+      const resultEl = document.getElementById("result");
+      const outcome = await runProbe();
+      resultEl.textContent = `UKIBORI_DOM_GPU_${outcome.marker} ${outcome.detail}`;
+    </script>
+  </body>
+</html>
