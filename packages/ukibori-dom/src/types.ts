@@ -1,4 +1,10 @@
-import type { GpuScenePipelineFrameStats, HeightProfile, MaskSource, Vec3 } from "ukibori-renderer";
+import type {
+  GpuScenePipelineFrameStats,
+  GpuTimestampFrameResult,
+  HeightProfile,
+  MaskSource,
+  Vec3,
+} from "ukibori-renderer";
 
 /**
  * #20 DOM integration layer — public types.
@@ -179,16 +185,19 @@ export type DomRenderBackend = "cpu" | "webgpu";
 /**
  * Host-side state of the last GPU-presented frame (debug/profiling signal).
  *
- * All timings inside `frame` are WALL-CLOCK HOST measurements — the
- * `GpuScenePipeline` never fabricates GPU timestamps (`queue.onSubmittedWorkDone()`
- * completion is never claimed). `hostRenderMs` is the whole dom-layer
- * `render()` call that produced the frame.
+ * `frame` retains the labeled host measurements and exposes an asynchronous
+ * timestamp-query promise. `gpuTiming` is populated after its real GPU
+ * readback finishes; unsupported/no-work/failure remain explicit states.
+ * `hostRenderMs` is the whole dom-layer `render()` call that submitted the
+ * frame and is not GPU completion latency.
  */
 export interface DomGpuFrameState {
   /** the full structured per-frame pipeline stats of the last GPU render */
   readonly frame: GpuScenePipelineFrameStats;
   /** host wall-clock ms of the whole dom-layer render() that produced the frame */
   readonly hostRenderMs: number;
+  /** resolved real GPU pass timing for this frame; null while readback is pending */
+  readonly gpuTiming: GpuTimestampFrameResult | null;
 }
 
 /** Snapshot of the layer's internal state for debugging / tests. */

@@ -17,6 +17,7 @@ import { GPU_USAGE_COPY_DST, GPU_USAGE_COPY_SRC, GPU_USAGE_STORAGE } from "./lay
 import type { GpuBufferLike } from "./uploader";
 import type { BandRegion } from "./tiles";
 import { assertBandRegion, planDispatchChunks } from "./tiles";
+import type { GpuTimestampWritesLike } from "./timestamp-profiler";
 import {
   NORMAL_OUTPUT_BYTES_PER_TEXEL,
   NORMAL_PARAMS_BYTE_LENGTH,
@@ -163,6 +164,8 @@ export interface NormalPassInput {
    * historical full-frame dispatch.
    */
   readonly region?: BandRegion;
+  /** Optional real GPU timestamp-query writes for this compute pass. */
+  readonly timestampWrites?: GpuTimestampWritesLike;
 }
 
 /** Stable read-only output binding for later lighting (#27+). */
@@ -362,7 +365,11 @@ export class NormalPass {
       this.packUniform(height.width, height.height, options, yOffset, regionEnd);
       this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
       const encoder = this.device.createCommandEncoder({ label: "ukibori-normal-pass" });
-      const pass = encoder.beginComputePass();
+      const pass = encoder.beginComputePass(
+        input.timestampWrites === undefined
+          ? undefined
+          : { timestampWrites: input.timestampWrites },
+      );
       pass.setPipeline(cached.pipeline);
       pass.setBindGroup(0, group);
       pass.dispatchWorkgroups(workgroupCountX);
@@ -373,7 +380,13 @@ export class NormalPass {
       // Limit-split frame: queue operations execute in issue order, so each
       // chunk's params write lands after the previous submission and before
       // its own pass — each texel row is computed by exactly one chunk.
-      for (const chunk of chunks) {
+      //
+      // Timestamps span the WHOLE stage across chunks: the beginning query
+      // lands on the FIRST chunk's pass and the end query on the LAST
+      // chunk's pass (identical to the single-chunk path when no split
+      // happens).
+      for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+        const chunk = chunks[chunkIndex];
         const chunkYOffset = chunk.y0 * height.width;
         this.packUniform(
           height.width,
@@ -384,7 +397,9 @@ export class NormalPass {
         );
         this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
         const encoder = this.device.createCommandEncoder({ label: "ukibori-normal-pass" });
-        const pass = encoder.beginComputePass();
+        const pass = encoder.beginComputePass(
+          chunkTimestampDescriptor(input.timestampWrites, chunkIndex === 0, chunkIndex === chunks.length - 1),
+        );
         pass.setPipeline(cached.pipeline);
         pass.setBindGroup(0, group);
         pass.dispatchWorkgroups(chunk.workgroups);
@@ -631,6 +646,34 @@ export class NormalPass {
 }
 
 // -- helpers ----------------------------------------------------------------
+
+/**
+ * Timestamp descriptor for ONE chunk of a limit-split stage: the beginning
+ * query is recorded only by the first chunk's pass and the end query only by
+ * the last chunk's pass, so the profiler measures the whole stage exactly
+ * like the unsplit single-pass path. Mirrors height-pass's
+ * `timestampDescriptor` semantics.
+ */
+function chunkTimestampDescriptor(
+  writes: GpuTimestampWritesLike | undefined,
+  isFirstChunk: boolean,
+  isLastChunk: boolean,
+): { readonly timestampWrites: GpuTimestampWritesLike } | undefined {
+  if (writes === undefined || (!isFirstChunk && !isLastChunk)) {
+    return undefined;
+  }
+  return {
+    timestampWrites: {
+      querySet: writes.querySet,
+      ...(isFirstChunk && writes.beginningOfPassWriteIndex !== undefined
+        ? { beginningOfPassWriteIndex: writes.beginningOfPassWriteIndex }
+        : {}),
+      ...(isLastChunk && writes.endOfPassWriteIndex !== undefined
+        ? { endOfPassWriteIndex: writes.endOfPassWriteIndex }
+        : {}),
+    },
+  };
+}
 
 function sumOf(sizes: Map<string, number>): number {
   let total = 0;

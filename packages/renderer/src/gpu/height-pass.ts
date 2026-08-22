@@ -13,8 +13,11 @@ import {
   sceneSectionLayout,
 } from "./layout";
 import type { GpuBufferLike, SceneBindings } from "./uploader";
+import type { HeightInputRange } from "./height-inputs";
+import { heightInputRanges, registerHeightInputProvenance } from "./height-inputs";
 import type { BandRegion } from "./tiles";
 import { assertBandRegion, planDispatchChunks } from "./tiles";
+import type { GpuTimestampWritesLike } from "./timestamp-profiler";
 import { validateEncodedScene } from "./validate";
 import {
   COMPOSE_CASTER_HEIGHT_WGSL,
@@ -206,7 +209,9 @@ export interface GpuComputePassEncoderLike {
 }
 
 export interface GpuCommandEncoderLike {
-  beginComputePass(): GpuComputePassEncoderLike;
+  beginComputePass(desc?: {
+    readonly timestampWrites?: GpuTimestampWritesLike;
+  }): GpuComputePassEncoderLike;
   finish(): GpuCommandBufferLike;
 }
 
@@ -298,12 +303,28 @@ export interface HeightPassLastDispatch {
  * proves which encoded scene was consumed, while the provenance object
  * itself is freshly allocated per dispatch so later passes can reject a
  * mixture of fields from two executions of that same scene.
+ *
+ * `heightInputs` is a diagnostic list of height-dependent byte ranges
+ * (geometry header regions + surfaces + masks + mask pixels + material
+ * flags; see `heightInputRanges`). A downstream pass may combine a freshly
+ * uploaded scene with these retained fields ONLY when the canonical ranges,
+ * recomputed from strictly validated `sceneBytes`, match the fresh bytes
+ * EXACTLY and extent/DPR agree — so light/environment/
+ * exposure/material-VALUE-only changes can skip the height/normal stages
+ * while genuinely stale or foreign geometry is still rejected.
  */
 export interface HeightPassProvenance {
   readonly sceneBytes: Uint8Array;
   readonly width: number;
   readonly height: number;
   readonly dpr: number;
+  /**
+   * Diagnostic height-dependent ranges over `sceneBytes`. Downstream passes
+   * never trust this public metadata for authorization; they recompute the
+   * canonical list from validated bytes, preventing forged/mutated ranges
+   * from authorizing stale geometry.
+   */
+  readonly heightInputs?: readonly HeightInputRange[] | undefined;
 }
 
 export interface HeightPassSnapshot {
@@ -463,7 +484,11 @@ export class HeightPass {
   dispatch(
     scene: EncodedScene,
     bindings: SceneBindings,
-    options?: { readonly region?: BandRegion; readonly candidates?: readonly number[] },
+    options?: {
+      readonly region?: BandRegion;
+      readonly candidates?: readonly number[];
+      readonly timestampWrites?: GpuTimestampWritesLike;
+    },
   ): HeightPassDispatchStats {
     const validation = validateEncodedScene(scene.bytes);
     if (!validation.ok || validation.header === undefined) {
@@ -547,7 +572,9 @@ export class HeightPass {
       // exactly one encoder and one queue submission.
       const encoder = this.device.createCommandEncoder({ label: "ukibori-height-pass" });
       if (totalMaskCells > 0) {
-        const pass = encoder.beginComputePass();
+        const pass = encoder.beginComputePass(
+          timestampDescriptor(options?.timestampWrites, true, false),
+        );
         pass.setPipeline(cached.sdfPipeline);
         pass.setBindGroup(0, sceneGroup);
         pass.setBindGroup(1, sdfGroup);
@@ -556,7 +583,13 @@ export class HeightPass {
         maskSdfPasses = 1;
       }
       for (let i = 0; i < COMPOSE_PASSES.length; i++) {
-        const pass = encoder.beginComputePass();
+        const pass = encoder.beginComputePass(
+          timestampDescriptor(
+            options?.timestampWrites,
+            totalMaskCells === 0 && i === 0,
+            i === COMPOSE_PASSES.length - 1,
+          ),
+        );
         pass.setPipeline(cached.composePipelines[i]);
         pass.setBindGroup(0, sceneGroup);
         pass.setBindGroup(1, composeGroups[i]);
@@ -574,9 +607,17 @@ export class HeightPass {
       // submission and before its own passes — each texel row is computed
       // by exactly one chunk. The chunk regions are true partial bands
       // (non-zero regionEnd even when the first chunk starts at row 0).
+      //
+      // Timestamps span the WHOLE stage across submissions exactly like the
+      // single-encoder path: the stage's beginning query lands on the first
+      // executed pass (the SDF pass when masks exist, else the first chunk's
+      // first compose pass) and the end query on the last compose pass of
+      // the LAST chunk.
       if (totalMaskCells > 0) {
         const encoder = this.device.createCommandEncoder({ label: "ukibori-height-pass" });
-        const pass = encoder.beginComputePass();
+        const pass = encoder.beginComputePass(
+          timestampDescriptor(options?.timestampWrites, true, false),
+        );
         pass.setPipeline(cached.sdfPipeline);
         pass.setBindGroup(0, sceneGroup);
         pass.setBindGroup(1, sdfGroup);
@@ -586,13 +627,21 @@ export class HeightPass {
         maskSdfPasses = 1;
         submissions += 1;
       }
-      for (const chunk of composeChunks) {
+      for (let chunkIndex = 0; chunkIndex < composeChunks.length; chunkIndex++) {
+        const chunk = composeChunks[chunkIndex];
+        const isLastChunk = chunkIndex === composeChunks.length - 1;
         const chunkYOffset = chunk.y0 * header.renderWidth;
         this.packUniform(totalMaskCells, chunkYOffset, chunkYOffset + chunk.texels);
         this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
         const encoder = this.device.createCommandEncoder({ label: "ukibori-height-pass" });
         for (let i = 0; i < COMPOSE_PASSES.length; i++) {
-          const pass = encoder.beginComputePass();
+          const pass = encoder.beginComputePass(
+            timestampDescriptor(
+              options?.timestampWrites,
+              totalMaskCells === 0 && chunkIndex === 0 && i === 0,
+              isLastChunk && i === COMPOSE_PASSES.length - 1,
+            ),
+          );
           pass.setPipeline(cached.composePipelines[i]);
           pass.setBindGroup(0, sceneGroup);
           pass.setBindGroup(1, composeGroups[i]);
@@ -614,12 +663,17 @@ export class HeightPass {
       composePasses: COMPOSE_PASSES.length,
     };
     this.lastDpr = header.dpr;
-    this.lastProvenance = Object.freeze({
+    const provenance: HeightPassProvenance = {
       sceneBytes: scene.bytes,
       width: header.renderWidth,
       height: header.renderHeight,
       dpr: header.dpr,
-    });
+      // Exact height-dependent ranges authorize downstream reuse of these
+      // retained fields with a later light/env/material-only upload.
+      heightInputs: heightInputRanges(header, layout),
+    };
+    registerHeightInputProvenance(provenance);
+    this.lastProvenance = Object.freeze(provenance);
 
     const stats: HeightPassDispatchStats = {
       newAllocations: this.newAllocations,
@@ -1096,6 +1150,25 @@ export class HeightPass {
       }),
     );
   }
+}
+
+function timestampDescriptor(
+  writes: GpuTimestampWritesLike | undefined,
+  beginning: boolean,
+  end: boolean,
+): { readonly timestampWrites: GpuTimestampWritesLike } | undefined {
+  if (writes === undefined || (!beginning && !end)) return undefined;
+  return {
+    timestampWrites: {
+      querySet: writes.querySet,
+      ...(beginning && writes.beginningOfPassWriteIndex !== undefined
+        ? { beginningOfPassWriteIndex: writes.beginningOfPassWriteIndex }
+        : {}),
+      ...(end && writes.endOfPassWriteIndex !== undefined
+        ? { endOfPassWriteIndex: writes.endOfPassWriteIndex }
+        : {}),
+    },
+  };
 }
 
 // -- helpers ----------------------------------------------------------------

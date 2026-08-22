@@ -352,6 +352,7 @@ export type {
 export {
   ALL_STAGES,
   REASON_STAGES,
+  classifySceneChange,
   computeFrameKey,
   computeInvalidationReasons,
   fingerprintBytes,
@@ -364,8 +365,42 @@ export type {
   InvalidationReport,
   PipelineStage,
 } from "./gpu/dirty";
+export {
+  ENVIRONMENT_REGION,
+  EXPOSURE_REGION,
+  HEADER_GEOMETRY_REGIONS,
+  LIGHT_DIRECTION_REGION,
+  LIGHT_INTENSITY_REGION,
+  heightInputRanges,
+  heightInputsMatchScene,
+  regionEqual,
+  regionsEqual,
+} from "./gpu/height-inputs";
+export type { HeightInputRange, SceneByteRegion } from "./gpu/height-inputs";
 export { GpuPipelineProfiler } from "./gpu/profiler";
 export type { CumulativeProfile, FrameProfile, ProfilerStageRecord } from "./gpu/profiler";
+export {
+  GPU_TIMESTAMP_BUFFER_SIZE,
+  GPU_TIMESTAMP_QUERY_COUNT,
+  GPU_TIMESTAMP_STAGES,
+  GPU_TIMESTAMP_USAGE_COPY_DST,
+  GPU_TIMESTAMP_USAGE_COPY_SRC,
+  GPU_TIMESTAMP_USAGE_MAP_READ,
+  GPU_TIMESTAMP_USAGE_QUERY_RESOLVE,
+  GpuTimestampProfiler,
+} from "./gpu/timestamp-profiler";
+export type {
+  GpuTimestampBufferLike,
+  GpuTimestampCommandBufferLike,
+  GpuTimestampCommandEncoderLike,
+  GpuTimestampDeviceLike,
+  GpuTimestampFrame,
+  GpuTimestampFrameResult,
+  GpuTimestampQuerySetLike,
+  GpuTimestampResultStatus,
+  GpuTimestampStage,
+  GpuTimestampWritesLike,
+} from "./gpu/timestamp-profiler";
 export {
   PARTIAL_DISPATCH_RATIO,
   PROFILE_HALO_TEXELS,

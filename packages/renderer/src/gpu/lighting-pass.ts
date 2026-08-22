@@ -9,7 +9,9 @@ import {
 import type { GpuBufferLike, SceneBindings } from "./uploader";
 import type { BandRegion } from "./tiles";
 import { assertBandRegion, planDispatchChunks } from "./tiles";
+import type { GpuTimestampWritesLike } from "./timestamp-profiler";
 import { validateEncodedScene } from "./validate";
+import { heightInputsMatchScene } from "./height-inputs";
 import {
   COMPUTE_STAGE_VISIBILITY,
   GPU_USAGE_UNIFORM,
@@ -189,6 +191,8 @@ export interface LightingPassInput {
    * historical full-frame dispatch.
    */
   readonly region?: BandRegion;
+  /** Optional real GPU timestamp-query writes for this compute pass. */
+  readonly timestampWrites?: GpuTimestampWritesLike;
 }
 
 /** Stable read-only output binding for #29 presentation. */
@@ -496,7 +500,11 @@ export class LightingPass {
       this.packUniform(ambient, yOffset, regionEnd);
       this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
       const encoder = this.device.createCommandEncoder({ label: "ukibori-lighting-pass" });
-      const pass = encoder.beginComputePass();
+      const pass = encoder.beginComputePass(
+        input.timestampWrites === undefined
+          ? undefined
+          : { timestampWrites: input.timestampWrites },
+      );
       pass.setPipeline(cached.pipeline);
       pass.setBindGroup(0, group);
       pass.dispatchWorkgroups(dispatchCountX);
@@ -507,12 +515,20 @@ export class LightingPass {
       // Limit-split frame: queue operations execute in issue order, so each
       // chunk's params write lands after the previous submission and before
       // its own pass — each texel row is computed by exactly one chunk.
-      for (const chunk of chunks) {
+      //
+      // Timestamps span the WHOLE stage across chunks: the beginning query
+      // lands on the FIRST chunk's pass and the end query on the LAST
+      // chunk's pass (identical to the single-chunk path when no split
+      // happens).
+      for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+        const chunk = chunks[chunkIndex];
         const chunkYOffset = chunk.y0 * header.renderWidth;
         this.packUniform(ambient, chunkYOffset, chunkYOffset + chunk.texels);
         this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
         const encoder = this.device.createCommandEncoder({ label: "ukibori-lighting-pass" });
-        const pass = encoder.beginComputePass();
+        const pass = encoder.beginComputePass(
+          chunkTimestampDescriptor(input.timestampWrites, chunkIndex === 0, chunkIndex === chunks.length - 1),
+        );
         pass.setPipeline(cached.pipeline);
         pass.setBindGroup(0, group);
         pass.dispatchWorkgroups(chunk.workgroups);
@@ -656,10 +672,15 @@ export class LightingPass {
           "from one successful HeightPass dispatch",
       );
     }
-    if (provenance.sceneBytes !== sceneBytes) {
+    if (
+      provenance.sceneBytes !== sceneBytes &&
+      !heightInputsMatchScene(provenance, sceneBytes)
+    ) {
       throw new Error(
-        "lighting field provenance does not match the dispatched scene: consume " +
-          "NormalPass/ShadowPass snapshots produced from this exact EncodedScene",
+        "lighting field provenance does not match the dispatched scene: the height-dependent " +
+          "encoded sections differ — consume NormalPass/ShadowPass snapshots produced from " +
+          "this exact EncodedScene (only light/env/exposure/material-VALUE-only changes may " +
+          "combine a freshly uploaded scene with retained materialId/normal/visibility fields)",
       );
     }
     if (
@@ -936,6 +957,34 @@ export class LightingPass {
 }
 
 // -- helpers ----------------------------------------------------------------
+
+/**
+ * Timestamp descriptor for ONE chunk of a limit-split stage: the beginning
+ * query is recorded only by the first chunk's pass and the end query only by
+ * the last chunk's pass, so the profiler measures the whole stage exactly
+ * like the unsplit single-pass path. Mirrors height-pass's
+ * `timestampDescriptor` semantics.
+ */
+function chunkTimestampDescriptor(
+  writes: GpuTimestampWritesLike | undefined,
+  isFirstChunk: boolean,
+  isLastChunk: boolean,
+): { readonly timestampWrites: GpuTimestampWritesLike } | undefined {
+  if (writes === undefined || (!isFirstChunk && !isLastChunk)) {
+    return undefined;
+  }
+  return {
+    timestampWrites: {
+      querySet: writes.querySet,
+      ...(isFirstChunk && writes.beginningOfPassWriteIndex !== undefined
+        ? { beginningOfPassWriteIndex: writes.beginningOfPassWriteIndex }
+        : {}),
+      ...(isLastChunk && writes.endOfPassWriteIndex !== undefined
+        ? { endOfPassWriteIndex: writes.endOfPassWriteIndex }
+        : {}),
+    },
+  };
+}
 
 function sumOf(sizes: Map<string, number>): number {
   let total = 0;

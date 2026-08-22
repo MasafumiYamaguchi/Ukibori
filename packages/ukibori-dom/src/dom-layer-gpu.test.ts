@@ -320,6 +320,30 @@ function makeSeam(device: MockFullDevice): DomGpuSource {
 }
 
 describe("UkiboriDom — async WebGPU backend (auto/cpu/webgpu)", () => {
+  it("requests optional timestamp-query when advertised without making it mandatory", async () => {
+    stubGetContext();
+    const device = new MockFullDevice();
+    const requestDevice = vi.fn(async (_descriptor?: { requiredFeatures?: readonly string[] }) =>
+      device as unknown as GpuPipelineDeviceLike,
+    );
+    const layer = await UkiboriDom.create({
+      backend: "auto",
+      gpu: {
+        requestAdapter: async () => ({
+          features: { has: (feature) => feature === "timestamp-query" },
+          requestDevice,
+        }),
+        getPreferredCanvasFormat: () => "rgba8unorm",
+      },
+      schedule: (cb) => cb(),
+      observe: false,
+    });
+
+    expect(requestDevice).toHaveBeenCalledWith({ requiredFeatures: ["timestamp-query"] });
+    expect(layer.debugState().backend).toBe("webgpu");
+    layer.dispose();
+  });
+
   it("auto acquires a real adapter surface and presents directly to the WebGPU canvas", async () => {
     const stub = stubGetContext();
     const device = new MockFullDevice();

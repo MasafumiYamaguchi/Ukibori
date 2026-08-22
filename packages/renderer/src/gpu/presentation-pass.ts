@@ -1,5 +1,6 @@
 import { GPU_USAGE_COPY_DST, GPU_USAGE_STORAGE, HEADER_SIZE } from "./layout";
 import type { GpuBufferLike } from "./uploader";
+import type { GpuTimestampWritesLike } from "./timestamp-profiler";
 import type {
   GpuBindGroupEntryLike,
   GpuBindGroupLayoutEntryLike,
@@ -165,6 +166,7 @@ export interface GpuPresentationLimitsLike {
 export interface GpuPresentationEncoderLike {
   beginRenderPass(desc: {
     readonly label?: string;
+    readonly timestampWrites?: GpuTimestampWritesLike;
     readonly colorAttachments: readonly [
       {
         readonly view: GpuTextureViewLike;
@@ -297,6 +299,8 @@ export interface PresentationPassInput {
    * production configuration never exposes a readback helper.
    */
   readonly debug?: boolean;
+  /** Optional real GPU timestamp-query writes for this render pass. */
+  readonly timestampWrites?: GpuTimestampWritesLike;
 }
 
 export interface PresentationPassStats {
@@ -525,6 +529,9 @@ export class PresentationPass {
     const encoder = this.device.createCommandEncoder({ label: "ukibori-presentation-pass" });
     const pass = encoder.beginRenderPass({
       label: "ukibori-presentation-pass",
+      ...(input.timestampWrites === undefined
+        ? {}
+        : { timestampWrites: input.timestampWrites }),
       colorAttachments: [
         {
           view: input.context.getCurrentTexture().createView(),
