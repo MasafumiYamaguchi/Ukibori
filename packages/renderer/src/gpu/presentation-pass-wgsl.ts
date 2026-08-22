@@ -114,19 +114,25 @@ fn fs_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let b = f32((packed >> 16u) & 0xffu) * UNORM_SCALE;
     return vec4<f32>(r, g, b, 1.0);
   }
-  let vis = visibilityField[index];
-  if (vis >= 0.5) {
-    // Lit base plane: transparent black (the page IS the base plane).
+  // #41: CONTINUOUS visibility — the base-plane tint scales with the
+  // occlusion strength. Hard inputs ({0, 1}) reproduce the historical bytes
+  // exactly: strength 1 -> the full premultiplied tint, strength 0 ->
+  // transparent black.
+  let vis = clamp(visibilityField[index], 0.0, 1.0);
+  let strength = 1.0 - vis;
+  if (strength <= 0.0) {
+    // Fully lit base plane: transparent black (the page IS the base plane).
     return vec4<f32>(0.0);
   }
-  // Shadowed base plane: the sanitized shadow tint at the sanitized alpha,
+  // Shadowed base plane: the sanitized shadow tint scaled by the strength,
   // PREMULTIPLIED for the alphaMode: "premultiplied" canvas. IEEE f32
   // arithmetic mirrors compositeShadowPremultipliedBytes exactly:
   //   channel value = f32(c) * f32(sa) / 255 / 255  (byte round-trip = c)
-  let alpha = f32(params.shadowAlphaByte) * UNORM_SCALE;
-  let sr = f32(params.shadowR) * f32(params.shadowAlphaByte) / 255.0 * UNORM_SCALE;
-  let sg = f32(params.shadowG) * f32(params.shadowAlphaByte) / 255.0 * UNORM_SCALE;
-  let sb = f32(params.shadowB) * f32(params.shadowAlphaByte) / 255.0 * UNORM_SCALE;
+  // with both alpha and channels additionally scaled by strength.
+  let alpha = f32(params.shadowAlphaByte) * strength * UNORM_SCALE;
+  let sr = f32(params.shadowR) * f32(params.shadowAlphaByte) / 255.0 * strength * UNORM_SCALE;
+  let sg = f32(params.shadowG) * f32(params.shadowAlphaByte) / 255.0 * strength * UNORM_SCALE;
+  let sb = f32(params.shadowB) * f32(params.shadowAlphaByte) / 255.0 * strength * UNORM_SCALE;
   return vec4<f32>(sr, sg, sb, alpha);
 }
 `;

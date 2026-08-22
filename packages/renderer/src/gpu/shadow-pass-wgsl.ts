@@ -139,8 +139,18 @@ import { WGSL_SCENE_BASE } from "./wgsl";
 /** Dispatch workgroup size for the shadow pass (documented, injected into WGSL). */
 export const SHADOW_WORKGROUP_SIZE = 64;
 
-/** ShadowPassParams uniform byte length (80 bytes, 16-byte aligned). */
-export const SHADOW_PARAMS_BYTE_LENGTH = 80;
+/**
+ * #41 maximum area-light sample count: the params uniform carries a fixed
+ * `array<vec4<f32>, SHADOW_MAX_SAMPLES>` of host-computed cone directions
+ * after the scalar fields.
+ */
+export const SHADOW_MAX_SAMPLES = 16;
+
+/**
+ * ShadowPassParams uniform byte length: 96 bytes of scalars/padding (16-byte
+ * aligned) plus 16 packed vec4 sample directions = 96 + 256 = 352 bytes.
+ */
+export const SHADOW_PARAMS_BYTE_LENGTH = 96 + SHADOW_MAX_SAMPLES * 16;
 
 /** Logical output bytes per render texel: one tightly packed f32 scalar. */
 export const SHADOW_OUTPUT_BYTES_PER_TEXEL = 4;
@@ -155,7 +165,7 @@ export const MAX_SHADOW_STEP_COUNT = 1 << 24;
 
 export const SHADOW_PASS_WGSL = /* wgsl */ `
 ${WGSL_SCENE_BASE}
-// #27 shadow pass params (80 bytes, align 16; offsets pinned by
+// #27/#41 shadow pass params (352 bytes, align 16; offsets pinned by
 // shadow-pass.ts)
 struct ShadowPassParams {
   dpr: f32,             //  0 render DPR (scene units per render texel)
@@ -175,9 +185,17 @@ struct ShadowPassParams {
   hasCasters: u32,      // 68 1 when any surface casts (early exit when 0)
   yOffset: u32,         // 72 #32 region dispatch texel offset (0 = full frame)
   regionEnd: u32,       // 76 #32 exclusive region end (== texelCount full)
-}                       // size 80, align 16
+  angularRadius: f32,   // 80 #41 light angular radius in radians (0 = hard)
+  sampleCount: u32,     // 84 #41 area-light samples (1 = hard path)
+  _pad3: vec2<f32>,     // 88..95
+  // #41 host-computed cone directions around lightDirection (identical f32
+  // components to the CPU oracle; entry [s] drives sample s). Unused entries
+  // are zero-filled and never read because sampleCount bounds the loop.
+  sampleDirs: array<vec4<f32>, ${SHADOW_MAX_SAMPLES}>, // 96..351
+}                       // size 352, align 16
 
 const SHADOW_WORKGROUP_SIZE: u32 = ${SHADOW_WORKGROUP_SIZE}u;
+const SHADOW_MAX_SAMPLES: u32 = ${SHADOW_MAX_SAMPLES}u;
 const NO_OWNER: u32 = 0xffffffffu;
 // ABI SurfaceRecord flags (offset 28): bit0 castsShadow, bit1 receivesShadow
 const FLAG_RECEIVES_SHADOW: u32 = 0x2u;
@@ -221,6 +239,58 @@ fn sampleCasterHeight(sx: f32, sy: f32) -> f32 {
   return top + (bottom - top) * ty;
 }
 
+/**
+ * One #17/#27/#41 height-field occlusion march along the explicit direction
+ * (dx, dy, dz) from receiver P = (px, py, rz0). The single hard ray and
+ * every #41 area-light cone sample run THIS loop, so the semantics (bounds,
+ * f32-multiple march series, maxHeight early exit, strict f32 comparison)
+ * are identical by construction. Passing params.lightDirection reproduces
+ * the historical hard-shadow result exactly.
+ */
+fn traceOccluded(px: f32, py: f32, rz0: f32, dx: f32, dy: f32, dz: f32) -> bool {
+  // Integer step index: the loop terminates on every device (stepCount is
+  // host-capped), even when a positive subnormal stepSize makes t round to
+  // a constant in f32.
+  var stepIndex = 1u;
+  while (stepIndex <= params.stepCount) {
+    // Explicit f32-multiple march series (shared with the CPU oracle):
+    // t = f32(stepIndex) * stepSize is the correctly-rounded f32 of the
+    // exact integer multiple k * stepSize (f32(stepIndex) == k for every
+    // k <= 2^24), so a NON-DYADIC step like 0.1 produces the EXACT same
+    // series as the CPU's t = fround(k * stepSize) — no per-step f32
+    // accumulation drift. stepCount == floor(maxDistance / stepSize) is the
+    // host-derived iteration count, bounded by MAX_SHADOW_STEP_COUNT.
+    let t = f32(stepIndex) * params.stepSize;
+    let sx = px + dx * t;
+    let sy = py + dy * t;
+    // Inclusive pixel-center rectangle in LOGICAL scene units BEFORE
+    // sampling: render texel (tx, ty) spans logical
+    // [(tx + 0.5) / dpr, (tx + 1.5) / dpr), so the rectangle runs from the
+    // first texel center 0.5 / dpr to the LAST texel center
+    // (extent - 0.5) / dpr (mirrors the CPU oracle bound exactly).
+    // Leaving it stops the ray lit (no wrap, no out-of-bounds element).
+    if (sx < 0.5 / params.dpr || sx > (f32(params.width) - 0.5) / params.dpr ||
+        sy < 0.5 / params.dpr || sy > (f32(params.height) - 0.5) / params.dpr) {
+      break;
+    }
+    let rayZ = rz0 + dz * t;
+    // Conservative host-derived bound: beyond maxCasterHeight + bias no
+    // sample can exceed rayZ + bias, so this early exit cannot remove a
+    // blocker (mirrors the CPU's maxHeight early exit).
+    if (rayZ > params.maxCasterHeight + params.bias) {
+      break;
+    }
+    let sample = sampleCasterHeight(sx, sy);
+    // Strict f32 comparison: blocks only when sample > f32(rayZ + bias);
+    // equality is lit. Mirrors the CPU operation order.
+    if (sample > rayZ + params.bias) {
+      return true;
+    }
+    stepIndex += 1u;
+  }
+  return false;
+}
+
 @compute @workgroup_size(SHADOW_WORKGROUP_SIZE)
 fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // #32 region dispatch: yOffset (0 on a full frame) shifts the 1D texel
@@ -262,48 +332,31 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let px = (f32(tx) + 0.5) / params.dpr;
   let py = (f32(ty) + 0.5) / params.dpr;
   let rz0 = inHeight[g];
-  var occluded = false;
-  // Integer step index: the loop terminates on every device (stepCount is
-  // host-capped), even when a positive subnormal stepSize makes t round to
-  // a constant in f32.
-  var stepIndex = 1u;
-  while (stepIndex <= params.stepCount) {
-    // Explicit f32-multiple march series (shared with the CPU oracle):
-    // t = f32(stepIndex) * stepSize is the correctly-rounded f32 of the
-    // exact integer multiple k * stepSize (f32(stepIndex) == k for every
-    // k <= 2^24), so a NON-DYADIC step like 0.1 produces the EXACT same
-    // series as the CPU's t = fround(k * stepSize) — no per-step f32
-    // accumulation drift. stepCount == floor(maxDistance / stepSize) is the
-    // host-derived iteration count, bounded by MAX_SHADOW_STEP_COUNT.
-    let t = f32(stepIndex) * params.stepSize;
-    let sx = px + params.lightDirection.x * t;
-    let sy = py + params.lightDirection.y * t;
-    // Inclusive pixel-center rectangle in LOGICAL scene units BEFORE
-    // sampling: render texel (tx, ty) spans logical
-    // [(tx + 0.5) / dpr, (tx + 1.5) / dpr), so the rectangle runs from the
-    // first texel center 0.5 / dpr to the LAST texel center
-    // (extent - 0.5) / dpr (mirrors the CPU oracle bound exactly).
-    // Leaving it stops the ray lit (no wrap, no out-of-bounds element).
-    if (sx < 0.5 / params.dpr || sx > (f32(params.width) - 0.5) / params.dpr ||
-        sy < 0.5 / params.dpr || sy > (f32(params.height) - 0.5) / params.dpr) {
-      break;
-    }
-    let rayZ = rz0 + params.lightDirection.z * t;
-    // Conservative host-derived bound: beyond maxCasterHeight + bias no
-    // sample can exceed rayZ + bias, so this early exit cannot remove a
-    // blocker (mirrors the CPU's maxHeight early exit).
-    if (rayZ > params.maxCasterHeight + params.bias) {
-      break;
-    }
-    let sample = sampleCasterHeight(sx, sy);
-    // Strict f32 comparison: blocks only when sample > f32(rayZ + bias);
-    // equality is lit. Mirrors the CPU operation order.
-    if (sample > rayZ + params.bias) {
-      occluded = true;
-      break;
-    }
-    stepIndex += 1u;
+  // #41 hard/soft selection: with a degenerate cone (angularRadius 0 or a
+  // single sample) the historical single-ray path runs and writes exactly
+  // {1.0, 0.0}; otherwise each cone sample direction marches the same loop
+  // and the lit fraction becomes the continuous visibility scalar.
+  if (params.angularRadius <= 0.0 || params.sampleCount <= 1u) {
+    let occluded = traceOccluded(
+      px,
+      py,
+      rz0,
+      params.lightDirection.x,
+      params.lightDirection.y,
+      params.lightDirection.z,
+    );
+    outVisibility[g] = select(1.0, 0.0, occluded);
+    return;
   }
-  outVisibility[g] = select(1.0, 0.0, occluded);
+  var visible = 0u;
+  for (var s = 0u; s < params.sampleCount && s < SHADOW_MAX_SAMPLES; s += 1u) {
+    let dir = params.sampleDirs[s].xyz;
+    if (!traceOccluded(px, py, rz0, dir.x, dir.y, dir.z)) {
+      visible += 1u;
+    }
+  }
+  // Dyadic sample counts make this quotient exactly representable, so the
+  // value is bit-identical to the CPU oracle's visible/samples.
+  outVisibility[g] = f32(visible) / f32(params.sampleCount);
 }
 `;

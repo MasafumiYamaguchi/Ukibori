@@ -168,6 +168,9 @@ export const CATEGORIES = Object.freeze([
   "shadow-max-distance",
   "shadow-options",
   "shadow-synthetic",
+  // #41 area-light soft shadows
+  "soft-shadow",
+  "penumbra-separation",
   "sampling-boundary",
   "threshold-equality",
   "cast-flag",
@@ -555,6 +558,29 @@ export function createCatalog(api) {
     })], light, shadowOptions);
   }
 
+  /**
+   * #41 area-light soft-shadow fixture: the light carries an angular radius
+   * (radians) and the shadow options pin the deterministic sample count. The
+   * slab elevation sets the caster/receiver separation that widens the
+   * penumbra ring around the hard shadow.
+   */
+  function softShadowScene(angularRadius, samples, separation) {
+    return {
+      scene: createScene({
+        width: 16,
+        height: 16,
+        surfaces: [shadowSurface({
+          id: "slab",
+          position: { x: 8, y: 2 },
+          size: { x: 6, y: 2 },
+          elevation: separation,
+        })],
+        light: { direction: LIGHT_FROM_RIGHT, intensity: 1, angularRadius },
+      }),
+      shadowOptions: { samples },
+    };
+  }
+
   /** Non-casting top (4.5) fully covering a lower casting slab (4). */
   function nonCastingTopScene() {
     return shadowScene(16, 16, [
@@ -799,6 +825,35 @@ export function createCatalog(api) {
     {
       ...twoLevelScene(LIGHT_FROM_RIGHT, { stepSize: 1, bias: 0, maxDistance: 20 }),
       name: "shadow-custom-options-b",
+      dpr: 1,
+    },
+    // #41 area-light soft shadows: the GPU visibility field must match the
+    // CPU oracle EXACTLY (dyadic fractions of identical f32 cone rays).
+    {
+      ...softShadowScene(Math.fround(0.15), 8, 6),
+      name: "shadow-soft-radius-0.15-samples-8",
+      dpr: 1,
+    },
+    {
+      ...softShadowScene(Math.fround(0.3), 16, 6),
+      name: "shadow-soft-radius-0.3-samples-16",
+      dpr: 1,
+    },
+    {
+      ...softShadowScene(Math.fround(0.05), 4, 6),
+      name: "shadow-soft-radius-0.05-samples-4",
+      dpr: 1,
+    },
+    {
+      // samples 1 forces the hard path even with a positive radius
+      ...softShadowScene(Math.fround(0.3), 1, 6),
+      name: "shadow-soft-samples-1-hard-compatible",
+      dpr: 1,
+    },
+    {
+      // taller caster = larger separation = wider penumbra ring
+      ...softShadowScene(Math.fround(0.25), 8, 12),
+      name: "shadow-soft-tall-caster-separation",
       dpr: 1,
     },
     // non-dyadic step: pins the explicit f32-multiple march series
@@ -1348,6 +1403,15 @@ export function createCatalog(api) {
     "shadow-short-max-distance": ["shadow-visibility", "shadow-max-distance", "static-golden"],
     "shadow-custom-options-a": ["shadow-visibility", "shadow-options"],
     "shadow-custom-options-b": ["shadow-visibility", "shadow-options"],
+    "shadow-soft-radius-0.15-samples-8": ["shadow-visibility", "soft-shadow"],
+    "shadow-soft-radius-0.3-samples-16": ["shadow-visibility", "soft-shadow"],
+    "shadow-soft-radius-0.05-samples-4": ["shadow-visibility", "soft-shadow"],
+    "shadow-soft-samples-1-hard-compatible": ["shadow-visibility", "soft-shadow"],
+    "shadow-soft-tall-caster-separation": [
+      "shadow-visibility",
+      "soft-shadow",
+      "penumbra-separation",
+    ],
     "shadow-non-binary-step-0.1": ["shadow-visibility", "shadow-options"],
     "shadow-f32-vs-f64-equality": ["shadow-visibility", "threshold-equality"],
     "shadow-frac-dpr1": ["shadow-visibility", "dpr-1", "fractional-extent"],

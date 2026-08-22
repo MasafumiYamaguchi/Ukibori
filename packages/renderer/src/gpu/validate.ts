@@ -128,9 +128,14 @@ export function validateEncodedScene(bytes: Uint8Array): ValidationResult {
   for (let offset = 52; offset < 64; offset += 4) {
     check(readU32(offset) === 0, `header reserved u32 at ${offset} must be 0`);
   }
-  for (let offset = 88; offset < 96; offset += 4) {
-    check(readU32(offset) === 0, `header reserved u32 at ${offset} must be 0`);
-  }
+  // Offset 88 carries the #41 light angular radius (radians, f32): finite
+  // and >= 0 after packing; offset 92 stays reserved-zero.
+  const angularRadius = readF32(88);
+  check(
+    Number.isFinite(angularRadius) && angularRadius >= 0,
+    `light angular radius at offset 88 must be a finite non-negative f32, got ${angularRadius}`,
+  );
+  check(readU32(92) === 0, "header reserved u32 at offset 92 must be 0");
   for (let offset = 112; offset < HEADER_SIZE; offset += 4) {
     check(readU32(offset) === 0, `header reserved u32 at ${offset} must be 0`);
   }

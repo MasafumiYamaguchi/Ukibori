@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createScene } from "../scene";
 import type { Scene } from "../scene";
-import { encodeScene } from "./encode";
+import { encodeScene, parseHeader } from "./encode";
 import { HEADER_SIZE, SURFACE_STRIDE } from "./layout";
 import { SceneUploader } from "./uploader";
 import type { GpuBufferLike, SceneBindings } from "./uploader";
@@ -36,6 +36,7 @@ import {
 } from "./shadow-pass";
 import type { ShadowPassInput } from "./shadow-pass";
 import { GPU_USAGE_STORAGE } from "./layout";
+import { computeSoftSampleDirections } from "../shadow-sampling";
 
 // ---------------------------------------------------------------------------
 // Realistic structural mock: implements the same GpuComputeDeviceLike surface
@@ -209,7 +210,7 @@ class MockDevice implements GpuComputeDeviceLike {
 // Fixture scenes
 // ---------------------------------------------------------------------------
 
-function shadowScene(): Scene {
+function shadowScene(angularRadius?: number): Scene {
   return createScene({
     width: 100,
     height: 80,
@@ -239,7 +240,11 @@ function shadowScene(): Scene {
         receivesShadow: true,
       },
     ],
-    light: { direction: { x: -0.70710678, y: 0, z: 0.70710678 }, intensity: 1 },
+    light: {
+      direction: { x: -0.70710678, y: 0, z: 0.70710678 },
+      intensity: 1,
+      ...(angularRadius !== undefined ? { angularRadius } : {}),
+    },
   });
 }
 
@@ -706,13 +711,47 @@ describe("ShadowPass — uniform packing and caster info", () => {
     expect(snapshot.lastDispatch.stepCount).toBe(view.getUint32(64, true));
   });
 
+  it("packs the #41 area-light state: radius, sample count, shared cone directions", () => {
+    const { mock } = setup();
+    const radius = Math.fround(0.2);
+    const { input } = dispatchHeightAndInput(heightSetup(), shadowScene(radius));
+    const pass = new ShadowPass(mock);
+    pass.dispatch({ ...input, options: { samples: 8 } });
+    const write = mock.writes.at(-1)!;
+    const view = new DataView(write.bytes.buffer, write.dstByteOffset);
+    // scalar state
+    expect(view.getFloat32(80, true)).toBe(radius);
+    expect(view.getUint32(84, true)).toBe(8);
+    // the packed directions are EXACTLY the CPU oracle's array (same
+    // host-side f32 computation) so both backends march identical rays
+    const header = parseHeader(input.scene.bytes);
+    const expectedDirs = computeSoftSampleDirections(header.lightDirection, radius, 8);
+    for (let i = 0; i < 8; i++) {
+      expect(view.getFloat32(96 + i * 16, true)).toBe(expectedDirs[i * 3]);
+      expect(view.getFloat32(96 + i * 16 + 4, true)).toBe(expectedDirs[i * 3 + 1]);
+      expect(view.getFloat32(96 + i * 16 + 8, true)).toBe(expectedDirs[i * 3 + 2]);
+      expect(view.getFloat32(96 + i * 16 + 12, true)).toBe(0); // vec4 pad
+    }
+    // unused capacity is zero-filled
+    expect(view.getFloat32(96 + 8 * 16, true)).toBe(0);
+
+    // hard scene: degenerate cone -> sampleCount 1 and zero-filled directions
+    const hardMock = setup().mock;
+    const hardPass = new ShadowPass(hardMock);
+    hardPass.dispatch({ ...dispatchHeightAndInput(heightSetup(), shadowScene()).input });
+    const hardView = new DataView(hardMock.writes[0].bytes.buffer);
+    expect(hardView.getFloat32(80, true)).toBe(0);
+    expect(hardView.getUint32(84, true)).toBe(1);
+    expect(hardView.getFloat32(96, true)).toBe(0);
+  });
+
   it("reports effective options and caster counters in the snapshot", () => {
     const { mock } = setup();
     const { input } = dispatchHeightAndInput(heightSetup(), shadowScene());
     const pass = new ShadowPass(mock);
     pass.dispatch({ ...input, options: { stepSize: 0.25, bias: 0.1, maxDistance: 12 } });
     const snapshot = pass.getSnapshot();
-    expect(snapshot.options).toEqual({ stepSize: 0.25, bias: Math.fround(0.1), maxDistance: 12 });
+      expect(snapshot.options).toEqual({ stepSize: 0.25, bias: Math.fround(0.1), maxDistance: 12, samples: 8 });
     expect(snapshot.lastDispatch).toMatchObject({
       renderWidth: 100,
       renderHeight: 80,
@@ -802,7 +841,7 @@ describe("ShadowPass — command order and dispatch dims", () => {
     expect(view.getFloat32(36, true)).toBe(0); // new bias
     expect(view.getFloat32(40, true)).toBe(20); // new maxDistance
     expect(view.getUint32(64, true)).toBe(20); // new stepCount
-    expect(pass.getSnapshot().options).toEqual({ stepSize: 1, bias: 0, maxDistance: 20 });
+      expect(pass.getSnapshot().options).toEqual({ stepSize: 1, bias: 0, maxDistance: 20, samples: 8 });
   });
 
   it("never maps or reads back during normal dispatch (no readback surface)", () => {
@@ -1090,9 +1129,19 @@ describe("ShadowPass shader — binding contract", () => {
     expect(SHADOW_PASS_WGSL).toContain("width: u32,           // 48");
     expect(SHADOW_PASS_WGSL).toContain("stepCount: u32,       // 64");
     expect(SHADOW_PASS_WGSL).toContain("hasCasters: u32,      // 68");
+    // #41 area-light sampling fields + packed cone directions.
+    expect(SHADOW_PASS_WGSL).toContain("angularRadius: f32,   // 80");
+    expect(SHADOW_PASS_WGSL).toContain("sampleCount: u32,     // 84");
+    expect(SHADOW_PASS_WGSL).toContain(
+      "sampleDirs: array<vec4<f32>, ${SHADOW_MAX_SAMPLES}>, // 96..351".replace(
+        "${SHADOW_MAX_SAMPLES}",
+        "16",
+      ),
+    );
     expect(SHADOW_PASS_WGSL).toContain("const FLAG_RECEIVES_SHADOW: u32 = 0x2u;");
     expect(SHADOW_PASS_WGSL).toContain("const NO_OWNER: u32 = 0xffffffffu;");
-    expect(SHADOW_PARAMS_BYTE_LENGTH).toBe(80);
+    // 96 scalar/pad bytes + 16 vec4 cone directions.
+    expect(SHADOW_PARAMS_BYTE_LENGTH).toBe(96 + 16 * 16);
     expect(SHADOW_WORKGROUP_SIZE).toBe(64);
     expect(SHADOW_OUTPUT_BYTES_PER_TEXEL).toBe(4);
     expect(MAX_SHADOW_STEP_COUNT).toBe(1 << 24);
@@ -1114,14 +1163,22 @@ describe("ShadowPass shader — CPU shadow semantics pinned in WGSL", () => {
 
   it("marches toward the light with the fixed signs and the inclusive pixel-center bounds", () => {
     expect(SHADOW_PASS_WGSL).toContain("let t = f32(stepIndex) * params.stepSize;");
-    expect(SHADOW_PASS_WGSL).toContain("let sx = px + params.lightDirection.x * t;");
-    expect(SHADOW_PASS_WGSL).toContain("let sy = py + params.lightDirection.y * t;");
+    // #41: the march lives in traceOccluded and is direction-parameterized;
+    // the hard path passes params.lightDirection through it unchanged.
+    expect(SHADOW_PASS_WGSL).toContain(
+      "fn traceOccluded(px: f32, py: f32, rz0: f32, dx: f32, dy: f32, dz: f32) -> bool {",
+    );
+    expect(SHADOW_PASS_WGSL).toContain("let sx = px + dx * t;");
+    expect(SHADOW_PASS_WGSL).toContain("let sy = py + dy * t;");
     // the march bounds are the inclusive pixel-center rectangle in LOGICAL
     // scene units (render texel (tx, ty) spans [(tx + 0.5) / dpr, ...])
     expect(SHADOW_PASS_WGSL).toContain(
       "if (sx < 0.5 / params.dpr || sx > (f32(params.width) - 0.5) / params.dpr ||",
     );
-    expect(SHADOW_PASS_WGSL).toContain("let rayZ = rz0 + params.lightDirection.z * t;");
+    expect(SHADOW_PASS_WGSL).toContain("let rayZ = rz0 + dz * t;");
+    expect(SHADOW_PASS_WGSL).toContain(
+      "traceOccluded(\n      px,\n      py,\n      rz0,\n      params.lightDirection.x,\n      params.lightDirection.y,\n      params.lightDirection.z,\n    );",
+    );
   });
 
   it("uses the strict f32 threshold, the bias, and the conservative early exit", () => {

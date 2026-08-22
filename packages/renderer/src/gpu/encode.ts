@@ -178,6 +178,9 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
   writeF32(view, 72, Math.fround(scene.light.direction.z));
   writeF32(view, 80, Math.fround(scene.light.intensity));
   writeF32(view, 84, Math.fround(scene.exposure));
+  // #41 soft-shadow light size (radians; 0 = hard). createScene already
+  // sanitized the value to a finite non-negative f32.
+  writeF32(view, 88, Math.fround(scene.light.angularRadius ?? 0));
   writeF32(view, 96, Math.fround(scene.environment.intensity));
   writeF32(view, 100, Math.fround(scene.environment.diffuseIntensity));
   writeF32(view, 104, Math.fround(scene.environment.specularIntensity));
@@ -316,6 +319,7 @@ export function parseHeader(bytes: Uint8Array): EncodedHeader {
     },
     lightIntensity: view.getFloat32(80, true),
     exposure: view.getFloat32(84, true),
+    lightAngularRadius: view.getFloat32(88, true),
     environment: {
       intensity: view.getFloat32(96, true),
       diffuseIntensity: view.getFloat32(100, true),

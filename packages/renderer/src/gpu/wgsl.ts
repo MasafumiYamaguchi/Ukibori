@@ -70,7 +70,8 @@ struct SceneHeader {
   lightDirection: vec4<f32>, // 64 (x, y, z, 0)
   lightIntensity: f32,     // 80
   exposure: f32,           // 84
-  _reserved3: vec2<f32>,   // 88
+  lightAngularRadius: f32, // 88 (#41 radians >= 0; 0 = hard shadow)
+  _reserved3: f32,         // 92
   environment: vec4<f32>,  // 96 (intensity, diffuseIntensity, specularIntensity, 0)
   _reserved4: vec4<f32>,   // 112
 }                          // size 128, align 16

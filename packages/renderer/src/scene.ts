@@ -137,6 +137,14 @@ export interface DirectionalLight {
   direction: Vec3;
   /** finite and >= 0; non-finite/negative falls back to 1 */
   intensity: number;
+  /**
+   * #41 apparent light size: angular radius of the light cone around
+   * `direction` in RADIANS (small-cone approximation). `0` (default) keeps
+   * the exact #17 hard-shadow semantics; a positive value softens cast
+   * shadows through deterministic multi-direction sampling (`ShadowOptions.
+   * samples`). Non-finite/negative values fall back to 0 on creation.
+   */
+  angularRadius?: number;
 }
 
 export interface Scene {
@@ -211,12 +219,19 @@ export function createScene(input: SceneInput): Scene {
   }
   const direction = normalizeVec3(input.light?.direction ?? DEFAULT_LIGHT_DIRECTION);
   const intensity = sanitizeIntensity(input.light?.intensity);
+  // #41 soft-shadow light size (radians): finite >= 0 after f32 packing,
+  // else 0 — the exact hard-shadow default. Mirrors the intensity policy.
+  const rawAngularRadius = input.light?.angularRadius;
+  const angularRadius =
+    typeof rawAngularRadius === "number" && Number.isFinite(rawAngularRadius) && rawAngularRadius > 0
+      ? Math.fround(rawAngularRadius)
+      : 0;
   return {
     width: input.width,
     height: input.height,
     surfaces,
     materials,
-    light: { direction, intensity },
+    light: { direction, intensity, angularRadius },
     environment: sanitizeEnvironment(input.environment),
     exposure: sanitizeExposure(input.exposure),
   };

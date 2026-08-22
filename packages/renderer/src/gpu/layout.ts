@@ -62,7 +62,9 @@ export const HEADER_SIZE = 128;
  * | 64     | 16   | lightDirection (vec4: x, y, z, 0; unit vector)    |
  * | 80     | 4    | lightIntensity (f32, >= 0)                        |
  * | 84     | 4    | exposure (f32, >= 0)                              |
- * | 88..96 | 8    | reserved (u32, 0)                                 |
+ * | 88     | 4    | lightAngularRadius (#41 f32 radians, >= 0;        |
+ * |        |      |            0 = hard shadow)                       |
+ * | 92     | 4    | reserved (u32, 0)                                 |
  * | 96     | 16   | environment (vec4: intensity, diffuseIntensity,   |
  * |        |      |            specularIntensity, 0)                  |
  * | 112..128| 16  | reserved (u32, 0)                                 |
@@ -241,6 +243,8 @@ export interface EncodedHeader {
   lightDirection: Vec3;
   lightIntensity: number;
   exposure: number;
+  /** #41 light angular radius in radians (f32, >= 0; 0 = hard shadow) */
+  lightAngularRadius: number;
   environment: { intensity: number; diffuseIntensity: number; specularIntensity: number };
 }
 
