@@ -1857,8 +1857,8 @@ async function runPartialParity(device) {
     //    decision (move/add/remove/reorder + fallback cases).
     const scenarios = ["add", "remove", "reorder", "light", "material", "viewport"];
     const expectedReasons = {
-      light: "light-or-environment-change",
-      material: "material-table-change",
+      light: "light-direction-change",
+      material: "material-values-change",
       viewport: "viewport-change",
     };
     for (const scenario of scenarios) {

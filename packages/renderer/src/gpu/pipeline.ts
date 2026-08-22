@@ -36,6 +36,12 @@ import { computeFrameKey, reportInvalidations } from "./dirty";
 import type { FrameKey, InvalidationReport } from "./dirty";
 import { GpuPipelineProfiler } from "./profiler";
 import type { CumulativeProfile, FrameProfile, ProfilerStageRecord } from "./profiler";
+import { GpuTimestampProfiler } from "./timestamp-profiler";
+import type {
+  GpuTimestampDeviceLike,
+  GpuTimestampFrame,
+  GpuTimestampFrameResult,
+} from "./timestamp-profiler";
 import { bytesEqual, computeTileGrid, planPartialScene } from "./tiles";
 import type { BandRegion, PartialPlan } from "./tiles";
 import { parseHeader } from "./encode";
@@ -61,21 +67,30 @@ import { parseHeader } from "./encode";
  *   presentation; the canvas keeps the previously presented frame. The
  *   caller can request a retained re-presentation with `repaint: true`
  *   (presentation stage only, from retained outputs).
- * - viewport/scene change -> the full chain (upload through presentation),
- *   because the #25 provenance token (carrying the exact encoded bytes)
- *   changes and every downstream pass rejects foreign/mixed provenance.
+ * - height-input scene change (geometry/mask/material-id/flags/extent) ->
+ *   the full chain (upload through presentation), with the #32 partial
+ *   geometry planning where valid. The fingerprint only accelerates the
+ *   decision; the SEMANTIC classification runs on the EXACT bytes.
+ * - light-direction change -> upload, shadow, lighting, presentation; the
+ *   height/normal fields stay retained (their exact height-dependent
+ *   inputs are re-validated by the shadow/lighting passes before reuse).
+ * - light-intensity / environment / exposure / material-table VALUE
+ *   changes -> upload, lighting, presentation; height, normal and shadow
+ *   stay retained.
  * - normal/shadow/lighting option changes -> only the affected pass(es)
  *   and their downstream dependencies re-run (provenance is unchanged).
  * - composite/debug target changes -> presentation only.
+ * - unknown ABI mutation / fingerprint collision with different bytes ->
+ *   conservative full chain (a hash never authorizes a skip or a reuse).
  *
  * ## #32 conservative tile planning (partial recompute)
  *
- * When a frame invalidates the FULL chain because of a scene change, the
- * deterministic planner (`gpu/tiles.ts`) diffs the EXACT retained bytes
- * against the fresh encoding (never the hash alone), derives the dirty
- * scene rect (added/removed/changed surfaces plus mask references),
- * expands it by the shadow receiver halo (down-light of every changed
- * region by the effective shadow maxDistance) and the 1-texel
+ * When a frame invalidates the FULL chain because of a height-input scene
+ * change, the deterministic planner (`gpu/tiles.ts`) diffs the EXACT
+ * retained bytes against the fresh encoding (never the hash alone),
+ * derives the dirty scene rect (added/removed/changed surfaces plus mask
+ * references), expands it by the shadow receiver halo (down-light of every
+ * changed region by the effective shadow maxDistance) and the 1-texel
  * profile/normal halo, and bins it into the explicit tile grid
  * (`input.tileSize`, default 64). The four compute passes then dispatch
  * ONLY the full-width band covering the dirty tiles (each pass packs the
@@ -83,18 +98,19 @@ import { parseHeader } from "./encode";
  * g >= regionEnd` keeps dispatch padding from ever touching a retained
  * texel). Outputs outside the band stay retained and every pass shares
  * the fresh per-dispatch provenance token. Light/environment/exposure,
- * material-table, viewport and unknown mutations fall back to the full
- * path with a documented reason; the partial path is chosen only when the
- * band covers at most half the frame (`PARTIAL_DISPATCH_RATIO`, a
- * deterministic coverage ratio — never a timing). The per-frame
- * `planning` report exposes the decision, reason, tile/dirty counts,
- * ACTUAL height-stage candidate/culled surfaces and the planner's own host
- * wall-clock overhead.
+ * material-table VALUE, viewport and unknown mutations do NOT take the
+ * partial path (height is retained, so there is no dirty geometry region);
+ * it is chosen only when the band covers at most half the frame
+ * (`PARTIAL_DISPATCH_RATIO`, a deterministic coverage ratio — never a
+ * timing). The per-frame `planning` report exposes the decision, reason,
+ * tile/dirty counts, ACTUAL height-stage candidate/culled surfaces and the
+ * planner's own host wall-clock overhead.
  *
  * Each `render()` reports the invalidation reasons, the executed/skipped
  * stage sets, per-stage statistics, a per-frame profile and the cumulative
- * profiler totals. All durations are WALL-CLOCK HOST times (labeled
- * `hostMs`); no GPU timestamps are fabricated.
+ * profiler totals. Host durations remain explicitly labeled `hostMs`;
+ * when the device exposes the optional `timestamp-query` feature, the
+ * asynchronous `gpuTiming` result contains actual per-pass GPU durations.
  *
  * ## Contract (unchanged from #29)
  *
@@ -202,6 +218,12 @@ export interface GpuScenePipelineFrameStats {
   readonly frame: FrameProfile;
   /** cumulative profiling across every successful render()/present() */
   readonly totals: CumulativeProfile;
+  /**
+   * Actual GPU pass durations resolved asynchronously from WebGPU timestamp
+   * queries. Always fulfills: unsupported/no-work/failure are explicit
+   * statuses and never masquerade as zero-duration GPU work.
+   */
+  readonly gpuTiming: Promise<GpuTimestampFrameResult>;
 }
 
 export interface GpuScenePipelineSnapshot {
@@ -257,6 +279,8 @@ export class GpuScenePipeline {
   private readonly lightingPass: LightingPass;
   private readonly presentationPass: PresentationPass;
   private readonly profiler = new GpuPipelineProfiler();
+  private readonly timestampProfiler: GpuTimestampProfiler;
+  private activeTimestampFrame: GpuTimestampFrame | null = null;
   private lost = false;
   private disposed = false;
   private lastKey: FrameKey | null = null;
@@ -306,6 +330,9 @@ export class GpuScenePipeline {
     this.shadowPass = new ShadowPass(this.device);
     this.lightingPass = new LightingPass(this.device);
     this.presentationPass = new PresentationPass(this.device);
+    this.timestampProfiler = new GpuTimestampProfiler(
+      this.device as unknown as GpuTimestampDeviceLike,
+    );
     this.device.lost
       .then(() => {
         this.lost = true;
@@ -333,6 +360,8 @@ export class GpuScenePipeline {
     try {
       return this.renderFrame(input);
     } catch (error) {
+      this.activeTimestampFrame?.dispose();
+      this.activeTimestampFrame = null;
       // Conservative invalidation on ANY failure: a partially-mutated
       // uploader/pass state must never be trusted by the next frame.
       this.lastKey = null;
@@ -346,7 +375,15 @@ export class GpuScenePipeline {
     this.assertUsable();
     const encoded = encodeScene(input.scene, input.dpr);
     let key = computeFrameKey(encoded, input);
-    let report = reportInvalidations(key, this.lastKey, input.repaint === true);
+    // The scheduler receives BOTH encoded byte buffers so the semantic
+    // scene classification runs on EXACT bytes, never the fingerprint alone.
+    let report = reportInvalidations(
+      key,
+      this.lastKey,
+      encoded.bytes,
+      this.lastEncoded?.bytes ?? null,
+      input.repaint === true,
+    );
     // #32 hash-collision hardening: the stable scene fingerprint is only an
     // ACCELERATOR for the skip/partial decisions; the exact bytes authorize
     // them. A collision (fingerprint equal, bytes different) must never
@@ -360,10 +397,12 @@ export class GpuScenePipeline {
     ) {
       this.lastKey = null;
       key = computeFrameKey(encoded, input);
-      report = reportInvalidations(key, null, input.repaint === true);
+      report = reportInvalidations(key, null, encoded.bytes, null, input.repaint === true);
     }
     const executed = new Set(report.executed);
     const records: ProfilerStageRecord[] = [];
+    const timestampFrame = this.timestampProfiler.beginFrame(report.executed);
+    this.activeTimestampFrame = timestampFrame;
 
     // #32 deterministic partial/full planning. The planner is pure host
     // work: its wall-clock time is reported separately (planningHostMs,
@@ -422,7 +461,10 @@ export class GpuScenePipeline {
     let height: HeightPassDispatchStats;
     if (executed.has("height")) {
       const t0 = performance.now();
-      height = this.heightPass.dispatch(scene, bindings, heightOptions);
+      height = this.heightPass.dispatch(scene, bindings, {
+        ...heightOptions,
+        timestampWrites: timestampFrame.getTimestampWrites("height"),
+      });
       const hostMs = performance.now() - t0;
       records.push({
         stage: "height",
@@ -445,6 +487,7 @@ export class GpuScenePipeline {
         height: normalHeightBindingFromHeightPass(heightSnapshot),
         options: input.normalOptions,
         region,
+        timestampWrites: timestampFrame.getTimestampWrites("normal"),
       });
       const hostMs = performance.now() - t0;
       records.push({
@@ -470,6 +513,7 @@ export class GpuScenePipeline {
         ...shadowHeightBindingsFromHeightPass(heightSnapshot),
         options: input.shadowOptions,
         region,
+        timestampWrites: timestampFrame.getTimestampWrites("shadow"),
       });
       const hostMs = performance.now() - t0;
       records.push({
@@ -497,6 +541,7 @@ export class GpuScenePipeline {
         visibility: lightingVisibilityBindingFromShadowPass(shadowSnapshot),
         options: input.lightingOptions,
         region,
+        timestampWrites: timestampFrame.getTimestampWrites("lighting"),
       });
       const hostMs = performance.now() - t0;
       records.push({
@@ -529,6 +574,7 @@ export class GpuScenePipeline {
         canvasFormat: this.canvasFormat,
         options: input.compositeOptions,
         debug: input.debugReadback === true,
+        timestampWrites: timestampFrame.getTimestampWrites("presentation"),
       });
       const hostMs = performance.now() - t0;
       records.push({
@@ -561,6 +607,8 @@ export class GpuScenePipeline {
     this.lastKey = key;
     this.lastEncoded = scene;
     const { frame, totals } = this.profiler.commitFrame(records, report.retained, presented);
+    const gpuTiming = timestampFrame.resolve();
+    this.activeTimestampFrame = null;
     return {
       renderWidth: heightSnapshot.width,
       renderHeight: heightSnapshot.height,
@@ -575,22 +623,29 @@ export class GpuScenePipeline {
       presentation,
       frame,
       totals,
+      gpuTiming,
     };
   }
 
   /**
    * #32 deterministic partial/full planning for one frame. Only a frame
-   * whose invalidation runs the FULL chain because of a scene change can
-   * ever take the partial path; everything else is a conservative full
-   * recompute with a deterministic reason (documented planner/fallback
-   * rules):
+   * whose invalidation runs the FULL chain because of a height-input scene
+   * change can ever take the partial path; everything else is a
+   * conservative full recompute with a deterministic reason (documented
+   * planner/fallback rules):
    *
-   * - no retained frame, an option-only change, a viewport/DPR change, or
-   *   pass-option changes mixed with the scene change -> full
-   * - light direction/intensity, exposure, environment, material-table or
-   *   unknown byte mutations -> full ("light-or-environment-change",
-   *   "material-table-change", "unknown-mutation"; locality cannot be
-   *   proven)
+   * - no retained frame, an option-only change, or a viewport/DPR change ->
+   *   full
+   * - light direction/intensity, exposure, environment or material-table
+   *   VALUE changes -> full with the SEMANTIC reason ("light-direction-
+   *   change", "light-intensity-change", "environment-change",
+   *   "material-values-change"): the height stage is retained, so there is
+   *   no dirty geometry region to plan
+   * - unknown byte mutations -> full ("no-scene-change" / "unknown"; the
+   *   classification only ever emits the conservative full chain for
+   *   unknown/structural changes)
+   * - pass-option changes mixed with the scene change -> full
+   *   ("option-change-with-scene")
    * - the exact per-surface/mask diff yields the dirty scene rect, expanded
    *   by the shadow receiver halo and the 1-texel profile/normal halo; the
    *   dispatch band covering the dirty tiles is partial only when it covers
@@ -627,6 +682,19 @@ export class GpuScenePipeline {
     };
     if (this.lastEncoded === null || this.lastKey === null) {
       return full("first-frame");
+    }
+    // Semantic non-geometry scene changes (light/env/exposure/material
+    // VALUES) never take the partial path: the height stage is retained, so
+    // there is no dirty geometry region to plan.
+    const semanticChanges = report.reasons.filter(
+      (reason): reason is "light-direction" | "light-intensity" | "environment" | "material-values" =>
+        reason === "light-direction" ||
+        reason === "light-intensity" ||
+        reason === "environment" ||
+        reason === "material-values",
+    );
+    if (semanticChanges.length > 0) {
+      return full(semanticChanges.map((reason) => `${reason}-change`).join("+"));
     }
     if (!report.reasons.includes("scene")) {
       return full("no-scene-change");
@@ -725,6 +793,9 @@ export class GpuScenePipeline {
       return;
     }
     this.disposed = true;
+    this.activeTimestampFrame?.dispose();
+    this.activeTimestampFrame = null;
+    this.timestampProfiler.dispose();
     this.presentationPass.dispose();
     this.lightingPass.dispose();
     this.shadowPass.dispose();

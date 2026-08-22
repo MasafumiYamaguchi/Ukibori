@@ -470,8 +470,109 @@ describe("LightingPass — direct input-buffer identity and provenance", () => {
     const { mock } = setup();
     const { input } = chain(lightingScene());
     const pass = new LightingPass(mock);
-    const other = encodeScene(lightingScene(), 1);
-    expect(() => pass.dispatch({ ...input, scene: other })).toThrow(/provenance/);
+    // a DIFFERENT scene (different geometry bytes): the retained normal/
+    // materialId/visibility fields are genuinely stale and must be rejected
+    const other = createScene({
+      ...lightingScene(),
+      surfaces: [
+        { ...lightingScene().surfaces[0]! },
+        { ...lightingScene().surfaces[1]!, elevation: 9 },
+      ],
+    });
+    const otherEncoded = encodeScene(other, 1);
+    const otherUploader = new SceneUploader(new MockDevice());
+    otherUploader.upload(otherEncoded);
+    expect(() =>
+      pass.dispatch({
+        scene: otherEncoded,
+        bindings: otherUploader.getBindings(),
+        materialId: input.materialId,
+        normal: input.normal,
+        visibility: input.visibility,
+      }),
+    ).toThrow(/lighting field provenance does not match/);
+    expect(mock.created).toHaveLength(0);
+  });
+
+  it("combines retained fields with a freshly uploaded light-only scene", () => {
+    const { mock } = setup();
+    const { input } = chain(lightingScene());
+    const pass = new LightingPass(mock);
+    pass.dispatch(input);
+    // A light-only change re-uploads the scene bytes but keeps the retained
+    // materialId/normal/visibility fields: their exact height-dependent
+    // inputs are unchanged, so they are reusable with the new light.
+    const lighter = createScene({
+      ...lightingScene(),
+      light: { direction: { x: 0, y: 0, z: 1 }, intensity: 1 },
+    });
+    const lightEncoded = encodeScene(lighter, 1);
+    const lightUploader = new SceneUploader(new MockDevice());
+    lightUploader.upload(lightEncoded);
+    const stats = pass.dispatch({
+      scene: lightEncoded,
+      bindings: lightUploader.getBindings(),
+      materialId: input.materialId,
+      normal: input.normal,
+      visibility: input.visibility,
+    });
+    expect(stats.workgroupCountX).toBeGreaterThan(0);
+    // the pass's own snapshot still carries the retained provenance token
+    expect(pass.getSnapshot().provenance).toBe(input.normal.provenance);
+  });
+
+  it("combines retained fields with a freshly uploaded material-value-only scene", () => {
+    const { mock } = setup();
+    const { input } = chain(lightingScene());
+    const pass = new LightingPass(mock);
+    pass.dispatch(input);
+    // Material-table VALUES feed only the lighting stage: a value-only
+    // change re-uploads the table and re-runs lighting with the retained
+    // height-derived fields.
+    const retinted = createScene({
+      ...lightingScene(),
+      materials: {
+        silicone: { baseColor: { r: 0.9, g: 0.85, b: 0.8 }, roughness: 0.4, metallic: 0, ior: 1.45 },
+        metal: { baseColor: { r: 0.8, g: 0.8, b: 0.8 }, roughness: 0.2, metallic: 1, ior: 1.5 },
+      },
+    });
+    const retintedEncoded = encodeScene(retinted, 1);
+    const retintedUploader = new SceneUploader(new MockDevice());
+    retintedUploader.upload(retintedEncoded);
+    expect(() =>
+      pass.dispatch({
+        scene: retintedEncoded,
+        bindings: retintedUploader.getBindings(),
+        materialId: input.materialId,
+        normal: input.normal,
+        visibility: input.visibility,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects retained fields when the geometry bytes changed", () => {
+    const { mock } = setup();
+    const { input } = chain(lightingScene());
+    const pass = new LightingPass(mock);
+    const moved = createScene({
+      ...lightingScene(),
+      surfaces: [
+        { ...lightingScene().surfaces[0]! },
+        { ...lightingScene().surfaces[1]!, position: { x: 40, y: 40 } },
+      ],
+    });
+    const movedEncoded = encodeScene(moved, 1);
+    const movedUploader = new SceneUploader(new MockDevice());
+    movedUploader.upload(movedEncoded);
+    expect(() =>
+      pass.dispatch({
+        scene: movedEncoded,
+        bindings: movedUploader.getBindings(),
+        materialId: input.materialId,
+        normal: input.normal,
+        visibility: input.visibility,
+      }),
+    ).toThrow(/lighting field provenance does not match/);
     expect(mock.created).toHaveLength(0);
   });
 

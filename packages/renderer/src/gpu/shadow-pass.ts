@@ -14,7 +14,9 @@ import {
 import type { GpuBufferLike, SceneBindings } from "./uploader";
 import type { BandRegion } from "./tiles";
 import { assertBandRegion } from "./tiles";
+import type { GpuTimestampWritesLike } from "./timestamp-profiler";
 import { validateEncodedScene } from "./validate";
+import { heightInputsMatchScene } from "./height-inputs";
 import {
   COMPUTE_STAGE_VISIBILITY,
   GPU_USAGE_UNIFORM,
@@ -212,6 +214,8 @@ export interface ShadowPassInput {
    * construction; `undefined` keeps the historical full-frame dispatch.
    */
   readonly region?: BandRegion;
+  /** Optional real GPU timestamp-query writes for this compute pass. */
+  readonly timestampWrites?: GpuTimestampWritesLike;
 }
 
 /** Stable read-only output binding for later lighting/presentation. */
@@ -478,7 +482,11 @@ export class ShadowPass {
     });
 
     const encoder = this.device.createCommandEncoder({ label: "ukibori-shadow-pass" });
-    const pass = encoder.beginComputePass();
+    const pass = encoder.beginComputePass(
+      input.timestampWrites === undefined
+        ? undefined
+        : { timestampWrites: input.timestampWrites },
+    );
     pass.setPipeline(cached.pipeline);
     pass.setBindGroup(0, group);
     pass.dispatchWorkgroups(dispatchCountX);
@@ -599,10 +607,15 @@ export class ShadowPass {
           "from one successful HeightPass dispatch",
       );
     }
-    if (provenance.sceneBytes !== sceneBytes) {
+    if (
+      provenance.sceneBytes !== sceneBytes &&
+      !heightInputsMatchScene(provenance, sceneBytes)
+    ) {
       throw new Error(
-        "height field provenance does not match the dispatched scene: consume a complete " +
-          "HeightPass snapshot produced from this exact EncodedScene",
+        "height field provenance does not match the dispatched scene: the height-dependent " +
+          "encoded sections differ — consume a complete HeightPass snapshot produced from " +
+          "this exact EncodedScene (only light/env/exposure/material-VALUE-only changes may " +
+          "combine a freshly uploaded scene with retained height fields)",
       );
     }
     if (

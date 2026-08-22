@@ -499,7 +499,7 @@ describe("GpuScenePipeline — #32 partial/full planning and band dispatch", () 
     const lightPipeline = setup();
     render(lightPipeline.pipeline, tallScene());
     const light = createScene({ ...TALL_SCENE, light: { direction: { x: 0, y: 0, z: 1 } } });
-    expect(render(lightPipeline.pipeline, light).planning.reason).toBe("light-or-environment-change");
+    expect(render(lightPipeline.pipeline, light).planning.reason).toBe("light-direction-change");
 
     const materialPipeline = setup();
     render(materialPipeline.pipeline, tallScene());
@@ -507,7 +507,7 @@ describe("GpuScenePipeline — #32 partial/full planning and band dispatch", () 
       ...TALL_SCENE,
       materials: { matte: { baseColor: { r: 1, g: 0, b: 0 }, roughness: 0.5, metallic: 0 } },
     });
-    expect(render(materialPipeline.pipeline, material).planning.reason).toBe("material-table-change");
+    expect(render(materialPipeline.pipeline, material).planning.reason).toBe("material-values-change");
 
     const viewportPipeline = setup();
     render(viewportPipeline.pipeline, tallScene());

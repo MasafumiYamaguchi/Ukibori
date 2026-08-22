@@ -9,7 +9,9 @@ import {
 import type { GpuBufferLike, SceneBindings } from "./uploader";
 import type { BandRegion } from "./tiles";
 import { assertBandRegion } from "./tiles";
+import type { GpuTimestampWritesLike } from "./timestamp-profiler";
 import { validateEncodedScene } from "./validate";
+import { heightInputsMatchScene } from "./height-inputs";
 import {
   COMPUTE_STAGE_VISIBILITY,
   GPU_USAGE_UNIFORM,
@@ -189,6 +191,8 @@ export interface LightingPassInput {
    * historical full-frame dispatch.
    */
   readonly region?: BandRegion;
+  /** Optional real GPU timestamp-query writes for this compute pass. */
+  readonly timestampWrites?: GpuTimestampWritesLike;
 }
 
 /** Stable read-only output binding for #29 presentation. */
@@ -476,7 +480,11 @@ export class LightingPass {
     });
 
     const encoder = this.device.createCommandEncoder({ label: "ukibori-lighting-pass" });
-    const pass = encoder.beginComputePass();
+    const pass = encoder.beginComputePass(
+      input.timestampWrites === undefined
+        ? undefined
+        : { timestampWrites: input.timestampWrites },
+    );
     pass.setPipeline(cached.pipeline);
     pass.setBindGroup(0, group);
     pass.dispatchWorkgroups(dispatchCountX);
@@ -616,10 +624,15 @@ export class LightingPass {
           "from one successful HeightPass dispatch",
       );
     }
-    if (provenance.sceneBytes !== sceneBytes) {
+    if (
+      provenance.sceneBytes !== sceneBytes &&
+      !heightInputsMatchScene(provenance, sceneBytes)
+    ) {
       throw new Error(
-        "lighting field provenance does not match the dispatched scene: consume " +
-          "NormalPass/ShadowPass snapshots produced from this exact EncodedScene",
+        "lighting field provenance does not match the dispatched scene: the height-dependent " +
+          "encoded sections differ — consume NormalPass/ShadowPass snapshots produced from " +
+          "this exact EncodedScene (only light/env/exposure/material-VALUE-only changes may " +
+          "combine a freshly uploaded scene with retained materialId/normal/visibility fields)",
       );
     }
     if (

@@ -689,6 +689,140 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
   });
 });
 
+describe("GpuScenePipeline — semantic scene invalidation (light/env/material)", () => {
+  /** sceneA with a different light direction (geometry identical). */
+  const withLight = (direction: { x: number; y: number; z: number }, intensity = 1): Scene => {
+    const base = sceneA();
+    return createScene({
+      width: base.width,
+      height: base.height,
+      surfaces: base.surfaces.map((surface) => ({ ...surface })),
+      light: { direction, intensity },
+    });
+  };
+  const withEnvironment = (): Scene => {
+    const base = sceneA();
+    return createScene({
+      width: base.width,
+      height: base.height,
+      surfaces: base.surfaces.map((surface) => ({ ...surface })),
+      light: { direction: base.light.direction, intensity: base.light.intensity },
+      environment: { intensity: 0.9, diffuseIntensity: 0.8, specularIntensity: 0.7 },
+      exposure: 1.25,
+    });
+  };
+  const withMaterials = (): Scene => {
+    const base = sceneA();
+    return createScene({
+      width: base.width,
+      height: base.height,
+      surfaces: base.surfaces.map((surface) => ({ ...surface })),
+      light: { direction: base.light.direction, intensity: base.light.intensity },
+      materials: {
+        silicone: { baseColor: { r: 0.9, g: 0.85, b: 0.8 }, roughness: 0.4, metallic: 0, ior: 1.45 },
+      },
+    });
+  };
+  const taller = (): Scene => {
+    const base = sceneA();
+    base.surfaces[0].elevation += 2;
+    return base;
+  };
+
+  it("skips height and normal on a light-direction change", () => {
+    const { device, pipeline } = setup();
+    const first = pipeline.render({ scene: sceneA(), dpr: 1 });
+    const firstProvenance = pipeline.getSnapshot().heightPass.provenance;
+    const submits = device.submits.length; // 5
+    const stats = pipeline.render({
+      scene: withLight({ x: 0, y: 0, z: 1 }),
+      dpr: 1,
+    });
+    expect(stats.invalidation.reasons).toEqual(["light-direction"]);
+    expect(stats.invalidation.executed).toEqual(["upload", "shadow", "lighting", "presentation"]);
+    expect(stats.invalidation.skipped).toEqual(["height", "normal"]);
+    // exactly four stages submitted: no height/normal work
+    expect(device.submits.length).toBe(submits + 3);
+    expect(stats.upload.bytesUploaded).toBeGreaterThan(0);
+    // the retained height/normal fields keep their provenance and buffers
+    const snapshot = pipeline.getSnapshot();
+    expect(snapshot.heightPass.provenance).toBe(firstProvenance);
+    expect(snapshot.normalPass.provenance).toBe(firstProvenance);
+    expect(snapshot.shadowPass.provenance).toBe(firstProvenance);
+    expect(snapshot.lightingPass.provenance).toBe(firstProvenance);
+    // the planning report never plans a partial for a retained height frame
+    expect(stats.planning.mode).toBe("full");
+    expect(stats.planning.reason).toBe("light-direction-change");
+    expect(first.upload.allocationCount).toBe(stats.upload.allocationCount);
+    expect(first.height.allocationCount).toBe(stats.height.allocationCount);
+  });
+
+  it("skips height, normal and shadow on light-intensity/environment/material changes", () => {
+    for (const [label, scene] of [
+      ["light-intensity", withLight({ x: -0.70710678, y: 0, z: 0.70710678 }, 2)],
+      ["environment", withEnvironment()],
+      ["material-values", withMaterials()],
+    ] as const) {
+      const { device, pipeline } = setup();
+      pipeline.render({ scene: sceneA(), dpr: 1 });
+      const submits = device.submits.length;
+      const stats = pipeline.render({ scene, dpr: 1 });
+      expect(stats.invalidation.reasons).toEqual([label]);
+      expect(stats.invalidation.executed).toEqual(["upload", "lighting", "presentation"]);
+      expect(stats.invalidation.skipped).toEqual(["height", "normal", "shadow"]);
+      expect(device.submits.length).toBe(submits + 2);
+      expect(stats.planning.mode).toBe("full");
+      expect(stats.planning.reason).toBe(`${label}-change`);
+    }
+  });
+
+  it("keeps retained fields consistent across repeated light changes", () => {
+    const { pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const provenance = pipeline.getSnapshot().heightPass.provenance;
+    for (const direction of [
+      { x: 0, y: 0, z: 1 },
+      { x: -0.70710678, y: 0, z: 0.70710678 },
+      { x: 1, y: 0, z: 0 },
+    ]) {
+      pipeline.render({ scene: withLight(direction), dpr: 1 });
+      const snapshot = pipeline.getSnapshot();
+      expect(snapshot.heightPass.provenance).toBe(provenance);
+      expect(snapshot.normalPass.provenance).toBe(provenance);
+      expect(snapshot.shadowPass.provenance).toBe(provenance);
+      expect(snapshot.lightingPass.provenance).toBe(provenance);
+    }
+  });
+
+  it("a geometry change after retained light-only frames re-runs the full chain with a fresh provenance", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const firstProvenance = pipeline.getSnapshot().heightPass.provenance;
+    expect(firstProvenance.heightInputs).toBeDefined();
+    pipeline.render({ scene: withLight({ x: 0, y: 0, z: 1 }), dpr: 1 });
+    const submits = device.submits.length;
+    const stats = pipeline.render({ scene: taller(), dpr: 1 });
+    expect(stats.invalidation.reasons).toEqual(["scene"]);
+    expect(stats.invalidation.executed).toHaveLength(6);
+    expect(device.submits.length).toBe(submits + 5);
+    const snapshot = pipeline.getSnapshot();
+    expect(snapshot.heightPass.provenance).not.toBe(firstProvenance);
+    expect(snapshot.normalPass.provenance).toBe(snapshot.heightPass.provenance);
+    expect(snapshot.shadowPass.provenance).toBe(snapshot.heightPass.provenance);
+    expect(snapshot.lightingPass.provenance).toBe(snapshot.heightPass.provenance);
+  });
+
+  it("unions light-direction and light-intensity changes into one closure", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const submits = device.submits.length;
+    const stats = pipeline.render({ scene: withLight({ x: 0, y: 0, z: 1 }, 2), dpr: 1 });
+    expect(stats.invalidation.reasons).toEqual(["light-direction", "light-intensity"]);
+    expect(stats.invalidation.executed).toEqual(["upload", "shadow", "lighting", "presentation"]);
+    expect(device.submits.length).toBe(submits + 3);
+  });
+});
+
 describe("WebGpuBackend — capabilities.compute stays false until #30", () => {
   it("still reports compute: false (no public GPU selection before parity)", async () => {
     const { WebGpuBackend } = await import("../backend/webgpu");

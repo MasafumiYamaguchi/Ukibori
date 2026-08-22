@@ -426,8 +426,8 @@ describe("parity.mjs — #32 partial/full parity and scheduler counters", () => 
   });
 
   it("pins the documented full-fallback reasons for light/material/viewport", () => {
-    expect(paritySource).toContain('light: "light-or-environment-change"');
-    expect(paritySource).toContain('material: "material-table-change"');
+    expect(paritySource).toContain('light: "light-direction-change"');
+    expect(paritySource).toContain('material: "material-values-change"');
     expect(paritySource).toContain('viewport: "viewport-change"');
   });
 

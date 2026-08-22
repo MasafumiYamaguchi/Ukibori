@@ -13,8 +13,11 @@ import {
   sceneSectionLayout,
 } from "./layout";
 import type { GpuBufferLike, SceneBindings } from "./uploader";
+import type { HeightInputRange } from "./height-inputs";
+import { heightInputRanges, registerHeightInputProvenance } from "./height-inputs";
 import type { BandRegion } from "./tiles";
 import { assertBandRegion } from "./tiles";
+import type { GpuTimestampWritesLike } from "./timestamp-profiler";
 import { validateEncodedScene } from "./validate";
 import {
   COMPOSE_CASTER_HEIGHT_WGSL,
@@ -203,7 +206,9 @@ export interface GpuComputePassEncoderLike {
 }
 
 export interface GpuCommandEncoderLike {
-  beginComputePass(): GpuComputePassEncoderLike;
+  beginComputePass(desc?: {
+    readonly timestampWrites?: GpuTimestampWritesLike;
+  }): GpuComputePassEncoderLike;
   finish(): GpuCommandBufferLike;
 }
 
@@ -295,12 +300,28 @@ export interface HeightPassLastDispatch {
  * proves which encoded scene was consumed, while the provenance object
  * itself is freshly allocated per dispatch so later passes can reject a
  * mixture of fields from two executions of that same scene.
+ *
+ * `heightInputs` is a diagnostic list of height-dependent byte ranges
+ * (geometry header regions + surfaces + masks + mask pixels + material
+ * flags; see `heightInputRanges`). A downstream pass may combine a freshly
+ * uploaded scene with these retained fields ONLY when the canonical ranges,
+ * recomputed from strictly validated `sceneBytes`, match the fresh bytes
+ * EXACTLY and extent/DPR agree — so light/environment/
+ * exposure/material-VALUE-only changes can skip the height/normal stages
+ * while genuinely stale or foreign geometry is still rejected.
  */
 export interface HeightPassProvenance {
   readonly sceneBytes: Uint8Array;
   readonly width: number;
   readonly height: number;
   readonly dpr: number;
+  /**
+   * Diagnostic height-dependent ranges over `sceneBytes`. Downstream passes
+   * never trust this public metadata for authorization; they recompute the
+   * canonical list from validated bytes, preventing forged/mutated ranges
+   * from authorizing stale geometry.
+   */
+  readonly heightInputs?: readonly HeightInputRange[] | undefined;
 }
 
 export interface HeightPassSnapshot {
@@ -453,7 +474,11 @@ export class HeightPass {
   dispatch(
     scene: EncodedScene,
     bindings: SceneBindings,
-    options?: { readonly region?: BandRegion; readonly candidates?: readonly number[] },
+    options?: {
+      readonly region?: BandRegion;
+      readonly candidates?: readonly number[];
+      readonly timestampWrites?: GpuTimestampWritesLike;
+    },
   ): HeightPassDispatchStats {
     const validation = validateEncodedScene(scene.bytes);
     if (!validation.ok || validation.header === undefined) {
@@ -522,7 +547,9 @@ export class HeightPass {
     const encoder = this.device.createCommandEncoder({ label: "ukibori-height-pass" });
     let maskSdfPasses = 0;
     if (totalMaskCells > 0) {
-      const pass = encoder.beginComputePass();
+      const pass = encoder.beginComputePass(
+        timestampDescriptor(options?.timestampWrites, true, false),
+      );
       pass.setPipeline(cached.sdfPipeline);
       pass.setBindGroup(0, sceneGroup);
       pass.setBindGroup(1, sdfGroup);
@@ -531,7 +558,13 @@ export class HeightPass {
       maskSdfPasses = 1;
     }
     for (let i = 0; i < COMPOSE_PASSES.length; i++) {
-      const pass = encoder.beginComputePass();
+      const pass = encoder.beginComputePass(
+        timestampDescriptor(
+          options?.timestampWrites,
+          totalMaskCells === 0 && i === 0,
+          i === COMPOSE_PASSES.length - 1,
+        ),
+      );
       pass.setPipeline(cached.composePipelines[i]);
       pass.setBindGroup(0, sceneGroup);
       pass.setBindGroup(1, composeGroups[i]);
@@ -550,12 +583,17 @@ export class HeightPass {
       composePasses: COMPOSE_PASSES.length,
     };
     this.lastDpr = header.dpr;
-    this.lastProvenance = Object.freeze({
+    const provenance: HeightPassProvenance = {
       sceneBytes: scene.bytes,
       width: header.renderWidth,
       height: header.renderHeight,
       dpr: header.dpr,
-    });
+      // Exact height-dependent ranges authorize downstream reuse of these
+      // retained fields with a later light/env/material-only upload.
+      heightInputs: heightInputRanges(header, layout),
+    };
+    registerHeightInputProvenance(provenance);
+    this.lastProvenance = Object.freeze(provenance);
 
     const stats: HeightPassDispatchStats = {
       newAllocations: this.newAllocations,
@@ -1022,6 +1060,25 @@ export class HeightPass {
       }),
     );
   }
+}
+
+function timestampDescriptor(
+  writes: GpuTimestampWritesLike | undefined,
+  beginning: boolean,
+  end: boolean,
+): { readonly timestampWrites: GpuTimestampWritesLike } | undefined {
+  if (writes === undefined || (!beginning && !end)) return undefined;
+  return {
+    timestampWrites: {
+      querySet: writes.querySet,
+      ...(beginning && writes.beginningOfPassWriteIndex !== undefined
+        ? { beginningOfPassWriteIndex: writes.beginningOfPassWriteIndex }
+        : {}),
+      ...(end && writes.endOfPassWriteIndex !== undefined
+        ? { endOfPassWriteIndex: writes.endOfPassWriteIndex }
+        : {}),
+    },
+  };
 }
 
 // -- helpers ----------------------------------------------------------------

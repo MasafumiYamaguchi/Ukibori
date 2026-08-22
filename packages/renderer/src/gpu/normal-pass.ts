@@ -17,6 +17,7 @@ import { GPU_USAGE_COPY_DST, GPU_USAGE_COPY_SRC, GPU_USAGE_STORAGE } from "./lay
 import type { GpuBufferLike } from "./uploader";
 import type { BandRegion } from "./tiles";
 import { assertBandRegion } from "./tiles";
+import type { GpuTimestampWritesLike } from "./timestamp-profiler";
 import {
   NORMAL_OUTPUT_BYTES_PER_TEXEL,
   NORMAL_PARAMS_BYTE_LENGTH,
@@ -163,6 +164,8 @@ export interface NormalPassInput {
    * historical full-frame dispatch.
    */
   readonly region?: BandRegion;
+  /** Optional real GPU timestamp-query writes for this compute pass. */
+  readonly timestampWrites?: GpuTimestampWritesLike;
 }
 
 /** Stable read-only output binding for later lighting (#27+). */
@@ -342,7 +345,11 @@ export class NormalPass {
     });
 
     const encoder = this.device.createCommandEncoder({ label: "ukibori-normal-pass" });
-    const pass = encoder.beginComputePass();
+    const pass = encoder.beginComputePass(
+      input.timestampWrites === undefined
+        ? undefined
+        : { timestampWrites: input.timestampWrites },
+    );
     pass.setPipeline(cached.pipeline);
     pass.setBindGroup(0, group);
     pass.dispatchWorkgroups(workgroupCountX);
