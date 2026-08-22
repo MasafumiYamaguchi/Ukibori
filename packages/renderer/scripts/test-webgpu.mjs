@@ -65,12 +65,13 @@ const repoRoot = resolve(pkgRoot, "..", "..");
 const CHROME =
   process.env.CHROME_PATH ?? "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
-// Real WebGPU on macOS headless: unsafe-WebGPU flag + Metal ANGLE backend.
+// Real WebGPU headless: unsafe-WebGPU flag; the ANGLE backend is pinned to
+// Metal on macOS and left at the platform default elsewhere (Windows D3D11).
 // Never disable the GPU.
 const CHROME_FLAGS = [
   "--headless=new",
   "--enable-unsafe-webgpu",
-  "--use-angle=metal",
+  ...(process.platform === "darwin" ? ["--use-angle=metal"] : []),
   "--no-first-run",
   "--no-default-browser-check",
 ];
@@ -161,6 +162,8 @@ async function main() {
     cwd: repoRoot,
     stdio: ["ignore", "pipe", "pipe"],
     encoding: "utf8",
+    // Windows resolves npm via npm.cmd, which requires a shell to spawn.
+    shell: process.platform === "win32",
   });
   const buildOutput = (build.stdout ?? "") + (build.stderr ?? "");
   if (build.status !== 0) {

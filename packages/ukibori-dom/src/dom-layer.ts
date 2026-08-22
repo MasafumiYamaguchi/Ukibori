@@ -16,7 +16,7 @@ import type {
   LightingBuffers,
   Material,
 } from "ukibori-renderer";
-import { computeRegion, sanitizeDpr, scaleShadowOptions } from "./coords";
+import { computeRegion, renderTargetSize, sanitizeDpr, scaleShadowOptions } from "./coords";
 import { compositeSurfaceImage } from "./compositor";
 import { geometriesEqual, measureSurfaceElement } from "./measure";
 import { OverlayCanvas, isManagedMutation, restoreSurface, suppressSurface } from "./overlay";
@@ -150,6 +150,23 @@ export interface UkiboriDomOptions {
 const DEFAULT_MARGIN = 64;
 const DEFAULT_INTENSITY = 1;
 /**
+ * DPR handed to the GPU encoder when rendering a DOM scene.
+ *
+ * The DOM layer's `buildScene` applies the dpr similarity transform EXACTLY
+ * ONCE: the scene grid is `floor(region.w * dpr)` texels and every surface
+ * length is already scaled by dpr (raster/device-pixel space). The GPU
+ * encoder, in contrast, expects a LOGICAL CSS-space scene and derives its
+ * render extent as `floor(scene.width * dpr)` — feeding it the display dpr
+ * would scale twice and present a DPR²-sized frame that the overlay would
+ * then have to shrink AFTER presentation (discarding it). Encoding at DPR 1
+ * keeps the GPU extent identical to the CPU oracle's grid for the same
+ * scene, and the WGSL texel-center mapping `(tx + 0.5) / 1` samples the
+ * device-pixel scene coordinates directly.
+ */
+const SCENE_IS_DEVICE_SPACE_DPR = 1;
+/** Bounded diagnostic history for silent WebGPU failures (`uncapturederror`). */
+const MAX_GPU_DIAGNOSTICS = 16;
+/**
  * Document-level observer config: ANY DOM mutation (attributes, child lists,
  * text) anywhere can move or resize a registered element through ancestors
  * and siblings, so the layer invalidates conservatively via `markAllDirty`
@@ -195,6 +212,8 @@ export class UkiboriDom {
   private gpuAttempted = false;
   private gpuFallbackReason: string | null = null;
   private lastGpuFrame: DomGpuFrameState | null = null;
+  /** bounded history of device `uncapturederror` messages (silent-failure seam) */
+  private gpuDiagnostics: string[] = [];
 
   private lastRegion: { x: number; y: number; w: number; h: number } | null = null;
   private lastDpr = 1;
@@ -351,6 +370,7 @@ export class UkiboriDom {
       this.gpuDevice = device;
       this.gpuPipeline = pipeline;
       this.gpuFallbackReason = null;
+      this.attachGpuDiagnostics(device);
       // Device loss fails the pipeline closed; switch once to CPU and
       // re-render through the retained CPU canvas.
       void device.lost.then(
@@ -385,6 +405,46 @@ export class UkiboriDom {
     this.overlay.setBackend("cpu");
     this.forceRender = true;
     this.scheduleRender();
+  }
+
+  /**
+   * Minimal silent-failure seam: WebGPU validation errors that are never
+   * captured turn draws into no-ops with healthy stats and a transparent
+   * canvas. The real `GPUDevice` is an EventTarget, so uncaptured errors are
+   * recorded here (bounded history, exposed via `debugGpuDiagnostics()` and
+   * forwarded to `onError`) without altering any render behavior. Diagnostics
+   * are best-effort: mock devices without `addEventListener` are skipped.
+   */
+  private attachGpuDiagnostics(device: GpuPipelineDeviceLike): void {
+    const target = device as unknown as {
+      addEventListener?: (
+        type: string,
+        listener: (event: { message?: unknown }) => void,
+      ) => void;
+    };
+    target.addEventListener?.("uncapturederror", (event) => {
+      const message =
+        typeof event?.message === "string" && event.message.length > 0
+          ? event.message
+          : "unknown uncaptured WebGPU error";
+      this.recordGpuDiagnostic(message);
+    });
+  }
+
+  private recordGpuDiagnostic(message: string): void {
+    this.gpuDiagnostics.push(message);
+    if (this.gpuDiagnostics.length > MAX_GPU_DIAGNOSTICS) {
+      this.gpuDiagnostics.shift();
+    }
+    // Surface it through the standard reporter too: a silent blank canvas
+    // must at least leave a trace in the console/error channel.
+    this.onError(new Error(`WebGPU uncapturederror: ${message}`));
+  }
+
+  /** Recent WebGPU diagnostics (device `uncapturederror` messages), oldest
+   * first; empty when the GPU path never produced one. */
+  debugGpuDiagnostics(): readonly string[] {
+    return [...this.gpuDiagnostics];
   }
 
   private disposeGpuResources(): void {
@@ -713,6 +773,30 @@ export class UkiboriDom {
    * DIRECTLY to the overlay's WebGPU canvas — no readback and no 2D copy. A
    * thrown stage (validation/device failure) switches ONCE to the CPU path
    * and re-renders the same frame through it.
+   *
+   * ## Canvas lifecycle contract (blank-frame regression fix)
+   *
+   * The pipeline sizes the canvas backing store to the encoded render extent
+   * as the LAST step BEFORE its own presentation; after `render()` returns,
+   * the presented frame lives in that backing store. Only pure-CSS placement
+   * (`positionCanvases`) may happen afterwards — a width/height attribute
+   * write would reset the canvas, DISCARD the presented frame, and retained
+   * scheduling would never re-present it (a permanently transparent canvas).
+   *
+   * ## DPR contract (applied exactly once)
+   *
+   * `buildScene` produces an ALREADY DEVICE-PIXEL scene: it applies the dpr
+   * similarity transform once (`floor(region.w * dpr)` grid, every surface
+   * length scaled by `dpr`). The GPU encoder expects a LOGICAL CSS-space
+   * scene and derives its extent as `floor(scene.width * dpr)` itself, so
+   * handing it the real display dpr would scale twice (DPR² extents). This
+   * layer therefore encodes at DPR 1 (see `SCENE_IS_DEVICE_SPACE_DPR`): the
+   * encoder's extent equals the scene's device-pixel size and the WGSL
+   * texel-center mapping `(tx + 0.5) / 1` samples device-pixel scene space
+   * directly — matching the CPU oracle, which composes the SAME device-pixel
+   * grid from the SAME scene. Shadow lengths are interpreted in SCENE units
+   * by both backends and are mapped through the identical transform by
+   * `scaleShadowOptions(dpr)` before reaching either pass.
    */
   private renderGpuScene(
     scene: ReturnType<typeof buildScene>,
@@ -724,13 +808,18 @@ export class UkiboriDom {
       const pipeline = this.gpuPipeline!;
       const stats: GpuScenePipelineFrameStats = pipeline.render({
         scene,
-        dpr,
+        // The scene is already in raster/device-pixel space; see the DPR
+        // contract above. NEVER pass the display dpr here.
+        dpr: SCENE_IS_DEVICE_SPACE_DPR,
         shadowOptions: scaleShadowOptions(this.shadowOptions, dpr),
         lightingOptions: undefined,
         compositeOptions: this.compositeOptions,
       });
       this.overlay.setBackend("webgpu");
-      this.overlay.resizeAndPosition(region, dpr);
+      // CSS placement only — the backing store was sized by the pipeline
+      // BEFORE presentation and must not be touched now (see the lifecycle
+      // contract above).
+      this.overlay.positionCanvases(region);
       this.lastGpuFrame = { frame: stats, hostRenderMs: performance.now() - startedAt };
       this.lastBuffers = null;
       this.lastObjectId = null;
@@ -789,7 +878,12 @@ export class UkiboriDom {
     );
 
     this.overlay.setBackend("cpu");
-    this.overlay.resizeAndPosition(region, dpr);
+    // Backing store FIRST (guarded same-value writes), then CSS placement,
+    // then the paint: the 2D bitmap reset from a real resize happens before
+    // the new pixels are written, never after.
+    const target = renderTargetSize(region, dpr);
+    this.overlay.resizeBackingStore(target.width, target.height);
+    this.overlay.positionCanvases(region);
     this.overlay.paint(image);
 
     this.lastRenderSize = { width: image.width, height: image.height };
@@ -837,6 +931,7 @@ export class UkiboriDom {
       backend: this.gpuPipeline !== null ? "webgpu" : "cpu",
       gpuFallbackReason: this.gpuFallbackReason,
       gpuFrame: this.lastGpuFrame,
+      gpuDiagnostics: [...this.gpuDiagnostics],
     };
   }
 
