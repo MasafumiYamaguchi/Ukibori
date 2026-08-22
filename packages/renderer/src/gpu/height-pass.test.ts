@@ -720,14 +720,73 @@ describe("HeightPass — validation and rejection", () => {
     expect(mock.created).toHaveLength(5);
   });
 
-  it("rejects dispatch counts beyond maxComputeWorkgroupsPerDimension", () => {
+  it("splits dispatch counts beyond maxComputeWorkgroupsPerDimension into band chunks", () => {
     const mock = new MockDevice({ maxComputeWorkgroupsPerDimension: 32 });
     const uploader = new SceneUploader(mock);
     const pass = new HeightPass(mock);
     const encoded = encodeScene(simpleScene(), 1); // 8000 texels -> 125 workgroups > 32
     uploader.upload(encoded);
+    // rowsPerChunk = floor(32 * 64 / 100) = 20 rows -> ceil(2000 / 64) = 32 <= 32
+    const stats = pass.dispatch(encoded, uploader.getBindings());
+    expect(stats.submissions).toBe(4); // four row chunks; the scene is mask-free (no SDF pass)
+    expect(mock.encoders).toHaveLength(4);
+    for (const encoder of mock.encoders) {
+      expect(encoder.passes).toHaveLength(5);
+      for (const compose of encoder.passes) {
+        expect(compose.calls.dispatch[0]).toEqual({ x: 32, y: 1, z: 1 });
+      }
+    }
+    // the total documented count is unchanged ...
+    expect(pass.getSnapshot().lastDispatch.workgroupCountX).toBe(125);
+    // ... and every texel row is covered by exactly one chunk's params:
+    const uniform = mock.created.slice(5).find((c) => c.desc.label === "ukibori-uniform")!.buffer;
+    const chunkWrites = mock.writes.filter(
+      (w) => w.buffer === uniform && w.bytes.byteLength === HEIGHT_PASS_PARAMS_BYTE_LENGTH,
+    );
+    expect(chunkWrites).toHaveLength(5); // the pre-pipeline write + one per chunk
+    const covered: Array<[number, number]> = [];
+    for (let i = 1; i < chunkWrites.length; i++) {
+      const view = new DataView(chunkWrites[i].bytes.buffer);
+      const yOffset = view.getUint32(8, true);
+      const regionEnd = view.getUint32(12, true);
+      covered.push([yOffset, regionEnd]);
+    }
+    expect(covered).toEqual([
+      [0, 2000],
+      [2000, 4000],
+      [4000, 6000],
+      [6000, 8000],
+    ]);
+  });
+
+  it("throws when a single texel row alone exceeds maxComputeWorkgroupsPerDimension", () => {
+    const mock = new MockDevice({ maxComputeWorkgroupsPerDimension: 32 });
+    const uploader = new SceneUploader(mock);
+    const pass = new HeightPass(mock);
+    // 4000 x 1 texels: ceil(4000 / 64) = 63 workgroups in ONE row — no band
+    // split can help, so the dispatch is rejected before any allocation.
+    const wide = createScene({
+      width: 4000,
+      height: 1,
+      surfaces: [
+        {
+          id: "w",
+          position: { x: 0, y: 0 },
+          size: { x: 10, y: 1 },
+          elevation: 1,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "silicone",
+          castsShadow: false,
+          receivesShadow: false,
+        },
+      ],
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 2 },
+    });
+    const encoded = encodeScene(wide, 1);
+    uploader.upload(encoded);
     expect(() => pass.dispatch(encoded, uploader.getBindings())).toThrow(
-      /maxComputeWorkgroupsPerDimension/,
+      /dispatch chunk of 63 workgroups exceeds maxComputeWorkgroupsPerDimension/,
     );
     expect(mock.created).toHaveLength(5); // rejected before any pass allocation
   });

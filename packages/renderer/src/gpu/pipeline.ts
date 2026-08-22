@@ -228,6 +228,7 @@ const ZERO_HEIGHT: HeightPassDispatchStats = {
   totalAllocationBytes: 0,
   maskSdfPasses: 0,
   composePasses: 0,
+  submissions: 0,
 };
 
 const ZERO_FIELD_DISPATCH = {
@@ -235,6 +236,7 @@ const ZERO_FIELD_DISPATCH = {
   allocationCount: 0,
   totalAllocationBytes: 0,
   workgroupCountX: 0,
+  submissions: 0,
 };
 
 const ZERO_PRESENTATION: PresentationPassStats = {
@@ -430,7 +432,7 @@ export class GpuScenePipeline {
         newAllocations: height.newAllocations,
         bytesUploaded: 0,
         dispatches: height.maskSdfPasses + height.composePasses,
-        submissions: 1,
+        submissions: height.submissions,
       });
       this.retained.height = height;
     } else {
@@ -453,7 +455,7 @@ export class GpuScenePipeline {
         newAllocations: normal.newAllocations,
         bytesUploaded: 0,
         dispatches: 1,
-        submissions: 1,
+        submissions: normal.submissions,
       });
       this.retained.normal = normal;
     } else {
@@ -478,7 +480,7 @@ export class GpuScenePipeline {
         newAllocations: shadow.newAllocations,
         bytesUploaded: 0,
         dispatches: 1,
-        submissions: 1,
+        submissions: shadow.submissions,
       });
       this.retained.shadow = shadow;
     } else {
@@ -505,7 +507,7 @@ export class GpuScenePipeline {
         newAllocations: lighting.newAllocations,
         bytesUploaded: 0,
         dispatches: 1,
-        submissions: 1,
+        submissions: lighting.submissions,
       });
       this.retained.lighting = lighting;
     } else {
@@ -773,6 +775,7 @@ function skippedHeight(retained: HeightPassDispatchStats): HeightPassDispatchSta
     totalAllocationBytes: retained.totalAllocationBytes,
     maskSdfPasses: 0,
     composePasses: 0,
+    submissions: 0,
   };
 }
 
@@ -785,6 +788,7 @@ function skippedFieldDispatch(retained: {
     allocationCount: retained.allocationCount,
     totalAllocationBytes: retained.totalAllocationBytes,
     workgroupCountX: 0,
+    submissions: 0,
   };
 }
 

@@ -677,12 +677,27 @@ describe("NormalPass — pre-device rejection", () => {
     expect(small.created).toHaveLength(0);
   });
 
-  it("rejects dispatch counts beyond maxComputeWorkgroupsPerDimension", () => {
+  it("splits oversized dispatches into band chunks within maxComputeWorkgroupsPerDimension", () => {
     const limited = new MockDevice({ maxComputeWorkgroupsPerDimension: 32 });
     const pass = new NormalPass(limited);
-    const { binding } = manualBinding(4000, 1); // 4000 texels -> 63 workgroups > 32
+    const { binding } = manualBinding(100, 80); // 8000 texels -> 125 workgroups > 32
+    const stats = pass.dispatch({ height: binding });
+    // rowsPerChunk = floor(32 * 64 / 100) = 20 -> ceil(2000 / 64) = 32 <= 32
+    expect(stats.submissions).toBe(4);
+    expect(limited.encoders).toHaveLength(4);
+    for (const encoder of limited.encoders) {
+      expect(encoder.passes).toHaveLength(1);
+      expect(encoder.passes[0].calls.dispatch[0]).toEqual({ x: 32, y: 1, z: 1 });
+    }
+    expect(pass.getSnapshot().lastDispatch.workgroupCountX).toBe(125); // unchanged total
+  });
+
+  it("throws when a single texel row alone exceeds maxComputeWorkgroupsPerDimension", () => {
+    const limited = new MockDevice({ maxComputeWorkgroupsPerDimension: 32 });
+    const pass = new NormalPass(limited);
+    const { binding } = manualBinding(4000, 1); // ceil(4000 / 64) = 63 workgroups in ONE row
     expect(() => pass.dispatch({ height: binding })).toThrow(
-      /dispatch count 63 exceeds maxComputeWorkgroupsPerDimension/,
+      /dispatch chunk of 63 workgroups exceeds maxComputeWorkgroupsPerDimension/,
     );
     expect(limited.created).toHaveLength(0);
   });

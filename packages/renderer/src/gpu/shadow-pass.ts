@@ -13,7 +13,7 @@ import {
 } from "./layout";
 import type { GpuBufferLike, SceneBindings } from "./uploader";
 import type { BandRegion } from "./tiles";
-import { assertBandRegion } from "./tiles";
+import { assertBandRegion, planDispatchChunks } from "./tiles";
 import { validateEncodedScene } from "./validate";
 import {
   COMPUTE_STAGE_VISIBILITY,
@@ -266,6 +266,12 @@ export interface ShadowPassDispatchStats {
   readonly allocationCount: number;
   readonly totalAllocationBytes: number;
   readonly workgroupCountX: number;
+  /**
+   * queue.submit calls performed by this dispatch: 1 on the historical
+   * single-submission path, more when the band was limit-split into
+   * sequential row chunks (`planDispatchChunks`).
+   */
+  readonly submissions: number;
 }
 
 /**
@@ -420,7 +426,18 @@ export class ShadowPass {
     // on a band the shader guard regionEnd != 0 && g >= regionEnd stops the
     // dispatch padding from ever writing a retained texel outside the band
     const regionEnd = region === null ? 0 : yOffset + bandTexels;
-    this.assertDeviceLimits(dispatchCountX);
+    // The per-dimension workgroup cap applies to EVERY dispatch dimension;
+    // an oversized 1D dispatch is SPLIT into sequential band chunks (each
+    // re-packing its yOffset/regionEnd params before its own submission).
+    // null = the whole band fits one dispatch (historical path).
+    const maxWorkgroups = this.assertDeviceLimits(dispatchCountX);
+    const chunks = planDispatchChunks(
+      region === null ? 0 : region.y0,
+      region === null ? header.renderHeight - 1 : region.y1,
+      header.renderWidth,
+      SHADOW_WORKGROUP_SIZE,
+      maxWorkgroups,
+    );
     const outputBytes = texelCount * SHADOW_OUTPUT_BYTES_PER_TEXEL;
     const fieldBindingBytes = texelCount * 4;
     const surfacesBindingBytes = Math.max(header.surfaceCount * SURFACE_STRIDE, SURFACE_STRIDE);
@@ -438,9 +455,7 @@ export class ShadowPass {
 
     this.ensureAllocation("uniform", SHADOW_PARAMS_BYTE_LENGTH, GPU_USAGE_UNIFORM | GPU_USAGE_COPY_DST);
     this.ensureAllocation("outVisibility", outputBytes, SHADOW_PASS_OUTPUT_USAGE);
-    this.packUniform(header, parsed, options, stepCount, caster, yOffset, regionEnd);
     const uniform = this.allocation("uniform");
-    this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
 
     const cached = this.ensurePipeline();
     const group = this.device.createBindGroup({
@@ -477,13 +492,45 @@ export class ShadowPass {
       ],
     });
 
-    const encoder = this.device.createCommandEncoder({ label: "ukibori-shadow-pass" });
-    const pass = encoder.beginComputePass();
-    pass.setPipeline(cached.pipeline);
-    pass.setBindGroup(0, group);
-    pass.dispatchWorkgroups(dispatchCountX);
-    pass.end();
-    this.device.queue.submit([encoder.finish()]);
+    let submissions = 0;
+    if (chunks === null) {
+      // Historical frame: one params write + one encoder + one submission.
+      this.packUniform(header, parsed, options, stepCount, caster, yOffset, regionEnd);
+      this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
+      const encoder = this.device.createCommandEncoder({ label: "ukibori-shadow-pass" });
+      const pass = encoder.beginComputePass();
+      pass.setPipeline(cached.pipeline);
+      pass.setBindGroup(0, group);
+      pass.dispatchWorkgroups(dispatchCountX);
+      pass.end();
+      this.device.queue.submit([encoder.finish()]);
+      submissions = 1;
+    } else {
+      // Limit-split frame: queue operations execute in issue order, so each
+      // chunk's params write lands after the previous submission and before
+      // its own pass — each texel row is computed by exactly one chunk.
+      for (const chunk of chunks) {
+        const chunkYOffset = chunk.y0 * header.renderWidth;
+        this.packUniform(
+          header,
+          parsed,
+          options,
+          stepCount,
+          caster,
+          chunkYOffset,
+          chunkYOffset + chunk.texels,
+        );
+        this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
+        const encoder = this.device.createCommandEncoder({ label: "ukibori-shadow-pass" });
+        const pass = encoder.beginComputePass();
+        pass.setPipeline(cached.pipeline);
+        pass.setBindGroup(0, group);
+        pass.dispatchWorkgroups(chunk.workgroups);
+        pass.end();
+        this.device.queue.submit([encoder.finish()]);
+        submissions += 1;
+      }
+    }
 
     this.lastDispatch = {
       renderWidth: header.renderWidth,
@@ -504,6 +551,7 @@ export class ShadowPass {
       allocationCount: this.allocations.size,
       totalAllocationBytes: sumOf(this.allocationSizes),
       workgroupCountX,
+      submissions,
     };
     this.newAllocations = 0;
     return stats;
@@ -655,7 +703,13 @@ export class ShadowPass {
     }
   }
 
-  private assertDeviceLimits(workgroupCountX: number): void {
+  /**
+   * Device-capability checks. Returns the effective
+   * `maxComputeWorkgroupsPerDimension` so the caller can SPLIT an oversized
+   * 1D dispatch into sequential band chunks (`planDispatchChunks`) instead
+   * of failing.
+   */
+  private assertDeviceLimits(workgroupCountX: number): number {
     const limits = this.device.limits;
     const maxWorkgroupX = positiveLimit(limits.maxComputeWorkgroupSizeX, 256);
     const maxInvocations = positiveLimit(limits.maxComputeInvocationsPerWorkgroup, 256);
@@ -666,12 +720,7 @@ export class ShadowPass {
           `maxComputeInvocationsPerWorkgroup ${maxInvocations})`,
       );
     }
-    const maxWorkgroups = positiveLimit(limits.maxComputeWorkgroupsPerDimension, DEFAULT_MAX_WORKGROUPS);
-    if (workgroupCountX > maxWorkgroups) {
-      throw new Error(
-        `dispatch count ${workgroupCountX} exceeds maxComputeWorkgroupsPerDimension ${maxWorkgroups}`,
-      );
-    }
+    return positiveLimit(limits.maxComputeWorkgroupsPerDimension, DEFAULT_MAX_WORKGROUPS);
   }
 
   private assertAllocationWithinLimits(byteLength: number, label: string): void {

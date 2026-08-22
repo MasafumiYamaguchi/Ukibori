@@ -870,12 +870,19 @@ describe("LightingPass — pre-device rejection", () => {
     expect(lowStorage.created).toHaveLength(0);
   });
 
-  it("rejects dispatch counts beyond maxComputeWorkgroupsPerDimension", () => {
+  it("splits oversized dispatches into band chunks within maxComputeWorkgroupsPerDimension", () => {
     const mock = new MockDevice({ maxComputeWorkgroupsPerDimension: 32 });
     const { input } = runChain(new MockDevice(), lightingScene()); // 8000 texels -> 125 workgroups
     const pass = new LightingPass(mock);
-    expect(() => pass.dispatch(input)).toThrow(/maxComputeWorkgroupsPerDimension/);
-    expect(mock.created).toHaveLength(0);
+    // rowsPerChunk = floor(32 * 64 / 100) = 20 -> ceil(2000 / 64) = 32 <= 32
+    const stats = pass.dispatch(input);
+    expect(stats.submissions).toBe(4);
+    expect(mock.encoders).toHaveLength(4);
+    for (const encoder of mock.encoders) {
+      expect(encoder.passes).toHaveLength(1);
+      expect(encoder.passes[0].calls.dispatch[0]).toEqual({ x: 32, y: 1, z: 1 });
+    }
+    expect(pass.getSnapshot().lastDispatch.workgroupCountX).toBe(125); // unchanged total
   });
 
   it("rejects every oversized binding range before creating buffers", () => {

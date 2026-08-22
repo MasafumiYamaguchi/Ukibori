@@ -781,6 +781,69 @@ export function assertBandRegion(region: BandRegion | undefined, height: number)
   return { y0, y1 };
 }
 
+/**
+ * One chunk of a limit-split 1D dispatch: contiguous inclusive texel rows
+ * (a full-width band, exactly like a #32 partial dispatch region).
+ */
+export interface DispatchChunk {
+  readonly y0: number;
+  readonly y1: number;
+  /** `renderWidth * rows` in this chunk */
+  readonly texels: number;
+  /** `ceil(texels / workgroupSize)`; never above the split budget */
+  readonly workgroups: number;
+}
+
+/**
+ * Split the full-width row range `[startRow..endRow]` into contiguous row
+ * chunks whose LINEAR workgroup count stays within
+ * `maxComputeWorkgroupsPerDimension`. The WebGPU limit applies PER
+ * DIMENSION, so a 1D dispatch above it is illegal even though the total
+ * invocation grid is representable; the passes therefore issue several
+ * sequential band dispatches instead — every chunk re-packs its
+ * yOffset/regionEnd params and submits before the next chunk's uniform
+ * write lands (queue operations execute in issue order), so each texel row
+ * is computed by exactly one chunk with its own params.
+ *
+ * Returns null when the whole range fits ONE dispatch (the historical
+ * single-dispatch path, byte-for-byte unchanged). Throws only when a
+ * SINGLE row already exceeds the budget (render width >
+ * maxWorkgroups * workgroupSize texels) — no chunking can help there.
+ * Pure function: deterministic in every input, no device calls.
+ */
+export function planDispatchChunks(
+  startRow: number,
+  endRow: number,
+  renderWidth: number,
+  workgroupSize: number,
+  maxWorkgroups: number,
+): DispatchChunk[] | null {
+  const totalTexels = renderWidth * (endRow - startRow + 1);
+  if (Math.ceil(totalTexels / workgroupSize) <= maxWorkgroups) {
+    return null;
+  }
+  // Largest row count whose padded dispatch stays within the per-dimension
+  // cap: floor keeps rowsPerChunk * renderWidth <= cap * workgroupSize, so
+  // ceil(rowsPerChunk * renderWidth / workgroupSize) <= cap exactly.
+  const rowsPerChunk = Math.max(1, Math.floor((maxWorkgroups * workgroupSize) / renderWidth));
+  const chunks: DispatchChunk[] = [];
+  for (let y0 = startRow; y0 <= endRow; y0 += rowsPerChunk) {
+    const y1 = Math.min(y0 + rowsPerChunk - 1, endRow);
+    const texels = renderWidth * (y1 - y0 + 1);
+    const workgroups = Math.ceil(texels / workgroupSize);
+    if (workgroups > maxWorkgroups) {
+      throw new Error(
+        `dispatch chunk of ${workgroups} workgroups exceeds ` +
+          `maxComputeWorkgroupsPerDimension ${maxWorkgroups}: one texel row of ` +
+          `width ${renderWidth} already needs more than the ${maxWorkgroups} x ` +
+          `${workgroupSize} per-dispatch budget`,
+      );
+    }
+    chunks.push({ y0, y1, texels, workgroups });
+  }
+  return chunks;
+}
+
 /** Exact byte equality (the correctness-critical comparison, never hashes). */
 export function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.byteLength !== b.byteLength) {

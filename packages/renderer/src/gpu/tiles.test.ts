@@ -22,6 +22,7 @@ import {
   diffEncodedScenes,
   expandSceneRect,
   expandTexelRect,
+  planDispatchChunks,
   planPartialScene,
   sceneRectToTexelRect,
   shadowHalo,
@@ -863,5 +864,55 @@ describe("#32 binSurfaceIndices — conservative candidate bins", () => {
     expect(plan.candidateIndices).toEqual([]);
     expect(plan.candidateSurfaceCount).toBe(0);
     expect(plan.culledSurfaceCount).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// planDispatchChunks — limit-split 1D dispatch planning (pure function)
+// ---------------------------------------------------------------------------
+
+describe("planDispatchChunks", () => {
+  it("returns null when the whole range fits one dispatch", () => {
+    // ceil(100 * 80 / 64) = 125 <= 65535
+    expect(planDispatchChunks(0, 79, 100, 64, 65535)).toBeNull();
+    // exactly at the budget: still a single dispatch
+    expect(planDispatchChunks(0, 19, 100, 64, 32)).toBeNull(); // ceil(2000/64)=32
+  });
+
+  it("splits into contiguous row chunks within the per-dimension cap", () => {
+    // rowsPerChunk = floor(32 * 64 / 100) = 20 -> chunks of exactly 32 WG
+    const chunks = planDispatchChunks(0, 79, 100, 64, 32)!;
+    expect(chunks).toHaveLength(4);
+    expect(chunks.map((c) => [c.y0, c.y1])).toEqual([
+      [0, 19],
+      [20, 39],
+      [40, 59],
+      [60, 79],
+    ]);
+    for (const chunk of chunks) {
+      expect(chunk.texels).toBe(2000);
+      expect(chunk.workgroups).toBe(32);
+    }
+  });
+
+  it("covers a sub-range starting above row zero and clips the final chunk", () => {
+    // range 10..74 (65 rows): rowsPerChunk = 20 -> 20 + 20 + 20 + 5
+    const chunks = planDispatchChunks(10, 74, 100, 64, 32)!;
+    expect(chunks.map((c) => [c.y0, c.y1])).toEqual([
+      [10, 29],
+      [30, 49],
+      [50, 69],
+      [70, 74],
+    ]);
+    const last = chunks[chunks.length - 1];
+    expect(last.texels).toBe(500);
+    expect(last.workgroups).toBe(Math.ceil(500 / 64));
+  });
+
+  it("throws when a single row alone exceeds the cap", () => {
+    // width 4000 -> ceil(4000/64) = 63 > 32 in ONE row; no split can help
+    expect(() => planDispatchChunks(0, 0, 4000, 64, 32)).toThrow(
+      /dispatch chunk of 63 workgroups exceeds maxComputeWorkgroupsPerDimension 32/,
+    );
   });
 });
