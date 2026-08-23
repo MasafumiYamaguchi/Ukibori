@@ -147,25 +147,30 @@ export function compositeShadowPremultipliedStrengthBytes(
   options: CompositeOptions = {},
 ): readonly [number, number, number, number] {
   const clamped = strength < 0 ? 0 : strength > 1 ? 1 : strength;
-  const s = Math.fround(clamped);
-  if (!(s > 0)) {
+  if (!(clamped > 0)) {
     return [0, 0, 0, 0];
   }
   const opts = sanitizeCompositeOptions(options);
   const saByte = compositeShadowAlphaByte(opts.shadowAlpha);
-  const UNORM_SCALE = 1 / 255;
-  // alpha: f32(saByte) * s -> unorm -> byte
-  const a1 = Math.fround(saByte * s);
-  const a2 = Math.fround(a1 * UNORM_SCALE);
-  const alphaByte = Math.round(a2 * 255);
-  // channels: f32(c) * f32(saByte) / 255 * s -> unorm -> byte
-  const ch = (c: number): number => {
-    const c1 = Math.fround(c * saByte);
-    const c2 = Math.fround(c1 / 255);
-    const c3 = Math.fround(c2 * s);
-    const c4 = Math.fround(c3 * UNORM_SCALE);
-    return Math.round(c4 * 255);
+  // Hardware unorm8 quantization is ROUND-HALF-TO-EVEN (D3D/Vulkan float ->
+  // unorm rule), NOT JavaScript's half-up Math.round. Halfway products
+  // genuinely occur for #41 soft shadows: sanitized sample counts are
+  // powers of two, so the strength is always a dyadic rational and
+  // `saByte * strength` lands exactly on .5 steps (e.g. 153 * 0.5 -> 76.5,
+  // which the GPU rounds to 76).
+  const rtne255 = (byteValue: number): number => {
+    const v = byteValue < 0 ? 0 : byteValue > 255 ? 255 : byteValue;
+    const fl = Math.floor(v);
+    const frac = v - fl;
+    if (frac > 0.5) return fl + 1;
+    if (frac < 0.5) return fl;
+    return fl % 2 === 0 ? fl : fl + 1;
   };
+  // Exact-rational evaluation: every input here (integer saByte/color bytes,
+  // dyadic strength) makes the products exactly representable in f64, so
+  // this matches the hardware's correctly-rounded result deterministically.
+  const alphaByte = rtne255(saByte * clamped);
+  const ch = (c: number): number => rtne255(((c * saByte) / 255) * clamped);
   return [
     ch(opts.shadowColor[0]),
     ch(opts.shadowColor[1]),

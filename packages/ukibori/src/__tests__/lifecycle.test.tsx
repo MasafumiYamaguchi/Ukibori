@@ -146,3 +146,49 @@ describe("registry lifecycle", () => {
     expect(wrapper.querySelector("canvas")).toBeNull();
   });
 });
+
+describe("#41 angularRadius retained-update semantics", () => {
+  // Heavy jsdom + CPU-render fixture: keep it cheap (low quality) and give
+  // it headroom under full-suite parallel load.
+  it(
+    "removing the prop clears the stored radius on the SAME layer",
+    async () => {
+      stubElementRects();
+      stubCanvas2d();
+      let layer: UkiboriDom | null = null;
+      const { rerender } = render(
+        <Ukibori
+          schedule={(cb) => cb()}
+          onReady={(l) => (layer = l)}
+          angularRadius={0.5}
+          quality="low"
+        >
+          <Surface sceneId="card" elevation={4} thickness={2}>
+            Card
+          </Surface>
+        </Ukibori>,
+      );
+      await flushAsync();
+      const current = layer!;
+      // soft override stored
+      expect(
+        (current as unknown as { light: { angularRadius?: number } }).light.angularRadius,
+      ).toBe(0.5);
+
+      // Prop removal -> the retained update effect calls
+      // setLight(dir, intensity, undefined) -> DELETE -> renderer default 0.
+      rerender(
+        <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+          <Surface sceneId="card" elevation={4} thickness={2}>
+            Card
+          </Surface>
+        </Ukibori>,
+      );
+      await flushAsync();
+      expect(
+        (current as unknown as { light: { angularRadius?: number } }).light.angularRadius,
+      ).toBeUndefined();
+    },
+    20_000,
+  );
+});

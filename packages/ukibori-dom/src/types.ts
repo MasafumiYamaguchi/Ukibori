@@ -132,15 +132,17 @@ export interface DomEnvironmentState {
  * How the compositor maps the renderer output onto the DOM overlay.
  *
  * The renderer's `color` buffer is fully opaque (alpha 255 everywhere,
- * including the base plane). The DOM overlay must stay transparent where the
- * page shows through, so the compositor reinterprets the `objectId` and
- * `visibility` buffers:
+ * including the base plane), which is wrong on a DOM page: the page
+ * background IS the base plane and must show through. The `objectId` and
+ * `visibility` buffers disambiguate:
  *
  * - surface pixels (owner != NO_OWNER): the renderer color, opaque
- * - lit base-plane pixels (owner == NO_OWNER, visibility == 1): fully
- *   transparent — the page IS the base plane
- * - shadowed base-plane pixels (visibility == 0): a translucent dark overlay
- *   (`shadowColor` at `shadowAlpha`) approximating the hard #17 cast shadow
+ * - base-plane pixels scale the shadow tint with the #41 CONTINUOUS
+ *   occlusion strength `clamp(1 - visibility, 0, 1)`: fully lit (vis 1) is
+ *   transparent, partially occluded texels get a proportional translucent
+ *   overlay, and fully shadowed texels (vis 0) get the full configured
+ *   tint — a faithful-on-average approximation of the cast shadow drawn
+ *   over whatever the page shows underneath
  */
 export interface CompositeOptions {
   /** RGB 0..255 tint for cast shadows on the base plane (default near-black) */

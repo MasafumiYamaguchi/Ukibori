@@ -134,20 +134,6 @@ export interface ScaledShadowOptions {
 }
 
 /**
- * Map CSS-space shadow options (#17) through the dpr similarity transform.
- *
- * The renderer's shadow pass interprets `stepSize` / `bias` / `maxDistance`
- * in SCENE units, and the scene is dpr-scaled by `buildScene`. To keep the
- * cast-shadow geometry identical in CSS space at any dpr, every configured
- * length is multiplied by dpr AND the renderer's defaults for step/bias are
- * materialized here (0.5 CSS px) instead of being left to the renderer —
- * the renderer default is a fixed scene-unit value, so it would silently
- * shrink with dpr. `maxDistance` is only forwarded when configured; the
- * renderer default derives from the dpr-scaled scene diagonal and is already
- * invariant. Invalid configured values fall back to the CSS-space defaults,
- * mirroring the renderer's sanitization.
- */
-/**
  * Map CSS-space shadow options (#17/#41) through the dpr similarity transform.
  *
  * The renderer's shadow pass interprets `stepSize` / `bias` / `maxDistance`

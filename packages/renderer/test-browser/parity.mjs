@@ -1098,8 +1098,13 @@ async function runPresentationFixture(device, fixture) {
       {
         scene: fixture.scene,
         dpr: fixture.dpr,
-        compositeOptions: fixture.compositeOptions,
         normalOptions: fixture.normalOptions,
+        // #41: forward the fixture's shadow options so soft presentation
+        // fixtures run their requested sample count (a missing field would
+        // silently fall back to the renderer default and could mask a
+        // broken forwarding contract).
+        shadowOptions: fixture.shadowOptions,
+        compositeOptions: fixture.compositeOptions,
       },
     ];
     pipeline = new api.GpuScenePipeline(device, context, canvasFormat);
@@ -1109,6 +1114,7 @@ async function runPresentationFixture(device, fixture) {
         scene: frame.scene,
         dpr: frame.dpr,
         normalOptions: frame.normalOptions,
+        shadowOptions: frame.shadowOptions,
         compositeOptions: frame.compositeOptions,
         debugReadback: true,
       });

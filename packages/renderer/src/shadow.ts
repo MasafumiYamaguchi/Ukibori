@@ -72,8 +72,11 @@ import {
  * - grazing stability: the early exit on `maxHeight + bias` and the bounds
  *   check keep near-horizontal rays from marching forever
  *
- * The result is a hard 0/1 visibility mask; soft shadows are a future
- * extension on top of this mask.
+ * The result is a visibility scalar in `[0, 1]`: the historical single-ray
+ * march yields the exact hard {0, 1} mask, and with #41 area-light sampling
+ * (`scene.light.angularRadius > 0`, `samples > 1`) each texel evaluates the
+ * deterministic golden-angle disk cone and writes the lit fraction — see
+ * `shadow-sampling.ts`.
  *
  * Pass-wide state (maxHeight, sanitized options, light data) is prepared
  * ONCE in `prepareShadowContext` and shared by every pixel trace.

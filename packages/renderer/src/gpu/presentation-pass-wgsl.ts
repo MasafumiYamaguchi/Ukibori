@@ -19,14 +19,20 @@
  *
  * - `objectId != NO_OWNER`: output the packed #28 R,G,B bytes with alpha 1
  *   (opaque surface; alpha 255).
- * - `objectId == NO_OWNER` and `visibility >= 0.5`: transparent black
- *   `(0, 0, 0, 0)` (the page background IS the lit base plane).
- * - `objectId == NO_OWNER` and `visibility < 0.5`: the sanitized shadow
- *   color at the sanitized alpha. The canvas is configured with
- *   `alphaMode: "premultiplied"`, so the translucent output is PREMULTIPLIED:
- *   `(f32(r) * f32(sa) / 255 / 255, ..., sa / 255)` (IEEE f32 arithmetic —
- *   the byte round-trip `round(v * 255)` equals `round(f32(r) * f32(sa) /
- *   255)`, matching the CPU helper).
+ * - `objectId == NO_OWNER`: the base-plane shadow tint scales with the #41
+ *   CONTINUOUS occlusion strength `clamp(1 - visibility, 0, 1)`:
+ *
+ *     visibility == 1          -> transparent black `(0, 0, 0, 0)`
+ *                                 (the page background IS the lit plane)
+ *     0 < visibility < 1       -> partial premultiplied shadow tint
+ *     visibility == 0          -> full sanitized tint at full alpha
+ *
+ *   The canvas is configured with `alphaMode: "premultiplied"`, so the
+ *   output is PREMULTIPLIED with BOTH alpha and RGB scaled by the strength:
+ *   `(f32(r) * f32(sa) / 255 / 255 * s, ..., f32(sa) * s / 255)` (IEEE f32
+ *   arithmetic — the byte round-trip matches
+ *   `compositeShadowPremultipliedStrengthBytes` on the CPU; hard {0, 1}
+ *   inputs reproduce the historical binary bytes).
  * - No vertical flip: framebuffer y grows downward, so `position.y` maps
  *   directly to the row-major height-field texel row.
  * - No second gamma transform: the #28 bytes are already sRGB encoded; their

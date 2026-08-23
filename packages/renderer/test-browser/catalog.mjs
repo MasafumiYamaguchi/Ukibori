@@ -1288,10 +1288,14 @@ export function createCatalog(api) {
     },
     // #41 soft shadow reaching the CANVAS: intermediate visibilities
     // quantize the premultiplied tint through the continuous occlusion
-    // strength (custom tint/alpha so every channel is exercised)
+    // strength (custom tint/alpha so every channel is exercised).
+    // samples=4 deliberately DIFFERS from the renderer default (8): if the
+    // fixture's shadowOptions stopped being forwarded to pipeline.render,
+    // the canvas would silently fall back to 8-sample visibility and this
+    // fixture would fail.
     {
       name: "present-soft-shadow-custom-tint-alpha",
-      ...softShadowScene(Math.fround(0.25), 8, 6),
+      ...softShadowScene(Math.fround(0.25), 4, 6),
       dpr: 1,
       compositeOptions: { shadowColor: [200, 40, 220], shadowAlpha: 0.6 },
     },
@@ -1384,6 +1388,10 @@ export function createCatalog(api) {
       light: {
         direction: { x: scene.light.direction.x, y: scene.light.direction.y, z: scene.light.direction.z },
         intensity: scene.light.intensity,
+        // #41: the apparent light size (radians) affects the rendered
+        // visibility/canvas output, so it MUST be part of the canonical
+        // fixture metadata (mismatch reports and static-golden parameters).
+        angularRadius: scene.light.angularRadius ?? 0,
       },
       environment: {
         intensity: scene.environment.intensity,

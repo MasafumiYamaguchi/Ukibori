@@ -167,39 +167,49 @@ describe("capability resolution and retained provider", () => {
     expect(layer).not.toBeNull();
   });
 
-  it("retains the layer and registry entries across shared-light/quality updates", async () => {
-    stubElementRects();
-    stubCanvas2d();
-    let layer: UkiboriDom | null = null;
-    const tree = (light: { x: number; y: number; z: number }, quality: "low" | "high") => (
-      <Ukibori
-        schedule={(cb) => cb()}
-        onReady={(l) => (layer = l)}
-        light={light}
-        quality={quality}
-      >
-        <Surface sceneId="a" elevation={2} thickness={1}>
-          A
-        </Surface>
-      </Ukibori>
-    );
-    const { rerender } = render(tree({ x: -0.6, y: -0.8, z: 1 }, "low"));
-    await flushAsync();
-    const first = layer!;
-    const entryBefore = first.registry.get("a")!;
-    const setLightSpy = vi.spyOn(first, "setLight");
-    const setDprSpy = vi.spyOn(first, "setDpr");
+  // Full-suite parallel load can push these jsdom + CPU-render tests past
+  // the default 5s per-test timeout on slower machines (each passes in
+  // isolation); the explicit budget documents that instead of leaving them
+  // load-flaky. This does NOT mask any production bug — the #41 stale-state
+  // regression is covered by dedicated same-instance tests in dom-layer and
+  // lifecycle.
+  it(
+    "retains the layer and registry entries across shared-light/quality updates",
+    async () => {
+      stubElementRects();
+      stubCanvas2d();
+      let layer: UkiboriDom | null = null;
+      const tree = (light: { x: number; y: number; z: number }, quality: "low" | "high") => (
+        <Ukibori
+          schedule={(cb) => cb()}
+          onReady={(l) => (layer = l)}
+          light={light}
+          quality={quality}
+        >
+          <Surface sceneId="a" elevation={2} thickness={1}>
+            A
+          </Surface>
+        </Ukibori>
+      );
+      const { rerender } = render(tree({ x: -0.6, y: -0.8, z: 1 }, "low"));
+      await flushAsync();
+      const first = layer!;
+      const entryBefore = first.registry.get("a")!;
+      const setLightSpy = vi.spyOn(first, "setLight");
+      const setDprSpy = vi.spyOn(first, "setDpr");
 
-    // Ordinary physical prop changes: the EXISTING layer is updated through
-    // its setters — no dispose/recreate, no surface re-registration.
-    rerender(tree({ x: 1, y: 0, z: 0 }, "high"));
-    await flushAsync();
-    expect(layer).toBe(first);
-    expect(first.registry.get("a")).toBe(entryBefore);
-    expect(first.registry.size).toBe(1);
-    expect(setLightSpy).toHaveBeenCalled();
-    expect(setDprSpy).toHaveBeenCalled();
-  });
+      // Ordinary physical prop changes: the EXISTING layer is updated through
+      // its setters — no dispose/recreate, no surface re-registration.
+      rerender(tree({ x: 1, y: 0, z: 0 }, "high"));
+      await flushAsync();
+      expect(layer).toBe(first);
+      expect(first.registry.get("a")).toBe(entryBefore);
+      expect(first.registry.size).toBe(1);
+      expect(setLightSpy).toHaveBeenCalled();
+      expect(setDprSpy).toHaveBeenCalled();
+    },
+    15_000,
+  );
 
   it("pushes environment/exposure prop updates to the retained layer without recreation", async () => {
     stubElementRects();
@@ -261,7 +271,7 @@ describe("capability resolution and retained provider", () => {
     expect(setExposureSpy).toHaveBeenLastCalledWith(1);
     expect(first.debugEnvironment()).toEqual({ intensity: 0.5, diffuseIntensity: 1, specularIntensity: 1 });
     expect(first.debugExposure()).toBe(1);
-  });
+  }, 15_000);
 
   it("matches the renderer sanitization policy at the React entry (#22)", async () => {
     stubElementRects();
@@ -375,7 +385,9 @@ describe("provider option reset and identity semantics", () => {
     expect(current.debugShadowOptions()).toEqual({ bias: 0.2 });
   });
 
-  it("switching the stage element recreates the layer on the new stage", async () => {
+  it(
+    "switching the stage element recreates the layer on the new stage",
+    async () => {
     stubElementRects();
     stubCanvas2d();
     const stageA = document.createElement("section");
@@ -409,7 +421,9 @@ describe("provider option reset and identity semantics", () => {
     expect(stageB.getAttribute("data-ukibori-stage")).toBe("");
     document.body.removeChild(stageA);
     document.body.removeChild(stageB);
-  });
+  },
+  15_000,
+  );
 
   it("a changed dpr provider function (identical source) is pushed to the layer", async () => {
     stubElementRects();

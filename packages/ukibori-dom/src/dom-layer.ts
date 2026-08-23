@@ -580,9 +580,15 @@ export class UkiboriDom {
 
   /**
    * Change the shared light. `direction` is normalized; invalid -> +z.
-   * #41: pass `angularRadius` to set/clear the apparent light size
-   * (radians, dimensionless). `undefined` clears the override so the
-   * renderer default (0 = hard shadow) applies again.
+   * #41 apparent light size (`angularRadius`, radians, dimensionless):
+   *
+   * - finite >= 0: the override is stored and forwarded to the renderer
+   * - `undefined` (prop removal / override clear): the stored value is
+   *   DELETED so the renderer default (0 = exact hard shadow) applies again
+   * - NaN / +-Infinity / negative: also deleted -> hard shadow
+   *
+   * The deletion matters: leaving a previous soft radius behind would keep
+   * soft shadows active after the caller removed the prop (stale-state bug).
    */
   setLight(
     direction: { x: number; y: number; z: number },
@@ -595,12 +601,14 @@ export class UkiboriDom {
       this.light.intensity =
         Number.isFinite(intensity) && intensity >= 0 ? intensity : DEFAULT_INTENSITY;
     }
-    if (angularRadius !== undefined) {
-      if (Number.isFinite(angularRadius) && angularRadius >= 0) {
-        this.light.angularRadius = angularRadius;
-      } else {
-        delete this.light.angularRadius;
-      }
+    if (
+      angularRadius !== undefined &&
+      Number.isFinite(angularRadius) &&
+      angularRadius >= 0
+    ) {
+      this.light.angularRadius = angularRadius;
+    } else {
+      delete this.light.angularRadius;
     }
     this.sceneDirty = true;
     this.scheduleRender();
