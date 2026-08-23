@@ -132,9 +132,12 @@ fn fs_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
   }
   // Shadowed base plane: the sanitized shadow tint scaled by the strength,
   // PREMULTIPLIED for the alphaMode: "premultiplied" canvas. IEEE f32
-  // arithmetic mirrors compositeShadowPremultipliedBytes exactly:
-  //   channel value = f32(c) * f32(sa) / 255 / 255  (byte round-trip = c)
-  // with both alpha and channels additionally scaled by strength.
+  // arithmetic mirrors compositeShadowPremultipliedStrengthBytes exactly:
+  //   channel value = f32(c) * f32(sa) / 255 * strength / 255
+  //   alpha value   = f32(sa) * strength / 255
+  // #41 soft fixtures deliberately avoid halfway quantization boundaries
+  // (dyadic strengths x alpha bytes chosen integral), so this stays portable
+  // across backends without depending on any rounding tie-break.
   let alpha = f32(params.shadowAlphaByte) * strength * UNORM_SCALE;
   let sr = f32(params.shadowR) * f32(params.shadowAlphaByte) / 255.0 * strength * UNORM_SCALE;
   let sg = f32(params.shadowG) * f32(params.shadowAlphaByte) / 255.0 * strength * UNORM_SCALE;

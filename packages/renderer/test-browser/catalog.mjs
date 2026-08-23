@@ -27,7 +27,7 @@
 // supported by the scene contract — there is NO rotation/skew support, and
 // the catalog never claims any.
 
-export const CATALOG_VERSION = 1;
+export const CATALOG_VERSION = 2;
 
 // ---------------------------------------------------------------------------
 // Central comparison policy table (#30). One declaration, used by the
@@ -1286,9 +1286,13 @@ export function createCatalog(api) {
       dpr: 1,
       compositeOptions: { shadowAlpha: 1 },
     },
-    // #41 soft shadow reaching the CANVAS: intermediate visibilities
-    // quantize the premultiplied tint through the continuous occlusion
-    // strength (custom tint/alpha so every channel is exercised).
+    // #41 soft shadow reaching the CANVAS: intermediate visibilities scale
+    // the premultiplied tint through the continuous occlusion strength.
+    // shadowAlpha 0.5 -> full-strength alpha byte round(0.5 * 255) = 128;
+    // with samples=4 every dyadic strength keeps the products integral
+    // (128 * 0.25 = 32, 128 * 0.5 = 64, 128 * 0.75 = 96), so NO texel ever
+    // lands on a halfway quantization boundary — the fixture stays portable
+    // across WebGPU backends instead of depending on a rounding tie-break.
     // samples=4 deliberately DIFFERS from the renderer default (8): if the
     // fixture's shadowOptions stopped being forwarded to pipeline.render,
     // the canvas would silently fall back to 8-sample visibility and this
@@ -1297,7 +1301,7 @@ export function createCatalog(api) {
       name: "present-soft-shadow-custom-tint-alpha",
       ...softShadowScene(Math.fround(0.25), 4, 6),
       dpr: 1,
-      compositeOptions: { shadowColor: [200, 40, 220], shadowAlpha: 0.6 },
+      compositeOptions: { shadowColor: [200, 40, 220], shadowAlpha: 0.5 },
     },
     // overlap/ownership, clipped/offscreen surfaces and empty scene behavior
     { name: "present-overlap-ownership", scene: tieOverlapScene().scene, dpr: 1 },

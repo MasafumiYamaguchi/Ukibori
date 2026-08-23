@@ -28,6 +28,7 @@ import {
 } from "./presentation-pass-wgsl";
 import {
   compositeShadowPremultipliedBytes,
+  compositeShadowPremultipliedStrengthBytes,
   compositeShadowAlphaByte,
   DEFAULT_SHADOW_ALPHA,
   DEFAULT_SHADOW_COLOR,
@@ -488,7 +489,37 @@ describe("sanitizeCompositeOptions — CPU-compatible composite option sanitizat
       77,
     ]);
   });
+
+  it("keeps the #41 soft presentation fixture off halfway quantization (portable parity)", () => {
+    // present-soft-shadow-custom-tint-alpha: shadowAlpha 0.5, samples 4.
+    // Full-strength alpha byte is 128; every dyadic occlusion strength then
+    // yields an INTEGRAL alpha byte (128 * k/4 = {32, 64, 96, 128}), so no
+    // texel ever lands on an x.5 quantization boundary whose tie-break is
+    // allowed to differ between WebGPU backends.
+    const options = { shadowColor: [200, 40, 220] as const, shadowAlpha: 0.5 };
+    const saByte = compositeShadowAlphaByte(options.shadowAlpha);
+    expect(saByte).toBe(128);
+    for (const strength of [0.25, 0.5, 0.75, 1] as const) {
+      expect((saByte * strength) % 1).toBe(0); // integral: never halfway
+      for (const channel of options.shadowColor) {
+        const product = ((channel * saByte) / 255) * strength;
+        // parity argument: c*128*s has an even numerator while any x.5
+        // needs an odd one over the same dyadic denominator — unreachable
+        expect(product - Math.floor(product)).not.toBe(0.5);
+      }
+    }
+    // strength 1 must equal the historical full-strength bytes exactly
+    expect(compositeShadowPremultipliedStrengthBytes(1, options)).toEqual(
+      compositeShadowPremultipliedBytes(options),
+    );
+    // spot-check the actual penumbra bytes at each partial strength
+    expect(compositeShadowPremultipliedStrengthBytes(0.25, options)).toEqual([25, 5, 28, 32]);
+    expect(compositeShadowPremultipliedStrengthBytes(0.5, options)).toEqual([50, 10, 55, 64]);
+    expect(compositeShadowPremultipliedStrengthBytes(0.75, options)).toEqual([75, 15, 83, 96]);
+  });
 });
+
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Pipeline creation, target-format cache, command order

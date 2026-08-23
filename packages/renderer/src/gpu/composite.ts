@@ -142,6 +142,27 @@ export function compositeShadowAlphaByte(alpha: number): number {
  * {@link compositeShadowPremultipliedBytes} exactly, so hard {0, 1}
  * visibility inputs keep their historical bytes.
  */
+/**
+ * #41: the PREMULTIPLIED canvas bytes for a base-plane texel at a
+ * CONTINUOUS occlusion strength `s = clamp(1 - visibility, 0, 1)`:
+ *
+ *   alpha   = saByte * s            (canvas byte = round(alpha))
+ *   channel = c * saByte / 255 * s  (canvas byte = round(channel))
+ *
+ * where `saByte` is the sanitized full-strength alpha byte.
+ *
+ * ## Portability contract
+ *
+ * - The presentation WGSL and THIS function produce the same expected bytes
+ *   on every conformant WebGPU backend for PORTABLE fixtures: #41 soft
+ *   fixtures deliberately pick sample counts and alphas so no product ever
+ *   lands on a halfway (.5) quantization boundary (see the catalog's
+ *   present-soft-shadow-custom-tint-alpha note), so no rounding tie-break —
+ *   which is allowed to differ between backends — is ever exercised.
+ * - Strength 0 is fully transparent; strength 1 reproduces
+ *   {@link compositeShadowPremultipliedBytes} exactly, so hard {0, 1}
+ *   visibility inputs keep their historical bytes.
+ */
 export function compositeShadowPremultipliedStrengthBytes(
   strength: number,
   options: CompositeOptions = {},
@@ -152,25 +173,8 @@ export function compositeShadowPremultipliedStrengthBytes(
   }
   const opts = sanitizeCompositeOptions(options);
   const saByte = compositeShadowAlphaByte(opts.shadowAlpha);
-  // Hardware unorm8 quantization is ROUND-HALF-TO-EVEN (D3D/Vulkan float ->
-  // unorm rule), NOT JavaScript's half-up Math.round. Halfway products
-  // genuinely occur for #41 soft shadows: sanitized sample counts are
-  // powers of two, so the strength is always a dyadic rational and
-  // `saByte * strength` lands exactly on .5 steps (e.g. 153 * 0.5 -> 76.5,
-  // which the GPU rounds to 76).
-  const rtne255 = (byteValue: number): number => {
-    const v = byteValue < 0 ? 0 : byteValue > 255 ? 255 : byteValue;
-    const fl = Math.floor(v);
-    const frac = v - fl;
-    if (frac > 0.5) return fl + 1;
-    if (frac < 0.5) return fl;
-    return fl % 2 === 0 ? fl : fl + 1;
-  };
-  // Exact-rational evaluation: every input here (integer saByte/color bytes,
-  // dyadic strength) makes the products exactly representable in f64, so
-  // this matches the hardware's correctly-rounded result deterministically.
-  const alphaByte = rtne255(saByte * clamped);
-  const ch = (c: number): number => rtne255(((c * saByte) / 255) * clamped);
+  const alphaByte = Math.round(saByte * clamped);
+  const ch = (c: number): number => Math.round(((c * saByte) / 255) * clamped);
   return [
     ch(opts.shadowColor[0]),
     ch(opts.shadowColor[1]),
