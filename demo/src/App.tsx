@@ -56,6 +56,8 @@ function SliderControl({
 export function App() {
   const [light, setLight] = useState({ x: -0.6, y: -0.8, z: 1 });
   const [intensity, setIntensity] = useState(1);
+  const [angularRadius, setAngularRadius] = useState(0);
+  const [shadowSamples, setShadowSamples] = useState<1 | 4 | 8 | 16>(8);
   const [environment, setEnvironment] = useState(0.5);
   const [environmentSpecular, setEnvironmentSpecular] = useState(1);
   const [exposure, setExposure] = useState(1);
@@ -75,6 +77,8 @@ export function App() {
     <Ukibori
       light={light}
       intensity={intensity}
+      angularRadius={angularRadius}
+      shadow={{ samples: shadowSamples }}
       environment={{ intensity: environment, specularIntensity: environmentSpecular }}
       exposure={exposure}
       backend={backend}
@@ -153,6 +157,39 @@ export function App() {
               format={TWO_DECIMALS}
               onChange={setIntensity}
             />
+            <div className="field">
+              <div className="field-head">
+                <label htmlFor="samples-select">Soft shadow samples</label>
+              </div>
+              <select
+                id="samples-select"
+                value={shadowSamples}
+                onChange={(event) =>
+                  setShadowSamples(Number(event.target.value) as 1 | 4 | 8 | 16)
+                }
+              >
+                {([1, 4, 8, 16] as const).map((n) => (
+                  <option key={n} value={n}>
+                    {n} sample{n === 1 ? "" : "s"}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <SliderControl
+              label="Light size (soft shadow)"
+              value={angularRadius}
+              min={0}
+              max={0.5}
+              step={0.05}
+              format={(value) => `${value.toFixed(2)} rad`}
+              onChange={setAngularRadius}
+            />
+            <p className="hint">
+              #41 area-light soft shadows: a positive light size (angular radius, radians)
+              softens cast shadows through deterministic multi-direction sampling; 0 keeps the
+              exact hard-shadow semantics. The sample count controls the penumbra quality
+              (effective only while the light size is positive).
+            </p>
             <SliderControl
               label="Environment"
               value={environment}
