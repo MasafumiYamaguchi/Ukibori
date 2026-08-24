@@ -319,7 +319,8 @@ function uniformWrites(device: MockFullDevice) {
         view(w).getUint32(12, true) === RENDER_WIDTH &&
         view(w).getUint32(20, true) === WORKGROUP,
     ),
-    shadow: all.filter((w) => w.bytes.byteLength === 80),
+    // #41: 352 bytes — 96 scalar/pad bytes + 16 packed vec4 cone directions
+    shadow: all.filter((w) => w.bytes.byteLength === 96 + 16 * 16),
     // 16 bytes with the ambient f32 at 0 and workgroupSize 64 at 4
     lighting: all.filter(
       (w) =>

@@ -16,10 +16,12 @@ import type { CompositeOptions, SurfaceImage } from "./types";
  * `objectId` and `visibility` buffers disambiguate:
  *
  * - surface pixels (owner != NO_OWNER): renderer color, opaque
- * - lit base-plane pixels: fully transparent
- * - shadowed base-plane pixels: translucent `shadowColor` at `shadowAlpha`,
- *   a faithful-on-average approximation of the hard #17 visibility mask drawn
- *   over whatever the page shows underneath
+ * - base-plane pixels: the translucent `shadowColor` tint scales with the
+ *   #41 CONTINUOUS occlusion strength `clamp(1 - visibility, 0, 1)` —
+ *   fully lit (vis 1) is fully transparent, fully shadowed (vis 0) gets the
+ *   full `shadowAlpha`, and partial visibilities get a proportional overlay,
+ *   a faithful approximation of the cast shadow drawn over whatever the page
+ *   shows underneath (hard {0, 1} inputs reproduce the historical bytes)
  *
  * This reinterpretation lives ONLY in the compositor; the renderer buffers
  * (SDF / height / normal / visibility / color) are generated unchanged by the

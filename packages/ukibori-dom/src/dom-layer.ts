@@ -253,6 +253,13 @@ export class UkiboriDom {
         Number.isFinite(options.light?.intensity) && (options.light?.intensity ?? 0) >= 0
           ? (options.light?.intensity ?? DEFAULT_INTENSITY)
           : DEFAULT_INTENSITY,
+      // #41 soft-shadow light size (radians, dimensionless): finite >= 0 is
+      // forwarded; everything else (including undefined) means "renderer
+      // default" — createScene sanitizes to the hard-shadow 0.
+      ...(Number.isFinite(options.light?.angularRadius) &&
+      (options.light?.angularRadius ?? 0) >= 0
+        ? { angularRadius: options.light?.angularRadius }
+        : {}),
     };
     this.environment = sanitizeEnvironmentState(options.environment);
     this.exposure =
@@ -571,13 +578,37 @@ export class UkiboriDom {
     this.scheduleRender();
   }
 
-  /** Change the shared light. `direction` is normalized; invalid -> +z. */
-  setLight(direction: { x: number; y: number; z: number }, intensity?: number): void {
+  /**
+   * Change the shared light. `direction` is normalized; invalid -> +z.
+   * #41 apparent light size (`angularRadius`, radians, dimensionless):
+   *
+   * - finite >= 0: the override is stored and forwarded to the renderer
+   * - `undefined` (prop removal / override clear): the stored value is
+   *   DELETED so the renderer default (0 = exact hard shadow) applies again
+   * - NaN / +-Infinity / negative: also deleted -> hard shadow
+   *
+   * The deletion matters: leaving a previous soft radius behind would keep
+   * soft shadows active after the caller removed the prop (stale-state bug).
+   */
+  setLight(
+    direction: { x: number; y: number; z: number },
+    intensity?: number,
+    angularRadius?: number,
+  ): void {
     this.throwIfDisposed();
     this.light.direction = normalizeVec3(direction, DEFAULT_LIGHT_DIRECTION);
     if (intensity !== undefined) {
       this.light.intensity =
         Number.isFinite(intensity) && intensity >= 0 ? intensity : DEFAULT_INTENSITY;
+    }
+    if (
+      angularRadius !== undefined &&
+      Number.isFinite(angularRadius) &&
+      angularRadius >= 0
+    ) {
+      this.light.angularRadius = angularRadius;
+    } else {
+      delete this.light.angularRadius;
     }
     this.sceneDirty = true;
     this.scheduleRender();

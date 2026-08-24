@@ -28,6 +28,7 @@ import {
 } from "./presentation-pass-wgsl";
 import {
   compositeShadowPremultipliedBytes,
+  compositeShadowPremultipliedStrengthBytes,
   compositeShadowAlphaByte,
   DEFAULT_SHADOW_ALPHA,
   DEFAULT_SHADOW_COLOR,
@@ -488,7 +489,37 @@ describe("sanitizeCompositeOptions — CPU-compatible composite option sanitizat
       77,
     ]);
   });
+
+  it("keeps the #41 soft presentation fixture off halfway quantization (portable parity)", () => {
+    // present-soft-shadow-custom-tint-alpha: shadowAlpha 0.5, samples 4.
+    // Full-strength alpha byte is 128; every dyadic occlusion strength then
+    // yields an INTEGRAL alpha byte (128 * k/4 = {32, 64, 96, 128}), so no
+    // texel ever lands on an x.5 quantization boundary whose tie-break is
+    // allowed to differ between WebGPU backends.
+    const options = { shadowColor: [200, 40, 220] as const, shadowAlpha: 0.5 };
+    const saByte = compositeShadowAlphaByte(options.shadowAlpha);
+    expect(saByte).toBe(128);
+    for (const strength of [0.25, 0.5, 0.75, 1] as const) {
+      expect((saByte * strength) % 1).toBe(0); // integral: never halfway
+      for (const channel of options.shadowColor) {
+        const product = ((channel * saByte) / 255) * strength;
+        // parity argument: c*128*s has an even numerator while any x.5
+        // needs an odd one over the same dyadic denominator — unreachable
+        expect(product - Math.floor(product)).not.toBe(0.5);
+      }
+    }
+    // strength 1 must equal the historical full-strength bytes exactly
+    expect(compositeShadowPremultipliedStrengthBytes(1, options)).toEqual(
+      compositeShadowPremultipliedBytes(options),
+    );
+    // spot-check the actual penumbra bytes at each partial strength
+    expect(compositeShadowPremultipliedStrengthBytes(0.25, options)).toEqual([25, 5, 28, 32]);
+    expect(compositeShadowPremultipliedStrengthBytes(0.5, options)).toEqual([50, 10, 55, 64]);
+    expect(compositeShadowPremultipliedStrengthBytes(0.75, options)).toEqual([75, 15, 83, 96]);
+  });
 });
+
+// ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
 // Pipeline creation, target-format cache, command order
@@ -1112,17 +1143,30 @@ describe("PresentationPass shader — fixed composition semantics in WGSL", () =
     expect(PRESENTATION_PASS_WGSL).toContain("const NO_OWNER: u32 = 0xffffffffu;");
   });
 
-  it("uses the 0.5 visibility threshold and emits transparent black for the lit base plane", () => {
-    expect(PRESENTATION_PASS_WGSL).toContain("let vis = visibilityField[index];");
-    expect(PRESENTATION_PASS_WGSL).toContain("if (vis >= 0.5) {");
+  it("scales the base-plane tint with the continuous #41 occlusion strength", () => {
+    expect(PRESENTATION_PASS_WGSL).toContain(
+      "let vis = clamp(visibilityField[index], 0.0, 1.0);",
+    );
+    expect(PRESENTATION_PASS_WGSL).toContain("let strength = 1.0 - vis;");
+    expect(PRESENTATION_PASS_WGSL).toContain("if (strength <= 0.0) {");
     expect(PRESENTATION_PASS_WGSL).toContain("return vec4<f32>(0.0);");
   });
 
   it("premultiplies the translucent shadow output for the premultiplied canvas", () => {
-    expect(PRESENTATION_PASS_WGSL).toContain("let alpha = f32(params.shadowAlphaByte) * UNORM_SCALE;");
-    expect(PRESENTATION_PASS_WGSL).toContain("let sr = f32(params.shadowR) * f32(params.shadowAlphaByte) / 255.0 * UNORM_SCALE;");
-    expect(PRESENTATION_PASS_WGSL).toContain("let sg = f32(params.shadowG) * f32(params.shadowAlphaByte) / 255.0 * UNORM_SCALE;");
-    expect(PRESENTATION_PASS_WGSL).toContain("let sb = f32(params.shadowB) * f32(params.shadowAlphaByte) / 255.0 * UNORM_SCALE;");
+    // #41: alpha and channels are scaled by the occlusion strength; at
+    // strength 1 (hard vis == 0) the bytes match the historical formula.
+    expect(PRESENTATION_PASS_WGSL).toContain(
+      "let alpha = f32(params.shadowAlphaByte) * strength * UNORM_SCALE;",
+    );
+    expect(PRESENTATION_PASS_WGSL).toContain(
+      "let sr = f32(params.shadowR) * f32(params.shadowAlphaByte) / 255.0 * strength * UNORM_SCALE;",
+    );
+    expect(PRESENTATION_PASS_WGSL).toContain(
+      "let sg = f32(params.shadowG) * f32(params.shadowAlphaByte) / 255.0 * strength * UNORM_SCALE;",
+    );
+    expect(PRESENTATION_PASS_WGSL).toContain(
+      "let sb = f32(params.shadowB) * f32(params.shadowAlphaByte) / 255.0 * strength * UNORM_SCALE;",
+    );
     expect(PRESENTATION_PASS_WGSL).toContain("return vec4<f32>(sr, sg, sb, alpha);");
   });
 

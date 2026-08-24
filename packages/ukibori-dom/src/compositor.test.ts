@@ -126,12 +126,15 @@ describe("compositeSurfaceImage", () => {
     ).toThrow(RangeError);
   });
 
-  it("treats a visibility >= 0.5 as lit for the base plane", () => {
+  it("scales the base-plane tint with the continuous #41 occlusion strength", () => {
+    // #41: visibility is CONTINUOUS — vis 0.5 yields HALF the configured
+    // shadow alpha (round(0.3 * 0.5 * 255) = 38), not a binary lit flip.
     const image = compositeSurfaceImage({
       color: colorBuffer(1, 1),
       objectId: ownerBuffer(1, 1, NO_OWNER),
       visibility: visibilityBuffer(1, 1, 0.5),
     });
-    expect(image.data[3]).toBe(0);
+    expect(image.data[0]).toBe(12);
+    expect(image.data[3]).toBe(38);
   });
 });

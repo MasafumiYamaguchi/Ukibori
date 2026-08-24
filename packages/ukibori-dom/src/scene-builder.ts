@@ -85,12 +85,25 @@ export function buildScene(input: BuildSceneInput): Scene {
     });
   }
   const direction = normalizeVec3(light.direction, DEFAULT_LIGHT_DIRECTION);
+  // #41: the angular radius is DIMENSIONLESS (radians) and is forwarded
+  // unscaled — the dpr similarity transform applies to lengths only. The
+  // renderer's createScene sanitizes it (finite >= 0 after f32 packing,
+  // else 0 = hard shadow).
+  const rawAngularRadius = input.light.angularRadius;
+  const angularRadius =
+    typeof rawAngularRadius === "number" && Number.isFinite(rawAngularRadius)
+      ? rawAngularRadius
+      : undefined;
   return createScene({
     width,
     height,
     surfaces,
     materials,
-    light: { direction, intensity: sanitizeNonNegative(light.intensity) },
+    light: {
+      direction,
+      intensity: sanitizeNonNegative(light.intensity),
+      ...(angularRadius !== undefined ? { angularRadius } : {}),
+    },
     environment: input.environment,
     exposure: input.exposure,
   });

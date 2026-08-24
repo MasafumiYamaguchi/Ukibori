@@ -3,6 +3,7 @@ import type { EnvironmentLight } from "./environment";
 import { isFiniteNumber, normalizeVec3 } from "./math";
 import { resolveMaterial, sanitizeMaterialTable } from "./material";
 import type { Material } from "./material";
+import { sanitizeAngularRadius } from "./shadow-sampling";
 import type { Vec2, Vec3 } from "./types";
 
 /**
@@ -137,6 +138,14 @@ export interface DirectionalLight {
   direction: Vec3;
   /** finite and >= 0; non-finite/negative falls back to 1 */
   intensity: number;
+  /**
+   * #41 apparent light size: angular radius of the light cone around
+   * `direction` in RADIANS (small-cone approximation). `0` (default) keeps
+   * the exact #17 hard-shadow semantics; a positive value softens cast
+   * shadows through deterministic multi-direction sampling (`ShadowOptions.
+   * samples`). Non-finite/negative values fall back to 0 on creation.
+   */
+  angularRadius?: number;
 }
 
 export interface Scene {
@@ -211,12 +220,16 @@ export function createScene(input: SceneInput): Scene {
   }
   const direction = normalizeVec3(input.light?.direction ?? DEFAULT_LIGHT_DIRECTION);
   const intensity = sanitizeIntensity(input.light?.intensity);
+  // #41 soft-shadow light size (radians): sanitizeAngularRadius is the
+  // SINGLE source of truth — NaN / +-Infinity / negative / values whose f32
+  // packing overflows to Infinity all fall back to the hard-shadow 0.
+  const angularRadius = sanitizeAngularRadius(input.light?.angularRadius);
   return {
     width: input.width,
     height: input.height,
     surfaces,
     materials,
-    light: { direction, intensity },
+    light: { direction, intensity, angularRadius },
     environment: sanitizeEnvironment(input.environment),
     exposure: sanitizeExposure(input.exposure),
   };

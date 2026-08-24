@@ -96,6 +96,13 @@ export interface DomLightState {
   direction: Vec3;
   /** finite >= 0 */
   intensity: number;
+  /**
+   * #41 apparent light size: angular radius of the light cone in RADIANS
+   * (dimensionless — NEVER dpr-scaled). 0 (default) keeps the exact #17
+   * hard-shadow semantics; a positive value softens cast shadows through
+   * deterministic multi-direction sampling. Invalid values fall back to 0.
+   */
+  angularRadius?: number;
 }
 
 /**
@@ -125,15 +132,17 @@ export interface DomEnvironmentState {
  * How the compositor maps the renderer output onto the DOM overlay.
  *
  * The renderer's `color` buffer is fully opaque (alpha 255 everywhere,
- * including the base plane). The DOM overlay must stay transparent where the
- * page shows through, so the compositor reinterprets the `objectId` and
- * `visibility` buffers:
+ * including the base plane), which is wrong on a DOM page: the page
+ * background IS the base plane and must show through. The `objectId` and
+ * `visibility` buffers disambiguate:
  *
  * - surface pixels (owner != NO_OWNER): the renderer color, opaque
- * - lit base-plane pixels (owner == NO_OWNER, visibility == 1): fully
- *   transparent — the page IS the base plane
- * - shadowed base-plane pixels (visibility == 0): a translucent dark overlay
- *   (`shadowColor` at `shadowAlpha`) approximating the hard #17 cast shadow
+ * - base-plane pixels scale the shadow tint with the #41 CONTINUOUS
+ *   occlusion strength `clamp(1 - visibility, 0, 1)`: fully lit (vis 1) is
+ *   transparent, partially occluded texels get a proportional translucent
+ *   overlay, and fully shadowed texels (vis 0) get the full configured
+ *   tint — a faithful-on-average approximation of the cast shadow drawn
+ *   over whatever the page shows underneath
  */
 export interface CompositeOptions {
   /** RGB 0..255 tint for cast shadows on the base plane (default near-black) */
@@ -149,15 +158,23 @@ export interface SurfaceImage {
   data: Uint8ClampedArray<ArrayBuffer>;
 }
 
-/** Renderer options forwarded to the shadow pass (#17). All lengths are in
- * CSS-space units: the DOM layer maps them through the dpr similarity
+/** Renderer options forwarded to the shadow pass (#17/#41). All lengths are
+ * in CSS-space units: the DOM layer maps them through the dpr similarity
  * transform before they reach the renderer, so cast shadows are invariant
  * under devicePixelRatio. Invalid values fall back to the defaults
- * (step 0.5 / bias 0.5 CSS px; maxDistance derived from the scene diagonal). */
+ * (step 0.5 / bias 0.5 CSS px; maxDistance derived from the scene diagonal).
+ * `samples` (#41) is a COUNT — it is forwarded UNSCALED. */
 export interface DomShadowOptions {
   stepSize?: number;
   maxDistance?: number;
   bias?: number;
+  /**
+   * #41 area-light sample count for soft cast shadows (only effective when
+   * the light carries `angularRadius > 0`). Restricted to the documented
+   * power-of-two candidates so visibility fractions stay exactly
+   * representable; anything else falls back to the renderer default (8).
+   */
+  samples?: 1 | 4 | 8 | 16;
 }
 
 /**

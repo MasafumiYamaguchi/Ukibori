@@ -686,12 +686,21 @@ export class GpuScenePipeline {
       return full("first-frame");
     }
     // Semantic non-geometry scene changes (light/env/exposure/material
-    // VALUES) never take the partial path: the height stage is retained, so
-    // there is no dirty geometry region to plan.
+    // VALUES and the #41 light angular radius) never take the partial path:
+    // the height stage is retained, so there is no dirty geometry region to
+    // plan.
     const semanticChanges = report.reasons.filter(
-      (reason): reason is "light-direction" | "light-intensity" | "environment" | "material-values" =>
+      (
+        reason,
+      ): reason is
+        | "light-direction"
+        | "light-intensity"
+        | "light-angular-radius"
+        | "environment"
+        | "material-values" =>
         reason === "light-direction" ||
         reason === "light-intensity" ||
+        reason === "light-angular-radius" ||
         reason === "environment" ||
         reason === "material-values",
     );

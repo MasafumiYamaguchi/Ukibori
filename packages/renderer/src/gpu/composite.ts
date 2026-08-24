@@ -16,20 +16,22 @@ import { NO_OWNER } from "../compose";
  *
  * 1. `objectId != NO_OWNER`: output the packed renderer R,G,B bytes with
  *    alpha 255.
- * 2. `objectId == NO_OWNER` and `visibility >= 0.5`: output transparent
- *    black.
- * 3. `objectId == NO_OWNER` and `visibility < 0.5`: output sanitized
- *    `shadowColor` with sanitized `shadowAlpha`.
- * 4. Shadow color channels are rounded/clamped to integer bytes exactly
+ * 2. `objectId == NO_OWNER`: the base-plane shadow tint scales with the
+ *    #41 CONTINUOUS occlusion strength `clamp(1 - visibility, 0, 1)`:
+ *    strength 0 (fully lit) is transparent black, strength 1 (fully
+ *    shadowed) is the historical full tint. Hard #17 inputs ({0, 1})
+ *    reproduce the previous binary bytes exactly.
+ * 3. Shadow color channels are rounded/clamped to integer bytes exactly
  *    like the CPU compositor. Alpha is finite-clamped to `[0, 1]`, default
  *    `0.3`, and encoded with `floor(alpha * 255 + 0.5)` (== `Math.round`
  *    for non-negative alpha).
- * 5. `compositeShadowPremultipliedBytes` returns the PREMULTIPLIED byte
+ * 4. `compositeShadowPremultipliedBytes` returns the PREMULTIPLIED byte
  *    form required by the `alphaMode: "premultiplied"` canvas for a
- *    translucent shadow: each RGB channel is `f32(sr) * f32(sa) / 255`
- *    (IEEE f32 arithmetic, matching the WGSL shader), then rounded to a
- *    byte. Surface RGB is unchanged (alpha 1) and transparent pixels are
- *    `(0,0,0,0)`.
+ *    fully-shadowed translucent texel: each RGB channel is
+ *    `f32(sr) * f32(sa) / 255` (IEEE f32 arithmetic, matching the WGSL
+ *    shader), then rounded to a byte. Surface RGB is unchanged (alpha 1)
+ *    and transparent pixels are `(0,0,0,0)`. Partial strengths scale both
+ *    alpha and premultiplied channels by the same factor in WGSL.
  */
 
 export const DEFAULT_SHADOW_COLOR: readonly [number, number, number] = [12, 16, 28];
@@ -87,12 +89,17 @@ export function compositePixelBytes(
   if (owner !== NO_OWNER) {
     return [colorR, colorG, colorB, 255];
   }
+  // #41: visibility is CONTINUOUS ([0, 1]); the base-plane shadow tint
+  // scales with the occlusion strength (1 - vis). Hard inputs ({0, 1})
+  // reproduce the historical bytes exactly: vis 1 -> transparent, vis 0 ->
+  // the full sanitized tint at the full sanitized alpha.
   const vis = visibility === null ? 1 : visibility;
-  if (vis >= 0.5) {
+  const strength = Math.min(1, Math.max(0, 1 - vis));
+  if (!(strength > 0)) {
     return [0, 0, 0, 0];
   }
   const opts = sanitizeCompositeOptions(options);
-  const alphaByte = Math.round(opts.shadowAlpha * 255);
+  const alphaByte = Math.round(opts.shadowAlpha * strength * 255);
   return [opts.shadowColor[0], opts.shadowColor[1], opts.shadowColor[2], alphaByte];
 }
 
@@ -120,6 +127,60 @@ export function compositeShadowPremultipliedBytes(
 /** Byte for the alpha channel: `floor(alpha * 255 + 0.5)` (== Math.round for alpha in [0,1]). */
 export function compositeShadowAlphaByte(alpha: number): number {
   return Math.round(alpha * 255);
+}
+
+/**
+ * #41: the PREMULTIPLIED canvas bytes for a base-plane texel at a
+ * CONTINUOUS occlusion strength `s = clamp(1 - visibility, 0, 1)`,
+ * mirroring the presentation WGSL op-for-op in IEEE f32:
+ *
+ *   alpha   = f32(saByte) * s            (canvas byte = round(a / 255 * 255))
+ *   channel = f32(c) * f32(saByte) / 255 * s   (same quantization)
+ *
+ * where `saByte` is the sanitized full-strength alpha byte. Strength 0 is
+ * fully transparent; strength 1 reproduces
+ * {@link compositeShadowPremultipliedBytes} exactly, so hard {0, 1}
+ * visibility inputs keep their historical bytes.
+ */
+/**
+ * #41: the PREMULTIPLIED canvas bytes for a base-plane texel at a
+ * CONTINUOUS occlusion strength `s = clamp(1 - visibility, 0, 1)`:
+ *
+ *   alpha   = saByte * s            (canvas byte = round(alpha))
+ *   channel = c * saByte / 255 * s  (canvas byte = round(channel))
+ *
+ * where `saByte` is the sanitized full-strength alpha byte.
+ *
+ * ## Portability contract
+ *
+ * - The presentation WGSL and THIS function produce the same expected bytes
+ *   on every conformant WebGPU backend for PORTABLE fixtures: #41 soft
+ *   fixtures deliberately pick sample counts and alphas so no product ever
+ *   lands on a halfway (.5) quantization boundary (see the catalog's
+ *   present-soft-shadow-custom-tint-alpha note), so no rounding tie-break —
+ *   which is allowed to differ between backends — is ever exercised.
+ * - Strength 0 is fully transparent; strength 1 reproduces
+ *   {@link compositeShadowPremultipliedBytes} exactly, so hard {0, 1}
+ *   visibility inputs keep their historical bytes.
+ */
+export function compositeShadowPremultipliedStrengthBytes(
+  strength: number,
+  options: CompositeOptions = {},
+): readonly [number, number, number, number] {
+  const clamped = strength < 0 ? 0 : strength > 1 ? 1 : strength;
+  if (!(clamped > 0)) {
+    return [0, 0, 0, 0];
+  }
+  const opts = sanitizeCompositeOptions(options);
+  const saByte = compositeShadowAlphaByte(opts.shadowAlpha);
+  const alphaByte = Math.round(saByte * clamped);
+  const ch = (c: number): number => Math.round(((c * saByte) / 255) * clamped);
+  return [
+    ch(opts.shadowColor[0]),
+    ch(opts.shadowColor[1]),
+    ch(opts.shadowColor[2]),
+    alphaByte,
+  ];
 }
 
 function clampByte(v: number): number {

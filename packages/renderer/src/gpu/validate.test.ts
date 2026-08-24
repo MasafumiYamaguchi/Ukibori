@@ -101,7 +101,17 @@ describe("validateEncodedScene — malformed headers", () => {
     expectRejected(mutate(validBytes(), 48, (v) => v.setUint32(48, 0x1, true)), /coordinate flags 0x1 != expected 0x3/);
     expectRejected(mutate(validBytes(), 48, (v) => v.setUint32(48, 0x7, true)), /coordinate flags 0x7 != expected 0x3/);
     expectRejected(mutate(validBytes(), 48, (v) => v.setUint32(48, 0x8, true)), /unknown coordinate flag bits: 0x8/);
-    expectRejected(mutate(validBytes(), 88, (v) => v.setUint32(88, 7, true)), /reserved u32 at 88/);
+    // Offset 88 now carries the #41 light angular radius: negative/NaN is
+    // rejected; a valid non-negative value passes.
+    expectRejected(
+      mutate(validBytes(), 88, (v) => v.setFloat32(88, -1, true)),
+      /light angular radius at offset 88/,
+    );
+    expectRejected(
+      mutate(validBytes(), 88, (v) => v.setFloat32(88, Number.NaN, true)),
+      /light angular radius at offset 88/,
+    );
+    expectRejected(mutate(validBytes(), 92, (v) => v.setUint32(92, 7, true)), /reserved u32 at offset 92/);
     expectRejected(mutate(validBytes(), 112, (v) => v.setUint32(112, 7, true)), /reserved u32 at 112/);
     expectRejected(mutate(validBytes(), 76, (v) => v.setUint32(76, 1, true)), /light direction padding/);
   });

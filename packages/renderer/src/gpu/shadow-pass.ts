@@ -34,7 +34,13 @@ import type {
 } from "./height-pass";
 import type { ShadowOptions } from "../shadow";
 import {
+  computeSoftSampleDirections,
+  sanitizeAngularRadius,
+  sanitizeShadowSamples,
+} from "../shadow-sampling";
+import {
   MAX_SHADOW_STEP_COUNT,
+  SHADOW_MAX_SAMPLES,
   SHADOW_OUTPUT_BYTES_PER_TEXEL,
   SHADOW_PARAMS_BYTE_LENGTH,
   SHADOW_PASS_WGSL,
@@ -182,6 +188,8 @@ export interface ShadowEffectiveOptions {
   readonly stepSize: number;
   readonly bias: number;
   readonly maxDistance: number;
+  /** #41 sanitized area-light sample count ({1,4,8,16}; default 8) */
+  readonly samples: number;
 }
 
 /** Sanitization context: the #17-compatible stable defaults. */
@@ -318,6 +326,11 @@ export function sanitizeShadowOptions(
     stepSize,
     bias: sanitizeF32NonNegative(options.bias, DEFAULT_BIAS),
     maxDistance,
+    // #41 area-light sample count ({1,4,8,16}; default 8). Only effective
+    // when the scene light carries angularRadius > 0 (the shader's hard
+    // path ignores it), but the sanitized value participates in the
+    // scheduler's option fingerprint either way.
+    samples: sanitizeShadowSamples(options.samples),
   };
 }
 
@@ -497,9 +510,21 @@ export class ShadowPass {
     });
 
     let submissions = 0;
+    // #41 area-light sampling state: the light's angular radius comes from
+    // the encoded scene header (scene-level truth, f32-packed), the sample
+    // count from the sanitized options. The cone directions are computed
+    // ONCE here — identical f32 components to the CPU oracle's array — so
+    // both backends march the same directions. A degenerate cone (radius 0
+    // or a single sample) selects the hard path in the shader.
+    const angularRadius = sanitizeAngularRadius(parsed.lightAngularRadius);
+    const softActive = angularRadius > 0 && options.samples > 1;
+    const sampleCount = softActive ? options.samples : 1;
+    const sampleDirs = softActive
+      ? computeSoftSampleDirections(parsed.lightDirection, angularRadius, options.samples)
+      : null;
     if (chunks === null) {
       // Historical frame: one params write + one encoder + one submission.
-      this.packUniform(header, parsed, options, stepCount, caster, yOffset, regionEnd);
+      this.packUniform(header, parsed, options, stepCount, caster, yOffset, regionEnd, angularRadius, sampleCount, sampleDirs);
       this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
       const encoder = this.device.createCommandEncoder({ label: "ukibori-shadow-pass" });
       const pass = encoder.beginComputePass(
@@ -533,6 +558,9 @@ export class ShadowPass {
           caster,
           chunkYOffset,
           chunkYOffset + chunk.texels,
+          angularRadius,
+          sampleCount,
+          sampleDirs,
         );
         this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
         const encoder = this.device.createCommandEncoder({ label: "ukibori-shadow-pass" });
@@ -846,6 +874,9 @@ export class ShadowPass {
     caster: CasterInfo,
     yOffset: number,
     regionEnd: number,
+    angularRadius: number,
+    sampleCount: number,
+    sampleDirs: Float32Array | null,
   ): void {
     const view = new DataView(this.uniformBytes.buffer);
     view.setFloat32(0, header.dpr, true);
@@ -868,6 +899,27 @@ export class ShadowPass {
     view.setUint32(68, caster.hasCasters ? 1 : 0, true);
     view.setUint32(72, yOffset, true);
     view.setUint32(76, regionEnd, true);
+    // #41 area-light sampling state. On the hard path the shader ignores
+    // these fields (angularRadius 0 / sampleCount 1), and the direction
+    // array is zero-filled.
+    view.setFloat32(80, angularRadius, true);
+    view.setUint32(84, sampleCount, true);
+    view.setFloat32(88, 0, true);
+    view.setFloat32(92, 0, true);
+    if (sampleDirs === null) {
+      for (let offset = 96; offset < SHADOW_PARAMS_BYTE_LENGTH; offset += 4) {
+        view.setFloat32(offset, 0, true);
+      }
+    } else {
+      for (let i = 0; i < SHADOW_MAX_SAMPLES; i++) {
+        const out = 96 + i * 16;
+        const has = i < sampleCount;
+        view.setFloat32(out, has ? sampleDirs[i * 3] : 0, true);
+        view.setFloat32(out + 4, has ? sampleDirs[i * 3 + 1] : 0, true);
+        view.setFloat32(out + 8, has ? sampleDirs[i * 3 + 2] : 0, true);
+        view.setFloat32(out + 12, 0, true);
+      }
+    }
   }
 
   // -- pipeline and bind group ----------------------------------------------

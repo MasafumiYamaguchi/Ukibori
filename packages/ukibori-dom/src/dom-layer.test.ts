@@ -1016,6 +1016,71 @@ describe("UkiboriDom — DOM integration", () => {
     layer.dispose();
   });
 
+  it("clearing the #41 angularRadius override restores hard shadows on the SAME instance", () => {
+    const fake = makeFakeOverlay();
+    const layer = new UkiboriDom({
+      overlay: { factory: () => fake.overlay },
+      schedule: (cb) => cb(),
+      observe: false,
+    });
+    const dir = { x: -0.6, y: -0.4, z: Math.sqrt(1 - 0.36 - 0.16) };
+
+    // soft: a positive radius produces CONTINUOUS visibility
+    layer.register(button, BUTTON_OPTIONS);
+    layer.setLight(dir, 1, 0.5);
+    layer.render();
+    const softVis = layer.debugBuffers()!.visibility!;
+    const softValues: number[] = [];
+    for (let y = 0; y < softVis.spec.height; y++) {
+      for (let x = 0; x < softVis.spec.width; x++) {
+        softValues.push(softVis.get(x, y, 0));
+      }
+    }
+    expect(softValues.some((v) => v > 0 && v < 1)).toBe(true);
+
+    // STALE-STATE REGRESSION: `undefined` must DELETE the stored radius so
+    // the renderer default (0 = exact hard shadow) applies again — on the
+    // SAME retained instance, not through a rebuild.
+    layer.setLight(dir, 1, undefined);
+    expect((layer as unknown as { light: { angularRadius?: number } }).light.angularRadius).toBeUndefined();
+    layer.render();
+    const restoredVis = layer.debugBuffers()!.visibility!;
+    const restoredValues: number[] = [];
+    for (let y = 0; y < restoredVis.spec.height; y++) {
+      for (let x = 0; x < restoredVis.spec.width; x++) {
+        restoredValues.push(restoredVis.get(x, y, 0));
+      }
+    }
+    expect(restoredValues.every((v) => v === 0 || v === 1)).toBe(true);
+
+    // ...and the restored field equals an independent never-soft instance
+    const refFake = makeFakeOverlay();
+    const refLayer = new UkiboriDom({
+      overlay: { factory: () => refFake.overlay },
+      schedule: (cb) => cb(),
+      observe: false,
+    });
+    refLayer.register(button, BUTTON_OPTIONS);
+    refLayer.setLight(dir, 1);
+    refLayer.render();
+    const refVis = refLayer.debugBuffers()!.visibility!;
+    const refValues: number[] = [];
+    for (let y = 0; y < refVis.spec.height; y++) {
+      for (let x = 0; x < refVis.spec.width; x++) {
+        refValues.push(refVis.get(x, y, 0));
+      }
+    }
+    expect(restoredValues).toEqual(refValues);
+
+    // NaN also clears the override defensively
+    layer.setLight(dir, 1, Number.NaN);
+    expect((layer as unknown as { light: { angularRadius?: number } }).light.angularRadius).toBeUndefined();
+    layer.render();
+    expect(layer.debugBuffers()!.visibility).not.toBeNull();
+    layer.dispose();
+    refLayer.dispose();
+  });
+
   it("demo debug output settles: idempotent canvas sizing stops scheduling after a one-time resize", async () => {
     // jsdom has no 2d context; paint() must tolerate a null context silently.
     vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);

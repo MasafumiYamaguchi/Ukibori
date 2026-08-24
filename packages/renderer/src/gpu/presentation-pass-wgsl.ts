@@ -19,14 +19,20 @@
  *
  * - `objectId != NO_OWNER`: output the packed #28 R,G,B bytes with alpha 1
  *   (opaque surface; alpha 255).
- * - `objectId == NO_OWNER` and `visibility >= 0.5`: transparent black
- *   `(0, 0, 0, 0)` (the page background IS the lit base plane).
- * - `objectId == NO_OWNER` and `visibility < 0.5`: the sanitized shadow
- *   color at the sanitized alpha. The canvas is configured with
- *   `alphaMode: "premultiplied"`, so the translucent output is PREMULTIPLIED:
- *   `(f32(r) * f32(sa) / 255 / 255, ..., sa / 255)` (IEEE f32 arithmetic —
- *   the byte round-trip `round(v * 255)` equals `round(f32(r) * f32(sa) /
- *   255)`, matching the CPU helper).
+ * - `objectId == NO_OWNER`: the base-plane shadow tint scales with the #41
+ *   CONTINUOUS occlusion strength `clamp(1 - visibility, 0, 1)`:
+ *
+ *     visibility == 1          -> transparent black `(0, 0, 0, 0)`
+ *                                 (the page background IS the lit plane)
+ *     0 < visibility < 1       -> partial premultiplied shadow tint
+ *     visibility == 0          -> full sanitized tint at full alpha
+ *
+ *   The canvas is configured with `alphaMode: "premultiplied"`, so the
+ *   output is PREMULTIPLIED with BOTH alpha and RGB scaled by the strength:
+ *   `(f32(r) * f32(sa) / 255 / 255 * s, ..., f32(sa) * s / 255)` (IEEE f32
+ *   arithmetic — the byte round-trip matches
+ *   `compositeShadowPremultipliedStrengthBytes` on the CPU; hard {0, 1}
+ *   inputs reproduce the historical binary bytes).
  * - No vertical flip: framebuffer y grows downward, so `position.y` maps
  *   directly to the row-major height-field texel row.
  * - No second gamma transform: the #28 bytes are already sRGB encoded; their
@@ -114,19 +120,28 @@ fn fs_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let b = f32((packed >> 16u) & 0xffu) * UNORM_SCALE;
     return vec4<f32>(r, g, b, 1.0);
   }
-  let vis = visibilityField[index];
-  if (vis >= 0.5) {
-    // Lit base plane: transparent black (the page IS the base plane).
+  // #41: CONTINUOUS visibility — the base-plane tint scales with the
+  // occlusion strength. Hard inputs ({0, 1}) reproduce the historical bytes
+  // exactly: strength 1 -> the full premultiplied tint, strength 0 ->
+  // transparent black.
+  let vis = clamp(visibilityField[index], 0.0, 1.0);
+  let strength = 1.0 - vis;
+  if (strength <= 0.0) {
+    // Fully lit base plane: transparent black (the page IS the base plane).
     return vec4<f32>(0.0);
   }
-  // Shadowed base plane: the sanitized shadow tint at the sanitized alpha,
+  // Shadowed base plane: the sanitized shadow tint scaled by the strength,
   // PREMULTIPLIED for the alphaMode: "premultiplied" canvas. IEEE f32
-  // arithmetic mirrors compositeShadowPremultipliedBytes exactly:
-  //   channel value = f32(c) * f32(sa) / 255 / 255  (byte round-trip = c)
-  let alpha = f32(params.shadowAlphaByte) * UNORM_SCALE;
-  let sr = f32(params.shadowR) * f32(params.shadowAlphaByte) / 255.0 * UNORM_SCALE;
-  let sg = f32(params.shadowG) * f32(params.shadowAlphaByte) / 255.0 * UNORM_SCALE;
-  let sb = f32(params.shadowB) * f32(params.shadowAlphaByte) / 255.0 * UNORM_SCALE;
+  // arithmetic mirrors compositeShadowPremultipliedStrengthBytes exactly:
+  //   channel value = f32(c) * f32(sa) / 255 * strength / 255
+  //   alpha value   = f32(sa) * strength / 255
+  // #41 soft fixtures deliberately avoid halfway quantization boundaries
+  // (dyadic strengths x alpha bytes chosen integral), so this stays portable
+  // across backends without depending on any rounding tie-break.
+  let alpha = f32(params.shadowAlphaByte) * strength * UNORM_SCALE;
+  let sr = f32(params.shadowR) * f32(params.shadowAlphaByte) / 255.0 * strength * UNORM_SCALE;
+  let sg = f32(params.shadowG) * f32(params.shadowAlphaByte) / 255.0 * strength * UNORM_SCALE;
+  let sb = f32(params.shadowB) * f32(params.shadowAlphaByte) / 255.0 * strength * UNORM_SCALE;
   return vec4<f32>(sr, sg, sb, alpha);
 }
 `;

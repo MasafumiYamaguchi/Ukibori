@@ -1002,26 +1002,34 @@ async function runBenchmark(device) {
 // ---------------------------------------------------------------------------
 
 /**
- * TEST-ONLY canvas readback. The current texture is captured synchronously
- * in the same task as the presentation submission, then copied directly to
- * a padded staging buffer. Production never enables COPY_SRC or reads back.
+ * TEST-ONLY canvas readback, split into a SYNCHRONOUS submit phase and an
+ * async map phase. On Windows/D3D the presented swap-chain texture is
+ * recycled across task boundaries ("Destroyed texture ... used in a
+ * submit"), so the staging copy MUST be submitted in the same task as the
+ * presentation; only the mapAsync may wait.
  */
-async function presentReadback(device, context, width, height, _format, capturedTexture = null) {
-  const canvasTexture = capturedTexture ?? context.getCurrentTexture();
+function submitPresentedCopy(device, width, height, capturedTexture = null) {
+  const canvasTexture = capturedTexture ?? null;
   const bytesPerRow = Math.ceil((width * 4) / 256) * 256;
   const staging = device.createBuffer({
     size: bytesPerRow * height,
     usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
     label: "ukibori-test-present-staging",
   });
+  const encoder = device.createCommandEncoder({ label: "ukibori-test-present-readback" });
+  encoder.copyTextureToBuffer(
+    { texture: canvasTexture, mipLevel: 0, origin: { x: 0, y: 0 } },
+    { buffer: staging, bytesPerRow, rowsPerImage: height },
+    { width, height, depthOrArrayLayers: 1 },
+  );
+  device.queue.submit([encoder.finish()]);
+  return { device, staging, width, height, bytesPerRow };
+}
+
+/** Drain a pending {@link submitPresentedCopy} handle into packed RGBA rows. */
+async function finishPresentedCopy(handle) {
+  const { device, staging, width, height, bytesPerRow } = handle;
   try {
-    const encoder = device.createCommandEncoder({ label: "ukibori-test-present-readback" });
-    encoder.copyTextureToBuffer(
-      { texture: canvasTexture, mipLevel: 0, origin: { x: 0, y: 0 } },
-      { buffer: staging, bytesPerRow, rowsPerImage: height },
-      { width, height, depthOrArrayLayers: 1 },
-    );
-    device.queue.submit([encoder.finish()]);
     await staging.mapAsync(GPUMapMode.READ);
     const mapped = new Uint8Array(staging.getMappedRange().slice()); // detach before unmap
     staging.unmap();
@@ -1033,6 +1041,14 @@ async function presentReadback(device, context, width, height, _format, captured
   } finally {
     staging.destroy();
   }
+}
+
+/**
+ * Convenience wrapper: capture now, submit now, map now.
+ */
+async function presentReadback(device, _context, width, height, _format, capturedTexture = null) {
+  const handle = submitPresentedCopy(device, width, height, capturedTexture);
+  return finishPresentedCopy(handle);
 }
 
 /**
@@ -1082,8 +1098,13 @@ async function runPresentationFixture(device, fixture) {
       {
         scene: fixture.scene,
         dpr: fixture.dpr,
-        compositeOptions: fixture.compositeOptions,
         normalOptions: fixture.normalOptions,
+        // #41: forward the fixture's shadow options so soft presentation
+        // fixtures run their requested sample count (a missing field would
+        // silently fall back to the renderer default and could mask a
+        // broken forwarding contract).
+        shadowOptions: fixture.shadowOptions,
+        compositeOptions: fixture.compositeOptions,
       },
     ];
     pipeline = new api.GpuScenePipeline(device, context, canvasFormat);
@@ -1093,6 +1114,7 @@ async function runPresentationFixture(device, fixture) {
         scene: frame.scene,
         dpr: frame.dpr,
         normalOptions: frame.normalOptions,
+        shadowOptions: frame.shadowOptions,
         compositeOptions: frame.compositeOptions,
         debugReadback: true,
       });
@@ -1198,16 +1220,20 @@ async function runPresentationBenchmark(device) {
       samples.push(await sample());
     }
     const presentMedian = median(samples);
-    // verify the last presented frame (outside both timings and the readback)
+    // verify the last presented frame (outside both timings and the
+    // readback). The staging copy is SUBMITTED in this same task — D3D
+    // recycles the presented texture across task boundaries, so an awaited
+    // late copy would intermittently fail validation.
+    pipeline.present();
+    finalTexture = context.getCurrentTexture();
     const snapshot = pipeline.getSnapshot();
-    const raw = await presentReadback(
+    const pendingCopy = submitPresentedCopy(
       device,
-      context,
       snapshot.width,
       snapshot.height,
-      canvasFormat,
       finalTexture,
     );
+    const raw = await finishPresentedCopy(pendingCopy);
     const gpu = normalizeCanvasBytes(raw, canvasFormat, snapshot.width, snapshot.height);
     const reference = oracle.presentationReference(
       scene,
@@ -1242,6 +1268,70 @@ async function runPresentationBenchmark(device) {
     pipeline.dispose();
     canvas.remove();
   }
+}
+
+// #41 shadow-pass sample-count benchmark: median HOST wall-clock per
+// ShadowPass.dispatch (submit + queue drain) on the 640x360 proxy scene at
+// the documented sample counts. The scene carries a POSITIVE light angular
+// radius so every dispatch runs the REAL soft path (a radius of 0 would
+// silently take the hard single-ray shortcut regardless of the count).
+// Report-only: correctness is owned by the parity fixtures.
+const SHADOW_BENCH_SAMPLE_COUNTS = [1, 4, 8, 16];
+const SHADOW_BENCH_ANGULAR_RADIUS = Math.fround(0.15);
+const SHADOW_BENCH_WARMUP = 3;
+const SHADOW_BENCH_SAMPLES = 10;
+
+async function runShadowSampleBenchmark(device) {
+  const base = benchmarkProxyScene();
+  const scene = {
+    ...base,
+    light: { ...base.light, angularRadius: SHADOW_BENCH_ANGULAR_RADIUS },
+  };
+  const encoded = api.encodeScene(scene, 1);
+  const uploader = new api.SceneUploader(device);
+  uploader.upload(encoded);
+  const bindings = uploader.getBindings();
+  const heightPass = new api.HeightPass(device);
+  heightPass.dispatch(encoded, bindings);
+  const inputs = api.shadowHeightBindingsFromHeightPass(heightPass.getSnapshot());
+  const rows = [];
+  try {
+    for (const samples of SHADOW_BENCH_SAMPLE_COUNTS) {
+      const pass = new api.ShadowPass(device);
+      const input = { scene: encoded, bindings, ...inputs, options: { samples } };
+      for (let i = 0; i < SHADOW_BENCH_WARMUP; i++) {
+        pass.dispatch(input); // warm the cached pipelines/allocations
+      }
+      await device.queue.onSubmittedWorkDone();
+      // the EFFECTIVE count actually dispatched (sanitized; also documents
+      // whether the soft path was active for this row)
+      const effectiveSamples = pass.getSnapshot().options.samples;
+      const softActive =
+        SHADOW_BENCH_ANGULAR_RADIUS > 0 && effectiveSamples > 1;
+      const timings = [];
+      for (let i = 0; i < SHADOW_BENCH_SAMPLES; i++) {
+        const t0 = performance.now();
+        pass.dispatch(input);
+        await device.queue.onSubmittedWorkDone();
+        timings.push(performance.now() - t0);
+      }
+      rows.push({
+        requestedSamples: samples,
+        effectiveSamples,
+        softActive,
+        medianMs: median(timings),
+        warmups: SHADOW_BENCH_WARMUP,
+        samples_taken: SHADOW_BENCH_SAMPLES,
+        width: BENCHMARK_WIDTH,
+        height: BENCHMARK_HEIGHT,
+      });
+      pass.dispose();
+    }
+  } finally {
+    heightPass.dispose?.();
+    uploader.dispose?.();
+  }
+  return rows;
 }
 
 /**
@@ -2341,6 +2431,15 @@ async function main() {
     } catch (error) {
       presentationBenchmarkFailure = String(error?.stack ?? error);
     }
+    // #41 shadow-pass sample-count benchmark: median dispatch cost at the
+    // documented sample counts on the proxy scene (report-only).
+    let shadowSampleBench = [];
+    let shadowSampleBenchFailure = null;
+    try {
+      shadowSampleBench = await runShadowSampleBenchmark(device);
+    } catch (error) {
+      shadowSampleBenchFailure = String(error?.stack ?? error);
+    }
     // #31 retained-frame parity + scheduler counters on the real adapter:
     // a byte-identical repeated frame must do ZERO GPU work, retained
     // re-presentation must reproduce the exact canvas bytes, partial
@@ -2566,6 +2665,32 @@ async function main() {
     }
     if (presentationBenchmarkFailure !== null) {
       detail.push(`presentation benchmark failed: ${presentationBenchmarkFailure}`);
+    }
+    // #41 shadow-pass sample-count benchmark (report-only): median host
+    // wall-clock per dispatch on the 640x360 proxy scene, running the REAL
+    // soft path (positive angular radius) at every count.
+    if (shadowSampleBench.length > 0) {
+      detail.push(
+        `shadow sample benchmark ${shadowSampleBench[0].width}x${shadowSampleBench[0].height} ` +
+          `(soft path, angularRadius ${SHADOW_BENCH_ANGULAR_RADIUS}) ` +
+          `${shadowSampleBench[0].warmups} warmups, ${shadowSampleBench[0].samples_taken} samples: ` +
+          shadowSampleBench
+            .map(
+              (row) =>
+                `requested ${row.requestedSamples}/effective ${row.effectiveSamples}` +
+                `${row.softActive ? " (soft)" : " (hard)"} median ${row.medianMs.toFixed(3)}ms`,
+            )
+            .join("; "),
+      );
+      summaryData.shadowSampleBenchmark = shadowSampleBench.map((row) => ({
+        requested: row.requestedSamples,
+        effective: row.effectiveSamples,
+        softActive: row.softActive,
+        medianMs: Math.round(row.medianMs * 1000) / 1000,
+      }));
+    }
+    if (shadowSampleBenchFailure !== null) {
+      detail.push(`shadow sample benchmark failed: ${shadowSampleBenchFailure}`);
     }
 
     // #30: fill the CI SUMMARY payload (fixture totals + per-pass mismatch

@@ -3,6 +3,11 @@ import { clamp } from "./math";
 import { NO_OWNER } from "./compose";
 import { VISIBILITY_SPEC } from "./types";
 import type { Scene } from "./scene";
+import {
+  computeSoftSampleDirections,
+  sanitizeAngularRadius,
+  sanitizeShadowSamples,
+} from "./shadow-sampling";
 
 /**
  * #17 shadow: height-field ray-traced cast shadows.
@@ -67,8 +72,11 @@ import type { Scene } from "./scene";
  * - grazing stability: the early exit on `maxHeight + bias` and the bounds
  *   check keep near-horizontal rays from marching forever
  *
- * The result is a hard 0/1 visibility mask; soft shadows are a future
- * extension on top of this mask.
+ * The result is a visibility scalar in `[0, 1]`: the historical single-ray
+ * march yields the exact hard {0, 1} mask, and with #41 area-light sampling
+ * (`scene.light.angularRadius > 0`, `samples > 1`) each texel evaluates the
+ * deterministic golden-angle disk cone and writes the lit fraction — see
+ * `shadow-sampling.ts`.
  *
  * Pass-wide state (maxHeight, sanitized options, light data) is prepared
  * ONCE in `prepareShadowContext` and shared by every pixel trace.
@@ -81,6 +89,15 @@ export interface ShadowOptions {
   maxDistance?: number;
   /** self-shadow acne bias in scene units (default 0.5, must be >= 0) */
   bias?: number;
+  /**
+   * #41 area-light sample count for SOFT cast shadows: one of {1, 4, 8, 16}
+   * (deterministic golden-angle disk pattern). Only effective when the scene
+   * light carries `angularRadius > 0`; otherwise the historical single-ray
+   * hard-shadow path runs regardless. Invalid values fall back to 8. Powers
+   * of two keep `visible/samples` exactly representable, so CPU and GPU
+   * visibility values are identical without tolerance.
+   */
+  samples?: number;
 }
 
 /** Shadow-pass options including the ownership/caster buffers (#18 castsShadow/receivesShadow). */
@@ -151,6 +168,18 @@ export interface ShadowContext {
   sampleHeight: HostBuffer;
   /** ownership buffer for receivesShadow (null = everything receives) */
   objectId: HostBuffer | null;
+  /**
+   * #41 sanitized area-light sample count ({1,4,8,16}); `1` (or an
+   * `angularRadius` of 0) selects the historical hard-shadow path.
+   */
+  samples: number;
+  /** #41 f32 light angular radius in radians (0 = hard path) */
+  angularRadius: number;
+  /**
+   * #41 packed f32 cone sample directions `[x0,y0,z0, ...]` shared with the
+   * GPU uniform; null when the hard path is active.
+   */
+  sampleDirs: Float32Array | null;
 }
 
 const DEFAULT_STEP_SIZE = 0.5;
@@ -202,6 +231,30 @@ export function prepareShadowContext(
     );
   }
   const sampleHeight = options.casterHeight ?? height;
+  // #41 soft-shadow sampling state: the light's angular radius (radians,
+  // f32-packed, 0 = hard) and the sanitized sample count. The cone
+  // directions are derived from the CANONICAL F32 light direction — the GPU
+  // marches the encoded header's fround'ed components, so the production
+  // CPU path must round-trip through the same packing before building the
+  // basis — and computed once here exactly like the array the GPU uniform
+  // packs, so both backends march identical f32 directions. The HARD march
+  // keeps consuming the historical (unrounded) context values.
+  const angularRadius = sanitizeAngularRadius(
+    typeof scene.light.angularRadius === "number" ? scene.light.angularRadius : undefined,
+  );
+  const samples = sanitizeShadowSamples(options.samples);
+  const sampleDirs =
+    angularRadius > 0 && samples > 1
+      ? computeSoftSampleDirections(
+          {
+            x: Math.fround(lx),
+            y: Math.fround(ly),
+            z: Math.fround(lz),
+          },
+          angularRadius,
+          samples,
+        )
+      : null;
   return {
     stepSize,
     bias,
@@ -213,6 +266,9 @@ export function prepareShadowContext(
     dpr,
     sampleHeight,
     objectId: options.objectId ?? null,
+    samples: sampleDirs !== null ? samples : 1,
+    angularRadius,
+    sampleDirs,
   };
 }
 
@@ -268,14 +324,33 @@ function bilinearHeightAt(height: HostBuffer, fx: number, fy: number): number {
  * height field (`ctx.sampleHeight`); the receiver z comes from the full
  * visible height field.
  *
- * NOTE: the loop below, `traceWithContext` and `marchWithContext` implement
- * the same traversal; keep the occlusion math in sync.
+ * NOTE: this function and `visibilityWithContext` implement the same
+ * traversal; keep the occlusion math in sync.
  */
 export function isOccludedWithContext(
   ctx: ShadowContext,
   height: HostBuffer,
   px: number,
   py: number,
+): boolean {
+  return marchOccludedAlong(ctx, height, px, py, ctx.lx, ctx.ly, ctx.lz);
+}
+
+/**
+ * The #17 march along ONE explicit light direction (the shared hot path for
+ * the hard ray and every #41 area-light cone sample). Bounds checks, the
+ * f32-multiple march series, the maxHeight early exit and the strict f32
+ * comparison mirror shadow-pass-wgsl line by line; passing the CENTER light
+ * reproduces the historical hard-shadow result exactly.
+ */
+function marchOccludedAlong(
+  ctx: ShadowContext,
+  height: HostBuffer,
+  px: number,
+  py: number,
+  dx: number,
+  dy: number,
+  dz: number,
 ): boolean {
   const { width, height: h } = height.spec;
   // The receiver z is the full visible field at the LOGICAL receiver
@@ -297,12 +372,12 @@ export function isOccludedWithContext(
   const stepCount = Math.floor(ctx.maxDistance / ctx.stepSize);
   for (let k = 1; k <= stepCount; k++) {
     const t = Math.fround(k * ctx.stepSize);
-    const sx = px + ctx.lx * t;
-    const sy = py + ctx.ly * t;
+    const sx = px + dx * t;
+    const sy = py + dy * t;
     if (sx < left || sx > right || sy < top || sy > bottom) {
       break;
     }
-    const rayZ = Math.fround(rz0 + ctx.lz * t);
+    const rayZ = Math.fround(rz0 + dz * t);
     if (rayZ > ctx.maxHeight + ctx.bias) {
       break;
     }
@@ -312,6 +387,41 @@ export function isOccludedWithContext(
     }
   }
   return false;
+}
+
+/**
+ * #41 visibility at one receiver position: `0/1` on the hard path (center
+ * direction only) or the deterministic fraction of unoccluded cone samples.
+ * The fraction is an exactly representable dyadic rational because the
+ * sanitized sample counts are powers of two, so CPU and GPU agree bit-for-bit.
+ */
+function visibilityWithContext(
+  ctx: ShadowContext,
+  height: HostBuffer,
+  px: number,
+  py: number,
+): number {
+  const dirs = ctx.sampleDirs;
+  if (dirs === null) {
+    return marchOccludedAlong(ctx, height, px, py, ctx.lx, ctx.ly, ctx.lz) ? 0 : 1;
+  }
+  let visible = 0;
+  for (let i = 0; i < ctx.samples; i++) {
+    if (
+      !marchOccludedAlong(
+        ctx,
+        height,
+        px,
+        py,
+        dirs[i * 3],
+        dirs[i * 3 + 1],
+        dirs[i * 3 + 2],
+      )
+    ) {
+      visible += 1;
+    }
+  }
+  return visible / ctx.samples;
 }
 
 /**
@@ -431,16 +541,23 @@ export function marchShadowRay(
 }
 
 /**
- * Hard cast-shadow visibility mask for every pixel: 1 = lit, 0 = occluded.
- * Pixels are sampled at pixel centers `(x + 0.5, y + 0.5)` with the pixel's
- * own height from the full visible field as the receiver z (f32 semantics).
- * Occlusion samples the caster-only height field (`options.casterHeight`,
- * see #18). Pass-wide state is prepared once and shared by all pixel
- * traces; the boolean-only `isOccludedWithContext` hot path keeps
- * `computeVisibility` allocation-free.
+ * Cast-shadow visibility for every pixel in `[0, 1]`: `1` = fully lit, `0` =
+ * fully occluded, and (with #41 area-light sampling) every intermediate
+ * fraction of unoccluded cone samples. Pixels are sampled at pixel centers
+ * `(x + 0.5, y + 0.5)` with the pixel's own height from the full visible
+ * field as the receiver z (f32 semantics). Occlusion samples the caster-only
+ * height field (`options.casterHeight`, see #18). Pass-wide state is
+ * prepared once and shared by all pixel traces; the boolean-only march hot
+ * path keeps the loop allocation-free.
  *
  * With an `objectId` buffer (#18): a pixel owned by a surface with
  * `receivesShadow = false` always keeps visibility 1.
+ *
+ * Hard/soft selection (#41): when the scene light carries
+ * `angularRadius > 0` and `samples > 1`, each texel evaluates the deterministic
+ * golden-angle disk cone around the center direction and writes the lit
+ * fraction; otherwise the historical single-ray hard path runs with
+ * byte-identical results.
  */
 export function computeVisibility(
   scene: Scene,
@@ -463,11 +580,11 @@ export function computeVisibility(
         const receives = ownOwner === NO_OWNER
           ? true
           : (scene.surfaces[ownOwner]?.receivesShadow ?? true);
-        if (receives && isOccludedWithContext(ctx, height, px, py)) {
-          vis = 0;
+        if (receives) {
+          vis = visibilityWithContext(ctx, height, px, py);
         }
-      } else if (isOccludedWithContext(ctx, height, px, py)) {
-        vis = 0;
+      } else {
+        vis = visibilityWithContext(ctx, height, px, py);
       }
       out.set(x, y, 0, vis);
     }

@@ -56,6 +56,7 @@ export function createOracle(api) {
     sanitizeAmbient,
     compositePixelBytes,
     compositeShadowPremultipliedBytes,
+    compositeShadowPremultipliedStrengthBytes,
   } = api;
 
   /** DPR 1/1.5/2 sampling scales (scale = 0.5 * dpr), matching the catalog. */
@@ -147,11 +148,13 @@ export function createOracle(api) {
   }
 
   /**
-   * #27 CPU visibility oracle: the ACTUAL TypeScript `computeVisibility` fed
-   * with the CPU reference height, caster-height and object-id fields at the
-   * same render extent, the same f32-packed light direction the GPU reads
-   * from the header uniform, the same DPR and the SAME effective (sanitized,
-   * f32-rounded) options. Returns the binary field as a Float32Array of 0/1.
+   * #27/#41 CPU visibility oracle: the ACTUAL TypeScript `computeVisibility`
+   * fed with the CPU reference height, caster-height and object-id fields at
+   * the same render extent, the same f32-packed light direction the GPU reads
+   * from the header uniform, the same DPR, the light's f32 angular radius
+   * (#41) and the SAME effective (sanitized, f32-rounded) options. Returns
+   * the field as a Float32Array — binary 0/1 on the hard path, dyadic
+   * fractions on the #41 soft path.
    */
   function shadowOracleCPU(scene, rw, rh, height, casterHeight, objectId, dpr, effectiveOptions) {
     const oracleScene = {
@@ -163,6 +166,8 @@ export function createOracle(api) {
           z: Math.fround(scene.light.direction.z),
         },
         intensity: 1,
+        // #41: keep the light size so the oracle samples the same cone
+        angularRadius: Math.fround(scene.light.angularRadius ?? 0),
       },
     };
     const load = (spec, data) => {
@@ -242,7 +247,7 @@ export function createOracle(api) {
           `razor-edge fixture texel(${tx},${ty}): the CPU decision flips within ` +
             `+/-${SHADOW_PERTURBATION} field perturbation ` +
             `(base ${base[g]}, receiver-up/caster-down ${receiverUpCasterDown[g]}, ` +
-            `receiver-down/caster-up ${receiverDownCasterUp[g]}); exact 0/1 GPU parity is not defined`,
+            `receiver-down/caster-up ${receiverDownCasterUp[g]}); exact GPU parity is not defined`,
         );
       }
     }
@@ -469,18 +474,35 @@ export function createOracle(api) {
   }
 
   /**
-   * #27 visibility comparison: EXACT binary 0/1 equality, plus a finite /
-   * binary audit of every GPU value. No tolerance is used: a 0.99999 or a
-   * flipped texel is a mismatch.
+   * #27/#41 visibility comparison: EXACT equality against the oracle plus a
+   * finite audit of every GPU value. Hard fixtures additionally require the
+   * binary 0/1 domain; #41 soft fixtures accept the dyadic fractions (the
+   * comparison stays EXACT — no tolerance: a 0.99999 or a flipped texel is
+   * a mismatch).
    */
   function compareVisibility(fixture, oracle, gpu, width) {
+    const softMode =
+      (fixture.shadowOptions?.samples ?? 0) > 1 &&
+      Math.fround(fixture.scene?.light?.angularRadius ?? 0) > 0;
     const texels = oracle.length;
     let mismatches = 0;
     const samples = [];
     for (let g = 0; g < texels; g++) {
       const v = gpu[g];
       const bad =
-        v !== 0 && v !== 1 ? `non-binary/non-finite ${v}` : v === oracle[g] ? null : `!= oracle ${oracle[g]}`;
+        !Number.isFinite(v)
+          ? `non-finite ${v}`
+          : softMode
+            ? v < 0 || v > 1
+              ? `out of [0,1]: ${v}`
+              : v === oracle[g]
+                ? null
+                : `!= oracle ${oracle[g]}`
+            : v !== 0 && v !== 1
+              ? `non-binary/non-finite ${v}`
+              : v === oracle[g]
+                ? null
+                : `!= oracle ${oracle[g]}`;
       if (bad !== null) {
         mismatches += 1;
         if (samples.length < 8) {
@@ -884,12 +906,14 @@ export function createOracle(api) {
         visibility[g],
         compositeOptions,
       );
-      // the canvas is premultiplied: only the shadow texel's RGB is
-      // premultiplied (the shared premultiplied helper); surface (alpha 1)
-      // and transparent (0,0,0,0) texels are unchanged by premultiplication
+      // the canvas is premultiplied: the base-plane shadow tint scales with
+      // the #41 CONTINUOUS occlusion strength (1 - vis) — both alpha and the
+      // premultiplied RGB — mirroring the WGSL exactly. Hard inputs ({0, 1})
+      // reproduce the historical binary bytes; surface texels (alpha 1) and
+      // fully-lit base plane ((0,0,0,0)) are unchanged by premultiplication.
       let px = decision;
-      if (owner === NO_OWNER && visibility[g] < 0.5) {
-        px = compositeShadowPremultipliedBytes(compositeOptions);
+      if (owner === NO_OWNER) {
+        px = compositeShadowPremultipliedStrengthBytes(1 - visibility[g], compositeOptions);
       }
       ref.set(px, i);
     }
