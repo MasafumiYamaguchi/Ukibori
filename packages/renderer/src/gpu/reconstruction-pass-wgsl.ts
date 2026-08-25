@@ -86,6 +86,12 @@ struct ReconstructionParams {
   _pad1: u32,          // 28
 }                      // size ${RECONSTRUCTION_PARAMS_BYTE_LENGTH}, align 16
 
+// The dispatch workgroup size, injected from the host constant above (the
+// @compute attribute below references THIS declared value; like every
+// interpolated host constant here it must exist as a WGSL declaration or the
+// module fails to compile on real devices).
+const RECONSTRUCTION_WORKGROUP_SIZE: u32 = ${RECONSTRUCTION_WORKGROUP_SIZE}u;
+
 const NO_OWNER: u32 = 0xffffffffu;
 
 @group(0) @binding(0) var<uniform> params: ReconstructionParams;

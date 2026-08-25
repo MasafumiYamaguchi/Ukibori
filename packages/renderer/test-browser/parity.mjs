@@ -757,6 +757,10 @@ async function checkShaders(device) {
     ["COMPOSE_CASTER_HEIGHT_WGSL", api.COMPOSE_CASTER_HEIGHT_WGSL],
     ["NORMAL_PASS_WGSL", api.NORMAL_PASS_WGSL],
     ["SHADOW_PASS_WGSL", api.SHADOW_PASS_WGSL],
+    // #43: the reconstruction stage must compile-check too (an unresolved
+    // host-constant interpolation here once produced an invalid module whose
+    // dispatches were silently dropped, zeroing the reconstructed field).
+    ["RECONSTRUCTION_PASS_WGSL", api.RECONSTRUCTION_PASS_WGSL],
     ["LIGHTING_PASS_WGSL", api.LIGHTING_PASS_WGSL],
     ["PRESENTATION_PASS_WGSL", api.PRESENTATION_PASS_WGSL],
   ]) {
