@@ -1,5 +1,7 @@
 import { composeCasterHeightField, composeSdfHeightField } from "../geometry";
 import { computeVisibility } from "../shadow";
+import { reconstructVisibility, sanitizeReconstructionOptions } from "../shadow-reconstruct";
+import { sanitizeAngularRadius, sanitizeShadowSamples } from "../shadow-sampling";
 import { shadePreparedFields } from "../lighting";
 import type { LightingBuffers, LightingOptions } from "../lighting";
 import { HostBuffer } from "../buffer";
@@ -18,6 +20,7 @@ import type { WasmSelectionReport } from "./selection";
  *   composeSdfHeightField (TypeScript oracle)
  *        -> WASM normal kernel (the ONLY WASM stage)
  *        -> computeVisibility (TypeScript oracle)
+ *        -> reconstructVisibility (#43 oracle; bypassed on hard frames)
  *        -> shadePreparedFields (TypeScript oracle)
  * ```
  *
@@ -149,11 +152,27 @@ export class WasmCpuPipeline {
 
     // ---- stage 3: cast shadows (TypeScript oracle) ----
     const needsCasterField = scene.surfaces.some((s) => !s.castsShadow);
+    const shadowOptions = lighting.shadow ?? {};
     const visibility = computeVisibility(scene, composed.height, {
-      ...lighting.shadow,
+      ...shadowOptions,
       objectId: composed.objectId,
       casterHeight: needsCasterField ? composeCasterHeightField(scene) : undefined,
     });
+    throwIfAborted(signal);
+
+    // ---- stage 3b: #43 edge-aware reconstruction (TypeScript oracle) ----
+    // Mirrors lightScene exactly: hard-path frames and disabled options keep
+    // the raw field, soft frames consume the reconstructed one.
+    const softActive =
+      sanitizeAngularRadius(
+        typeof scene.light.angularRadius === "number" ? scene.light.angularRadius : undefined,
+      ) > 0 && sanitizeShadowSamples(shadowOptions.samples) > 1;
+    const reconstructedVisibility =
+      softActive && sanitizeReconstructionOptions(shadowOptions.reconstruction).enabled
+        ? reconstructVisibility(visibility, composed.height, {
+            objectId: composed.objectId,
+          }, shadowOptions.reconstruction)
+        : visibility;
     throwIfAborted(signal);
 
     // ---- stage 4: BRDF + environment + exposure (TypeScript oracle) ----
@@ -161,7 +180,7 @@ export class WasmCpuPipeline {
     normal.writeBytes(new Uint8Array(wasmResult.normal.buffer));
     const shaded = shadePreparedFields(
       scene,
-      { normal, objectId: composed.objectId, visibility },
+      { normal, objectId: composed.objectId, visibility: reconstructedVisibility },
       lighting,
     );
     throwIfAborted(signal);

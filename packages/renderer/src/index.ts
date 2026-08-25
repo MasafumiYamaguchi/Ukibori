@@ -198,6 +198,25 @@ export type {
   ShadowSanitizeContext,
 } from "./gpu/shadow-pass";
 export {
+  RECONSTRUCTION_OUTPUT_BYTES_PER_TEXEL,
+  RECONSTRUCTION_PARAMS_BYTE_LENGTH,
+  RECONSTRUCTION_PASS_WGSL,
+  RECONSTRUCTION_WORKGROUP_SIZE,
+} from "./gpu/reconstruction-pass-wgsl";
+export {
+  RECONSTRUCTION_PASS_OUTPUT_USAGE,
+  ReconstructionPass,
+  lightingVisibilityBindingFromReconstructionPass,
+  presentationVisibilityBindingFromReconstructionPass,
+} from "./gpu/reconstruction-pass";
+export type {
+  ReconstructionOutputBinding,
+  ReconstructionPassDispatchStats,
+  ReconstructionPassInput,
+  ReconstructionPassLastDispatch,
+  ReconstructionPassSnapshot,
+} from "./gpu/reconstruction-pass";
+export {
   LIGHTING_OUTPUT_BYTES_PER_TEXEL,
   LIGHTING_PARAMS_BYTE_LENGTH,
   LIGHTING_PASS_WGSL,
@@ -287,6 +306,31 @@ export {
   traceShadowRay,
 } from "./shadow";
 export type { ShadowContext, ShadowMarchSample, ShadowOptions, ShadowRayResult, VisibilityOptions } from "./shadow";
+export {
+  DEFAULT_RECONSTRUCTION_RADIUS,
+  MAX_RECONSTRUCTION_RADIUS,
+  MAX_RECONSTRUCTION_RADIUS_TEXELS,
+  RECONSTRUCTION_HEIGHT_GATE,
+  reconstructVisibility,
+  sanitizeReconstructionOptions,
+} from "./shadow-reconstruct";
+export type {
+  ReconstructVisibilityOptions,
+  ShadowReconstructionEffectiveOptions,
+  ShadowReconstructionOptions,
+} from "./shadow-reconstruct";
+export {
+  ALLOWED_SHADOW_SAMPLES,
+  DEFAULT_SHADOW_SAMPLES,
+  KERNEL_VARIANT_ROTATION,
+  SHADOW_KERNEL_VARIANTS,
+  SHADOW_MAX_SAMPLES,
+  computeSoftSampleDirectionVariants,
+  computeSoftSampleDirections,
+  sanitizeAngularRadius,
+  sanitizeShadowSamples,
+  softKernelVariant,
+} from "./shadow-sampling";
 export {
   BASE_MATERIAL,
   DEFAULT_IOR,

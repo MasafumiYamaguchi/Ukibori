@@ -319,8 +319,9 @@ function uniformWrites(device: MockFullDevice) {
         view(w).getUint32(12, true) === RENDER_WIDTH &&
         view(w).getUint32(20, true) === WORKGROUP,
     ),
-    // #41: 352 bytes — 96 scalar/pad bytes + 16 packed vec4 cone directions
-    shadow: all.filter((w) => w.bytes.byteLength === 96 + 16 * 16),
+    // #43: 2144 bytes — 96 scalar/pad bytes + 8 kernel variants x 16 packed
+    // vec4 cone directions
+    shadow: all.filter((w) => w.bytes.byteLength === 96 + 8 * 16 * 16),
     // 16 bytes with the ambient f32 at 0 and workgroupSize 64 at 4
     lighting: all.filter(
       (w) =>
@@ -435,7 +436,7 @@ describe("GpuScenePipeline — #32 partial/full planning and band dispatch", () 
     expect(lightingView.getUint32(12, true)).toBe((y1 + 1) * RENDER_WIDTH);
     // the partial frame still executes the full stage chain and shares ONE
     // fresh per-dispatch provenance token across every pass
-    expect(stats.invalidation.executed).toHaveLength(6);
+    expect(stats.invalidation.executed).toHaveLength(7);
     const snapshot = pipeline.getSnapshot();
     expect(snapshot.heightPass.provenance).not.toBe(firstSnapshot.heightPass.provenance);
     expect(snapshot.normalPass.provenance).toBe(snapshot.heightPass.provenance);

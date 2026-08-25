@@ -34,12 +34,13 @@ import type {
 } from "./height-pass";
 import type { ShadowOptions } from "../shadow";
 import {
-  computeSoftSampleDirections,
+  computeSoftSampleDirectionVariants,
   sanitizeAngularRadius,
   sanitizeShadowSamples,
 } from "../shadow-sampling";
 import {
   MAX_SHADOW_STEP_COUNT,
+  SHADOW_KERNEL_VARIANTS,
   SHADOW_MAX_SAMPLES,
   SHADOW_OUTPUT_BYTES_PER_TEXEL,
   SHADOW_PARAMS_BYTE_LENGTH,
@@ -519,12 +520,16 @@ export class ShadowPass {
     const angularRadius = sanitizeAngularRadius(parsed.lightAngularRadius);
     const softActive = angularRadius > 0 && options.samples > 1;
     const sampleCount = softActive ? options.samples : 1;
-    const sampleDirs = softActive
-      ? computeSoftSampleDirections(parsed.lightDirection, angularRadius, options.samples)
+    // #43 ALL kernel variants' direction arrays — identical f32 components
+    // to the CPU oracle's per-variant arrays, so both backends trace byte-
+    // identical directions while each texel selects its variant through the
+    // mirrored integer hash.
+    const sampleDirVariants = softActive
+      ? computeSoftSampleDirectionVariants(parsed.lightDirection, angularRadius, options.samples)
       : null;
     if (chunks === null) {
       // Historical frame: one params write + one encoder + one submission.
-      this.packUniform(header, parsed, options, stepCount, caster, yOffset, regionEnd, angularRadius, sampleCount, sampleDirs);
+      this.packUniform(header, parsed, options, stepCount, caster, yOffset, regionEnd, angularRadius, sampleCount, sampleDirVariants);
       this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
       const encoder = this.device.createCommandEncoder({ label: "ukibori-shadow-pass" });
       const pass = encoder.beginComputePass(
@@ -560,7 +565,7 @@ export class ShadowPass {
           chunkYOffset + chunk.texels,
           angularRadius,
           sampleCount,
-          sampleDirs,
+          sampleDirVariants,
         );
         this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
         const encoder = this.device.createCommandEncoder({ label: "ukibori-shadow-pass" });
@@ -876,7 +881,7 @@ export class ShadowPass {
     regionEnd: number,
     angularRadius: number,
     sampleCount: number,
-    sampleDirs: Float32Array | null,
+    sampleDirVariants: Float32Array[] | null,
   ): void {
     const view = new DataView(this.uniformBytes.buffer);
     view.setFloat32(0, header.dpr, true);
@@ -899,25 +904,30 @@ export class ShadowPass {
     view.setUint32(68, caster.hasCasters ? 1 : 0, true);
     view.setUint32(72, yOffset, true);
     view.setUint32(76, regionEnd, true);
-    // #41 area-light sampling state. On the hard path the shader ignores
-    // these fields (angularRadius 0 / sampleCount 1), and the direction
-    // array is zero-filled.
+    // #41/#43 area-light sampling state. On the hard path the shader ignores
+    // these fields (angularRadius 0 / sampleCount 1), and every variant's
+    // direction array is zero-filled.
     view.setFloat32(80, angularRadius, true);
     view.setUint32(84, sampleCount, true);
     view.setFloat32(88, 0, true);
     view.setFloat32(92, 0, true);
-    if (sampleDirs === null) {
+    if (sampleDirVariants === null) {
       for (let offset = 96; offset < SHADOW_PARAMS_BYTE_LENGTH; offset += 4) {
         view.setFloat32(offset, 0, true);
       }
     } else {
-      for (let i = 0; i < SHADOW_MAX_SAMPLES; i++) {
-        const out = 96 + i * 16;
-        const has = i < sampleCount;
-        view.setFloat32(out, has ? sampleDirs[i * 3] : 0, true);
-        view.setFloat32(out + 4, has ? sampleDirs[i * 3 + 1] : 0, true);
-        view.setFloat32(out + 8, has ? sampleDirs[i * 3 + 2] : 0, true);
-        view.setFloat32(out + 12, 0, true);
+      // Variant v's sample s packs at vec4 index v * SHADOW_MAX_SAMPLES + s
+      // (the exact index the WGSL `variantBase + s` lookup reads).
+      for (let v = 0; v < SHADOW_KERNEL_VARIANTS; v++) {
+        const dirs = sampleDirVariants[v];
+        for (let i = 0; i < SHADOW_MAX_SAMPLES; i++) {
+          const out = 96 + (v * SHADOW_MAX_SAMPLES + i) * 16;
+          const has = dirs !== undefined && i < sampleCount;
+          view.setFloat32(out, has ? dirs[i * 3] : 0, true);
+          view.setFloat32(out + 4, has ? dirs[i * 3 + 1] : 0, true);
+          view.setFloat32(out + 8, has ? dirs[i * 3 + 2] : 0, true);
+          view.setFloat32(out + 12, 0, true);
+        }
       }
     }
   }

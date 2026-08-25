@@ -2,6 +2,9 @@ import { parseHeader } from "./encode";
 import type { EncodedScene } from "./encode";
 import { sanitizeNormalOptions } from "./normal-pass";
 import { sanitizeShadowOptions } from "./shadow-pass";
+import {
+  sanitizeReconstructionOptions,
+} from "../shadow-reconstruct";
 import { sanitizeAmbient } from "./lighting-pass";
 import type { LightingPassOptions } from "./lighting-pass";
 import { sanitizeCompositeOptions } from "./composite";
@@ -47,16 +50,21 @@ import { bytesEqual } from "./tiles";
  *
  * | reason                | stages it invalidates                       |
  * |-----------------------|---------------------------------------------|
- * | `first-frame`         | all six (nothing retained yet)              |
- * | `viewport`            | all six (render extent / DPR changed)       |
- * | `scene`               | all six (height-input geometry changed)     |
- * | `light-direction`     | upload, shadow, lighting, presentation      |
- * | `light-angular-radius`| upload, shadow, lighting, presentation (#41)|
+ * | `first-frame`         | all seven (nothing retained yet)            |
+ * | `viewport`            | all seven (render extent / DPR changed)     |
+ * | `scene`               | all seven (height-input geometry changed)   |
+ * | `light-direction`     | upload, shadow, reconstruction, lighting,   |
+ * |                       | presentation                                |
+ * | `light-angular-radius`| upload, shadow, reconstruction, lighting,   |
+ * |                       | presentation (#41)                          |
  * | `light-intensity`     | upload, lighting, presentation              |
  * | `environment`         | upload, lighting, presentation              |
  * | `material-values`     | upload, lighting, presentation              |
  * | `normal-options`      | normal, lighting, presentation              |
- * | `shadow-options`      | shadow, lighting, presentation              |
+ * | `shadow-options`      | shadow, reconstruction, lighting,           |
+ * |                       | presentation                                |
+ * | `reconstruction-`     | reconstruction, lighting, presentation      |
+ * | `options` (#43)       |                                             |
  * | `lighting-options`    | lighting, presentation                      |
  * | `composite-options`   | presentation only                           |
  * | `debug-target`        | presentation only                           |
@@ -114,6 +122,7 @@ export type PipelineStage =
   | "height"
   | "normal"
   | "shadow"
+  | "reconstruction"
   | "lighting"
   | "presentation";
 
@@ -128,6 +137,7 @@ export type InvalidationReason =
   | "material-values"
   | "normal-options"
   | "shadow-options"
+  | "reconstruction-options"
   | "lighting-options"
   | "composite-options"
   | "debug-target";
@@ -137,6 +147,7 @@ export const ALL_STAGES: readonly PipelineStage[] = [
   "height",
   "normal",
   "shadow",
+  "reconstruction",
   "lighting",
   "presentation",
 ];
@@ -154,16 +165,21 @@ export const REASON_STAGES: Readonly<Record<InvalidationReason, readonly Pipelin
   "first-frame": ALL_STAGES,
   viewport: ALL_STAGES,
   scene: ALL_STAGES,
-  "light-direction": ["upload", "shadow", "lighting", "presentation"],
+  // #43: the reconstruction stage sits between shadow and lighting; every
+  // reason that invalidates shadow also re-runs it.
+  "light-direction": ["upload", "shadow", "reconstruction", "lighting", "presentation"],
   // #41: the light angular radius feeds only the shadow cone directions
   // (and downstream visibility consumers); the height/normal fields never
   // read it, so they stay retained.
-  "light-angular-radius": ["upload", "shadow", "lighting", "presentation"],
+  "light-angular-radius": ["upload", "shadow", "reconstruction", "lighting", "presentation"],
   "light-intensity": ["upload", "lighting", "presentation"],
   environment: ["upload", "lighting", "presentation"],
   "material-values": ["upload", "lighting", "presentation"],
   "normal-options": ["normal", "lighting", "presentation"],
-  "shadow-options": ["shadow", "lighting", "presentation"],
+  "shadow-options": ["shadow", "reconstruction", "lighting", "presentation"],
+  // #43: a reconstruction-only option change (enabled/radius) re-runs the
+  // filter and its consumers; the raw shadow field stays retained.
+  "reconstruction-options": ["reconstruction", "lighting", "presentation"],
   "lighting-options": ["lighting", "presentation"],
   "composite-options": ["presentation"],
   "debug-target": ["presentation"],
@@ -221,6 +237,8 @@ export interface FrameKey {
   readonly normal: string;
   /** effective (sanitized + f32-packed) shadow options */
   readonly shadow: string;
+  /** effective (sanitized + dpr-converted) #43 reconstruction options */
+  readonly reconstruction: string;
   /** effective (sanitized + f32-packed) ambient */
   readonly lighting: string;
   /** effective composite options */
@@ -265,6 +283,11 @@ export function computeFrameKey(
     scene: fingerprintBytes(encoded.bytes),
     normal: JSON.stringify(sanitizeNormalOptions(input.normalOptions)),
     shadow: JSON.stringify(sanitizeShadowOptions(input.shadowOptions, shadowContext)),
+    // #43: the reconstruction options are sanitized with the frame's DPR so
+    // the fingerprint reflects the effective texel radius actually run.
+    reconstruction: JSON.stringify(
+      sanitizeReconstructionOptions(input.shadowOptions?.reconstruction, header.dpr),
+    ),
     lighting: String(sanitizeAmbient(input.lightingOptions?.ambient)),
     composite: JSON.stringify(sanitizeCompositeOptions(input.compositeOptions)),
     debugTarget: input.debugReadback === true ? "debug" : "prod",
@@ -404,6 +427,13 @@ export function computeInvalidationReasons(
   );
   if (key.shadow !== previous.shadow && !shadowAlreadyInvalidated) {
     reasons.push("shadow-options");
+  }
+  // #43: reconstruction-option changes only matter when shadow is not
+  // already invalidated (its closure includes the reconstruction stage).
+  const reconstructionAlreadyInvalidated =
+    shadowAlreadyInvalidated || reasons.includes("shadow-options");
+  if (key.reconstruction !== previous.reconstruction && !reconstructionAlreadyInvalidated) {
+    reasons.push("reconstruction-options");
   }
   if (key.lighting !== previous.lighting) {
     reasons.push("lighting-options");

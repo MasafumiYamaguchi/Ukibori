@@ -3,10 +3,12 @@ import { clamp } from "./math";
 import { NO_OWNER } from "./compose";
 import { VISIBILITY_SPEC } from "./types";
 import type { Scene } from "./scene";
+import type { ShadowReconstructionOptions } from "./shadow-reconstruct";
 import {
-  computeSoftSampleDirections,
+  computeSoftSampleDirectionVariants,
   sanitizeAngularRadius,
   sanitizeShadowSamples,
+  softKernelVariant,
 } from "./shadow-sampling";
 
 /**
@@ -98,6 +100,13 @@ export interface ShadowOptions {
    * visibility values are identical without tolerance.
    */
   samples?: number;
+  /**
+   * #43 edge-aware penumbra reconstruction of the SOFT visibility field.
+   * Only effective when the soft path is active (a hard-path frame always
+   * bypasses, preserving historical {0,1} bytes); `enabled` defaults true,
+   * `radius` (CSS px) defaults 2. See `shadow-reconstruct.ts`.
+   */
+  reconstruction?: ShadowReconstructionOptions;
 }
 
 /** Shadow-pass options including the ownership/caster buffers (#18 castsShadow/receivesShadow). */
@@ -173,13 +182,23 @@ export interface ShadowContext {
    * `angularRadius` of 0) selects the historical hard-shadow path.
    */
   samples: number;
-  /** #41 f32 light angular radius in radians (0 = hard path) */
+  /**
+   * #41 f32 light angular radius in radians (0 = hard path)
+   */
   angularRadius: number;
   /**
-   * #41 packed f32 cone sample directions `[x0,y0,z0, ...]` shared with the
-   * GPU uniform; null when the hard path is active.
+   * #41 packed f32 cone sample directions `[x0,y0,z0, ...]` of kernel
+   * variant 0; null when the hard path is active. Retained for debugging /
+   * parity tooling — the per-texel hot path reads `sampleDirVariants`.
    */
   sampleDirs: Float32Array | null;
+  /**
+   * #43 ALL kernel variants' direction arrays (`SHADOW_KERNEL_VARIANTS`
+   * entries); texel (tx, ty) marches the array selected by
+   * `softKernelVariant(tx, ty)` so neighboring texels decorrelate their
+   * sampling error. Null on the hard path.
+   */
+  sampleDirVariants: Float32Array[] | null;
 }
 
 const DEFAULT_STEP_SIZE = 0.5;
@@ -243,18 +262,21 @@ export function prepareShadowContext(
     typeof scene.light.angularRadius === "number" ? scene.light.angularRadius : undefined,
   );
   const samples = sanitizeShadowSamples(options.samples);
-  const sampleDirs =
-    angularRadius > 0 && samples > 1
-      ? computeSoftSampleDirections(
-          {
-            x: Math.fround(lx),
-            y: Math.fround(ly),
-            z: Math.fround(lz),
-          },
-          angularRadius,
-          samples,
-        )
-      : null;
+  let sampleDirs: Float32Array | null = null;
+  let sampleDirVariants: Float32Array[] | null = null;
+  if (angularRadius > 0 && samples > 1) {
+    const canonicalLight = {
+      x: Math.fround(lx),
+      y: Math.fround(ly),
+      z: Math.fround(lz),
+    };
+    sampleDirVariants = computeSoftSampleDirectionVariants(
+      canonicalLight,
+      angularRadius,
+      samples,
+    );
+    sampleDirs = sampleDirVariants[0];
+  }
   return {
     stepSize,
     bias,
@@ -269,6 +291,7 @@ export function prepareShadowContext(
     samples: sampleDirs !== null ? samples : 1,
     angularRadius,
     sampleDirs,
+    sampleDirVariants,
   };
 }
 
@@ -390,21 +413,29 @@ function marchOccludedAlong(
 }
 
 /**
- * #41 visibility at one receiver position: `0/1` on the hard path (center
- * direction only) or the deterministic fraction of unoccluded cone samples.
- * The fraction is an exactly representable dyadic rational because the
- * sanitized sample counts are powers of two, so CPU and GPU agree bit-for-bit.
+ * #41/#43 visibility at one receiver position: `0/1` on the hard path
+ * (center direction only) or the deterministic fraction of unoccluded cone
+ * samples of the kernel variant selected by `softKernelVariant(tx, ty)` —
+ * the same integer hash the WGSL pass evaluates, so both backends trace the
+ * SAME per-texel directions while neighboring texels decorrelate their
+ * sampling error. The fraction is an exactly representable dyadic rational
+ * because the sanitized sample counts are powers of two, so CPU and GPU
+ * agree bit-for-bit.
  */
 function visibilityWithContext(
   ctx: ShadowContext,
   height: HostBuffer,
   px: number,
   py: number,
+  tx: number,
+  ty: number,
 ): number {
   const dirs = ctx.sampleDirs;
-  if (dirs === null) {
+  if (dirs === null || ctx.sampleDirVariants === null) {
     return marchOccludedAlong(ctx, height, px, py, ctx.lx, ctx.ly, ctx.lz) ? 0 : 1;
   }
+  const variantDirs =
+    ctx.sampleDirVariants[softKernelVariant(tx, ty)] ?? dirs;
   let visible = 0;
   for (let i = 0; i < ctx.samples; i++) {
     if (
@@ -413,9 +444,9 @@ function visibilityWithContext(
         height,
         px,
         py,
-        dirs[i * 3],
-        dirs[i * 3 + 1],
-        dirs[i * 3 + 2],
+        variantDirs[i * 3],
+        variantDirs[i * 3 + 1],
+        variantDirs[i * 3 + 2],
       )
     ) {
       visible += 1;
@@ -581,10 +612,10 @@ export function computeVisibility(
           ? true
           : (scene.surfaces[ownOwner]?.receivesShadow ?? true);
         if (receives) {
-          vis = visibilityWithContext(ctx, height, px, py);
+          vis = visibilityWithContext(ctx, height, px, py, x, y);
         }
       } else {
-        vis = visibilityWithContext(ctx, height, px, py);
+        vis = visibilityWithContext(ctx, height, px, py, x, y);
       }
       out.set(x, y, 0, vis);
     }

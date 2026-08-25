@@ -111,6 +111,7 @@ export class GpuPipelineProfiler {
       height: 0,
       normal: 0,
       shadow: 0,
+      reconstruction: 0,
       lighting: 0,
       presentation: 0,
     };

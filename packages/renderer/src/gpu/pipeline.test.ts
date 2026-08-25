@@ -420,6 +420,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
       "height",
       "normal",
       "shadow",
+      "reconstruction",
       "lighting",
       "presentation",
     ]);
@@ -459,6 +460,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
       "height",
       "normal",
       "shadow",
+      "reconstruction",
       "lighting",
       "presentation",
     ]);
@@ -511,7 +513,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     taller.surfaces[0].elevation += 2;
     const stats = pipeline.render({ scene: taller, dpr: 1 });
     expect(stats.invalidation.reasons).toEqual(["scene"]);
-    expect(stats.invalidation.executed).toHaveLength(6);
+    expect(stats.invalidation.executed).toHaveLength(7);
     expect(stats.invalidation.retained).toBe(false);
     expect(stats.upload.bytesUploaded).toBeGreaterThan(0);
     expect(stats.height.composePasses).toBe(5);
@@ -529,7 +531,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     });
     expect(stats.invalidation.reasons).toEqual(["normal-options"]);
     expect(stats.invalidation.executed).toEqual(["normal", "lighting", "presentation"]);
-    expect(stats.invalidation.skipped).toEqual(["upload", "height", "shadow"]);
+    expect(stats.invalidation.skipped).toEqual(["upload", "height", "shadow", "reconstruction"]);
     expect(device.submits.length).toBe(submits + 3);
     // upstream allocations are untouched (retained counts reported)
     expect(stats.upload.allocationCount).toBe(first.upload.allocationCount);
@@ -551,8 +553,9 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
       shadowOptions: { bias: 0.25, stepSize: 0.5 },
     });
     expect(stats.invalidation.reasons).toEqual(["shadow-options"]);
-    expect(stats.invalidation.executed).toEqual(["shadow", "lighting", "presentation"]);
+    expect(stats.invalidation.executed).toEqual(["shadow", "reconstruction", "lighting", "presentation"]);
     expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal"]);
+    // hard-shadow scene: reconstruction stays BYPASSED (3 dispatching stages)
     expect(device.submits.length).toBe(submits + 3);
   });
 
@@ -563,7 +566,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     const stats = pipeline.render({ scene: sceneA(), dpr: 1, lightingOptions: { ambient: 0.3 } });
     expect(stats.invalidation.reasons).toEqual(["lighting-options"]);
     expect(stats.invalidation.executed).toEqual(["lighting", "presentation"]);
-    expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal", "shadow"]);
+    expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal", "shadow", "reconstruction"]);
     expect(device.submits.length).toBe(submits + 2);
     // the effective ambient is the f32-packed value actually dispatched
     expect(pipeline.getSnapshot().lightingPass.ambient).toBeCloseTo(0.3, 6);
@@ -580,7 +583,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     });
     expect(stats.invalidation.reasons).toEqual(["composite-options"]);
     expect(stats.invalidation.executed).toEqual(["presentation"]);
-    expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal", "shadow", "lighting"]);
+    expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal", "shadow", "reconstruction", "lighting"]);
     expect(device.submits.length).toBe(submits + 1);
   });
 
@@ -589,7 +592,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     pipeline.render({ scene: sceneA(), dpr: 1 });
     const stats = pipeline.render({ scene: sceneA(), dpr: 2 });
     expect(stats.invalidation.reasons).toContain("viewport");
-    expect(stats.invalidation.executed).toHaveLength(6);
+    expect(stats.invalidation.executed).toHaveLength(7);
     expect(stats.renderWidth).toBe(200);
     expect(stats.renderHeight).toBe(160);
     expect(context.canvas.width).toBe(200);
@@ -611,7 +614,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     // options, so the replay legitimately reports all three reasons
     expect(replayed.invalidation.reasons).toContain("scene");
     expect(replayed.invalidation.reasons).toContain("viewport");
-    expect(replayed.invalidation.executed).toHaveLength(6);
+    expect(replayed.invalidation.executed).toHaveLength(7);
     // the replayed upload bytes are byte-identical to frame 1 (deterministic
     // encode) — the forced recompute produces the same effective payloads
     const replayWrites = device.writes.slice(writesBeforeReplay).map((w) => Array.from(w.bytes));
@@ -641,7 +644,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     // path: no retained key/encoding to skip or mix)
     const recovered = pipeline.render({ scene: sceneB(), dpr: 1 });
     expect(recovered.invalidation.reasons).toEqual(["first-frame"]);
-    expect(recovered.invalidation.executed).toHaveLength(6);
+    expect(recovered.invalidation.executed).toHaveLength(7);
     expect(recovered.upload.bytesUploaded).toBeGreaterThan(0);
     expect(recovered.height.composePasses).toBe(5);
     const snapshot = pipeline.getSnapshot();
@@ -652,7 +655,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     // the pre-failure scene ALSO recovers: re-uploading sceneA must not
     // skip the upload (no mixed provenance from the failed frame)
     const replayA = pipeline.render({ scene: sceneA(), dpr: 1 });
-    expect(replayA.invalidation.executed).toHaveLength(6);
+    expect(replayA.invalidation.executed).toHaveLength(7);
     expect(replayA.upload.bytesUploaded).toBeGreaterThan(0);
     expect(replayA.height.composePasses).toBe(5);
     expect(pipeline.getSnapshot().heightPass.provenance).not.toBe(snapshot.heightPass.provenance);
@@ -739,7 +742,7 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
       dpr: 1,
     });
     expect(stats.invalidation.reasons).toEqual(["light-direction"]);
-    expect(stats.invalidation.executed).toEqual(["upload", "shadow", "lighting", "presentation"]);
+    expect(stats.invalidation.executed).toEqual(["upload", "shadow", "reconstruction", "lighting", "presentation"]);
     expect(stats.invalidation.skipped).toEqual(["height", "normal"]);
     // exactly four stages submitted: no height/normal work
     expect(device.submits.length).toBe(submits + 3);
@@ -769,7 +772,7 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
       const stats = pipeline.render({ scene, dpr: 1 });
       expect(stats.invalidation.reasons).toEqual([label]);
       expect(stats.invalidation.executed).toEqual(["upload", "lighting", "presentation"]);
-      expect(stats.invalidation.skipped).toEqual(["height", "normal", "shadow"]);
+      expect(stats.invalidation.skipped).toEqual(["height", "normal", "shadow", "reconstruction"]);
       expect(device.submits.length).toBe(submits + 2);
       expect(stats.planning.mode).toBe("full");
       expect(stats.planning.reason).toBe(`${label}-change`);
@@ -803,7 +806,7 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
     const submits = device.submits.length;
     const stats = pipeline.render({ scene: taller(), dpr: 1 });
     expect(stats.invalidation.reasons).toEqual(["scene"]);
-    expect(stats.invalidation.executed).toHaveLength(6);
+    expect(stats.invalidation.executed).toHaveLength(7);
     expect(device.submits.length).toBe(submits + 5);
     const snapshot = pipeline.getSnapshot();
     expect(snapshot.heightPass.provenance).not.toBe(firstProvenance);
@@ -818,7 +821,7 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
     const submits = device.submits.length;
     const stats = pipeline.render({ scene: withLight({ x: 0, y: 0, z: 1 }, 2), dpr: 1 });
     expect(stats.invalidation.reasons).toEqual(["light-direction", "light-intensity"]);
-    expect(stats.invalidation.executed).toEqual(["upload", "shadow", "lighting", "presentation"]);
+    expect(stats.invalidation.executed).toEqual(["upload", "shadow", "reconstruction", "lighting", "presentation"]);
     expect(device.submits.length).toBe(submits + 3);
   });
 });

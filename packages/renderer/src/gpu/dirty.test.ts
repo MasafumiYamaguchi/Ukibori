@@ -68,7 +68,22 @@ describe("#31 invalidation dependency graph — stagesForReasons / REASON_STAGES
     expect(REASON_STAGES.viewport).toEqual(ALL_STAGES);
     expect(REASON_STAGES.scene).toEqual(ALL_STAGES);
     expect(REASON_STAGES["normal-options"]).toEqual(["normal", "lighting", "presentation"]);
-    expect(REASON_STAGES["shadow-options"]).toEqual(["shadow", "lighting", "presentation"]);
+    expect(REASON_STAGES["shadow-options"]).toEqual([
+      "shadow",
+      "reconstruction",
+      "lighting",
+      "presentation",
+    ]);
+    // #43: a reconstruction-only option change re-runs the filter and its
+    // consumers; the raw shadow field stays retained.
+    expect(REASON_STAGES["reconstruction-options"]).toEqual([
+      "reconstruction",
+      "lighting",
+      "presentation",
+    ]);
+    // #43: every reason that invalidates shadow also re-runs reconstruction.
+    expect(REASON_STAGES["light-direction"]).toContain("reconstruction");
+    expect(REASON_STAGES["light-angular-radius"]).toContain("reconstruction");
     expect(REASON_STAGES["lighting-options"]).toEqual(["lighting", "presentation"]);
     expect(REASON_STAGES["composite-options"]).toEqual(["presentation"]);
     expect(REASON_STAGES["debug-target"]).toEqual(["presentation"]);
@@ -134,7 +149,7 @@ describe("#31 stable canonical fingerprints", () => {
       current.bytes,
     );
     expect(diff.reasons).toEqual(["shadow-options"]);
-    expect(diff.executed).toEqual(["shadow", "lighting", "presentation"]);
+    expect(diff.executed).toEqual(["shadow", "reconstruction", "lighting", "presentation"]);
   });
 
   it("reduces options to their sanitized effective values", () => {
@@ -186,7 +201,14 @@ describe("#31 reportInvalidations", () => {
     const report = reportInvalidations(current.key, current.key, current.bytes, current.bytes, true);
     expect(report.reasons).toEqual([]);
     expect(report.executed).toEqual(["presentation"]);
-    expect(report.skipped).toEqual(["upload", "height", "normal", "shadow", "lighting"]);
+    expect(report.skipped).toEqual([
+      "upload",
+      "height",
+      "normal",
+      "shadow",
+      "reconstruction",
+      "lighting",
+    ]);
     expect(report.retained).toBe(false);
   });
 
@@ -200,9 +222,33 @@ describe("#31 reportInvalidations", () => {
     ]);
     expect(reportInvalidations(key(1, { shadow: { bias: 0.25 } }), base, current.bytes, current.bytes, false).executed).toEqual([
       "shadow",
+      "reconstruction",
       "lighting",
       "presentation",
     ]);
+    // #43: a reconstruction-only change re-runs the filter + its consumers
+    // while the raw shadow field stays retained.
+    const reconOnly = reportInvalidations(
+      key(1, { shadow: { reconstruction: { radius: 3 } } }),
+      base,
+      current.bytes,
+      current.bytes,
+      false,
+    );
+    expect(reconOnly.reasons).toEqual(["reconstruction-options"]);
+    expect(reconOnly.executed).toEqual(["reconstruction", "lighting", "presentation"]);
+    expect(reconOnly.skipped).toContain("shadow");
+    // disabling reconstruction is the same closure (the consumers must
+    // switch back to the raw field)
+    expect(
+      reportInvalidations(
+        key(1, { shadow: { reconstruction: { enabled: false } } }),
+        base,
+        current.bytes,
+        current.bytes,
+        false,
+      ).executed,
+    ).toEqual(["reconstruction", "lighting", "presentation"]);
     expect(reportInvalidations(key(1, { lighting: { ambient: 0.3 } }), base, current.bytes, current.bytes, false).executed).toEqual([
       "lighting",
       "presentation",
@@ -226,7 +272,7 @@ describe("#31 reportInvalidations", () => {
     });
     const diff = report(next, prev);
     expect(diff.reasons).toEqual(["light-direction"]);
-    expect(diff.executed).toEqual(["upload", "shadow", "lighting", "presentation"]);
+    expect(diff.executed).toEqual(["upload", "shadow", "reconstruction", "lighting", "presentation"]);
     expect(diff.skipped).toEqual(["height", "normal"]);
     expect(diff.retained).toBe(false);
   });
@@ -244,7 +290,7 @@ describe("#31 reportInvalidations", () => {
     // The cone directions feed ONLY the shadow stage (and downstream
     // visibility consumers): height/normal stay retained.
     expect(diff.reasons).toEqual(["light-angular-radius"]);
-    expect(diff.executed).toEqual(["upload", "shadow", "lighting", "presentation"]);
+    expect(diff.executed).toEqual(["upload", "shadow", "reconstruction", "lighting", "presentation"]);
     expect(diff.skipped).toEqual(["height", "normal"]);
     expect(diff.retained).toBe(false);
     // and back: clearing the radius classifies the same way
@@ -261,7 +307,7 @@ describe("#31 reportInvalidations", () => {
     const diff = report(next, prev);
     expect(diff.reasons).toEqual(["light-intensity"]);
     expect(diff.executed).toEqual(["upload", "lighting", "presentation"]);
-    expect(diff.skipped).toEqual(["height", "normal", "shadow"]);
+    expect(diff.skipped).toEqual(["height", "normal", "shadow", "reconstruction"]);
   });
 
   it("classifies environment and exposure changes as upload/lighting/presentation only", () => {
@@ -291,7 +337,7 @@ describe("#31 reportInvalidations", () => {
     const diff = report(next, prev);
     expect(diff.reasons).toEqual(["material-values"]);
     expect(diff.executed).toEqual(["upload", "lighting", "presentation"]);
-    expect(diff.skipped).toEqual(["height", "normal", "shadow"]);
+    expect(diff.skipped).toEqual(["height", "normal", "shadow", "reconstruction"]);
   });
 
   it("unions multiple semantic scene changes into one downstream closure", () => {
@@ -305,7 +351,7 @@ describe("#31 reportInvalidations", () => {
     });
     const diff = report(next, prev);
     expect(diff.reasons).toEqual(["light-direction", "light-intensity", "environment", "material-values"]);
-    expect(diff.executed).toEqual(["upload", "shadow", "lighting", "presentation"]);
+    expect(diff.executed).toEqual(["upload", "shadow", "reconstruction", "lighting", "presentation"]);
     expect(diff.skipped).toEqual(["height", "normal"]);
   });
 

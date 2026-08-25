@@ -1132,16 +1132,23 @@ describe("ShadowPass shader — binding contract", () => {
     // #41 area-light sampling fields + packed cone directions.
     expect(SHADOW_PASS_WGSL).toContain("angularRadius: f32,   // 80");
     expect(SHADOW_PASS_WGSL).toContain("sampleCount: u32,     // 84");
+    // #43: the direction table packs ALL kernel variants' vec4s.
     expect(SHADOW_PASS_WGSL).toContain(
-      "sampleDirs: array<vec4<f32>, ${SHADOW_MAX_SAMPLES}>, // 96..351".replace(
-        "${SHADOW_MAX_SAMPLES}",
-        "16",
+      "sampleDirs: array<vec4<f32>, ${VARIANTS_X_SAMPLES}>, // 96..".replace(
+        "${VARIANTS_X_SAMPLES}",
+        String(8 * 16),
       ),
     );
+    // #43: the per-texel variant hash mirrors shadow-sampling.ts exactly.
+    expect(SHADOW_PASS_WGSL).toContain("fn kernelVariant(tx: u32, ty: u32) -> u32 {");
+    expect(SHADOW_PASS_WGSL).toContain("0x9e3779b1u");
+    expect(SHADOW_PASS_WGSL).toContain("0x85ebca77u");
+    expect(SHADOW_PASS_WGSL).toContain("0x2545f491u");
+    expect(SHADOW_PASS_WGSL).toContain("let variantBase = kernelVariant(tx, ty) * SHADOW_MAX_SAMPLES;");
     expect(SHADOW_PASS_WGSL).toContain("const FLAG_RECEIVES_SHADOW: u32 = 0x2u;");
     expect(SHADOW_PASS_WGSL).toContain("const NO_OWNER: u32 = 0xffffffffu;");
-    // 96 scalar/pad bytes + 16 vec4 cone directions.
-    expect(SHADOW_PARAMS_BYTE_LENGTH).toBe(96 + 16 * 16);
+    // 96 scalar/pad bytes + 8 variants x 16 vec4 cone directions.
+    expect(SHADOW_PARAMS_BYTE_LENGTH).toBe(96 + 8 * 16 * 16);
     expect(SHADOW_WORKGROUP_SIZE).toBe(64);
     expect(SHADOW_OUTPUT_BYTES_PER_TEXEL).toBe(4);
     expect(MAX_SHADOW_STEP_COUNT).toBe(1 << 24);

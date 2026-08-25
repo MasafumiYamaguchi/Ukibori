@@ -22,6 +22,15 @@ import {
 import type { Canvas8BitFormat, GpuCanvasContextLike, GpuPresentationDeviceLike, PresentationPassSnapshot, PresentationPassStats } from "./presentation-pass";
 import { ShadowPass } from "./shadow-pass";
 import type { ShadowPassDispatchStats, ShadowPassSnapshot } from "./shadow-pass";
+import {
+  ReconstructionPass,
+  lightingVisibilityBindingFromReconstructionPass,
+  presentationVisibilityBindingFromReconstructionPass,
+} from "./reconstruction-pass";
+import type {
+  ReconstructionPassDispatchStats,
+  ReconstructionPassSnapshot,
+} from "./reconstruction-pass";
 import { SceneUploader } from "./uploader";
 import type { UploadStats } from "./uploader";
 import type { CompositeOptions } from "./composite";
@@ -32,6 +41,11 @@ import {
 } from "./lighting-pass";
 import { normalHeightBindingFromHeightPass } from "./normal-pass";
 import { shadowHeightBindingsFromHeightPass } from "./shadow-pass";
+import { sanitizeAngularRadius, sanitizeShadowSamples } from "../shadow-sampling";
+import {
+  sanitizeReconstructionOptions,
+} from "../shadow-reconstruct";
+import type { ShadowReconstructionOptions } from "../shadow-reconstruct";
 import { computeFrameKey, reportInvalidations } from "./dirty";
 import type { FrameKey, InvalidationReport } from "./dirty";
 import { GpuPipelineProfiler } from "./profiler";
@@ -52,8 +66,16 @@ import { parseHeader } from "./encode";
  *
  * ```text
  * encodeScene -> SceneUploader -> HeightPass -> NormalPass -> ShadowPass
- *             -> LightingPass -> PresentationPass
+ *             -> ShadowReconstructionPass (#43) -> LightingPass -> PresentationPass
  * ```
+ *
+ * The #43 reconstruction stage consumes the #41 raw visibility field plus
+ * the retained height/ownership fields and feeds the reconstructed field to
+ * lighting/presentation. It is BYPASSED (never dispatched, raw visibility
+ * consumed directly) whenever the shadow path is hard (`angularRadius <= 0`
+ * or sanitized `samples <= 1`), the effective radius is 0, or
+ * `reconstruction.enabled === false` — hard-shadow frames keep every
+ * historical byte.
  *
  * ## Retained resources
  *
@@ -212,6 +234,14 @@ export interface GpuScenePipelineFrameStats {
   readonly height: HeightPassDispatchStats;
   readonly normal: NormalPassDispatchStats;
   readonly shadow: ShadowPassDispatchStats;
+  /**
+   * #43 reconstruction-stage statistics: zeroed activity when the stage was
+   * skipped or BYPASSED (hard-shadow frames and `enabled: false` never
+   * dispatch the filter — see `reconstructionActive`).
+   */
+  readonly reconstruction: ReconstructionPassDispatchStats;
+  /** whether the frame consumed the reconstructed (true) or raw (false) visibility */
+  readonly reconstructionActive: boolean;
   readonly lighting: LightingPassDispatchStats;
   readonly presentation: PresentationPassStats;
   /** per-frame profiling (allocations, uploaded bytes, dispatches, timings) */
@@ -233,6 +263,12 @@ export interface GpuScenePipelineSnapshot {
   readonly heightPass: HeightPassSnapshot;
   readonly normalPass: NormalPassSnapshot;
   readonly shadowPass: ShadowPassSnapshot;
+  /**
+   * #43 reconstruction snapshot; null when the frame bypassed the stage
+   * (hard-shadow path or `enabled: false`) — lighting/presentation then
+   * consume the RAW shadow visibility.
+   */
+  readonly reconstructionPass: ReconstructionPassSnapshot | null;
   readonly lightingPass: LightingPassSnapshot;
   readonly presentationPass: PresentationPassSnapshot;
 }
@@ -261,6 +297,14 @@ const ZERO_FIELD_DISPATCH = {
   submissions: 0,
 };
 
+const ZERO_RECONSTRUCTION: ReconstructionPassDispatchStats = {
+  newAllocations: 0,
+  allocationCount: 0,
+  totalAllocationBytes: 0,
+  workgroupCountX: 0,
+  submissions: 0,
+};
+
 const ZERO_PRESENTATION: PresentationPassStats = {
   hostEncodeMs: 0,
   configured: false,
@@ -278,6 +322,7 @@ export class GpuScenePipeline {
   private readonly heightPass: HeightPass;
   private readonly normalPass: NormalPass;
   private readonly shadowPass: ShadowPass;
+  private readonly reconstructionPass: ReconstructionPass;
   private readonly lightingPass: LightingPass;
   private readonly presentationPass: PresentationPass;
   private readonly profiler = new GpuPipelineProfiler();
@@ -302,6 +347,8 @@ export class GpuScenePipeline {
     readonly heightPass: HeightPassSnapshot;
     readonly normalPass: NormalPassSnapshot;
     readonly shadowPass: ShadowPassSnapshot;
+    /** #43 null when the frame bypassed reconstruction (raw visibility consumed) */
+    readonly reconstructionPass: ReconstructionPassSnapshot | null;
     readonly lightingPass: LightingPassSnapshot;
     readonly compositeOptions: CompositeOptions | undefined;
     readonly debugReadback: boolean;
@@ -312,6 +359,7 @@ export class GpuScenePipeline {
     height: ZERO_HEIGHT,
     normal: { ...ZERO_FIELD_DISPATCH },
     shadow: { ...ZERO_FIELD_DISPATCH },
+    reconstruction: { ...ZERO_RECONSTRUCTION },
     lighting: { ...ZERO_FIELD_DISPATCH },
     presentation: ZERO_PRESENTATION,
   };
@@ -330,6 +378,7 @@ export class GpuScenePipeline {
     this.heightPass = new HeightPass(this.device);
     this.normalPass = new NormalPass(this.device);
     this.shadowPass = new ShadowPass(this.device);
+    this.reconstructionPass = new ReconstructionPass(this.device);
     this.lightingPass = new LightingPass(this.device);
     this.presentationPass = new PresentationPass(this.device);
     this.timestampProfiler = new GpuTimestampProfiler(
@@ -532,6 +581,68 @@ export class GpuScenePipeline {
     }
     const shadowSnapshot = this.shadowPass.getSnapshot();
 
+    // #43 reconstruction gating: the filter runs ONLY on soft-shadow frames
+    // (angularRadius > 0 && sanitized samples > 1) with a positive effective
+    // radius and `enabled !== false`. Hard-path frames bypass the stage so
+    // the historical {0,1} field — and therefore every downstream byte — is
+    // preserved; lighting/presentation then consume the RAW shadow output.
+    const parsedFrameHeader = parseHeader(scene.bytes);
+    const softShadowActive =
+      sanitizeAngularRadius(parsedFrameHeader.lightAngularRadius) > 0 &&
+      shadowSnapshot.options.samples > 1;
+    const reconEffective = sanitizeReconstructionOptions(
+      input.shadowOptions?.reconstruction,
+      heightSnapshot.dpr,
+    );
+    const reconstructionActive =
+      softShadowActive && reconEffective.enabled && reconEffective.radiusTexels > 0;
+
+    let reconstruction: ReconstructionPassDispatchStats;
+    if (executed.has("reconstruction") && reconstructionActive) {
+      // #43 partial-recompute halo: the filter reads raw visibility of
+      // neighbors, so the dispatched band is EXPANDED by the texel radius on
+      // each side (clipped to the frame). Every consumed output row (the
+      // lighting band below) is written this frame; out-of-band reads hit
+      // retained raw texels the planner's shadow halo proves unchanged.
+      const reconRegion = expandBandRows(
+        region ?? null,
+        reconEffective.radiusTexels,
+        heightSnapshot.height,
+      );
+      const t0 = performance.now();
+      reconstruction = this.reconstructionPass.dispatch({
+        rawVisibility: {
+          buffer: shadowSnapshot.output.buffer,
+          byteLength: shadowSnapshot.output.byteLength,
+          format: "f32",
+          usage: shadowSnapshot.output.usage,
+          width: shadowSnapshot.width,
+          height: shadowSnapshot.height,
+          provenance: shadowSnapshot.provenance,
+        },
+        ...shadowHeightBindingsFromHeightPass(heightSnapshot),
+        options: input.shadowOptions?.reconstruction,
+        dpr: heightSnapshot.dpr,
+        region: reconRegion ?? undefined,
+        timestampWrites: timestampFrame.getTimestampWrites("reconstruction"),
+      });
+      const hostMs = performance.now() - t0;
+      records.push({
+        stage: "reconstruction",
+        hostMs,
+        newAllocations: reconstruction.newAllocations,
+        bytesUploaded: 0,
+        dispatches: 1,
+        submissions: reconstruction.submissions,
+      });
+      this.retained.reconstruction = reconstruction;
+    } else {
+      reconstruction = skippedFieldDispatch(this.retained.reconstruction);
+    }
+    const reconstructionSnapshot = reconstructionActive
+      ? this.reconstructionPass.getSnapshot()
+      : null;
+
     let lighting: LightingPassDispatchStats;
     if (executed.has("lighting")) {
       const t0 = performance.now();
@@ -540,7 +651,10 @@ export class GpuScenePipeline {
         bindings,
         materialId: lightingMaterialIdBindingFromHeightPass(heightSnapshot),
         normal: lightingNormalBindingFromNormalPass(normalSnapshot),
-        visibility: lightingVisibilityBindingFromShadowPass(shadowSnapshot),
+        visibility:
+          reconstructionSnapshot !== null
+            ? lightingVisibilityBindingFromReconstructionPass(reconstructionSnapshot)
+            : lightingVisibilityBindingFromShadowPass(shadowSnapshot),
         options: input.lightingOptions,
         region,
         timestampWrites: timestampFrame.getTimestampWrites("lighting"),
@@ -571,7 +685,10 @@ export class GpuScenePipeline {
       presentation = this.presentationPass.present({
         color: presentationColorBindingFromLightingPass(lightingSnapshot),
         objectId: presentationObjectIdBindingFromHeightPass(heightSnapshot),
-        visibility: presentationVisibilityBindingFromShadowPass(shadowSnapshot),
+        visibility:
+          reconstructionSnapshot !== null
+            ? presentationVisibilityBindingFromReconstructionPass(reconstructionSnapshot)
+            : presentationVisibilityBindingFromShadowPass(shadowSnapshot),
         context: this.context,
         canvasFormat: this.canvasFormat,
         options: input.compositeOptions,
@@ -602,6 +719,7 @@ export class GpuScenePipeline {
       heightPass: heightSnapshot,
       normalPass: normalSnapshot,
       shadowPass: shadowSnapshot,
+      reconstructionPass: reconstructionSnapshot,
       lightingPass: lightingSnapshot,
       compositeOptions: input.compositeOptions,
       debugReadback: input.debugReadback === true,
@@ -621,6 +739,8 @@ export class GpuScenePipeline {
       height,
       normal,
       shadow,
+      reconstruction,
+      reconstructionActive: reconstructionSnapshot !== null,
       lighting,
       presentation,
       frame,
@@ -749,7 +869,10 @@ export class GpuScenePipeline {
     const stats = this.presentationPass.present({
       color: presentationColorBindingFromLightingPass(frame.lightingPass),
       objectId: presentationObjectIdBindingFromHeightPass(frame.heightPass),
-      visibility: presentationVisibilityBindingFromShadowPass(frame.shadowPass),
+      visibility:
+        frame.reconstructionPass !== null
+          ? presentationVisibilityBindingFromReconstructionPass(frame.reconstructionPass)
+          : presentationVisibilityBindingFromShadowPass(frame.shadowPass),
       context: this.context,
       canvasFormat: this.canvasFormat,
       options: frame.compositeOptions,
@@ -787,6 +910,7 @@ export class GpuScenePipeline {
       heightPass: frame.heightPass,
       normalPass: frame.normalPass,
       shadowPass: frame.shadowPass,
+      reconstructionPass: frame.reconstructionPass,
       lightingPass: frame.lightingPass,
       presentationPass: this.presentationPass.getSnapshot(),
     };
@@ -809,6 +933,7 @@ export class GpuScenePipeline {
     this.timestampProfiler.dispose();
     this.presentationPass.dispose();
     this.lightingPass.dispose();
+    this.reconstructionPass.dispose();
     this.shadowPass.dispose();
     this.normalPass.dispose();
     this.heightPass.dispose();
@@ -838,6 +963,25 @@ export class GpuScenePipeline {
 }
 
 // -- skipped-stage stats (activity zeroed, retained allocation counts) ------
+
+/**
+ * #43 reconstruction halo: expand a #32 dispatch band by `halo` rows on each
+ * side, clipped to the frame. A full-frame region stays full (null); a null
+ * `region` with a halo still returns null (the whole frame is dispatched).
+ */
+function expandBandRows(
+  region: BandRegion | null,
+  halo: number,
+  frameHeight: number,
+): BandRegion | null {
+  if (region === null || halo <= 0) {
+    return region;
+  }
+  return {
+    y0: Math.max(0, region.y0 - halo),
+    y1: Math.min(frameHeight - 1, region.y1 + halo),
+  };
+}
 
 function skippedUpload(retained: UploadStats): UploadStats {
   return {
