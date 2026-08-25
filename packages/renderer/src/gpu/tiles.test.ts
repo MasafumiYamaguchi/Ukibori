@@ -9,6 +9,11 @@ import { computeVisibility } from "../shadow";
 import { NO_OWNER } from "../compose";
 import { encodeScene } from "./encode";
 import {
+  computeSoftSampleDirections,
+  SHADOW_KERNEL_VARIANTS,
+} from "../shadow-sampling";
+import { parseHeader } from "./encode";
+import {
   PARTIAL_DISPATCH_RATIO,
   PROFILE_HALO_TEXELS,
   TILE_SIZE_DEFAULT,
@@ -24,6 +29,7 @@ import {
   expandTexelRect,
   planDispatchChunks,
   planPartialScene,
+  sampledShadowHaloUnion,
   sceneRectToTexelRect,
   shadowHalo,
   surfaceTexelFootprint,
@@ -914,5 +920,279 @@ describe("planDispatchChunks", () => {
     expect(() => planDispatchChunks(0, 0, 4000, 64, 32)).toThrow(
       /dispatch chunk of 63 workgroups exceeds maxComputeWorkgroupsPerDimension 32/,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #43 sampled-direction shadow halo union (soft partial planning)
+// ---------------------------------------------------------------------------
+
+describe("#43 sampledShadowHaloUnion — soft partial planner halo", () => {
+  const L: { x: number; y: number; z: number } = {
+    x: Math.fround(Math.SQRT1_2),
+    y: 0,
+    z: Math.fround(Math.SQRT1_2),
+  };
+  const RADIUS = Math.fround(0.25);
+  const DIST = 40;
+
+  function perVariantHalo(
+    light: { x: number; y: number; z: number },
+    variant: number,
+    samples: number,
+    maxDistance: number,
+  ) {
+    const dirs = computeSoftSampleDirections(light, RADIUS, samples, variant);
+    let left = 0;
+    let right = 0;
+    let top = 0;
+    let bottom = 0;
+    for (let i = 0; i + 2 < dirs.length; i += 3) {
+      const dx = dirs[i]!;
+      const dy = dirs[i + 1]!;
+      left = Math.max(left, maxDistance * Math.max(dx, 0));
+      right = Math.max(right, maxDistance * Math.max(-dx, 0));
+      top = Math.max(top, maxDistance * Math.max(dy, 0));
+      bottom = Math.max(bottom, maxDistance * Math.max(-dy, 0));
+    }
+    return { left, right, top, bottom };
+  }
+
+  it("keeps the hard-path center halo as the conservative baseline", () => {
+    const center = shadowHalo(L.x, L.y, DIST);
+    for (const samples of [4, 8, 16] as const) {
+      const union = sampledShadowHaloUnion(L, RADIUS, samples, DIST);
+      expect(union.left).toBeGreaterThanOrEqual(center.left);
+      expect(union.right).toBeGreaterThanOrEqual(center.right);
+      expect(union.top).toBeGreaterThanOrEqual(center.top);
+      expect(union.bottom).toBeGreaterThanOrEqual(center.bottom);
+    }
+  });
+
+  it("degenerates to the exact center halo when the cone collapses (radius 0)", () => {
+    // radius 0 makes every canonical sample direction collapse onto L
+    expect(sampledShadowHaloUnion(L, 0, 16, DIST)).toEqual(shadowHalo(L.x, L.y, DIST));
+  });
+
+  it("covers the full union of ALL kernel variants x samples exactly", () => {
+    for (const samples of [4, 8, 16] as const) {
+      const union = sampledShadowHaloUnion(L, RADIUS, samples, DIST);
+      const expected = shadowHalo(L.x, L.y, DIST);
+      for (let v = 0; v < SHADOW_KERNEL_VARIANTS; v++) {
+        const hv = perVariantHalo(L, v, samples, DIST);
+        expected.left = Math.max(expected.left, hv.left);
+        expected.right = Math.max(expected.right, hv.right);
+        expected.top = Math.max(expected.top, hv.top);
+        expected.bottom = Math.max(expected.bottom, hv.bottom);
+      }
+      expect(union).toEqual(expected);
+    }
+  });
+
+  it("uses more than variant 0 alone (rotated variants widen the reach)", () => {
+    for (const samples of [4, 8, 16] as const) {
+      const union = sampledShadowHaloUnion(L, RADIUS, samples, DIST);
+      const v0Only = perVariantHalo(L, 0, samples, DIST);
+      const wider =
+        union.left > v0Only.left ||
+        union.right > v0Only.right ||
+        union.top > v0Only.top ||
+        union.bottom > v0Only.bottom;
+      expect(wider).toBe(true);
+    }
+  });
+
+  it("extends a near-vertical center light horizontally in BOTH directions", () => {
+    // center x == 0 exactly: the historical center-only halo has ZERO
+    // horizontal reach, but slanted area-light samples travel sideways
+    const vertical = { x: 0, y: Math.fround(0.09950371902099829), z: Math.fround(0.9950371902099892) };
+    const center = shadowHalo(vertical.x, vertical.y, DIST);
+    expect(center.left).toBe(0);
+    expect(center.right).toBe(0);
+    for (const samples of [4, 8, 16] as const) {
+      const union = sampledShadowHaloUnion(vertical, RADIUS, samples, DIST);
+      expect(union.left).toBeGreaterThan(0);
+      expect(union.right).toBeGreaterThan(0);
+      expect(union.top).toBeGreaterThanOrEqual(center.top);
+      expect(union.bottom).toBeGreaterThanOrEqual(center.bottom);
+    }
+  });
+
+  it("reaches opposite signs: a +x/+y center also halos right/bottom via samples", () => {
+    // A positive center component only expands the MIN-side halo
+    // (left for +x, top for +y); the opposite sides stay zero unless some
+    // sample ray flips the sign. The 0.25-rad cone below spans the axis.
+    const mk = (x: number, y: number) => {
+      const len = Math.hypot(x, y);
+      return { x: Math.fround(x / len), y: Math.fround(y / len), z: 0 };
+    };
+    const mostlyY = mk(0.1, 0.99);
+    expect(mostlyY.x).toBeGreaterThan(0);
+    const centerY = shadowHalo(mostlyY.x, mostlyY.y, DIST);
+    expect(centerY.left).toBeGreaterThan(0); // +x reaches the min-x side
+    expect(centerY.right).toBe(0); // nothing reaches the max-x side yet
+    const unionY = sampledShadowHaloUnion(mostlyY, Math.fround(0.25), 8, DIST);
+    expect(unionY.right).toBeGreaterThan(0); // a sample flips to x < 0
+    expect(unionY.left).toBeGreaterThanOrEqual(centerY.left);
+    expect(unionY.top).toBeGreaterThanOrEqual(centerY.top);
+
+    const mostlyX = mk(0.99, 0.1);
+    expect(mostlyX.y).toBeGreaterThan(0);
+    const centerX = shadowHalo(mostlyX.x, mostlyX.y, DIST);
+    expect(centerX.top).toBeGreaterThan(0); // +y reaches the min-y side
+    expect(centerX.bottom).toBe(0); // nothing reaches the max-y side yet
+    const unionX = sampledShadowHaloUnion(mostlyX, Math.fround(0.25), 8, DIST);
+    expect(unionX.bottom).toBeGreaterThan(0); // a sample flips to y < 0
+    expect(unionX.left).toBeGreaterThanOrEqual(centerX.left);
+    expect(unionX.top).toBeGreaterThanOrEqual(centerX.top);
+  });
+
+  it("is deterministic for identical inputs", () => {
+    const a = sampledShadowHaloUnion(L, RADIUS, 8, DIST);
+    const b = sampledShadowHaloUnion(L, RADIUS, 8, DIST);
+    expect(a).toEqual(b);
+  });
+
+  it("rejects invalid maxDistance like the center halo", () => {
+    expect(() => sampledShadowHaloUnion(L, RADIUS, 8, -1)).toThrow(/maxDistance/);
+    expect(() => sampledShadowHaloUnion(L, RADIUS, 8, NaN)).toThrow(/maxDistance/);
+  });
+});
+
+describe("#43 planPartialScene — soft scenes use the sampled-union halo", () => {
+  // A wide frame so the extra horizontal halo is never clipped at the
+  // borders, with a near-vertical center light (zero horizontal center
+  // reach) and one small caster whose edit must cover its slanted-sample
+  // receivers too.
+  const SOFT_BASE: SceneInput = {
+    width: 400,
+    height: 300,
+    surfaces: [
+      {
+        id: "mover",
+        position: { x: 150, y: 60 },
+        size: { x: 30, y: 20 },
+        elevation: 4,
+        thickness: 2,
+        shape: { kind: "roundedRect", radius: 4 },
+        profile: { kind: "flat" },
+        material: "silicone",
+        castsShadow: true,
+        receivesShadow: true,
+      },
+    ],
+    light: {
+      direction: { x: 0, y: Math.fround(0.09950371902099829), z: Math.fround(0.9950371902099892) },
+      intensity: 1,
+      angularRadius: Math.fround(0.25),
+    },
+  };
+
+  function softScene(input: Partial<SceneInput>): Scene {
+    return createScene({ ...SOFT_BASE, ...input });
+  }
+
+  function softEncoded(input: Partial<SceneInput>): Uint8Array {
+    return encodeScene(softScene(input), 1).bytes;
+  }
+
+  const softOptions = { maxDistance: 24, stepSize: 0.5, bias: 0.5, samples: 8 as const };
+
+  it("plans a strictly wider dirty rect than the center-only expansion", () => {
+    const prevBytes = softEncoded({});
+    const nextBytes = softEncoded({
+      surfaces: [
+        {
+          id: "mover",
+          position: { x: 153, y: 61 },
+          size: { x: 30, y: 20 },
+          elevation: 4,
+          thickness: 2,
+          shape: { kind: "roundedRect", radius: 4 },
+          profile: { kind: "flat" },
+          material: "silicone",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+    });
+    const plan = planPartialScene({
+      prevBytes,
+      nextBytes,
+      dpr: 1,
+      renderWidth: 400,
+      renderHeight: 300,
+      shadowOptions: softOptions,
+      tileSize: 16,
+    });
+    if (plan.dirtyRect === null) {
+      throw new Error("expected a non-null dirty rect");
+    }
+    // the OLD (center-only) expansion, computed with the same sanitized
+    // options the planner consumes
+    const header = parseHeader(nextBytes);
+    const centerHalo = shadowHalo(header.lightDirection.x, header.lightDirection.y, 24);
+    const diff = diffEncodedScenes(prevBytes, nextBytes);
+    if (diff.dirtySceneRect === null) {
+      throw new Error("expected a dirty scene rect");
+    }
+    const centerExpanded = expandSceneRect(diff.dirtySceneRect, centerHalo);
+    const centerTexels = sceneRectToTexelRect(centerExpanded, 1, 400, 300)!;
+    const centerWithProfileHalo = expandTexelRect(
+      centerTexels,
+      PROFILE_HALO_TEXELS,
+      400,
+      300,
+    )!;
+    // numeric proof that the union strictly dominates the old halo here:
+    // the near-vertical center adds zero horizontal reach while the sample
+    // union adds several texels on each side
+    expect(plan.dirtyRect.x).toBeLessThanOrEqual(centerWithProfileHalo.x);
+    expect(
+      plan.dirtyRect.x + plan.dirtyRect.width,
+    ).toBeGreaterThanOrEqual(centerWithProfileHalo.x + centerWithProfileHalo.width);
+    expect(plan.dirtyRect.width).toBeGreaterThan(centerWithProfileHalo.width);
+  });
+
+  it("hard-path frames keep the historical center-only dirty rect", () => {
+    const prevBytes = encodeScene(
+      createScene({
+        ...BASE_SCENE,
+        light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+      }),
+      1,
+    ).bytes;
+    const moved = structuredClone(BASE_SCENE.surfaces) as SceneInput["surfaces"];
+    moved[0] = { ...moved[0]!, position: { x: 12, y: 12 } };
+    const nextBytes = encodeScene(
+      createScene({
+        ...BASE_SCENE,
+        surfaces: moved,
+        light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+      }),
+      1,
+    ).bytes;
+    const options = { ...smallShadowOptions, samples: 8 as const };
+    const plan = planPartialScene({
+      prevBytes,
+      nextBytes,
+      dpr: 1,
+      renderWidth: 100,
+      renderHeight: 200,
+      shadowOptions: options,
+      tileSize: 16,
+    });
+    // expected rect computed EXACTLY like the historical implementation:
+    // center-direction halo only
+    const header = parseHeader(nextBytes);
+    const centerHalo = shadowHalo(header.lightDirection.x, header.lightDirection.y, 20);
+    const diff = diffEncodedScenes(prevBytes, nextBytes);
+    if (diff.dirtySceneRect === null) {
+      throw new Error("expected a dirty scene rect");
+    }
+    const expanded = expandSceneRect(diff.dirtySceneRect, centerHalo);
+    const raw = sceneRectToTexelRect(expanded, 1, 100, 200)!;
+    const expected = expandTexelRect(raw, PROFILE_HALO_TEXELS, 100, 200)!;
+    expect(plan.dirtyRect).toEqual(expected);
   });
 });

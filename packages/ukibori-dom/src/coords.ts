@@ -173,9 +173,12 @@ export interface ScaledShadowOptions {
  * by dpr exactly once, and the CSS-space height gate (0.5 CSS px) is scaled
  * the same way — the renderer then converts the scene-unit radius to texels
  * with its own dpr (1 on both DOM paths), keeping the CSS-space footprint
- * and edge-preservation identical at every display DPR. The defaults are
- * ALWAYS materialized so an unspecified option cannot silently fall back to
- * the renderer's scene-unit default (which would shrink with dpr).
+ * and edge-preservation identical at every display DPR inside the supported
+ * range `[1, SUPPORTED_DISPLAY_DPR_MAX]` (the renderer's texel cap is sized
+ * to hold even the 4-CSS-px maximum there; beyond it the cap degrades the
+ * footprint, documented in the renderer). The defaults are ALWAYS
+ * materialized so an unspecified option cannot silently fall back to the
+ * renderer's scene-unit default (which would shrink with dpr).
  */
 export function scaleShadowOptions(
   options: {

@@ -31,10 +31,11 @@ import { bytesEqual } from "./tiles";
  *
  * ## Stages
  *
- * The six pipeline stages, in canonical execution order:
+ * The seven pipeline stages, in canonical execution order:
  *
  * ```text
- * upload -> height -> normal -> shadow -> lighting -> presentation
+ * upload -> height -> normal -> shadow -> reconstruction -> lighting
+ *        -> presentation
  * ```
  *
  * `height` is the PROVENANCE ROOT of the chain: the #25 `HeightPass`

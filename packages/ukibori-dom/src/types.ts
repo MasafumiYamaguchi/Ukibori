@@ -182,7 +182,10 @@ export interface DomShadowOptions {
    * `[0, 4]` CSS px (default 2), defaults `heightGate` to 0.5 CSS px, and
    * maps both through the dpr similarity transform EXACTLY ONCE (like
    * step/bias) — so a 2-CSS-px radius is a 2-CSS-px footprint at every
-   * devicePixelRatio, and edge preservation does not change with dpr.
+   * devicePixelRatio in the SUPPORTED display-DPR range `[1, 4]` (the
+   * renderer's texel cost cap is sized `round(4 * 4)` = 16 texels exactly
+   * for this; beyond DPR 4 the cap reduces the effective CSS footprint),
+   * and edge preservation does not change with dpr.
    * `enabled` defaults true; hard-path frames (angularRadius 0 / samples 1)
    * always bypass the filter regardless of this option.
    */

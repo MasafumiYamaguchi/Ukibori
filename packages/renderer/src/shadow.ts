@@ -104,7 +104,8 @@ export interface ShadowOptions {
    * #43 edge-aware penumbra reconstruction of the SOFT visibility field.
    * Only effective when the soft path is active (a hard-path frame always
    * bypasses, preserving historical {0,1} bytes); `enabled` defaults true,
-   * `radius` (CSS px) defaults 2. See `shadow-reconstruct.ts`.
+   * `radius` (SCENE units — only the DOM layer's public API is CSS px)
+   * defaults 2. See `shadow-reconstruct.ts`.
    */
   reconstruction?: ShadowReconstructionOptions;
 }

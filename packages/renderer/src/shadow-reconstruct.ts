@@ -64,9 +64,12 @@ import { VISIBILITY_SPEC } from "./types";
  * round(radius * dpr))` — so both backends filter the identical texel
  * neighborhood and the visual result is resolution-independent: a 2-CSS-px
  * radius is 2 texels at DPR 1, 3 at DPR 1.5 and 4 at DPR 2, i.e. the same
- * CSS-space footprint at every DPR. The height gate is scaled the same way
- * (0.5 CSS px -> 0.5 * dpr scene units), so edge-preservation is
- * DPR-invariant in CSS space.
+ * CSS-space footprint at every SUPPORTED display DPR (`[1, 4]`; the texel
+ * cap is sized `round(4 CSS px * 4)` = 16 exactly so the public 4-CSS-px
+ * maximum keeps its footprint across that whole range — see the cap's own
+ * doc for the documented beyond-range degradation). The height gate is
+ * scaled the same way (0.5 CSS px -> 0.5 * dpr scene units), so
+ * edge-preservation is DPR-invariant in CSS space.
  *
  * Direct (non-DOM) renderer callers pass scene-unit lengths; the documented
  * defaults (radius 2 scene units, gate 0.5 scene units) equal the CSS-space
@@ -88,11 +91,26 @@ export const DEFAULT_RECONSTRUCTION_RADIUS = 2;
 export const MAX_RECONSTRUCTION_RADIUS = 4;
 
 /**
- * Hard cap of the effective texel radius after the single dpr conversion:
- * bounds the worst-case tap count ((2r+1)^2 ≤ 289) so the filter cost stays
- * bounded on any device.
+ * Hard cap of the effective texel radius after the single dpr conversion.
+ * POLICY (high-DPR contract): the DOM public API promises a CLAMPED
+ * `[0, MAX_RECONSTRUCTION_RADIUS]` CSS-px radius whose footprint survives
+ * every SUPPORTED display DPR, so this cap is
+ * `round(MAX_RECONSTRUCTION_RADIUS * 4)` = 16 texels — the documented
+ * supported display-DPR range is `[1, 4]` and inside it a 4-CSS-px request
+ * keeps its exact 4-CSS-px footprint (`radiusTexels / displayDpr == 4`).
+ * BEYOND the supported range the device-texel cost cap wins and silently
+ * reduces the effective CSS footprint (e.g. DPR 5 -> 16/5 = 3.2 CSS px);
+ * that degradation is deliberate and documented here rather than hidden.
+ *
+ * The cap bounds the worst-case tap count `((2r+1)^2 <= 1089)` so the filter
+ * cost stays bounded on any device; it is the ONLY filter-cost bound (the
+ * CSS-space policy clamp lives in the DOM's `scaleShadowOptions`, the single
+ * CSS -> scene-unit conversion point).
  */
-export const MAX_RECONSTRUCTION_RADIUS_TEXELS = 8;
+export const MAX_RECONSTRUCTION_RADIUS_TEXELS = 16;
+
+/** The supported DOM display-DPR range backing the radiusTexels cap above. */
+export const SUPPORTED_DISPLAY_DPR_MAX = 4;
 
 /**
  * Default height-discontinuity gate (SCENE units): neighbors whose full-

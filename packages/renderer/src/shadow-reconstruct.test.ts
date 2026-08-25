@@ -93,16 +93,21 @@ describe("sanitizeReconstructionOptions — #43 option policy", () => {
     expect(sanitizeReconstructionOptions({ radius: 1.2 }, 2).radiusTexels).toBe(
       Math.min(MAX_RECONSTRUCTION_RADIUS_TEXELS, Math.round(2.4)),
     );
-    // the texel conversion is the SINGLE scene-unit -> texel scaling point
+    // the texel conversion is the SINGLE scene-unit -> texel scaling point;
+    // the cap is sized round(4 CSS px * SUPPORTED_DISPLAY_DPR_MAX) so every
+    // radius inside the supported display-DPR range [1, 4] keeps its exact
+    // CSS footprint (see the DPR-contract test below)
     expect(sanitizeReconstructionOptions({ radius: 2 }, 1).radiusTexels).toBe(2);
     expect(sanitizeReconstructionOptions({ radius: 2 }, 1.5).radiusTexels).toBe(3);
     expect(sanitizeReconstructionOptions({ radius: 2 }, 2).radiusTexels).toBe(4);
-    expect(sanitizeReconstructionOptions({ radius: 2 }, 4).radiusTexels).toBe(
+    expect(sanitizeReconstructionOptions({ radius: 2 }, 3).radiusTexels).toBe(6);
+    expect(sanitizeReconstructionOptions({ radius: 2 }, 4).radiusTexels).toBe(8);
+    // the texel cap is the only cost bound (a huge scene-unit radius cannot
+    // blow up the tap count; worst case (2*16+1)^2 = 1089 taps)
+    expect(sanitizeReconstructionOptions({ radius: 99 }, 1).radiusTexels).toBe(
       MAX_RECONSTRUCTION_RADIUS_TEXELS,
     );
-    // the texel cap is the only cost bound (a huge scene-unit radius cannot
-    // blow up the tap count)
-    expect(sanitizeReconstructionOptions({ radius: 99 }, 1).radiusTexels).toBe(
+    expect(sanitizeReconstructionOptions({ radius: 99 }, 4).radiusTexels).toBe(
       MAX_RECONSTRUCTION_RADIUS_TEXELS,
     );
     // non-finite radii fall back to the scene-unit default; NEGATIVE radii
@@ -130,9 +135,9 @@ describe("sanitizeReconstructionOptions — #43 option policy", () => {
   // #43 DPR-invariant CSS-space contract: a CSS-space radius of 2 px
   // reaches the renderer as 2*dpr scene units (DOM-scaled once), and the
   // same CSS footprint (radius/dpr == 2) must come out of the renderer at
-  // every renderer DPR.
-  it("keeps the CSS-space footprint invariant across DPRs when fed DOM-scaled radii", () => {
-    for (const dpr of [1, 1.5, 2]) {
+  // every renderer DPR inside the supported range.
+  it("keeps the CSS-space footprint invariant across the supported display-DPR range", () => {
+    for (const dpr of [1, 1.5, 2, 3, 4]) {
       const cssRadius = 2;
       const domScaledRadius = cssRadius * dpr; // scaleShadowOptions output
       const e = sanitizeReconstructionOptions({ radius: domScaledRadius }, 1);
@@ -141,11 +146,20 @@ describe("sanitizeReconstructionOptions — #43 option policy", () => {
       expect(e.radiusTexels).toBe(Math.round(cssRadius * dpr));
       expect(e.radiusTexels / dpr).toBeCloseTo(cssRadius, 10);
     }
-    // maximum CSS radius (4 px) stays 4 CSS px at every display DPR
-    for (const dpr of [1, 1.5, 2]) {
+    // maximum CSS radius (4 px) stays exactly 4 CSS px at every supported
+    // display DPR — the texel cap (16) never bites inside [1, 4]
+    for (const dpr of [1, 1.5, 2, 3, 4]) {
       const e = sanitizeReconstructionOptions({ radius: 4 * dpr }, 1);
+      expect(e.radiusTexels).toBe(Math.round(4 * dpr));
       expect(e.radiusTexels / dpr).toBeCloseTo(4, 10);
+      expect(e.radiusTexels).toBeLessThanOrEqual(MAX_RECONSTRUCTION_RADIUS_TEXELS);
     }
+    // beyond the supported range the device-texel cost cap wins and the
+    // effective CSS footprint shrinks (documented degradation, not silent):
+    // DPR 5 requests 20 texels but the cap holds it at 16 -> 3.2 CSS px
+    const beyond = sanitizeReconstructionOptions({ radius: 4 * 5 }, 1);
+    expect(beyond.radiusTexels).toBe(MAX_RECONSTRUCTION_RADIUS_TEXELS);
+    expect(beyond.radiusTexels / 5).toBeCloseTo(3.2, 10);
   });
 });
 

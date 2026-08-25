@@ -932,11 +932,12 @@ export class GpuScenePipeline {
   }
 
   /**
-   * Dispose in reverse ownership order — presentation, lighting, shadow,
-   * normal, height, uploader — never touching the foreign canvas/device
-   * resources twice. Idempotent; leaves no usable stale snapshot. Resource
-   * recovery is explicit: construct a fresh pipeline with a fresh
-   * device/context after this call (or after device loss).
+   * Dispose in reverse ownership order — presentation, lighting,
+   * reconstruction, shadow, normal, height, uploader, then the timestamp
+   * profiler — never touching the foreign canvas/device resources twice.
+   * Idempotent; leaves no usable stale snapshot. Resource recovery is
+   * explicit: construct a fresh pipeline with a fresh device/context after
+   * this call (or after device loss).
    */
   dispose(): void {
     if (this.disposed) {

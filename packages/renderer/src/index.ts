@@ -311,6 +311,7 @@ export {
   MAX_RECONSTRUCTION_RADIUS,
   MAX_RECONSTRUCTION_RADIUS_TEXELS,
   RECONSTRUCTION_HEIGHT_GATE,
+  SUPPORTED_DISPLAY_DPR_MAX,
   reconstructVisibility,
   sanitizeReconstructionOptions,
 } from "./shadow-reconstruct";

@@ -142,6 +142,16 @@ describe("scaleShadowOptions", () => {
       radius: 4,
       heightGate: 1,
     });
+    // the supported display-DPR range extends to 4: defaults keep scaling
+    // (the renderer's texel cap is sized to hold the CSS footprint there)
+    expect(scaleShadowOptions({}, 3).reconstruction).toEqual({
+      radius: 6,
+      heightGate: 1.5,
+    });
+    expect(scaleShadowOptions({}, 4).reconstruction).toEqual({
+      radius: 8,
+      heightGate: 2,
+    });
   });
 
   it("clamps the radius in CSS space BEFORE the single dpr scaling", () => {
@@ -155,10 +165,14 @@ describe("scaleShadowOptions", () => {
       radius: 6,
       heightGate: 0.75,
     });
-    // the CSS-space footprint is DPR-invariant: radius/d == 2 at every dpr
-    expect(scaleShadowOptions({ reconstruction: { radius: 2 } }, 1).reconstruction!.radius / 1).toBe(2);
-    expect(scaleShadowOptions({ reconstruction: { radius: 2 } }, 1.5).reconstruction!.radius / 1.5).toBe(2);
-    expect(scaleShadowOptions({ reconstruction: { radius: 2 } }, 2).reconstruction!.radius / 2).toBe(2);
+    // the CSS-space footprint is DPR-invariant across the supported range
+    // [1, 4]: radius/d == 2 at every supported dpr, and a maxed-out
+    // 4-CSS-px request keeps its 4-CSS-px footprint too (the renderer's
+    // round(4 * 4) = 16-texel cap exists exactly for this)
+    for (const dpr of [1, 1.5, 2, 3, 4]) {
+      const scaled = scaleShadowOptions({ reconstruction: { radius: 4 } }, dpr).reconstruction!;
+      expect(scaled.radius / dpr).toBe(4);
+    }
   });
 
   it("forwards enabled verbatim and falls back to the CSS defaults for invalid radii", () => {

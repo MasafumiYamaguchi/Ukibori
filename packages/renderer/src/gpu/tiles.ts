@@ -12,6 +12,10 @@ import {
 } from "./layout";
 import { sanitizeShadowOptions } from "./shadow-pass";
 import type { ShadowOptions } from "../shadow";
+import {
+  computeSoftSampleDirectionVariants,
+  sanitizeAngularRadius,
+} from "../shadow-sampling";
 
 /**
  * #32 conservative tile planner — the standalone, deterministic region
@@ -59,11 +63,18 @@ import type { ShadowOptions } from "../shadow";
  *
  * The dirty rect is then expanded by the DOWNSTREAM KERNEL FOOTPRINTS:
  *
- * - `shadowHalo` expands the scene rect up-... (down-light of every changed
- *   region) by `maxDistance * |L.xy|` per axis: exactly the set of
- *   receivers whose cast-shadow ray can pass through a changed region, so
- *   a changed caster can never leave a stale shadow texel outside the
- *   dirty region. `maxDistance` is the SANITIZED effective shadow option.
+ * - `shadowHalo` / `sampledShadowHaloUnion` expand the scene rect
+ *   up-shadow (down-light of every changed region) per axis by
+ *   `maxDistance * |D.xy|`: exactly the set of receivers whose cast-shadow
+ *   ray can pass through a changed region, so a changed caster can never
+ *   leave a stale shadow texel outside the dirty region. `maxDistance` is
+ *   the SANITIZED effective shadow option (ONE shared scalar for every ray).
+ *   The direction set is the ShadowPass's REAL march set: the CENTER light
+ *   direction on the hard path (#17/#27), and the UNION of every #41/#43
+ *   area-light sample direction (all kernel variants x samples, the exact
+ *   canonical `computeSoftSampleDirectionVariants` arrays) on the soft path —
+ *   a center-only halo would miss receivers reached only by slanted sample
+ *   rays and leave stale soft-shadow texels outside the partial region.
  * - `expandTexelRect` applies the 1-texel halo that covers the normal
  *   kernel (central difference reads `H(T +/- 1)`) and the bevel/profile
  *   boundary support.
@@ -351,22 +362,24 @@ export function expandTexelRect(
 }
 
 /**
- * Conservative down-light shadow expansion of a scene rect: receivers whose
- * cast-shadow ray (marching along the normalized light direction `L.xy`)
- * can pass through the rect are exactly `rect - L.xy * t` for
- * `t in [0, maxDistance]`, whose axis-aligned bound is:
+ * Conservative down-light shadow expansion of a scene rect for ONE march
+ * direction: receivers whose cast-shadow ray (marching along the normalized
+ * direction `D.xy`) can pass through the rect are exactly
+ * `rect - D.xy * t` for `t in [0, maxDistance]`, whose axis-aligned bound is:
  *
- *     left   += maxDistance * max( L.x, 0)
- *     right  += maxDistance * max(-L.x, 0)
- *     top    += maxDistance * max( L.y, 0)
- *     bottom += maxDistance * max(-L.y, 0)
+ *     left   += maxDistance * max( D.x, 0)
+ *     right  += maxDistance * max(-D.x, 0)
+ *     top    += maxDistance * max( D.y, 0)
+ *     bottom += maxDistance * max(-D.y, 0)
  *
  * `maxDistance` is the SANITIZED effective shadow option (default
- * `sceneDiagonal / |L.xy|`). The shadow pass's early-exit bound
- * (`rayZ > maxCasterHeight + bias`) cannot flip a retained texel outside
- * this expansion: beyond the bound no unchanged sample can exceed
- * `rayZ + bias`, and any sample that newly occludes lies in the changed
- * region itself (whose footprint is inside the dirty rect).
+ * `sceneDiagonal / |L.xy|` of the CENTER light direction — the ONE shared
+ * value every #41 sample ray also marches; see `sanitizeShadowOptions`). The
+ * shadow pass's early-exit bound (`rayZ > maxCasterHeight + bias`) cannot
+ * flip a retained texel outside this expansion: beyond the bound no
+ * unchanged sample can exceed `rayZ + bias`, and any sample that newly
+ * occludes lies in the changed region itself (whose footprint is inside the
+ * dirty rect).
  */
 export function shadowHalo(lightX: number, lightY: number, maxDistance: number): ShadowHalo {
   if (!Number.isFinite(maxDistance) || maxDistance < 0) {
@@ -378,6 +391,70 @@ export function shadowHalo(lightX: number, lightY: number, maxDistance: number):
     top: maxDistance * Math.max(lightY, 0),
     bottom: maxDistance * Math.max(-lightY, 0),
   };
+}
+
+/**
+ * #43 conservative shadow halo of the SOFT path: the component-wise UNION of
+ * `shadowHalo(dir.x, dir.y, maxDistance)` over EVERY area-light sample
+ * direction the ShadowPass actually marches on a soft frame — all
+ * `SHADOW_KERNEL_VARIANTS` kernel variants x `samples` Vogel-disk cone
+ * directions, computed by the EXACT canonical host helper the pass uses
+ * (`computeSoftSampleDirectionVariants`; identical f32 components), never a
+ * planner-local approximation. The CENTER direction's halo is included as
+ * the baseline, so the result is always a superset of the historical
+ * hard-path `shadowHalo(L)` — a soft plan can only widen the dirty region,
+ * never shrink it.
+ *
+ * `maxDistance` semantics match the ShadowPass exactly: the pass packs ONE
+ * sanitized scalar (the center-direction default `sceneDiagonal / |L.xy|`
+ * when unconfigured) and every sample ray marches that SAME distance, so the
+ * union reuses it verbatim instead of deriving per-sample defaults.
+ *
+ * Pure and deterministic: the same canonical direction inputs always produce
+ * the same halo. Cost is bounded (<= SHADOW_KERNEL_VARIANTS * 16 directions,
+ * host-only, per partial planning call).
+ */
+export function sampledShadowHaloUnion(
+  lightDirection: { x: number; y: number; z: number },
+  angularRadius: number,
+  samples: number,
+  maxDistance: number,
+): ShadowHalo {
+  if (!Number.isFinite(maxDistance) || maxDistance < 0) {
+    throw new RangeError(`maxDistance must be finite and >= 0, got ${maxDistance}`);
+  }
+  // Conservative baseline: the center direction itself.
+  const center = shadowHalo(lightDirection.x, lightDirection.y, maxDistance);
+  const union = {
+    left: center.left,
+    right: center.right,
+    top: center.top,
+    bottom: center.bottom,
+  };
+  // The EXACT canonical per-variant direction arrays the ShadowPass packs
+  // into its uniform (same f32 components, same variant rotations).
+  const variants = computeSoftSampleDirectionVariants(
+    lightDirection,
+    angularRadius,
+    samples,
+  );
+  for (const dirs of variants) {
+    for (let i = 0; i + 2 < dirs.length; i += 3) {
+      const dx = dirs[i]!;
+      const dy = dirs[i + 1]!;
+      if (dx > 0) {
+        union.left = Math.max(union.left, maxDistance * dx);
+      } else if (dx < 0) {
+        union.right = Math.max(union.right, maxDistance * -dx);
+      }
+      if (dy > 0) {
+        union.top = Math.max(union.top, maxDistance * dy);
+      } else if (dy < 0) {
+        union.bottom = Math.max(union.bottom, maxDistance * -dy);
+      }
+    }
+  }
+  return union;
 }
 
 /** Expand a scene rect by a shadow halo (returns a fresh rect). */
@@ -671,7 +748,22 @@ export function planPartialScene(input: PlanPartialInput): PartialPlan {
     sceneDiagonal,
     lightXYLength,
   });
-  const halo = shadowHalo(header.lightDirection.x, header.lightDirection.y, effective.maxDistance);
+  // #43 the shadow dirty halo must cover EVERY direction the ShadowPass
+  // actually marches. On the soft path (positive sanitized angular radius
+  // AND samples > 1) that is the full kernel-variant x sample cone — the
+  // union of all canonical sample-direction halos; on the hard path it stays
+  // exactly the historical center-direction expansion. Both branches share
+  // the ONE sanitized effective maxDistance the pass packs for every ray.
+  const angularRadius = sanitizeAngularRadius(header.lightAngularRadius);
+  const halo =
+    angularRadius > 0 && effective.samples > 1
+      ? sampledShadowHaloUnion(
+          header.lightDirection,
+          angularRadius,
+          effective.samples,
+          effective.maxDistance,
+        )
+      : shadowHalo(header.lightDirection.x, header.lightDirection.y, effective.maxDistance);
   const expanded = expandSceneRect(diff.dirtySceneRect, halo);
   const raw = sceneRectToTexelRect(expanded, input.dpr, input.renderWidth, input.renderHeight);
   if (raw === null) {
