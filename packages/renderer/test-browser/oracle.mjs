@@ -42,6 +42,8 @@ export function createOracle(api) {
     surfaceHeight,
     computeNormals,
     computeVisibility,
+    reconstructVisibility,
+    sanitizeReconstructionOptions,
     shadePreparedFields,
     resolveMaterial,
     HostBuffer,
@@ -252,6 +254,59 @@ export function createOracle(api) {
       }
     }
     return base;
+  }
+
+  /**
+   * #43 reconstructed-visibility CPU oracle: the ACTUAL TypeScript
+   * `reconstructVisibility` (the semantic reference for the GPU
+   * ReconstructionPass) applied to the raw #41 visibility oracle field.
+   * The filter arithmetic is exact (dyadic visibility values, fixed tap
+   * order, uniform weights), so the comparison policy for the reconstructed
+   * field is the SAME zero-tolerance exact equality as raw visibility — the
+   * two values must be bit-identical on both backends.
+   */
+  function reconstructionOracle(
+    scene,
+    rw,
+    rh,
+    height,
+    objectId,
+    rawVisibility,
+    dpr,
+    reconOptions,
+  ) {
+    if (!scene.surfaces.some((surface) => surface.castsShadow)) {
+      return rawVisibility;
+    }
+    const load = (spec, data, channels) => {
+      const buf = new HostBuffer(spec(rw, rh));
+      for (let g = 0; g < rw * rh; g++) {
+        for (let c = 0; c < channels; c++) {
+          buf.set(g % rw, Math.floor(g / rw), c, data[g * channels + c]);
+        }
+      }
+      return buf;
+    };
+    const recon = reconstructVisibility(
+      load(VISIBILITY_SPEC, rawVisibility, 1),
+      load(HEIGHT_SPEC, height, 1),
+      { objectId: load(OBJECT_ID_SPEC, objectId, 1), dpr },
+      reconOptions ?? {},
+    );
+    const out = new Float32Array(rw * rh);
+    for (let g = 0; g < rw * rh; g++) {
+      out[g] = recon.get(g % rw, Math.floor(g / rw), 0);
+    }
+    return out;
+  }
+
+  /**
+   * #43 effective reconstruction options as the GPU pipeline derives them
+   * for one frame: sanitized with the render DPR, so the oracle and the
+   * shader consume the identical texel radius.
+   */
+  function effectiveReconstructionOptions(scene, dpr, rawOptions) {
+    return sanitizeReconstructionOptions(rawOptions ?? {}, Math.fround(dpr));
   }
 
   /**
@@ -864,7 +919,7 @@ export function createOracle(api) {
   // from the CPU oracle fields. No second formula copy.
   // -------------------------------------------------------------------------
 
-  function presentationReference(scene, dpr, effectiveShadowOptions, ambient, compositeOptions) {
+  function presentationReference(scene, dpr, effectiveShadowOptions, ambient, compositeOptions, reconstructionOptions) {
     const oracle = cpuOracle(scene, dpr);
     const casterOracle = cpuCasterOracle(scene, dpr);
     const normal = normalOracle(
@@ -873,7 +928,7 @@ export function createOracle(api) {
       oracle.rh,
       sanitizeNormalOptions(DPR_NORMAL_OPTIONS[dpr] ?? {}),
     );
-    const visibility = stableShadowOracle(
+    const rawVisibility = stableShadowOracle(
       scene,
       oracle.rw,
       oracle.rh,
@@ -883,6 +938,27 @@ export function createOracle(api) {
       dpr,
       effectiveShadowOptions,
     );
+    // #43: the GPU pipeline reconstructs the soft visibility field before
+    // lighting/presentation whenever the soft path is active and
+    // reconstruction is enabled (default). The reference must mirror that
+    // decision exactly; hard-path frames keep the raw {0,1} bytes.
+    const softActive =
+      Math.fround(scene.light.angularRadius ?? 0) > 0 &&
+      (effectiveShadowOptions.samples ?? 8) > 1;
+    const reconOptions = sanitizeReconstructionOptions(reconstructionOptions ?? {}, Math.fround(dpr));
+    const visibility =
+      softActive && reconOptions.enabled && reconOptions.radiusTexels > 0
+        ? reconstructionOracle(
+            scene,
+            oracle.rw,
+            oracle.rh,
+            oracle.height,
+            oracle.objectId,
+            rawVisibility,
+            dpr,
+            reconstructionOptions,
+          )
+        : rawVisibility;
     const lighting = lightingOracleCPU(
       scene,
       oracle.rw,
@@ -940,6 +1016,8 @@ export function createOracle(api) {
     cpuCasterOracle,
     shadowOracleCPU,
     stableShadowOracle,
+    reconstructionOracle,
+    effectiveReconstructionOptions,
     lightingOracleCPU,
     presentationReference,
     effectiveShadowOptions,
@@ -960,6 +1038,7 @@ export function createOracle(api) {
     sanitizerApi: {
       sanitizeNormalOptions,
       sanitizeShadowOptions,
+      sanitizeReconstructionOptions,
       sanitizeAmbient,
     },
     // canonicalization (static CPU goldens)

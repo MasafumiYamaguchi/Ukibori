@@ -246,8 +246,26 @@ height -> per-pixel ray march toward the light -> hard 0/1 visibility mask
 - visibility scales the direct (diffuse + specular) terms in the lighting
   pass; fully shadowed pixels keep only their ambient base color.
 - This is a real visibility test on the height field — `box-shadow` /
-  `drop-shadow` / translated silhouettes are never used. Soft shadows are a
-  future extension on top of the hard mask.
+  `drop-shadow` / translated silhouettes are never used.
+- Soft shadows (#41): a finite apparent light size (`angularRadius > 0`)
+  samples a deterministic golden-angle disk cone around the center direction
+  per texel and writes the lit fraction `visibleRayCount / sampleCount` as a
+  continuous visibility scalar. Sample counts are restricted to the dyadic
+  set `{1, 4, 8, 16}` so every fraction is exactly representable.
+- Decorrelated sampling (#43): neighboring texels select one of 8
+  precomputed f32 rotations of the disk pattern through a stateless integer
+  hash of their render texel coordinates (mirrored exactly in CPU and WGSL),
+  so the sampled shadow silhouettes become spatially decorrelated sampling
+  error instead of layered hard shadows.
+- Edge-aware reconstruction (#43): on the soft path the raw visibility field
+  passes through a small gated box filter (`reconstructVisibility` /
+  `ReconstructionPass`) before lighting/presentation. The filter uses fixed
+  uniform weights with height and ownership edge gates — it never creates
+  the penumbra shape (the #41 ray geometry does) and never enlarges the
+  footprint beyond its radius. Hard-path frames (and `enabled: false`)
+  bypass it, preserving every historical {0, 1} byte. The raw field stays
+  available for debugging and parity (`reconstructionActive` on the pipeline
+  frame stats reports which field lighting consumed).
 
 ### Resolution / devicePixelRatio contract
 

@@ -27,7 +27,7 @@
 // supported by the scene contract — there is NO rotation/skew support, and
 // the catalog never claims any.
 
-export const CATALOG_VERSION = 2;
+export const CATALOG_VERSION = 3;
 
 // ---------------------------------------------------------------------------
 // Central comparison policy table (#30). One declaration, used by the
@@ -177,6 +177,8 @@ export const CATEGORIES = Object.freeze([
   "penumbra-separation",
   "sampling-boundary",
   "threshold-equality",
+  // #43 edge-aware visibility reconstruction
+  "reconstruction",
   "cast-flag",
   "receive-flag",
   // lighting / environment / exposure
@@ -259,6 +261,7 @@ export const REQUIRED_COVERAGE = Object.freeze([
   "canvas-transparency",
   "canvas-resize",
   "canvas-clipped-output",
+  "reconstruction",
 ]);
 
 /** Buffers every integrated compute fixture compares (full-chain passes). */
@@ -585,6 +588,19 @@ export function createCatalog(api) {
     };
   }
 
+  /**
+   * #43 reconstructed-soft-shadow fixture: the #41 soft scene with explicit
+   * reconstruction options; the harness ALSO dispatches the real
+   * ReconstructionPass and compares its output against the actual
+   * TypeScript reconstructVisibility oracle (exact equality).
+   */
+  function softShadowReconstructionScene(angularRadius, samples, separation, radius) {
+    return {
+      ...softShadowScene(angularRadius, samples, separation),
+      reconstructionOptions: { enabled: true, radius },
+    };
+  }
+
   /** Non-casting top (4.5) fully covering a lower casting slab (4). */
   function nonCastingTopScene() {
     return shadowScene(16, 16, [
@@ -701,6 +717,18 @@ export function createCatalog(api) {
         light: { direction: LIGHT_FROM_RIGHT, intensity: 1, angularRadius },
       }),
       shadowOptions: { samples },
+    };
+  }
+
+  /**
+   * #43 reconstructed variant of the mask/glyph caster: the glyph silhouette
+   * must be preserved by the reconstruction's ownership/height edge gates —
+   * the reconstructed field never bleeds across the glyph boundary.
+   */
+  function softShadowMaskCasterReconstruction(angularRadius, samples, radius) {
+    return {
+      ...softShadowMaskCaster(angularRadius, samples),
+      reconstructionOptions: { enabled: true, radius },
     };
   }
 
@@ -888,6 +916,31 @@ export function createCatalog(api) {
       // taller caster = larger separation = wider penumbra ring
       ...softShadowScene(Math.fround(0.25), 8, 12),
       name: "shadow-soft-tall-caster-separation",
+      dpr: 1,
+    },
+    // #43 edge-aware reconstruction of the raw soft field: 4-sample inputs
+    // are noisy (layered hard shadows); the reconstructed field must match
+    // the TypeScript reconstructVisibility oracle EXACTLY on the real GPU.
+    {
+      ...softShadowReconstructionScene(Math.fround(0.25), 4, 6, 2),
+      name: "shadow-reconstruction-radius-0.25-samples-4-r2",
+      dpr: 1,
+    },
+    {
+      ...softShadowReconstructionScene(Math.fround(0.15), 8, 6, 2),
+      name: "shadow-reconstruction-radius-0.15-samples-8-r2",
+      dpr: 1,
+    },
+    {
+      // larger caster/receiver separation: the reconstruction must follow
+      // the physical penumbra widening (never a fixed blur)
+      ...softShadowReconstructionScene(Math.fround(0.25), 8, 12, 3),
+      name: "shadow-reconstruction-tall-separation-r3",
+      dpr: 1,
+    },
+    {
+      ...softShadowMaskCasterReconstruction(Math.fround(0.25), 8, 2),
+      name: "shadow-reconstruction-mask-caster-r2",
       dpr: 1,
     },
     // non-dyadic step: pins the explicit f32-multiple march series
@@ -1303,6 +1356,17 @@ export function createCatalog(api) {
       dpr: 1,
       compositeOptions: { shadowColor: [200, 40, 220], shadowAlpha: 0.5 },
     },
+    // #43 reconstructed soft shadow reaching the CANVAS: the presentation
+    // pipeline consumes the RECONSTRUCTED visibility (default-enabled on the
+    // soft path), so the canvas bytes must equal the reconstructVisibility
+    // oracle composed with the same tint/alpha. The explicit radius pins the
+    // option forwarding end-to-end.
+    {
+      name: "present-reconstructed-soft-shadow",
+      ...softShadowReconstructionScene(Math.fround(0.25), 4, 6, 2),
+      dpr: 1,
+      compositeOptions: { shadowColor: [200, 40, 220], shadowAlpha: 0.5 },
+    },
     // overlap/ownership, clipped/offscreen surfaces and empty scene behavior
     { name: "present-overlap-ownership", scene: tieOverlapScene().scene, dpr: 1 },
     { name: "present-clipped-offscreen", scene: clipScene(), dpr: 1 },
@@ -1468,6 +1532,11 @@ export function createCatalog(api) {
       "penumbra-separation",
     ],
     "shadow-soft-mask-caster": ["shadow-visibility", "soft-shadow", "mask-shape", "glyph-shape"],
+    // #43 reconstructed soft shadows (edge-aware visibility reconstruction)
+    "shadow-reconstruction-radius-0.25-samples-4-r2": ["shadow-visibility", "soft-shadow", "reconstruction"],
+    "shadow-reconstruction-radius-0.15-samples-8-r2": ["shadow-visibility", "soft-shadow", "reconstruction"],
+    "shadow-reconstruction-tall-separation-r3": ["shadow-visibility", "soft-shadow", "reconstruction"],
+    "shadow-reconstruction-mask-caster-r2": ["shadow-visibility", "soft-shadow", "reconstruction", "mask-shape", "glyph-shape"],
     "shadow-non-binary-step-0.1": ["shadow-visibility", "shadow-options"],
     "shadow-f32-vs-f64-equality": ["shadow-visibility", "threshold-equality"],
     "shadow-frac-dpr1": ["shadow-visibility", "dpr-1", "fractional-extent"],
@@ -1515,6 +1584,14 @@ export function createCatalog(api) {
       "canvas-transparency",
       "composite-options",
       "soft-shadow",
+    ],
+    "present-reconstructed-soft-shadow": [
+      "canvas-composition",
+      "canvas-format-normalization",
+      "canvas-transparency",
+      "composite-options",
+      "soft-shadow",
+      "reconstruction",
     ],
     "present-overlap-ownership": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "overlap", "ownership-tie", "paint-order"],
     "present-clipped-offscreen": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "clipping", "offscreen", "canvas-clipped-output"],

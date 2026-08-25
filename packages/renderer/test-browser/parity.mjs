@@ -544,6 +544,59 @@ async function runFixture(device, fixture) {
       result.casterTexels = cpu.rw * cpu.rh;
       result.caster = oracle.compareCasterHeight(fixture, casterOracle.height, casterBytes, cpu.rw);
 
+      // #43 reconstruction stage: fixtures declaring `reconstructionOptions`
+      // also dispatch the real ReconstructionPass through the public helper
+      // and compare its output against the ACTUAL TypeScript
+      // reconstructVisibility oracle (same zero-tolerance exact policy as
+      // raw visibility — the filter arithmetic is exact).
+      if (fixture.reconstructionOptions !== undefined) {
+        const reconstructionPass = new api.ReconstructionPass(device);
+        reconstructionPass.dispatch({
+          rawVisibility: {
+            buffer: shadowSnapshot.output.buffer,
+            byteLength: shadowSnapshot.output.byteLength,
+            format: "f32",
+            usage: shadowSnapshot.output.usage,
+            width: shadowSnapshot.width,
+            height: shadowSnapshot.height,
+            provenance: shadowSnapshot.provenance,
+          },
+          ...shadowInputs,
+          options: fixture.reconstructionOptions,
+          dpr: fixture.dpr ?? 1,
+        });
+        const reconstructionSnapshot = reconstructionPass.getSnapshot();
+        const [reconstructedBytes] = await Promise.all([
+          readback(
+            device,
+            reconstructionSnapshot.output.buffer,
+            reconstructionSnapshot.output.byteLength,
+          ),
+        ]);
+        const reconstructed = new Float32Array(
+          reconstructedBytes.buffer,
+          reconstructedBytes.byteOffset,
+          reconstructedBytes.byteLength / 4,
+        );
+        const reconstructionOracle = oracle.reconstructionOracle(
+          fixture.scene,
+          cpu.rw,
+          cpu.rh,
+          cpu.height,
+          cpu.objectId,
+          visibilityOracle,
+          fixture.dpr ?? 1,
+          fixture.reconstructionOptions,
+        );
+        result.reconstructionTexels = cpu.rw * cpu.rh;
+        result.reconstruction = oracle.compareVisibility(
+          fixture,
+          reconstructionOracle,
+          reconstructed,
+          cpu.rw,
+        );
+      }
+
       // #28 lighting stage: consume the #25 materialId, #26 normal and #27
       // visibility fields DIRECTLY (through the public helpers, whose
       // per-HeightPass-dispatch provenance is propagated into the
@@ -1134,6 +1187,7 @@ async function runPresentationFixture(device, fixture) {
         snapshot.shadowPass.options,
         snapshot.lightingPass.ambient,
         frame.compositeOptions,
+        frame.shadowOptions?.reconstruction,
       );
       const compare = oracle.compareCanvas(fixture, reference.ref, gpu, width);
       compared.push({ width, height, texels: reference.texels, compare });
@@ -2496,6 +2550,8 @@ async function main() {
     let totalShadowTexels = 0;
     let totalCasterMismatches = 0;
     let totalCasterTexels = 0;
+    let totalReconstructionMismatches = 0;
+    let totalReconstructionTexels = 0;
     let casterMaxError = 0;
     let maxComponentError = 0;
     let maxLengthError = 0;
@@ -2542,6 +2598,11 @@ async function main() {
         totalCasterMismatches += caster.mismatches ?? 0;
         totalCasterTexels += result.casterTexels ?? 0;
         casterMaxError = Math.max(casterMaxError, caster.maxError ?? 0);
+      }
+      const reconstruction = result.reconstruction;
+      if (reconstruction !== undefined) {
+        totalReconstructionMismatches += reconstruction.mismatches ?? 0;
+        totalReconstructionTexels += result.reconstructionTexels ?? 0;
       }
       const lighting = result.lighting;
       if (lighting !== undefined) {
@@ -2703,6 +2764,8 @@ async function main() {
     summaryData.shadowMismatches = totalShadowMismatches;
     summaryData.casterTexels = totalCasterTexels;
     summaryData.casterMismatches = totalCasterMismatches;
+    summaryData.reconstructionTexels = totalReconstructionTexels;
+    summaryData.reconstructionMismatches = totalReconstructionMismatches;
     summaryData.lightingTexels = totalLightingTexels;
     summaryData.diffuseMismatches = totalDiffuseMismatches;
     summaryData.specularMismatches = totalSpecularMismatches;
@@ -2763,6 +2826,15 @@ async function main() {
         MARKER_FAIL,
         `caster-height mismatches: ${totalCasterMismatches} of ${totalCasterTexels} texels ` +
           `(tolerance 1e-4, measured max error ${casterMaxError.toExponential(3)})`,
+      );
+      return;
+    }
+    if (totalReconstructionMismatches > 0) {
+      finish(
+        MARKER_FAIL,
+        `reconstructed-visibility mismatches: ${totalReconstructionMismatches} of ` +
+          `${totalReconstructionTexels} texels across ${fixtureResults.length} fixtures ` +
+          `(exact equality required — the filter arithmetic is exact)`,
       );
       return;
     }
@@ -2969,6 +3041,7 @@ async function main() {
         `max length error ${maxLengthError.toExponential(3)}; ` +
         `shadow ${totalShadowMismatches}/${totalShadowTexels} visibility texels exact, ` +
         `caster tolerance 1e-4 max err ${casterMaxError.toExponential(3)}; ` +
+        `reconstructed visibility ${totalReconstructionMismatches}/${totalReconstructionTexels} texels exact; ` +
         `lighting ${totalDiffuseMismatches + totalSpecularMismatches + totalColorHard}/${totalLightingTexels} texels ` +
         `(tolerance 1e-3, max diffuse err ${maxDiffuseError.toExponential(3)}, ` +
         `max specular err ${maxSpecularError.toExponential(3)}, ` +
