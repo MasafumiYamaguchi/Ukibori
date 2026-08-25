@@ -104,4 +104,44 @@ describe("scaleShadowOptions", () => {
       bias: 1,
     });
   });
+
+  // #43: the reconstruction radius is a CSS-pixel LENGTH — scaled once by
+  // dpr exactly like step/bias/maxDistance; `enabled` is a boolean forwarded
+  // verbatim and the dimensionless edge gates are never scaled.
+  it("scales the reconstruction radius by dpr exactly once", () => {
+    expect(scaleShadowOptions({ reconstruction: { enabled: true, radius: 2 } }, 1)).toEqual({
+      stepSize: 0.5,
+      bias: 0.5,
+      reconstruction: { enabled: true, radius: 2 },
+    });
+    expect(
+      scaleShadowOptions({ reconstruction: { enabled: true, radius: 2 } }, 2),
+    ).toEqual({
+      stepSize: 1,
+      bias: 1,
+      reconstruction: { enabled: true, radius: 4 },
+    });
+    expect(
+      scaleShadowOptions({ reconstruction: { enabled: false, radius: 1.5 } }, 3),
+    ).toEqual({
+      stepSize: 1.5,
+      bias: 1.5,
+      reconstruction: { enabled: false, radius: 4.5 },
+    });
+    // no reconstruction -> no reconstruction key at all (full-replacement
+    // option state stays clean)
+    expect("reconstruction" in scaleShadowOptions({}, 2)).toBe(false);
+  });
+
+  it("forwards only finite non-negative reconstruction radii", () => {
+    expect(
+      scaleShadowOptions({ reconstruction: { radius: NaN } }, 2).reconstruction,
+    ).toEqual({ enabled: undefined, radius: undefined });
+    expect(
+      scaleShadowOptions({ reconstruction: { radius: -1 } }, 2).reconstruction,
+    ).toEqual({ enabled: undefined, radius: undefined });
+    expect(
+      scaleShadowOptions({ reconstruction: { enabled: false } }, 2).reconstruction,
+    ).toEqual({ enabled: false, radius: undefined });
+  });
 });

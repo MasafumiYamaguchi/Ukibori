@@ -131,10 +131,12 @@ export interface ScaledShadowOptions {
   maxDistance?: number;
   /** #41 area-light sample count, forwarded UNSCALED */
   samples?: 1 | 4 | 8 | 16;
+  /** #43 reconstruction options; the radius is a LENGTH scaled by dpr once */
+  reconstruction?: { enabled?: boolean; radius?: number };
 }
 
 /**
- * Map CSS-space shadow options (#17/#41) through the dpr similarity transform.
+ * Map CSS-space shadow options (#17/#41/#43) through the dpr similarity transform.
  *
  * The renderer's shadow pass interprets `stepSize` / `bias` / `maxDistance`
  * in SCENE units, and the scene is dpr-scaled by `buildScene`. To keep the
@@ -149,6 +151,11 @@ export interface ScaledShadowOptions {
  *
  * #41: `samples` is a COUNT, not a length — it is forwarded through
  * UNSCALED (a sample count must never change with devicePixelRatio).
+ *
+ * #43: the reconstruction `radius` is a CSS-pixel LENGTH — it is scaled
+ * ONCE by dpr here (the renderer's single conversion point is the texel
+ * radius; the dimensionless edge gates are never scaled). `enabled` is a
+ * boolean, forwarded verbatim.
  */
 export function scaleShadowOptions(
   options: {
@@ -156,6 +163,7 @@ export function scaleShadowOptions(
     bias?: number;
     maxDistance?: number;
     samples?: 1 | 4 | 8 | 16;
+    reconstruction?: { enabled?: boolean; radius?: number };
   },
   dpr: number,
 ): ScaledShadowOptions {
@@ -167,14 +175,22 @@ export function scaleShadowOptions(
   const maxDistance = isFiniteStrictPositive(options.maxDistance)
     ? options.maxDistance! * d
     : undefined;
-  return maxDistance === undefined
-    ? { stepSize, bias, ...(options.samples !== undefined ? { samples: options.samples } : {}) }
-    : {
-        stepSize,
-        bias,
-        maxDistance,
-        ...(options.samples !== undefined ? { samples: options.samples } : {}),
-      };
+  const reconstruction =
+    options.reconstruction === undefined
+      ? undefined
+      : {
+          enabled: options.reconstruction.enabled,
+          radius: isFiniteNonNegative(options.reconstruction.radius)
+            ? options.reconstruction.radius! * d
+            : undefined,
+        };
+  return {
+    stepSize,
+    bias,
+    ...(maxDistance !== undefined ? { maxDistance } : {}),
+    ...(options.samples !== undefined ? { samples: options.samples } : {}),
+    ...(reconstruction !== undefined ? { reconstruction } : {}),
+  };
 }
 
 function isFiniteStrictPositive(v: number | undefined): v is number {

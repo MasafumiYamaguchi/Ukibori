@@ -158,8 +158,8 @@ export interface SurfaceImage {
   data: Uint8ClampedArray<ArrayBuffer>;
 }
 
-/** Renderer options forwarded to the shadow pass (#17/#41). All lengths are
- * in CSS-space units: the DOM layer maps them through the dpr similarity
+/** Renderer options forwarded to the shadow pass (#17/#41/#43). All lengths
+ * are in CSS-space units: the DOM layer maps them through the dpr similarity
  * transform before they reach the renderer, so cast shadows are invariant
  * under devicePixelRatio. Invalid values fall back to the defaults
  * (step 0.5 / bias 0.5 CSS px; maxDistance derived from the scene diagonal).
@@ -175,6 +175,13 @@ export interface DomShadowOptions {
    * representable; anything else falls back to the renderer default (8).
    */
   samples?: 1 | 4 | 8 | 16;
+  /**
+   * #43 edge-aware penumbra reconstruction of the SOFT visibility field.
+   * `radius` is a CSS-pixel LENGTH (scaled once by dpr, exactly like every
+   * other shadow length); `enabled` defaults true. Hard-path frames always
+   * bypass the filter regardless of this option.
+   */
+  reconstruction?: { enabled?: boolean; radius?: number };
 }
 
 /**
