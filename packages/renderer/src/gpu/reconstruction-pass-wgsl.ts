@@ -29,10 +29,11 @@
  *   silhouettes or steep bevels.
  *
  * Surviving taps share ONE fixed weight; the output is `sum / taps`
- * clamped into [0, 1] (`taps == 0` keeps the center value). Visibility
- * values are dyadic k/n rationals, so both the f32 accumulation and the f64
- * host reference sum EXACTLY — identical results by construction, with the
- * tap order additionally mirrored line-by-line.
+ * clamped into [0, 1] (`taps == 0` keeps the center value). The tap order
+ * mirrors the CPU reference line-by-line; the quotient `sum / tapCount` is
+ * NOT dyadic, so cross-backend parity uses the documented tight tolerance
+ * (never a bit-identical promise — the GPU accumulates/divides in f32, the
+ * CPU rounds the exact f64 quotient once).
  *
  * ## Region dispatch / halo (#32/#43)
  *

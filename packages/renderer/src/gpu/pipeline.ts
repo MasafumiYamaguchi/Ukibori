@@ -463,7 +463,6 @@ export class GpuScenePipeline {
     const planningHostMs = performance.now() - planningStart;
     const region: BandRegion | undefined =
       plan.mode === "partial" && plan.band !== null ? plan.band : undefined;
-    const dispatchRegion = region === undefined ? undefined : { region };
     // #32 ACTUAL height-stage culling: on a partial frame the HeightPass
     // compose shaders iterate ONLY the band's candidate ORIGINAL surface
     // indices (packed into the reused maskMeta buffer); on full frames the
@@ -531,13 +530,52 @@ export class GpuScenePipeline {
     }
     const heightSnapshot = this.heightPass.getSnapshot();
 
+    // #43 reconstruction gating — computed BEFORE the normal pass because
+    // the reconstruction filter reads a radius of neighbors, so on a partial
+    // frame the filter's WRITE region and every downstream consumer of its
+    // output (normal / reconstruction / lighting) must be EXPANDED by the
+    // texel radius. The filter runs ONLY on soft-shadow frames
+    // (angularRadius > 0 && sanitized samples > 1) with a positive effective
+    // radius and `enabled !== false`. Hard-path frames bypass the stage so
+    // the historical {0,1} field — and therefore every downstream byte — is
+    // preserved; lighting/presentation then consume the RAW shadow output.
+    const parsedFrameHeader = parseHeader(scene.bytes);
+    const softShadowActive =
+      sanitizeAngularRadius(parsedFrameHeader.lightAngularRadius) > 0 &&
+      sanitizeShadowSamples(input.shadowOptions?.samples) > 1;
+    const reconEffective = sanitizeReconstructionOptions(
+      input.shadowOptions?.reconstruction,
+      heightSnapshot.dpr,
+    );
+    const reconstructionActive =
+      softShadowActive && reconEffective.enabled && reconEffective.radiusTexels > 0;
+    // #43 partial-recompute halo: when the reconstruction filter is active on
+    // a PARTIAL frame, its output — and therefore the shading that consumes
+    // it — must be recomputed for the band EXPANDED by the texel radius on
+    // each side (clipped to the frame). This is the #43 requirement that the
+    // reconstruction write region is propagated to downstream stages: without
+    // it, lighting would recompute ONLY the original band and the halo rows
+    // would keep stale color while their reconstructed visibility changed.
+    // Out-of-band READS (raw visibility / height within the filter radius)
+    // hit retained texels the #32 planner's shadow halo proves unchanged, so
+    // the shadow and height passes keep their historical band.
+    const reconRegion: BandRegion | undefined =
+      reconstructionActive && region !== undefined
+        ? (expandBandRows(region, reconEffective.radiusTexels, heightSnapshot.height) ??
+          undefined)
+        : undefined;
+    const lightingRegion = reconRegion ?? region;
+
     let normal: NormalPassDispatchStats;
     if (executed.has("normal")) {
       const t0 = performance.now();
       normal = this.normalPass.dispatch({
         height: normalHeightBindingFromHeightPass(heightSnapshot),
         options: input.normalOptions,
-        region,
+        // #43: on a partial soft frame the normal field must be fresh across
+        // the same expanded region lighting consumes, so the halo rows never
+        // read a stale normal computed from pre-edit heights.
+        region: lightingRegion,
         timestampWrites: timestampFrame.getTimestampWrites("normal"),
       });
       const hostMs = performance.now() - t0;
@@ -581,34 +619,8 @@ export class GpuScenePipeline {
     }
     const shadowSnapshot = this.shadowPass.getSnapshot();
 
-    // #43 reconstruction gating: the filter runs ONLY on soft-shadow frames
-    // (angularRadius > 0 && sanitized samples > 1) with a positive effective
-    // radius and `enabled !== false`. Hard-path frames bypass the stage so
-    // the historical {0,1} field — and therefore every downstream byte — is
-    // preserved; lighting/presentation then consume the RAW shadow output.
-    const parsedFrameHeader = parseHeader(scene.bytes);
-    const softShadowActive =
-      sanitizeAngularRadius(parsedFrameHeader.lightAngularRadius) > 0 &&
-      shadowSnapshot.options.samples > 1;
-    const reconEffective = sanitizeReconstructionOptions(
-      input.shadowOptions?.reconstruction,
-      heightSnapshot.dpr,
-    );
-    const reconstructionActive =
-      softShadowActive && reconEffective.enabled && reconEffective.radiusTexels > 0;
-
     let reconstruction: ReconstructionPassDispatchStats;
     if (executed.has("reconstruction") && reconstructionActive) {
-      // #43 partial-recompute halo: the filter reads raw visibility of
-      // neighbors, so the dispatched band is EXPANDED by the texel radius on
-      // each side (clipped to the frame). Every consumed output row (the
-      // lighting band below) is written this frame; out-of-band reads hit
-      // retained raw texels the planner's shadow halo proves unchanged.
-      const reconRegion = expandBandRows(
-        region ?? null,
-        reconEffective.radiusTexels,
-        heightSnapshot.height,
-      );
       const t0 = performance.now();
       reconstruction = this.reconstructionPass.dispatch({
         rawVisibility: {
@@ -623,7 +635,7 @@ export class GpuScenePipeline {
         ...shadowHeightBindingsFromHeightPass(heightSnapshot),
         options: input.shadowOptions?.reconstruction,
         dpr: heightSnapshot.dpr,
-        region: reconRegion ?? undefined,
+        region: reconRegion,
         timestampWrites: timestampFrame.getTimestampWrites("reconstruction"),
       });
       const hostMs = performance.now() - t0;
@@ -656,7 +668,10 @@ export class GpuScenePipeline {
             ? lightingVisibilityBindingFromReconstructionPass(reconstructionSnapshot)
             : lightingVisibilityBindingFromShadowPass(shadowSnapshot),
         options: input.lightingOptions,
-        region,
+        // #43: lighting recomputes the FULL region the reconstruction wrote
+        // (band + filter halo), so the presented color is never stale where
+        // the reconstructed visibility changed.
+        region: lightingRegion,
         timestampWrites: timestampFrame.getTimestampWrites("lighting"),
       });
       const hostMs = performance.now() - t0;

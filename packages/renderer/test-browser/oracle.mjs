@@ -260,10 +260,13 @@ export function createOracle(api) {
    * #43 reconstructed-visibility CPU oracle: the ACTUAL TypeScript
    * `reconstructVisibility` (the semantic reference for the GPU
    * ReconstructionPass) applied to the raw #41 visibility oracle field.
-   * The filter arithmetic is exact (dyadic visibility values, fixed tap
-   * order, uniform weights), so the comparison policy for the reconstructed
-   * field is the SAME zero-tolerance exact equality as raw visibility — the
-   * two values must be bit-identical on both backends.
+   *
+   * The comparison policy for the reconstructed field is a SEPARATE,
+   * documented tight tolerance (`compareReconstructedVisibility`): the gated
+   * tap average's quotient is not dyadic (3/25, 7/49, ...), so the CPU's
+   * exact f64 quotient rounded to f32 once and the GPU's f32 accumulation
+   * must NOT be assumed bit-identical across legal WebGPU backends. Raw
+   * #41 visibility keeps its EXACT (zero-tolerance) contract.
    */
   function reconstructionOracle(
     scene,
@@ -566,6 +569,86 @@ export function createOracle(api) {
       }
     }
     return { mismatches, samples };
+  }
+
+  /**
+   * #43 reconstructed-visibility comparison policy.
+   *
+   * Raw #41 soft visibility (`visibleSamples / samples`, dyadic k/n) keeps
+   * the EXACT equality contract — see `compareVisibility`. The RECONSTRUCTED
+   * field, however, is a gated tap AVERAGE `sum / tapCount` whose quotient is
+   * NOT dyadic (3/25, 7/49, ...): the CPU reference rounds the exact f64
+   * quotient to f32 once, while the GPU accumulates and divides in f32, so
+   * bit-identity must NOT be guaranteed across legal WebGPU backends (driver
+   * division rounding, relaxed evaluation). The documented policy is therefore
+   * a TIGHT NUMERIC TOLERANCE plus a strict domain audit:
+   *
+   * - every GPU value must be finite and inside [0, 1]
+   * - `abs(gpu - oracle) <= RECONSTRUCTION_VISIBILITY_TOLERANCE` (1e-6,
+   *   roughly 16-30 f32 ulp of the [0,1] range — far below any perceptual
+   *   threshold, chosen after the ULP evidence of the f32-accumulation
+   *   simulation in shadow-reconstruct.test.ts, which measures 0 ulp for the
+   *   exact-dyadic accumulation + single correctly-rounded division and
+   *   reserves headroom for backend variance)
+   * - the measured max absolute error and max ULP error are REPORTED with the
+   *   fixture result so regressions surface even when they stay under the
+   *   tolerance.
+   */
+  const RECONSTRUCTION_VISIBILITY_TOLERANCE = 1e-6;
+
+  /** IEEE f32 ULP of a normalized value (all reconstruction values are in
+   * [0, 1], so the exponent-based definition is exact for them). */
+  function f32Ulp(value) {
+    const v = Math.abs(value);
+    if (v === 0) {
+      return 1.4e-45; // f32 minimum subnormal
+    }
+    if (v < 1.18e-38) {
+      return 1.4e-45;
+    }
+    return Math.pow(2, Math.floor(Math.log2(v)) - 23);
+  }
+
+  function compareReconstructedVisibility(fixture, oracle, gpu, width) {
+    const texels = oracle.length;
+    let mismatches = 0;
+    let maxAbsError = 0;
+    let maxUlpError = 0;
+    const samples = [];
+    for (let g = 0; g < texels; g++) {
+      const v = gpu[g];
+      const o = oracle[g];
+      const absError = Math.abs(v - o);
+      const ulpError = absError / f32Ulp(o);
+      if (Number.isFinite(absError)) {
+        maxAbsError = Math.max(maxAbsError, absError);
+        maxUlpError = Math.max(maxUlpError, ulpError);
+      }
+      const bad =
+        !Number.isFinite(v)
+          ? `non-finite ${v}`
+          : v < 0 || v > 1
+            ? `out of [0,1]: ${v}`
+            : !(absError <= RECONSTRUCTION_VISIBILITY_TOLERANCE)
+              ? `|recon diff| ${absError.toExponential(3)} > ${RECONSTRUCTION_VISIBILITY_TOLERANCE}`
+              : null;
+      if (bad !== null) {
+        mismatches += 1;
+        if (samples.length < 8) {
+          samples.push(mismatchReport(
+            fixture,
+            "visibility-reconstructed",
+            g,
+            width,
+            o,
+            v,
+            absError,
+            { tolerance: RECONSTRUCTION_VISIBILITY_TOLERANCE },
+          ));
+        }
+      }
+    }
+    return { mismatches, maxAbsError, maxUlpError, samples };
   }
 
   /** #27 caster-height comparison: the tight #25 tolerance plus the max error. */
@@ -1017,6 +1100,8 @@ export function createOracle(api) {
     shadowOracleCPU,
     stableShadowOracle,
     reconstructionOracle,
+    compareReconstructedVisibility,
+    RECONSTRUCTION_VISIBILITY_TOLERANCE,
     effectiveReconstructionOptions,
     lightingOracleCPU,
     presentationReference,

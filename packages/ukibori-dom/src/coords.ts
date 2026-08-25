@@ -1,3 +1,8 @@
+import {
+  DEFAULT_RECONSTRUCTION_RADIUS,
+  MAX_RECONSTRUCTION_RADIUS,
+  RECONSTRUCTION_HEIGHT_GATE,
+} from "ukibori-renderer";
 import type { Region } from "./types";
 
 /**
@@ -131,9 +136,18 @@ export interface ScaledShadowOptions {
   maxDistance?: number;
   /** #41 area-light sample count, forwarded UNSCALED */
   samples?: 1 | 4 | 8 | 16;
-  /** #43 reconstruction options; the radius is a LENGTH scaled by dpr once */
-  reconstruction?: { enabled?: boolean; radius?: number };
+  /** #43 reconstruction options mapped to scene units (see `scaleShadowOptions`) */
+  reconstruction?: { enabled?: boolean; radius: number; heightGate: number };
 }
+
+/**
+ * CSS-space reconstruction policy (#43): the public `radius` is clamped into
+ * `[0, MAX_RECONSTRUCTION_RADIUS]` CSS px and defaults to
+ * `DEFAULT_RECONSTRUCTION_RADIUS` CSS px; the height gate defaults to
+ * `RECONSTRUCTION_HEIGHT_GATE` CSS px. These numeric values are the
+ * renderer's documented constants — this layer is the SINGLE place the
+ * CSS-space contract is enforced and converted to scene units.
+ */
 
 /**
  * Map CSS-space shadow options (#17/#41/#43) through the dpr similarity transform.
@@ -152,10 +166,16 @@ export interface ScaledShadowOptions {
  * #41: `samples` is a COUNT, not a length — it is forwarded through
  * UNSCALED (a sample count must never change with devicePixelRatio).
  *
- * #43: the reconstruction `radius` is a CSS-pixel LENGTH — it is scaled
- * ONCE by dpr here (the renderer's single conversion point is the texel
- * radius; the dimensionless edge gates are never scaled). `enabled` is a
- * boolean, forwarded verbatim.
+ * #43: the reconstruction options are LENGTHS in the renderer's SCENE units
+ * (device px here), so THIS function is the single CSS-space -> scene-unit
+ * conversion point: the public CSS-px `radius` (clamped into
+ * `[0, MAX_RECONSTRUCTION_RADIUS]` CSS px, default 2 CSS px) is multiplied
+ * by dpr exactly once, and the CSS-space height gate (0.5 CSS px) is scaled
+ * the same way — the renderer then converts the scene-unit radius to texels
+ * with its own dpr (1 on both DOM paths), keeping the CSS-space footprint
+ * and edge-preservation identical at every display DPR. The defaults are
+ * ALWAYS materialized so an unspecified option cannot silently fall back to
+ * the renderer's scene-unit default (which would shrink with dpr).
  */
 export function scaleShadowOptions(
   options: {
@@ -163,7 +183,7 @@ export function scaleShadowOptions(
     bias?: number;
     maxDistance?: number;
     samples?: 1 | 4 | 8 | 16;
-    reconstruction?: { enabled?: boolean; radius?: number };
+    reconstruction?: { enabled?: boolean; radius?: number; heightGate?: number };
   },
   dpr: number,
 ): ScaledShadowOptions {
@@ -175,21 +195,30 @@ export function scaleShadowOptions(
   const maxDistance = isFiniteStrictPositive(options.maxDistance)
     ? options.maxDistance! * d
     : undefined;
-  const reconstruction =
-    options.reconstruction === undefined
-      ? undefined
-      : {
-          enabled: options.reconstruction.enabled,
-          radius: isFiniteNonNegative(options.reconstruction.radius)
-            ? options.reconstruction.radius! * d
-            : undefined,
-        };
+  // #43 CSS-space policy applied ONCE here, then converted to scene units:
+  // radius clamps into [0, MAX_RECONSTRUCTION_RADIUS] CSS px (default 2), the
+  // height gate defaults to 0.5 CSS px, and both are scaled by dpr exactly
+  // like every other shadow length. `enabled` is forwarded verbatim.
+  const rawRadius = isFiniteNonNegative(options.reconstruction?.radius)
+    ? options.reconstruction!.radius!
+    : DEFAULT_RECONSTRUCTION_RADIUS;
+  const radius = Math.min(MAX_RECONSTRUCTION_RADIUS, rawRadius) * d;
+  const rawGate = isFiniteNonNegative(options.reconstruction?.heightGate)
+    ? options.reconstruction!.heightGate!
+    : RECONSTRUCTION_HEIGHT_GATE;
+  const heightGate = rawGate * d;
   return {
     stepSize,
     bias,
     ...(maxDistance !== undefined ? { maxDistance } : {}),
     ...(options.samples !== undefined ? { samples: options.samples } : {}),
-    ...(reconstruction !== undefined ? { reconstruction } : {}),
+    reconstruction: {
+      ...(options.reconstruction?.enabled !== undefined
+        ? { enabled: options.reconstruction.enabled }
+        : {}),
+      radius,
+      heightGate,
+    },
   };
 }
 

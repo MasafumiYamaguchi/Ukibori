@@ -57,7 +57,7 @@ export interface ShadeInput {
   height: HostBuffer;
   /** u32 scalar: owning surface index per pixel (NO_OWNER = base plane) */
   objectId: HostBuffer;
-  /** f32 scalar: hard cast-shadow visibility 0..1; omit to skip shadows (treated as 1) */
+  /** f32 scalar: cast-shadow visibility 0..1 (1 = lit; continuous on the #41 soft path, 0/1 on the hard path); omit to skip shadows (treated as 1) */
   visibility?: HostBuffer;
 }
 
@@ -70,7 +70,7 @@ export interface LightingBuffers {
   diffuse: HostBuffer;
   /** f32 scalar: specular direct contribution, luminance(Fr) * NdotL * visibility, clamped 0..1 (before light intensity) */
   specular: HostBuffer;
-  /** f32 scalar: hard cast-shadow visibility, 0 or 1 (present when a shadow pass ran) */
+  /** f32 scalar: cast-shadow visibility 0..1 (continuous on the #41 soft path, 0/1 hard; present when a shadow pass ran) */
   visibility?: HostBuffer;
   /** RGBA8: combined lit color, sRGB-encoded */
   color: HostBuffer;
@@ -91,7 +91,7 @@ export interface PreparedFieldShadeInput {
   normal: HostBuffer;
   /** u32 scalar: owning surface index per pixel (NO_OWNER = base plane) */
   objectId: HostBuffer;
-  /** f32 scalar: hard cast-shadow visibility 0..1; omit to skip shadows (treated as 1) */
+  /** f32 scalar: cast-shadow visibility 0..1 (1 = lit; continuous on the #41 soft path, 0/1 on the hard path); omit to skip shadows (treated as 1) */
   visibility?: HostBuffer;
 }
 
@@ -103,7 +103,7 @@ export interface PreparedFieldShadingBuffers {
   specular: HostBuffer;
   /** RGBA8: combined lit color, sRGB-encoded */
   color: HostBuffer;
-  /** f32 scalar: hard cast-shadow visibility, 0 or 1 (present when a shadow pass ran) */
+  /** f32 scalar: cast-shadow visibility 0..1 (continuous on the #41 soft path, 0/1 hard; present when a shadow pass ran) */
   visibility?: HostBuffer;
 }
 

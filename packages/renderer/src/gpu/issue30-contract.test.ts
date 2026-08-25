@@ -75,9 +75,9 @@ interface PolicyEntry {
 const policyEntries = POLICY_TABLE as PolicyEntry[];
 
 describe("#30 catalog — every fixture has explicit metadata", () => {
-  it("pins the catalog version and fixture totals (89 compute + 19 presentation)", () => {
-    expect(CATALOG_VERSION).toBe(3);
-    expect(catalog.computeFixtures.length).toBe(89);
+  it("pins the catalog version and fixture totals (92 compute + 19 presentation)", () => {
+    expect(CATALOG_VERSION).toBe(4);
+    expect(catalog.computeFixtures.length).toBe(92);
     expect(catalog.presentationFixtures.length).toBe(19);
   });
 
@@ -147,6 +147,10 @@ describe("#30 catalog — every fixture has explicit metadata", () => {
     expect(byName.get("objectId")!.policy).toBe("exact");
     expect(byName.get("materialId")!.policy).toBe("exact");
     expect(byName.get("visibility")!.policy).toBe("exact-0-1");
+    // #43: the reconstructed field has its OWN documented tight tolerance,
+    // distinct from the raw exact contract
+    expect(byName.get("visibility-reconstructed")!.policy).toBe("reconstructed-abs-tolerance");
+    expect(byName.get("visibility-reconstructed")!.tolerance).toBe(1e-6);
     expect(byName.get("encodedHeader")!.policy).toBe("exact");
     expect(byName.get("lightingColor")!.description).toContain("exact alpha");
     expect(byName.get("canvas")!.description).toContain("exact alpha");

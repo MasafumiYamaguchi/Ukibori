@@ -26,7 +26,6 @@ import type { LightingFieldBinding } from "./lighting-pass";
 import type { PresentationInputBinding } from "./presentation-pass";
 import {
   sanitizeReconstructionOptions,
-  RECONSTRUCTION_HEIGHT_GATE,
 } from "../shadow-reconstruct";
 import type { ShadowReconstructionOptions } from "../shadow-reconstruct";
 import {
@@ -307,7 +306,7 @@ export class ReconstructionPass {
 
     let submissions = 0;
     if (chunks === null) {
-      this.packUniform(width, h, options.radiusTexels, yOffset, regionEnd);
+      this.packUniform(width, h, options, yOffset, regionEnd);
       this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
       const encoder = this.device.createCommandEncoder({ label: "ukibori-reconstruction-pass" });
       const pass = encoder.beginComputePass(
@@ -325,7 +324,7 @@ export class ReconstructionPass {
       for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
         const chunk = chunks[chunkIndex];
         const chunkYOffset = chunk.y0 * width;
-        this.packUniform(width, h, options.radiusTexels, chunkYOffset, chunkYOffset + chunk.texels);
+        this.packUniform(width, h, options, chunkYOffset, chunkYOffset + chunk.texels);
         this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
         const encoder = this.device.createCommandEncoder({ label: "ukibori-reconstruction-pass" });
         const pass = encoder.beginComputePass(
@@ -526,17 +525,20 @@ export class ReconstructionPass {
   private packUniform(
     width: number,
     height: number,
-    radiusTexels: number,
+    options: ReturnType<typeof sanitizeReconstructionOptions>,
     yOffset: number,
     regionEnd: number,
   ): void {
     const view = new DataView(this.uniformBytes.buffer);
     view.setUint32(0, width, true);
     view.setUint32(4, height, true);
-    view.setUint32(8, radiusTexels, true);
+    view.setUint32(8, options.radiusTexels, true);
     view.setUint32(12, yOffset, true);
     view.setUint32(16, regionEnd, true);
-    view.setFloat32(20, Math.fround(RECONSTRUCTION_HEIGHT_GATE), true);
+    // #43 DPR-invariant scene semantics: the height gate is a scene-unit
+    // length sanitized from the options (the DOM scales its CSS default by
+    // the display DPR once, so edge-preservation is identical in CSS space).
+    view.setFloat32(20, Math.fround(options.heightGate), true);
     view.setUint32(24, 0, true);
     view.setUint32(28, 0, true);
   }

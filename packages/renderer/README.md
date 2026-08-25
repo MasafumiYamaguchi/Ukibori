@@ -265,7 +265,17 @@ height -> per-pixel ray march toward the light -> hard 0/1 visibility mask
   footprint beyond its radius. Hard-path frames (and `enabled: false`)
   bypass it, preserving every historical {0, 1} byte. The raw field stays
   available for debugging and parity (`reconstructionActive` on the pipeline
-  frame stats reports which field lighting consumed).
+  frame stats reports which field lighting consumed). `radius` and
+  `heightGate` are SCENE-UNIT lengths; the DOM layer owns the CSS-space
+  policy (defaults, [0, 4] clamp) and maps them through the display DPR
+  exactly once, so the footprint and edge preservation are DPR-invariant in
+  CSS space.
+- Cross-backend parity: RAW #41 visibility keeps its exact dyadic
+  zero-tolerance contract on both backends. RECONSTRUCTED visibility uses a
+  SEPARATE documented tight tolerance (|diff| <= 1e-6, finite, [0, 1]) —
+  the gated tap average `sum / tapCount` is not dyadic, so bit-identity is
+  never promised for it (the browser harness reports measured max abs/ULP
+  errors).
 
 ### Resolution / devicePixelRatio contract
 

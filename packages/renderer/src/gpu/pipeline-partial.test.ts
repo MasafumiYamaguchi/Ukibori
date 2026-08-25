@@ -7,6 +7,10 @@ import type { FrameKey } from "./dirty";
 import { planPartialScene } from "./tiles";
 import { PARTIAL_DISPATCH_RATIO } from "./tiles";
 import { MASK_META_FULL_SENTINEL } from "./height-pass-wgsl";
+import { computeVisibility } from "../shadow";
+import { reconstructVisibility } from "../shadow-reconstruct";
+import { computeNormals, shadeHeightField } from "../lighting";
+import { composeSdfHeightField } from "../geometry";
 import type {
   GpuBindGroupEntryLike,
   GpuBindGroupLayoutLike,
@@ -322,6 +326,19 @@ function uniformWrites(device: MockFullDevice) {
     // #43: 2144 bytes — 96 scalar/pad bytes + 8 kernel variants x 16 packed
     // vec4 cone directions
     shadow: all.filter((w) => w.bytes.byteLength === 96 + 8 * 16 * 16),
+    // #43 reconstruction: 32 bytes, width 100 at 0, height 200 at 4, the f32
+// height gate 0.5 at 20 and zeroed pads (distinct from the 32-byte
+// presentation uniform whose shadowAlphaByte sits at 20; the normal
+// uniform carries the render width at 12 instead)
+    reconstruction: all.filter(
+      (w) =>
+        w.bytes.byteLength === 32 &&
+        view(w).getUint32(0, true) === RENDER_WIDTH &&
+        view(w).getUint32(4, true) === RENDER_HEIGHT &&
+        view(w).getFloat32(20, true) === Math.fround(0.5) &&
+        view(w).getUint32(24, true) === 0 &&
+        view(w).getUint32(28, true) === 0,
+    ),
     // 16 bytes with the ambient f32 at 0 and workgroupSize 64 at 4
     lighting: all.filter(
       (w) =>
@@ -613,5 +630,104 @@ describe("GpuScenePipeline — #32 partial/full planning and band dispatch", () 
     );
     const maskMetaView = new DataView(uniformWrites(device).maskMeta.at(-1)!.bytes.buffer);
     expect(maskMetaView.getUint32(0, true)).toBe(0);
+  });
+});
+
+describe("GpuScenePipeline — #43 reconstruction halo propagation on partial frames", () => {
+  // A soft + reconstruction variant of the tall scene: the reconstruction
+  // filter's texel radius must expand the region lighting (and normal, and
+  // the filter itself) recompute, so a partial geometry update never leaves
+  // stale color in the reconstruction halo.
+  const SOFT_RECON_SHADOW = {
+    ...BOUNDED_SHADOW,
+    samples: 8 as const,
+    reconstruction: { enabled: true, radius: 2 },
+  };
+  const RADIUS_TEXELS = 2;
+
+  function softTallScene(angularRadius = Math.fround(0.2)): Scene {
+    return createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius },
+    });
+  }
+
+  function renderSoft(pipeline: GpuScenePipeline, scene: Scene) {
+    return pipeline.render({
+      scene,
+      dpr: 1,
+      shadowOptions: SOFT_RECON_SHADOW,
+      tileSize: 32,
+    });
+  }
+
+  it("propagates the reconstruction halo to normal/reconstruction/lighting on a partial frame", () => {
+    const { device, pipeline } = setup();
+    renderSoft(pipeline, softTallScene());
+    const moved = createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: Math.fround(0.2) },
+      surfaces: [
+        { ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } },
+        TALL_SCENE.surfaces![1]!,
+        TALL_SCENE.surfaces![2]!,
+      ],
+    });
+    const stats = renderSoft(pipeline, moved);
+    expect(stats.planning.mode).toBe("partial");
+    expect(stats.reconstructionActive).toBe(true);
+    const { y0, y1 } = stats.planning.band!;
+    const haloY0 = Math.max(0, y0 - RADIUS_TEXELS);
+    const haloY1 = Math.min(RENDER_HEIGHT - 1, y1 + RADIUS_TEXELS);
+    const uniforms = uniformWrites(device);
+    // height + shadow recompute ONLY the original band...
+    const heightView = new DataView(uniforms.height.at(-1)!.bytes.buffer);
+    expect(heightView.getUint32(8, true)).toBe(y0 * RENDER_WIDTH);
+    expect(heightView.getUint32(12, true)).toBe((y1 + 1) * RENDER_WIDTH);
+    const shadowView = new DataView(uniforms.shadow.at(-1)!.bytes.buffer);
+    expect(shadowView.getUint32(72, true)).toBe(y0 * RENDER_WIDTH);
+    expect(shadowView.getUint32(76, true)).toBe((y1 + 1) * RENDER_WIDTH);
+    // ...while the reconstruction filter, its normal guidance and the
+    // lighting that consumes it recompute the band EXPANDED by the radius
+    const reconView = new DataView(uniforms.reconstruction.at(-1)!.bytes.buffer);
+    expect(reconView.getUint32(12, true)).toBe(haloY0 * RENDER_WIDTH);
+    expect(reconView.getUint32(16, true)).toBe((haloY1 + 1) * RENDER_WIDTH);
+    const normalView = new DataView(uniforms.normal.at(-1)!.bytes.buffer);
+    expect(normalView.getUint32(24, true)).toBe(haloY0 * RENDER_WIDTH);
+    expect(normalView.getUint32(28, true)).toBe((haloY1 + 1) * RENDER_WIDTH);
+    const lightingView = new DataView(uniforms.lighting.at(-1)!.bytes.buffer);
+    expect(lightingView.getUint32(8, true)).toBe(haloY0 * RENDER_WIDTH);
+    expect(lightingView.getUint32(12, true)).toBe((haloY1 + 1) * RENDER_WIDTH);
+    // the reconstruction pass genuinely ran on the expanded band
+    expect(pipeline.getSnapshot().reconstructionPass).not.toBeNull();
+    expect(pipeline.getSnapshot().reconstructionPass!.lastDispatch.radiusTexels).toBe(
+      RADIUS_TEXELS,
+    );
+  });
+
+  it("keeps the historical band for normal/lighting on a partial frame when reconstruction is disabled", () => {
+    const { device, pipeline } = setup();
+    const shadowOptions = { ...BOUNDED_SHADOW, samples: 8 as const, reconstruction: { enabled: false } };
+    const renderDisabled = (scene: Scene) =>
+      pipeline.render({ scene, dpr: 1, shadowOptions, tileSize: 32 });
+    renderDisabled(softTallScene());
+    const moved = createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: Math.fround(0.2) },
+      surfaces: [{ ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, TALL_SCENE.surfaces![1]!, TALL_SCENE.surfaces![2]!],
+    });
+    const stats = renderDisabled(moved);
+    expect(stats.planning.mode).toBe("partial");
+    expect(stats.reconstructionActive).toBe(false);
+    const { y0, y1 } = stats.planning.band!;
+    const uniforms = uniformWrites(device);
+    const normalView = new DataView(uniforms.normal.at(-1)!.bytes.buffer);
+    expect(normalView.getUint32(24, true)).toBe(y0 * RENDER_WIDTH);
+    expect(normalView.getUint32(28, true)).toBe((y1 + 1) * RENDER_WIDTH);
+    const lightingView = new DataView(uniforms.lighting.at(-1)!.bytes.buffer);
+    expect(lightingView.getUint32(8, true)).toBe(y0 * RENDER_WIDTH);
+    expect(lightingView.getUint32(12, true)).toBe((y1 + 1) * RENDER_WIDTH);
+    // no reconstruction pass was dispatched
+    expect(uniforms.reconstruction).toHaveLength(0);
   });
 });

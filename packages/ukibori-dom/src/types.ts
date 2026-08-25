@@ -177,11 +177,16 @@ export interface DomShadowOptions {
   samples?: 1 | 4 | 8 | 16;
   /**
    * #43 edge-aware penumbra reconstruction of the SOFT visibility field.
-   * `radius` is a CSS-pixel LENGTH (scaled once by dpr, exactly like every
-   * other shadow length); `enabled` defaults true. Hard-path frames always
-   * bypass the filter regardless of this option.
+   *
+   * All lengths are CSS px: the layer clamps `radius` into
+   * `[0, 4]` CSS px (default 2), defaults `heightGate` to 0.5 CSS px, and
+   * maps both through the dpr similarity transform EXACTLY ONCE (like
+   * step/bias) — so a 2-CSS-px radius is a 2-CSS-px footprint at every
+   * devicePixelRatio, and edge preservation does not change with dpr.
+   * `enabled` defaults true; hard-path frames (angularRadius 0 / samples 1)
+   * always bypass the filter regardless of this option.
    */
-  reconstruction?: { enabled?: boolean; radius?: number };
+  reconstruction?: { enabled?: boolean; radius?: number; heightGate?: number };
 }
 
 /**

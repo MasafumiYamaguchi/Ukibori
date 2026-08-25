@@ -101,19 +101,23 @@ function frame(scene, samples, reconOptions) {
     objectId: composed.objectId,
     casterHeight: composed.height,
   });
-  if (reconOptions !== undefined) {
-    api.reconstructVisibility(visibility, composed.height, {
-      objectId: composed.objectId,
-    }, reconOptions);
-  }
+  // #43: the RECONSTRUCTED field is what lighting consumes on the soft path
+  // (mirrors lightScene / GpuScenePipeline exactly); the raw field is only
+  // the filter input.
+  const consumedVisibility =
+    reconOptions !== undefined
+      ? api.reconstructVisibility(visibility, composed.height, {
+          objectId: composed.objectId,
+        }, reconOptions)
+      : visibility;
   api.shadeHeightField(scene, {
     height: composed.height,
     objectId: composed.objectId,
-    visibility,
+    visibility: consumedVisibility,
   });
 }
 
-function bench(scene, label, samples, reconOptions) {
+function benchFrame(scene, label, samples, reconOptions) {
   for (let i = 0; i < WARMUP; i++) {
     frame(scene, samples, reconOptions); // warm the JIT
   }
@@ -131,25 +135,73 @@ function bench(scene, label, samples, reconOptions) {
   return med;
 }
 
+/** #43 reconstruction stage ALONE (filter only — no shadow/shading). */
+function benchReconStage(scene, label, samples, reconOptions) {
+  const composed = api.composeSdfHeightField(scene);
+  const raw = api.computeVisibility(scene, composed.height, {
+    samples,
+    objectId: composed.objectId,
+    casterHeight: composed.height,
+  });
+  for (let i = 0; i < WARMUP; i++) {
+    api.reconstructVisibility(raw, composed.height, {
+      objectId: composed.objectId,
+    }, reconOptions);
+  }
+  const runs = [];
+  for (let i = 0; i < SAMPLES; i++) {
+    const t0 = performance.now();
+    api.reconstructVisibility(raw, composed.height, {
+      objectId: composed.objectId,
+    }, reconOptions);
+    runs.push(performance.now() - t0);
+  }
+  const med = median(runs);
+  console.log(
+    `${label.padEnd(34)} median ${med.toFixed(3)}ms   (min ${Math.min(...runs).toFixed(3)}ms, ` +
+      `max ${Math.max(...runs).toFixed(3)}ms)`,
+  );
+  return med;
+}
+
 const scene = proxyScene();
 console.log(`#43 CPU reference @ ${WIDTH}x${HEIGHT} (proxy extent), angularRadius 0.2 rad:`);
 console.log("---");
 const results = {
-  "4 raw samples": bench(scene, "4 raw samples", 4, undefined),
-  "8 raw samples": bench(scene, "8 raw samples", 8, undefined),
-  "8 samples + reconstruction (radius 2)": bench(
+  "4 raw samples": benchFrame(scene, "4 raw samples", 4, undefined),
+  "8 raw samples": benchFrame(scene, "8 raw samples", 8, undefined),
+  "8 samples + reconstruction (radius 2)": benchFrame(
     scene,
     "8 samples + reconstruction (radius 2)",
     8,
     { enabled: true, radius: 2 },
   ),
-  "16 raw samples": bench(scene, "16 raw samples", 16, undefined),
+  "16 raw samples": benchFrame(scene, "16 raw samples", 16, undefined),
+  "reconstruction stage alone (radius 1)": benchReconStage(
+    scene,
+    "reconstruction stage alone (radius 1)",
+    8,
+    { enabled: true, radius: 1 },
+  ),
+  "reconstruction stage alone (radius 2)": benchReconStage(
+    scene,
+    "reconstruction stage alone (radius 2)",
+    8,
+    { enabled: true, radius: 2 },
+  ),
+  "reconstruction stage alone (radius 4)": benchReconStage(
+    scene,
+    "reconstruction stage alone (radius 4)",
+    8,
+    { enabled: true, radius: 4 },
+  ),
 };
 console.log("---");
 const reconCost = results["8 samples + reconstruction (radius 2)"] - results["8 raw samples"];
 console.log(
   `reconstruction stage cost at 8 samples + radius 2: ~${reconCost.toFixed(3)}ms ` +
-    `(${(100 * reconCost / results["8 raw samples"]).toFixed(1)}% of the raw 8-sample shadow pass)`,
+    `(${(100 * reconCost / results["8 raw samples"]).toFixed(1)}% of the raw 8-sample shadow pass; ` +
+    `host noise is comparable at this scale)`,
 );
 console.log(
   `8 samples + reconstruction vs 16 raw samples: ` +
@@ -158,5 +210,7 @@ console.log(
 console.log(
   "note: 32 samples is out of scope — #41 pins the sample-count candidates to the " +
     "exactly-representable dyadic set {1,4,8,16} and the uniform capacity is 16; " +
-    "the target is 8+reconstruction beating brute-force higher counts, not a default bump.",
+    "the target is 8+reconstruction beating brute-force higher counts, not a default bump. " +
+    "GPU pass times (ShadowPass/ReconstructionPass) are reported by the real-WebGPU harness " +
+    "in CI; this script covers the host-side oracle costs.",
 );

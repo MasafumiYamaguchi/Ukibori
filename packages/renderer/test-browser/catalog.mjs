@@ -27,7 +27,7 @@
 // supported by the scene contract — there is NO rotation/skew support, and
 // the catalog never claims any.
 
-export const CATALOG_VERSION = 3;
+export const CATALOG_VERSION = 4;
 
 // ---------------------------------------------------------------------------
 // Central comparison policy table (#30). One declaration, used by the
@@ -68,6 +68,21 @@ export const POLICY_TABLE = Object.freeze([
       "(angularRadius 0 or samples 1): exact binary 0/1. SOFT shadow (#41 " +
       "area-light sampling): exact deterministic [0,1] fractional visibility " +
       "(dyadic k/n fractions of identical f32 cone rays on both backends)",
+  },
+  {
+    buffer: "visibility-reconstructed",
+    policy: "reconstructed-abs-tolerance",
+    tolerance: 1e-6,
+    description:
+      "#43 reconstructed visibility: SEPARATE tight policy from raw #41. " +
+      "The gated tap average sum/tapCount is NOT dyadic (3/25, 7/49, ...), " +
+      "so the CPU's exact f64 quotient rounded to f32 once and the GPU's " +
+      "f32 accumulation must NOT be promised bit-identical across legal " +
+      "WebGPU backends. Every value must be finite and inside [0,1] with " +
+      "|gpu - cpu| <= 1e-6 (~16-30 f32 ulp — evidence-driven; the ULP " +
+      "simulation measures 0 ulp for the exact dyadic accumulation and the " +
+      "headroom covers backend division rounding); max abs/ULP errors are " +
+      "reported so regressions surface even under the tolerance.",
   },
   {
     buffer: "height",
@@ -943,6 +958,28 @@ export function createCatalog(api) {
       name: "shadow-reconstruction-mask-caster-r2",
       dpr: 1,
     },
+    // #43 DPR coverage: the same CSS scene at 1.5 / 2 render DPR must
+    // produce the same CSS-space reconstruction footprint (radius in scene
+    // units, texel conversion round(radius * dpr) exactly once).
+    {
+      ...softShadowReconstructionScene(Math.fround(0.2), 8, 6, 2),
+      name: "shadow-reconstruction-dpr1.5",
+      dpr: 1.5,
+    },
+    {
+      ...softShadowReconstructionScene(Math.fround(0.2), 8, 6, 2),
+      name: "shadow-reconstruction-dpr2",
+      dpr: 2,
+    },
+    // #43 non-dyadic tap count: radius 1 gives 9-tap neighborhoods whose
+    // gated averages produce non-dyadic quotients (1/3, 2/3, ...) — the
+    // reconstructed-vs-oracle comparison must use the documented tolerance,
+    // never a bit-exact promise.
+    {
+      ...softShadowReconstructionScene(Math.fround(0.25), 4, 6, 1),
+      name: "shadow-reconstruction-nondyadic-9-tap-r1",
+      dpr: 1,
+    },
     // non-dyadic step: pins the explicit f32-multiple march series
     // (t = f32(k * stepSize)) end-to-end on the real GPU
     {
@@ -1537,6 +1574,9 @@ export function createCatalog(api) {
     "shadow-reconstruction-radius-0.15-samples-8-r2": ["shadow-visibility", "soft-shadow", "reconstruction"],
     "shadow-reconstruction-tall-separation-r3": ["shadow-visibility", "soft-shadow", "reconstruction"],
     "shadow-reconstruction-mask-caster-r2": ["shadow-visibility", "soft-shadow", "reconstruction", "mask-shape", "glyph-shape"],
+    "shadow-reconstruction-dpr1.5": ["shadow-visibility", "soft-shadow", "reconstruction", "dpr-1.5", "fractional-extent"],
+    "shadow-reconstruction-dpr2": ["shadow-visibility", "soft-shadow", "reconstruction", "dpr-2"],
+    "shadow-reconstruction-nondyadic-9-tap-r1": ["shadow-visibility", "soft-shadow", "reconstruction"],
     "shadow-non-binary-step-0.1": ["shadow-visibility", "shadow-options"],
     "shadow-f32-vs-f64-equality": ["shadow-visibility", "threshold-equality"],
     "shadow-frac-dpr1": ["shadow-visibility", "dpr-1", "fractional-extent"],
