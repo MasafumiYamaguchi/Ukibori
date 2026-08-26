@@ -1196,7 +1196,37 @@ async function runPresentationFixture(device, fixture) {
         frame.shadowOptions?.reconstruction,
       );
       const compare = oracle.compareCanvas(fixture, reference.ref, gpu, width);
-      compared.push({ width, height, texels: reference.texels, compare });
+      // #43 quantization-margin pin: when the reference consumed a
+      // RECONSTRUCTED (non-dyadic) visibility field, every premultiplied
+      // canvas product must sit far enough from an 8-bit rounding boundary
+      // that the documented reconstruction tolerance and small backend
+      // unorm8-encode variance can never flip a byte (the exact-alpha canvas
+      // policy has no tolerance, so a boundary-adjacent texel would
+      // false-fail on a legal backend). This asserts the fact numerically
+      // instead of merely hoping the fixture passes.
+      let quantization = null;
+      if (reference.reconstructed === true) {
+        quantization = oracle.reconstructedCanvasQuantizationReport(
+          reference.visibility,
+          reference.objectId,
+          frame.compositeOptions,
+        );
+        detail.push(
+          `  quantization margin (${fixture.name}): min=${quantization.minMargin.toExponential(3)} ` +
+            `@texel ${quantization.worstTexel}/${quantization.worstQuantity} ` +
+            `legal-drift alpha<=${quantization.maxAlphaDrift.toExponential(2)} ` +
+            `rgb<=${quantization.maxRgbDrift.toExponential(2)} ` +
+            `safety=${quantization.safetyFactor === Infinity ? "inf" : quantization.safetyFactor.toFixed(0)}x ` +
+            `-> ${quantization.portable ? "PORTABLE" : "AT RISK"}`,
+        );
+      }
+      compared.push({
+        width,
+        height,
+        texels: reference.texels,
+        compare,
+        quantization,
+      });
       if (fixture.probe) {
         const current = context.getCurrentTexture();
         detail.push(
@@ -1631,8 +1661,10 @@ async function runRetainedParity(device) {
       frameA.renderWidth,
       frameA.renderHeight,
     );
-    if (frameA.invalidation.executed.length !== 6) {
-      problems.push(`first frame executed ${frameA.invalidation.executed.join(",")} (expected all six)`);
+    // #43: the first frame executes ALL SEVEN stages (upload, height, normal,
+    // shadow, reconstruction, lighting, presentation).
+    if (frameA.invalidation.executed.length !== 7) {
+      problems.push(`first frame executed ${frameA.invalidation.executed.join(",")} (expected all seven)`);
     }
     const dispatchesAfterFirst = frameA.totals.dispatches;
     const allocationsAfterFirst = frameA.totals.newAllocations;
@@ -2406,6 +2438,48 @@ async function runPartialReconstructionParity(device) {
       tileSize: 32,
       debugReadback: true,
     });
+    // #43 regression proof: the sampled-direction UNION shadow halo must be
+    // strictly wider than the historical center-only halo for this soft
+    // frame, otherwise the partial band could omit receivers reached only by
+    // slanted sample rays (the whole reason item 1 exists). Computed with the
+    // EXACT exported pure helpers on the ACTUAL encoded bytes/options the
+    // planner consumed.
+    {
+      const encoded = api.encodeScene(move.scene, 1);
+      const header = api.parseHeader(encoded.bytes);
+      const diag = Math.hypot(
+        header.renderWidth / header.dpr,
+        header.renderHeight / header.dpr,
+      );
+      const xyLen = Math.hypot(header.lightDirection.x, header.lightDirection.y);
+      const effective = api.sanitizeShadowOptions(move.shadowOptions, {
+        sceneDiagonal: diag,
+        lightXYLength: xyLen,
+      });
+      const center = api.shadowHalo(header.lightDirection.x, header.lightDirection.y, effective.maxDistance);
+      const union = api.sampledShadowHaloUnion(
+        header.lightDirection,
+        api.sanitizeAngularRadius(header.lightAngularRadius),
+        effective.samples,
+        effective.maxDistance,
+      );
+      const wider =
+        union.left > center.left ||
+        union.right > center.right ||
+        union.top > center.top ||
+        union.bottom > center.bottom;
+      detail.push(
+        `  recon-partial halo: center=[${center.left.toFixed(3)},${center.right.toFixed(3)},${center.top.toFixed(3)},${center.bottom.toFixed(3)}] ` +
+          `union=[${union.left.toFixed(3)},${union.right.toFixed(3)},${union.top.toFixed(3)},${union.bottom.toFixed(3)}] ` +
+          `union>center=${wider} maxDistance=${effective.maxDistance} samples=${effective.samples} radius=${api.sanitizeAngularRadius(header.lightAngularRadius)}`,
+      );
+      if (!wider) {
+        problems.push(
+          "recon-partial soft frame union halo is NOT wider than the center-only halo " +
+            "(the #43 sampled-direction regression fixture cannot prove the fix)",
+        );
+      }
+    }
     if (frameMove.planning.mode !== "partial") {
       problems.push(
         `recon small edit plan ${frameMove.planning.mode}/${frameMove.planning.reason} (expected partial)`,
@@ -2445,6 +2519,38 @@ async function runPartialReconstructionParity(device) {
       frameMove.renderWidth,
       frameMove.renderHeight,
     );
+    // capture the PARTIAL pipeline's raw/reconstructed/lighting buffers
+    // BEFORE disposal so the forced-full recompute can be compared field by
+    // field (the #43 requirement: every consumer of the halo-expanded region
+    // must be recomputed, not just the canvas).
+    const partialFields = {};
+    try {
+      const partialSnapshot = pipeline.getSnapshot();
+      partialFields.raw = await readbackF32(
+        device,
+        partialSnapshot.shadowPass.output.buffer,
+        partialSnapshot.shadowPass.output.byteLength,
+      );
+      partialFields.recon = partialSnapshot.reconstructionPass
+        ? await readbackF32(
+            device,
+            partialSnapshot.reconstructionPass.output.buffer,
+            partialSnapshot.reconstructionPass.output.byteLength,
+          )
+        : null;
+      partialFields.lighting = await readback(
+        device,
+        partialSnapshot.lightingPass.color.buffer,
+        partialSnapshot.lightingPass.color.byteLength,
+      );
+      partialFields.objectId = await readback(
+        device,
+        partialSnapshot.heightPass.outputs.objectId.buffer,
+        partialSnapshot.heightPass.outputs.objectId.byteLength,
+      );
+    } catch (error) {
+      problems.push(`recon partial field readback failed: ${String(error)}`);
+    }
 
     // forced FULL recompute on a fresh pipeline must reproduce the partial
     // frame byte-for-byte (the halo-correctness value assertion).
@@ -2474,6 +2580,57 @@ async function runPartialReconstructionParity(device) {
           "the reconstruction halo must be fully recomputed downstream",
       );
     }
+    // field-by-field comparison: raw visibility, reconstructed visibility,
+    // lighting color and ownership must ALL match the forced-full recompute.
+    try {
+      const fullSnapshot = fresh.getSnapshot();
+      const fullRaw = await readbackF32(
+        device,
+        fullSnapshot.shadowPass.output.buffer,
+        fullSnapshot.shadowPass.output.byteLength,
+      );
+      const fullRecon = fullSnapshot.reconstructionPass
+        ? await readbackF32(
+            device,
+            fullSnapshot.reconstructionPass.output.buffer,
+            fullSnapshot.reconstructionPass.output.byteLength,
+          )
+        : null;
+      const fullLighting = await readback(
+        device,
+        fullSnapshot.lightingPass.color.buffer,
+        fullSnapshot.lightingPass.color.byteLength,
+      );
+      const fullObjectId = await readback(
+        device,
+        fullSnapshot.heightPass.outputs.objectId.buffer,
+        fullSnapshot.heightPass.outputs.objectId.byteLength,
+      );
+      const sameBytes = (a, b, label) => {
+        if (a === null || b === null) {
+          return; // reconstruction not active on one side (shouldn't happen here)
+        }
+        if (!oracle.bytesEqual(a, b)) {
+          problems.push(`recon partial ${label} differs from forced-full recompute`);
+        }
+      };
+      sameBytes(
+        new Uint8Array(partialFields.raw.buffer, partialFields.raw.byteOffset, partialFields.raw.byteLength),
+        new Uint8Array(fullRaw.buffer, fullRaw.byteOffset, fullRaw.byteLength),
+        "raw visibility",
+      );
+      if (partialFields.recon !== null) {
+        sameBytes(
+          new Uint8Array(partialFields.recon.buffer, partialFields.recon.byteOffset, partialFields.recon.byteLength),
+          new Uint8Array(fullRecon.buffer, fullRecon.byteOffset, fullRecon.byteLength),
+          "reconstructed visibility",
+        );
+      }
+      sameBytes(partialFields.lighting, fullLighting, "lighting color");
+      sameBytes(partialFields.objectId, fullObjectId, "objectId");
+    } catch (error) {
+      problems.push(`recon forced-full field comparison failed: ${String(error)}`);
+    }
     fresh.dispose();
     second.canvas.remove();
   } catch (error) {
@@ -2492,13 +2649,35 @@ async function runPartialReconstructionParity(device) {
  * #43 soft + reconstruction scene for `runPartialReconstructionParity`:
  * mirrors `partialParityScene` with a positive angular radius, 8 samples
  * and reconstruction enabled (radius 2 scene units at dpr 1 -> 2 texels).
+ *
+ * The SMALL local edit must keep the partial path even under the #43
+ * sampled-direction UNION shadow halo (a center-only halo would be enough
+ * for the historical hard path, but the soft path's slanted sample rays
+ * widen the dirty band): `move` edits the small lower BADGE by 1-2 px, which
+ * stays well below the PARTIAL_DISPATCH_RATIO (the original btn-a move is
+ * deliberately NOT used here — with the union halo its band crosses 0.5 and
+ * legitimately plans full, which would defeat the "partial" assertion).
  */
 function partialReconstructionScene(edit) {
-  const base = partialParityScene(edit);
+  // The move edit is built from the BASE scene (btn-a stays put) so the diff
+  // is exactly ONE small surface (the badge): a two-surface edit would widen
+  // the dirty band far past the partial threshold under the union halo.
+  const base = partialParityScene(edit === "move" ? undefined : edit);
+  let scene = base.scene;
+  if (edit === "move") {
+    // badge 30,120 -> 32,121: a 2px local edit whose dirty band stays far
+    // under the partial threshold even after the union shadow halo.
+    scene = api.createScene({
+      ...scene,
+      surfaces: scene.surfaces.map((s) =>
+        s.id === "badge" ? { ...s, position: { x: 32, y: 121 } } : s,
+      ),
+    });
+  }
   return {
     scene: api.createScene({
-      ...base.scene,
-      light: { ...base.scene.light, angularRadius: SHADOW_BENCH_ANGULAR_RADIUS },
+      ...scene,
+      light: { ...scene.light, angularRadius: SHADOW_BENCH_ANGULAR_RADIUS },
     }),
     shadowOptions: {
       ...base.shadowOptions,
@@ -3020,16 +3199,27 @@ async function main() {
       }
       let frameHard = 0;
       let frameAlphaBad = 0;
+      let frameQuantizationAtRisk = 0;
       const frameMaxDelta = [0, 0, 0, 0];
       for (const frame of result.compared ?? []) {
         totalPresentTexels += frame.texels;
         frameHard += frame.compare.hard;
         frameAlphaBad += frame.compare.alphaBad;
+        // #43 quantization-margin pin: a reconstructed-canvas fixture whose
+        // products sit too close to an 8-bit boundary is NOT portable (a
+        // legal backend could flip a byte under the exact-alpha policy), so
+        // it must FAIL even when this backend happened to round the same way.
+        if (frame.quantization !== null && frame.quantization !== undefined) {
+          if (frame.quantization.portable !== true) {
+            frameQuantizationAtRisk += 1;
+          }
+        }
         for (let ch = 0; ch < 4; ch++) {
           frameMaxDelta[ch] = Math.max(frameMaxDelta[ch], frame.compare.maxDelta[ch]);
           presentMaxDelta[ch] = Math.max(presentMaxDelta[ch], frame.compare.maxDelta[ch]);
         }
       }
+      frameHard += frameQuantizationAtRisk;
       totalPresentHard += frameHard;
       totalPresentAlphaBad += frameAlphaBad;
       const sizes = (result.compared ?? [])

@@ -463,6 +463,7 @@ export {
   expandSceneRect,
   expandTexelRect,
   planPartialScene,
+  sampledShadowHaloUnion,
   sceneRectToTexelRect,
   shadowHalo,
   surfaceTexelFootprint,

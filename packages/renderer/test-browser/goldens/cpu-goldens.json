@@ -1,6 +1,6 @@
 {
   "format": "ukibori-cpu-goldens-v1",
-  "catalogVersion": 4,
+  "catalogVersion": 5,
   "policyTable": [
     {
       "buffer": "encodedHeader",

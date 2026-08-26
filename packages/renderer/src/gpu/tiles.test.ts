@@ -977,7 +977,13 @@ describe("#43 sampledShadowHaloUnion — soft partial planner halo", () => {
   it("covers the full union of ALL kernel variants x samples exactly", () => {
     for (const samples of [4, 8, 16] as const) {
       const union = sampledShadowHaloUnion(L, RADIUS, samples, DIST);
-      const expected = shadowHalo(L.x, L.y, DIST);
+      const center = shadowHalo(L.x, L.y, DIST);
+      const expected = {
+        left: center.left,
+        right: center.right,
+        top: center.top,
+        bottom: center.bottom,
+      };
       for (let v = 0; v < SHADOW_KERNEL_VARIANTS; v++) {
         const hv = perVariantHalo(L, v, samples, DIST);
         expected.left = Math.max(expected.left, hv.left);
@@ -1162,7 +1168,7 @@ describe("#43 planPartialScene — soft scenes use the sampled-union halo", () =
       }),
       1,
     ).bytes;
-    const moved = structuredClone(BASE_SCENE.surfaces) as SceneInput["surfaces"];
+    const moved = structuredClone(BASE_SCENE.surfaces) as NonNullable<SceneInput["surfaces"]>;
     moved[0] = { ...moved[0]!, position: { x: 12, y: 12 } };
     const nextBytes = encodeScene(
       createScene({

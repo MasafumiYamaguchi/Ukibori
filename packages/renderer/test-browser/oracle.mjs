@@ -59,6 +59,7 @@ export function createOracle(api) {
     compositePixelBytes,
     compositeShadowPremultipliedBytes,
     compositeShadowPremultipliedStrengthBytes,
+    sanitizeCompositeOptions,
   } = api;
 
   /** DPR 1/1.5/2 sampling scales (scale = 0.5 * dpr), matching the catalog. */
@@ -635,6 +636,10 @@ export function createOracle(api) {
       if (bad !== null) {
         mismatches += 1;
         if (samples.length < 8) {
+          // Semantic/domain violations (non-finite, out of [0, 1]) are
+          // CONTRACT breaks — never hide them under the numeric tolerance;
+          // only a finite in-range value above the documented tight
+          // tolerance is a PRECISION divergence.
           samples.push(mismatchReport(
             fixture,
             "visibility-reconstructed",
@@ -643,7 +648,13 @@ export function createOracle(api) {
             o,
             v,
             absError,
-            { tolerance: RECONSTRUCTION_VISIBILITY_TOLERANCE },
+            {
+              tolerance: RECONSTRUCTION_VISIBILITY_TOLERANCE,
+              classification:
+                !Number.isFinite(v) || v < 0 || v > 1
+                  ? "contract"
+                  : "precision",
+            },
           ));
         }
       }
@@ -1076,7 +1087,95 @@ export function createOracle(api) {
       }
       ref.set(px, i);
     }
-    return { ref, texels: oracle.rw * oracle.rh, rw: oracle.rw, rh: oracle.rh };
+    return {
+      ref,
+      texels: oracle.rw * oracle.rh,
+      rw: oracle.rw,
+      rh: oracle.rh,
+      // #43 quantization-margin diagnostics: the exact visibility field and
+      // ownership the reference bytes were composed from, plus whether that
+      // field went through the reconstruction stage.
+      visibility,
+      objectId: oracle.objectId,
+      reconstructed:
+        softActive && reconOptions.enabled && reconOptions.radiusTexels > 0,
+    };
+  }
+
+  /**
+   * #43 final-canvas quantization-margin audit for RECONSTRUCTED soft
+   * shadows.
+   *
+   * The reconstructed visibility is NOT dyadic and carries a documented
+   * cross-backend tolerance (`RECONSTRUCTION_VISIBILITY_TOLERANCE`, 1e-6),
+   * so every byte it feeds through the premultiplied compositor must sit
+   * FAR enough from an 8-bit rounding boundary (.5 in byte space), or two
+   * legal backends legitimately land one byte apart and the exact-alpha
+   * canvas policy false-fails.
+   *
+   * For each shadowed base-plane texel this walks the EXACT byte-space
+   * products the presentation WGSL evaluates —
+   *
+   *     alpha    = saByte * strength            (byte units)
+   *     channel  = cByte * saByte / 255 * strength
+   *
+   * — measures the distance of each product from its nearest .5 quantization
+   * boundary, and reports the minimum together with the maximum LEGAL drift
+   * the reconstruction tolerance can inject (dStrength <= tolerance, so
+   * dAlpha <= saByte * tolerance and dChannel <= cByte*saByte/255*tolerance).
+   *
+   * A fixture is PORTABLE only when `minMargin` exceeds the legal drift by a
+   * large safety factor AND stays above an absolute floor (1e-3 byte units
+   * ~= 500x the legal drift) — far beyond any f32 backend variance.
+   */
+  function reconstructedCanvasQuantizationReport(visibility, objectId, compositeOptions) {
+    const opts = sanitizeCompositeOptions(compositeOptions ?? {});
+    const saByte = Math.round(opts.shadowAlpha * 255);
+    const [cr, cg, cb] = opts.shadowColor;
+    const quantities = [
+      ["alpha", () => saByte],
+      ["r", () => (cr * saByte) / 255],
+      ["g", () => (cg * saByte) / 255],
+      ["b", () => (cb * saByte) / 255],
+    ];
+    let minMargin = Infinity;
+    let worstTexel = -1;
+    let worstQuantity = null;
+    for (let g = 0; g < visibility.length; g++) {
+      if (objectId !== null && objectId[g] !== NO_OWNER) {
+        continue; // surface texels are opaque; no shadow product involved
+      }
+      const vis = Math.min(1, Math.max(0, visibility[g]));
+      const strength = 1 - vis;
+      if (!(strength > 0)) {
+        continue; // fully lit -> exact transparent black, nothing to round
+      }
+      for (const [name, scale] of quantities) {
+        const value = scale() * strength;
+        const frac = value - Math.floor(value);
+        const margin = Math.abs(frac - 0.5);
+        if (margin < minMargin) {
+          minMargin = margin;
+          worstTexel = g;
+          worstQuantity = name;
+        }
+      }
+    }
+    const maxAlphaDrift = saByte * RECONSTRUCTION_VISIBILITY_TOLERANCE;
+    const maxRgbDrift =
+      (Math.max(cr, cg, cb) * saByte) / 255 * RECONSTRUCTION_VISIBILITY_TOLERANCE;
+    const maxLegalDrift = Math.max(maxAlphaDrift, maxRgbDrift);
+    const MARGIN_FLOOR = 1e-3;
+    return {
+      minMargin,
+      worstTexel,
+      worstQuantity,
+      maxAlphaDrift,
+      maxRgbDrift,
+      marginFloor: MARGIN_FLOOR,
+      portable: Number.isFinite(minMargin) && minMargin >= MARGIN_FLOOR,
+      safetyFactor: maxLegalDrift > 0 ? minMargin / maxLegalDrift : Infinity,
+    };
   }
 
   /** bytesEqual helper shared by the mutation audits. */
@@ -1105,6 +1204,7 @@ export function createOracle(api) {
     effectiveReconstructionOptions,
     lightingOracleCPU,
     presentationReference,
+    reconstructedCanvasQuantizationReport,
     effectiveShadowOptions,
     bytesEqual,
     // comparisons

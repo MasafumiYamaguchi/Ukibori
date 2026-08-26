@@ -1,133 +1,110 @@
-# Issue #43 最終レビュー指摘修正 — 進捗レポート（中断時スナップショット）
+# Issue #43 最終レビュー指摘修正 — 完了レポート
 
 - Branch: `feat/issue-43-shadow-reconstruction`
-- 開始 HEAD: `311d8f2`（WGSL RECONSTRUCTION_WORKGROUP_SIZE 修正済みコミット）
-- 本ドキュメント作成時点: **作業中の変更は未コミット**（下記「変更済みファイル」参照）
-- 目的: correctness / portability / contract 問題のみ修正。機能追加・方式再設計は禁止。
+- レビュー対象 HEAD: `311d8f2` → 修正完了 HEAD: `d2a6b60`（WIP）→ 本レポート時点で最終コミット済み（下記参照）
+- origin/master: `29e4224`（開始時・完了時とも同一。merge 不要）
+- 目的: correctness / portability / contract 問題のみ修正（機能追加・方式再設計なし）
 
 ---
 
-## レビュー項目別ステータス
+## 修正内容（レビュー項目別）
 
-### 1. BLOCKER: partial planner の shadow halo を全 soft sample 方向の union へ — ✅ 実装済み・単体テスト済み
+### 1. BLOCKER — partial planner の shadow halo を全 soft sample 方向の union へ ✅
+- `gpu/tiles.ts`: 新規 `sampledShadowHaloUnion(lightDirection, angularRadius, samples, maxDistance)`。
+  - ShadowPass と同じ canonical `computeSoftSampleDirectionVariants`（f32 成分同一）で全 variant × 全 sample 方向を生成し、component-wise max で union。
+  - center 方向を baseline に含むため union >= historical center halo を常に保証。
+  - maxDistance は ShadowPass が uniform に積む ONE sanitized scalar を共有（per-sample 独自 default なし）。
+- `planPartialScene`: `sanitizeAngularRadius > 0 && effective.samples > 1` なら union、それ以外は従来 `shadowHalo(center)`（hard path の historical semantics 完全維持）。
+- 単体テスト `tiles.test.ts`（9件追加、62/62 pass）: hard-path 一致 / radius 0 で center と完全一致 / 全 variant×samples の exact union / variant0 のみより広い / near-vertical(x=0)で左右両方>0 / 符号反転(+x→right>0, +y→bottom>0) / deterministic / maxDistance 検証 / planner 統合（soft は center-only より厳密に広い dirtyRect、hard は旧実装と完全一致）。
 
-- `packages/renderer/src/gpu/tiles.ts`
-  - 新規 export `sampledShadowHaloUnion(lightDirection, angularRadius, samples, maxDistance)`:
-    - `computeSoftSampleDirectionVariants`（ShadowPass と同じ canonical host helper、f32 成分も同一）で全 variant × 全 sample 方向を生成
-    - 各方向に対し `left = maxDistance*max(dx,0)` / `right = maxDistance*max(-dx,0)` / top/bottom 同様の component-wise max union
-    - **center 方向の halo を baseline として含む** → union >= historical center halo が常に保証される
-    - maxDistance は ShadowPass が uniform に積む ONE sanitized scalar（center 由来の default 含む）をそのまま共有。per-sample 独自 default は作らない
-  - `planPartialScene`: `sanitizeAngularRadius(header.lightAngularRadius) > 0 && effective.samples > 1` なら union halo、それ以外は従来 `shadowHalo(center)`（historical 完全維持）
-  - モジュール先頭の halo ルール説明も更新済み
-- 単体テスト `tiles.test.ts` に describe 追加（9 件）:
-  - hard-path baseline >= / radius 0 で center と完全一致 / 全 variant×samples の exact union 一致 / variant0 のみより広い / near-vertical(x=0) で左右両方 > 0 / 符号反転(+x 小さい中心→right>0, +y 小さい中心→bottom>0) / deterministic / maxDistance バリデーション
-  - planner 統合テスト: soft シーンの dirtyRect が center-only 計算値より厳密に広い事を数値 assert ／ angularRadius=0 の hard frame は dirtyRect が旧実装計算値と完全一致
-- 状態: `npx vitest run src/gpu/tiles.test.ts` → **62/62 pass**
+### 2. BLOCKER — center-only planner なら失敗する regression fixture ✅
+- `parity.mjs` `runPartialReconstructionParity` を強化:
+  - **numeric assert**: 実エンコード/options で `sampledShadowHaloUnion > shadowHalo`（実測: center=[0,0,4,0] union=[5.481,5.481,9.412,1.496]）。
+  - 小編集（badge 30,120→32,121、単一 surface）で partial を維持（union halo で btn-a 移動は 0.533 で full 化するため badge 編集に変更、コメント明記）。
+  - retained partial vs forced-full を **raw visibility / reconstructed visibility / lighting color / objectId / final canvas** の全フィールドで byte 比較。
 
-注意（ハマりどころメモ）: `shadowHalo` の符号規約は「正の成分は MIN 側を拡張」（+x → left, +y → top）。円錐半角 0.25rad は純軸方向の中心より先に符号を反転させられない（例: ほぼ +x の光の sample が -x に行かない）。テスト/フィクスチャ設計時は中心成分を小さくする。
+### 3. HIGH-DPR contract ✅
+- 方針 **A** 採用: public 4 CSS px footprint をサポート display-DPR `[1,4]` で維持。
+- `MAX_RECONSTRUCTION_RADIUS_TEXELS` 8 → 16（= round(4×4)、worst taps (2·16+1)²=1089）＋新定数 `SUPPORTED_DISPLAY_DPR_MAX = 4`（export）。
+- 範囲外（DPR>4）は cost cap で CSS footprint が縮むことを production docs（shadow-reconstruct.ts / ukibori-dom types.ts / coords.ts）に明記。
+- テスト: DPR [1,1.5,2,3,4] × default 2px / explicit 4px の radiusTexels と footprint assert、DPR5 の劣化（16→3.2 CSS px）assert、coords.test.ts も DPR3/4 へ拡張。renderer/dom 両 typecheck ✅。
 
-### 2. BLOCKER: center-only planner なら失敗する partial/full parity fixture — ❌ 未着手（設計メモあり）
+### 4. Portable final-canvas fixture ✅
+- 実機調査で判明: D3D の unorm8 encode は CPU の round-half-up に対し **最大 ~0.057 byte-unit の偏差**（高密度スイープで 66/400 反転）。再構成（非 dyadic 商）の積が .5 境界近くに乗ると exact-alpha ポリシーで false failure する。
+- `present-soft-shadow-custom-tint-alpha`: `reconstruction: { enabled: false }` を追加 → raw #41 の意図（dyadic 積・portable、margin 0.068）を復元。
+- `present-reconstructed-soft-shadow`: portable なジオメトリ/パラメータに変更（elev2/size4/samples8/radius3/shadowAlpha≈0.29/tint[160,70,180]）→ **min quantization margin 0.1224 byte units**（D3D 反転包絡線の 2.1倍、safety 1655x）。
+- `oracle.mjs`: `presentationReference` が `visibility/objectId/reconstructed` を返却、新 `reconstructedCanvasQuantizationReport` を追加。`parity.mjs` が reconstructed canvas fixture で margin を pin（PORTABLE でなければ FAIL）し detail に数値を出力（実測 `min=1.224e-1 safety=1655x -> PORTABLE`）。
 
-実装先: `packages/renderer/test-browser/parity.mjs` の `runPartialReconstructionParity` 拡張 or 新 runner。
-設計メモ:
-- 光: center x = 0 の near-vertical（例 `(0, 0.0995, 0.995)` 正規化）、angularRadius = fround(0.15〜0.25)、samples 8、bounded maxDistance（例 24）
-- tile size 8〜16（TILE_SIZE_MIN=8）で不足 halo が tile expansion 吸収されないようにする
-- mover caster を 1px 水平移動。receiver 列は「center ray の dirty halo 外・sample ray union 内」に配置。sample の水平リーチ目安 ≈ sin(angularRadius)*maxDistance
-- 必須 assert:
-  - `api.sampledShadowHaloUnion(...) > api.shadowHalo(...)` を数値比較して detail に出す（exported pure functions を使用）
-  - retained partial vs fresh forced-full で **raw visibility / reconstructed visibility / lighting color / final canvas** を test-only staging readback でバッファ比較（既存 `readback`/`readbackF32` ヘルパーを流用。partial snapshot は dispose 前に読む）
+### 5. classification ✅
+- `compareReconstructedVisibility`: non-finite / [0,1] 違反 → `contract`、tolerance 超過のみ → `precision` に分類（semantic/domain violation を precision に隠さない）。
 
-### 3. HIGH-DPR contract（MAX_RECONSTRUCTION_RADIUS_TEXELS）— ✅ 方針決定・実装・テスト済み
+### 6. docs cleanup ✅
+- `dirty.ts`: "six pipeline stages" → seven（canonical order に reconstruction 追加）。
+- `pipeline.ts`: dispose 順 doc に reconstruction 追加（presentation→lighting→reconstruction→shadow→normal→height→uploader→timestamp profiler）。
+- `shadow.ts`: `ShadowOptions.reconstruction.radius` を「SCENE units（CSS px は DOM public API のみ）」に修正。
+- `reconstruction-pass.ts`: dpr フィールド doc の "CSS px -> texels" → scene-unit 変換である旨に修正。
+- `parity.mjs` `runRetainedParity`: first-frame の 6 段チェック → 7 段へ修正（#43 の reconstruction 追加漏れ）。
+- 禁止フレーズを grep 確認: "six pipeline stages" / "exact reconstructed visibility" / "bit-identical reconstruction" / "binary shadow visibility only" / "reconstruction gate is dimensionless" / "center-direction halo is sufficient" — 全て 0 件。
 
-- **採用: 方針 A**。public 4 CSS px footprint をサポート display-DPR 範囲 `[1, 4]` で維持
-- `shadow-reconstruct.ts`: `MAX_RECONSTRUCTION_RADIUS_TEXELS = 8 → 16`（= round(4 CSS px × 4)、worst tap (2·16+1)² = 1089）＋新定数 `SUPPORTED_DISPLAY_DPR_MAX = 4`（export 済み、index.ts も更新）
-- 範囲外（DPR>4）は cost cap が勝ち CSS footprint が縮むことを**明文化**（無言のまま DPR-invariant と書く禁止事項は回避）
-- `index.ts`: `SUPPORTED_DISPLAY_DPR_MAX` を追加 export
-- テスト:
-  - `shadow-reconstruct.test.ts`: `{radius:2}, dpr4` 期待値 8 に修正（cap でなくなるため）、DPR [1,1.5,2,3,4] × default 2px / explicit 4px の radiusTexels と footprint(radiusTexels/dpr==css) assert、範囲外 DPR5 → 16 texels (=3.2 CSS px) の劣化 assert → **16/16 pass**
-  - `ukibori-dom/src/coords.test.ts`: defaults の DPR3/4 追加、radius4 CSS px の footprint 不変ループを [1,1.5,2,3,4] へ拡張 → **未実行（要確認）**
-- DOM docs（`ukibori-dom/src/types.ts`, `coords.ts`）に supported range と範囲外劣化を明記
+### 7. retained scheduler semantics ✅
+- 実 WebGPU で検証: hard frame は historical halo + Recon bypass、soft frame は union halo + recon/lighting halo、retained/repaint/option-only の各 invalidation が期待通りの closure（retainedProblems=0）。
 
-### 4. reconstructed canvas の quantization margin — ❌ 未着手
+### 8. planner performance ✅
+- union 計算は毎フレーム host で 128 directions 上限。premature caching なし（決定論的実装を優先）。
 
-方針メモ:
-- `oracle.mjs` `presentationReference` が内部で使う `visibility` 配列を戻り値に追加
-- 新ヘルパー（oracle.mjs）: base-plane texel ごとに byte 空間での境界距離を計算
-  - alpha 値[byte 単位] = saByte * strength、premult RGB = cByte * saByte * strength / 255
-  - margin(v) = |v - floor(v) - 0.5| との距離
-  - 合法 drift 上限: alpha ≤ saByte * TOL(1e-6)、RGB ≤ cByte*saByte/255*TOL → margin > 余裕係数(例 1e3倍 or 最低 1e-3)を assert
-- `parity.mjs` の `present-reconstructed-soft-shadow` 処理で report + FAIL 条件にする
-- margin 不足なら fixture の shadowAlpha/tint/radius を調整（production compositor は触らない）
-- 現状の失敗実績: `present-soft-shadow-custom-tint-alpha` と `present-reconstructed-soft-shadow` が各 2 texel の ±1 バイト差で FAIL（texel(11,5)/(12,5)。cpu=[3,1,3,3] vs gpu=[2,0,3,3]、alpha 差）。#41 の「積が整数になる」前提が recon の非 dyadic 商で崩れているのが原因想定
+### 9. WGSL compile validation ✅
+- `RECONSTRUCTION_PASS_WGSL` の `RECONSTRUCTION_WORKGROUP_SIZE` declaration（311d8f2）を維持、`checkShaders()` の compilationInfo check も維持。
 
-### 5. visibility-reconstructed の classification — ❌ 未着手
+### 10. real WebGPU tests ✅
+- 下記「検証結果」参照。全パス。
 
-方針: `compareReconstructedVisibility` の `mismatchReport` 呼び出しに context を追加
-- non-finite / [0,1] 違反 → `{ classification: "contract" }`
-- tolerance 超過のみ → `{ classification: "precision" }`
-- `classifyMismatch` は context.classification を最優先するので、これだけで解決（"visibility-reconstructed" 自体のフォールスルーは unclassified のまま残るが context で必ず分類される）
+### 11. catalog/golden version ✅
+- `CATALOG_VERSION` 4 → 5（fixture payload 変更: presentation 2 fixture の options/scene、DPR reconstruction 2 fixture の separation）。
+- goldens は公式 updater で再生成: **@metadata の catalogVersion のみ変更**（per-fixture digest 不変。reconstruction 系は golden 対象外）。手書き digest なし。
 
-### 6. docs cleanup — 🔶 部分完了
+### 12. latest master確認 ✅
+- 開始時・完了時とも origin/master = `29e4224`（進捗なし、merge 不要）。
 
-- ✅ `dirty.ts`: "The six pipeline stages" → seven + `upload -> height -> normal -> shadow -> reconstruction -> lighting -> presentation`
-- ✅ `pipeline.ts` dispose doc: presentation, lighting, **reconstruction**, shadow, normal, height, uploader, timestamp profiler の順に修正
-- ✅ `shadow.ts` `ShadowOptions.reconstruction` doc: "(CSS px)" → "SCENE units — only the DOM layer's public API is CSS px"
-- ✅ grep 確認済み（0 件）: "six pipeline stages|six stages"、"exact reconstructed visibility"、"bit-identical reconstruction"、"binary shadow visibility only"、"reconstruction gate is dimensionless"、"center-direction halo is sufficient"
-- ⬜ 追加 grep 未実施: README.md / test-browser docs / `packages/renderer` 内 "CSS px" 表記の残り（shadow-reconstruct.ts 内は DOM 専用文脈なので OK のだが要再確認）、"disposal"/"dispose sequence" 系の reconstruction 抜け
-
-### 7. retained scheduler semantics 再確認 — ⬜ テスト実行で確認するのみ（コード変更なしの予定）
-
-確認ポイント: hard frame は historical halo + Recon bypass／soft frame は union halo + recon/lighting halo／light/angularRadius 変更は semantic full／recon option-only は recon→lighting→presentation／identical frame は全 retained。
-
-### 8. planner performance — ✅ 方針通り（caching 無し・都度計算）
-
-128 directions 上限の host 計算。premature caching 導入せず。
-
-### 9. WGSL compile validation — ✅ 維持（311d8f2 の内容に手付き無し）
-
-`RECONSTRUCTION_PASS_WGSL` の compilationInfo check は parity.mjs に残っている。触っていない。
-
-### 10〜13. テスト一式実行 / catalog version / master 確認 / 最終報告 — ⬜ 未着手
-
-- catalog.mjs / goldens は**現時点で未変更**（version bump 不要のはず。item 2/4 を parity.mjs と oracle.mjs だけで実装すれば bump 不要で済む）
-- origin/master 確認は作業完了直前に実施（開始時点: 29e4224 で進行無しを確認済み…ただし最終再確認が必要）
+### 13. 最終報告 — 本ファイル + コミットメッセージで実施。
 
 ---
 
-## 変更済みファイル（未コミット）
+## 検証結果（実 WebGPU、NVIDIA/Blackwell、headless Chrome）
 
-1. `packages/renderer/src/gpu/tiles.ts` — sampledShadowHaloUnion 追加、planPartialScene 分岐、module doc 更新
-2. `packages/renderer/src/gpu/tiles.test.ts` — #43 halo describe 追加（import に computeSoftSampleDirections / SHADOW_KERNEL_VARIANTS / parseHeader / sampledShadowHaloUnion を追加）
-3. `packages/renderer/src/shadow-reconstruct.ts` — cap 16 化 + SUPPORTED_DISPLAY_DPR_MAX + docs
-4. `packages/renderer/src/shadow-reconstruct.test.ts` — DPR コントラクトテスト更新
-5. `packages/renderer/src/index.ts` — SUPPORTED_DISPLAY_DPR_MAX export
-6. `packages/ukibori-dom/src/coords.ts` — doc 更新（import は NET: SUPPORTED_DISPLAY_DPR_MAX は import から削除済み、doc のみ言及）
-7. `packages/ukibori-dom/src/coords.test.ts` — DPR3/4 追加テスト
-8. `packages/ukibori-dom/src/types.ts` — reconstruction doc に supported range 明記
-9. `packages/renderer/src/gpu/dirty.ts` — seven stages 修正
-10. `packages/renderer/src/gpu/pipeline.ts` — dispose doc 修正
-11. `packages/renderer/src/shadow.ts` — reconstruction.radius 単位表記修正
+```
+UKIBORI_WEBGPU_PASS
+92 fixtures, 0 mismatches
+  shadow         0/70640  exact（raw #41 parity 維持）
+  reconstructed  0/2880   (max abs 5.96e-8, max ulp 1.00)
+  lighting       0/70128  (RGBA8 max deltas R0 G0 B0 A0)
+  presentation  19 fixtures, 0 hard / 0 bad-alpha
+  retained / partial / recon-partial problems: すべて 0
+  benchmark      640x360: CPU 284ms / GPU 3.75ms, speedup 75.8x
+  presentation benchmark: present-only 3.25ms
+quantization margin (present-reconstructed-soft-shadow): min=1.224e-1, safety=1655x -> PORTABLE
+recon-partial halo: center=[0,0,4,0] union=[5.481,5.481,9.412,1.496] union>center=true
+```
 
-## 検証状態（このスナップショット時点）
+Node 側: renderer 813 tests pass（4 file は既知の環境依存ロード失敗 — wasm/browser contract、baseline と同一）、ukibori-dom 103、ukibori 173、goldens verify pass、typecheck 全 clean。
 
-- `vitest src/gpu/tiles.test.ts`: 62/62 ✅
-- `vitest src/shadow-reconstruct.test.ts`: 16/16 ✅
-- renderer フル suite: 直近（変更前ベース）803 tests pass ＋ 4 ファイルが環境起因のロード失敗（wasm-browser-contract / issue30-contract / test-browser-contract / wasm determinism — ベースラインでも同一、無関係）
-- `tsc --noEmit` (renderer): 最新編集後に**未再実行**
-- ukibori-dom tests: coords.test.ts 編集後に**未再実行**
-- real WebGPU harness (`CHROME_PATH="C:\Program Files\Google\Chrome\Application\chrome.exe" npm run test:webgpu` @ packages/renderer):
-  - 311d8f2 時点の結果: reconstruction parity 0 mismatch (max abs 6e-8)。残FAIL = `shadow-reconstruction-dpr2`（CPU オラクル razor-edge stability throw、ベースラインから存在・別件）＋ presentation 2 fixture の ±1 バイト（item 4 の対象）
-  - 今日の変更後は**未実行**
+---
 
-## 再開手順の目安
+## 変更ファイル（最終）
 
-1. `npm run typecheck -w ukibori-renderer` → `npx vitest run`（renderer）→ `npm test -w ukibori-dom` → `npm test -w ukibori`
-2. item 5 → oracle.mjs（小）→ item 4 → oracle.mjs + parity.mjs → item 2 → parity.mjs（最大工数）
-3. goldens/catalog に触ったら公式 updater のみ（`npm run goldens:update -w ukibori-renderer`）
-4. `npm run build` 全ワークスペース → real WebGPU harness フル実行 → 残 FAIL の帰属整理
-5. `git fetch origin && git log HEAD..origin/master` で進んでいれば merge
-6. commit（fix(renderer) 系、repo スタイル準拠）→ push → 最終報告（レビュー指示 13 の 19 項目)
+- `packages/renderer/src/gpu/tiles.ts` / `tiles.test.ts` — union halo + 単体テスト
+- `packages/renderer/src/index.ts` — `sampledShadowHaloUnion` / `SUPPORTED_DISPLAY_DPR_MAX` export
+- `packages/renderer/src/shadow-reconstruct.ts` / `.test.ts` — cap 16 化 + DPR contract テスト
+- `packages/renderer/src/gpu/dirty.ts` — seven stages
+- `packages/renderer/src/gpu/pipeline.ts` — dispose doc
+- `packages/renderer/src/gpu/reconstruction-pass.ts` — dpr doc
+- `packages/renderer/src/shadow.ts` — radius 単位表記
+- `packages/ukibori-dom/src/types.ts` / `coords.ts` / `coords.test.ts` — supported DPR range + テスト
+- `packages/renderer/test-browser/catalog.mjs` — portable canvas fixture / DPR fixture separation / CATALOG_VERSION 5
+- `packages/renderer/test-browser/oracle.mjs` — classification + quantization margin report
+- `packages/renderer/test-browser/parity.mjs` — union>center assert + field-level partial/full 比較 + margin pin + 7 段チェック
+- `packages/renderer/test-browser/goldens/cpu-goldens.json` — catalogVersion 5（公式 updater）
 
-## その他の作業アーティファクト（repo 外）
+## 残課題（unresolved limitations）
 
-- 再現ハーネス: `C:\Users\karub\AppData\Local\Temp\opencode\ukibori-repro\`（repro.html/.mjs/run.mjs。Chrome headless + CDP で個別検証するとき便利）
+- 4 つの vitest file-load failure（`wasm-browser-contract` / `issue30-contract` / `test-browser-contract` / `wasm/determinism`）は本環境固有の .mjs/wasm import 問題で baseline と同一、本ブランチの変更とは無関係（修正対象外として報告）。
+- `present-reconstructed-soft-shadow` の canvas byte parity は「portable なジオメトリ選択」で保証している（margin 0.1224）。D3D の unorm8 encode 偏差（~0.057 byte-unit）は本ブランチで観測された backend 特性であり、production compositor は変更していない。

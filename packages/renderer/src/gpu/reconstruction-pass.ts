@@ -94,7 +94,8 @@ export interface ReconstructionPassInput {
   /** raw reconstruction options; sanitized exactly like the CPU oracle */
   readonly options?: ShadowReconstructionOptions;
   /**
-   * Render DPR used for the single radius conversion (CSS px -> texels).
+   * Render DPR used for the single scene-unit radius -> texel conversion
+   * (the DOM already mapped its CSS-px radius through the display DPR once).
    * Must match the render extent's dpr; defaults to the rawVisibility
    * binding's implied 1 when omitted.
    */
