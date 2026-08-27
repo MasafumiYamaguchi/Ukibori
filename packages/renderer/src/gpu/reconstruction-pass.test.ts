@@ -5,6 +5,7 @@ import { encodeScene } from "./encode";
 import { SceneUploader } from "./uploader";
 import type { GpuBufferLike, SceneBindings } from "./uploader";
 import { COMPUTE_STAGE_VISIBILITY, HeightPass } from "./height-pass";
+import type { HeightPassProvenance } from "./height-pass";
 import type {
   GpuBindGroupEntryLike,
   GpuBindGroupLayoutEntryLike,
