@@ -76,7 +76,7 @@ const policyEntries = POLICY_TABLE as PolicyEntry[];
 
 describe("#30 catalog — every fixture has explicit metadata", () => {
   it("pins the catalog version and fixture totals (92 compute + 19 presentation)", () => {
-    expect(CATALOG_VERSION).toBe(4);
+    expect(CATALOG_VERSION).toBe(5);
     expect(catalog.computeFixtures.length).toBe(92);
     expect(catalog.presentationFixtures.length).toBe(19);
   });
@@ -181,6 +181,32 @@ describe("#30 mismatch classification — exactly one of the six, else unclassif
     expect(oracle.classifyMismatch("lightingColor", {})).toBe("precision");
     expect(oracle.classifyMismatch("mutation", {})).toBe("scheduling");
     expect(oracle.classifyMismatch("something-unknown", {})).toBe("unclassified");
+  });
+
+  // #43: a reconstructed-visibility mismatch is ALWAYS classified through
+  // the explicit context the comparison passes (contract for domain
+  // violations, precision for tolerance exceedance) — never unclassified.
+  it("classifies every visibility-reconstructed mismatch explicitly", () => {
+    expect(
+      oracle.classifyMismatch("visibility-reconstructed", {
+        classification: "contract",
+      }),
+    ).toBe("contract");
+    expect(
+      oracle.classifyMismatch("visibility-reconstructed", {
+        classification: "precision",
+      }),
+    ).toBe("precision");
+    // and the comparison itself passes exactly those classifications
+    const mismatches = oracle.compareReconstructedVisibility(
+      { id: "x", shadowOptions: { samples: 4 }, scene: { light: { angularRadius: 0.2 } } },
+      new Float32Array([0.5, 0.5, 0.5]),
+      new Float32Array([0.5, Number.NaN, 0.5001]),
+      3,
+    );
+    expect(mismatches.mismatches).toBe(2);
+    expect(mismatches.samples[0].includes("classification=contract")).toBe(true);
+    expect(mismatches.samples[1].includes("classification=precision")).toBe(true);
   });
 
   it("never guesses silently: the classifier emits only the six documented labels or unclassified", () => {

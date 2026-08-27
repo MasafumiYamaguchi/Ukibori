@@ -1124,10 +1124,20 @@ export function createOracle(api) {
    * the reconstruction tolerance can inject (dStrength <= tolerance, so
    * dAlpha <= saByte * tolerance and dChannel <= cByte*saByte/255*tolerance).
    *
-   * A fixture is PORTABLE only when `minMargin` exceeds the legal drift by a
-   * large safety factor AND stays above an absolute floor (1e-3 byte units
-   * ~= 500x the legal drift) — far beyond any f32 backend variance.
+   * A fixture is PORTABLE only when `minMargin` exceeds the legal drift by
+   * `REQUIRED_SAFETY_FACTOR` (16x) AND stays above the absolute floor
+   * `MARGIN_FLOOR` (1e-3 byte units). The factor is evidence-based, not
+   * arbitrary: the drift bound already scales the f32-level tolerance (1e-6
+   * ~= 16-30 ulp of [0,1]) linearly into byte space, and the 16x headroom
+   * guarantees that even a worst-case legal-backend deviation (bounded by
+   * the tolerance) can never cross a rounding boundary while remaining far
+   * below the ~950x margin this suite's fixtures actually provide. Observed
+   * backend behavior (e.g. a D3D deviation of ~0.057 byte units on past
+   * fixtures) is DIAGNOSTIC evidence only and is never fixed into the
+   * normative guard.
    */
+  const REQUIRED_SAFETY_FACTOR = 16;
+
   function reconstructedCanvasQuantizationReport(visibility, objectId, compositeOptions) {
     const opts = sanitizeCompositeOptions(compositeOptions ?? {});
     const saByte = Math.round(opts.shadowAlpha * 255);
@@ -1166,6 +1176,17 @@ export function createOracle(api) {
       (Math.max(cr, cg, cb) * saByte) / 255 * RECONSTRUCTION_VISIBILITY_TOLERANCE;
     const maxLegalDrift = Math.max(maxAlphaDrift, maxRgbDrift);
     const MARGIN_FLOOR = 1e-3;
+    const actualSafetyFactor =
+      Number.isFinite(minMargin) && maxLegalDrift > 0
+        ? minMargin / maxLegalDrift
+        : Number.POSITIVE_INFINITY;
+    // #43 review: the guard uses BOTH bounds the comment promises — the
+    // absolute floor AND the legal-drift safety factor (never just the
+    // floor).
+    const portable =
+      Number.isFinite(minMargin) &&
+      minMargin >= MARGIN_FLOOR &&
+      actualSafetyFactor > REQUIRED_SAFETY_FACTOR;
     return {
       minMargin,
       worstTexel,
@@ -1173,8 +1194,9 @@ export function createOracle(api) {
       maxAlphaDrift,
       maxRgbDrift,
       marginFloor: MARGIN_FLOOR,
-      portable: Number.isFinite(minMargin) && minMargin >= MARGIN_FLOOR,
-      safetyFactor: maxLegalDrift > 0 ? minMargin / maxLegalDrift : Infinity,
+      requiredSafetyFactor: REQUIRED_SAFETY_FACTOR,
+      safetyFactor: actualSafetyFactor,
+      portable,
     };
   }
 

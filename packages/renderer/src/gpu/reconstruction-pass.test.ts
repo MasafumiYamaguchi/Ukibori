@@ -56,17 +56,20 @@ class MockBuffer implements GpuBufferLike {
 
 class MockComputePass implements GpuComputePassEncoderLike {
   readonly calls: { dispatch: Array<{ x: number; y: number; z: number }> } = { dispatch: [] };
+  constructor(private readonly log: number[]) {}
   setPipeline(): void {}
   setBindGroup(): void {}
   dispatchWorkgroups(x: number, y = 1, z = 1): void {
     this.calls.dispatch.push({ x, y, z });
+    this.log.push(x);
   }
   end(): void {}
 }
 
 class MockEncoder implements GpuCommandEncoderLike {
+  constructor(private readonly log: number[]) {}
   beginComputePass(): GpuComputePassEncoderLike {
-    return new MockComputePass();
+    return new MockComputePass(this.log);
   }
   finish(): GpuCommandBufferLike {
     return { label: "mock-cmd" };
@@ -89,9 +92,13 @@ class MockDevice implements GpuComputeDeviceLike {
   readonly bindGroups: GpuBindGroupLike[] = [];
   readonly submits: GpuCommandBufferLike[][] = [];
   readonly writes: Array<{ buffer: GpuBufferLike; bytes: Uint8Array }> = [];
+  /** actual `dispatchWorkgroups` counts recorded by every encoder pass */
+  readonly dispatchLog: number[] = [];
   readonly queue = {
     writeBuffer: (buffer: GpuBufferLike, _dstByteOffset: number, source: Uint8Array): void => {
-      this.writes.push({ buffer, bytes: source });
+      // copy: the pass reuses one uniform array across chunk writes, so a
+      // later chunk would otherwise mutate earlier recorded entries
+      this.writes.push({ buffer, bytes: source.slice() });
     },
     submit: (commandBuffers: readonly GpuCommandBufferLike[]): void => {
       this.submits.push([...commandBuffers]);
@@ -131,7 +138,7 @@ class MockDevice implements GpuComputeDeviceLike {
     return group;
   }
   createCommandEncoder(): GpuCommandEncoderLike {
-    return new MockEncoder();
+    return new MockEncoder(this.dispatchLog);
   }
 }
 
@@ -208,6 +215,92 @@ describe("ReconstructionPass — #43 GPU stage contract", () => {
     expect(RECONSTRUCTION_PARAMS_BYTE_LENGTH).toBe(32);
     expect(RECONSTRUCTION_WORKGROUP_SIZE).toBe(64);
     expect(RECONSTRUCTION_OUTPUT_BYTES_PER_TEXEL).toBe(4);
+  });
+
+  it("reports stats.workgroupCountX matching the ACTUAL dispatched workgroups (full frame)", () => {
+    const mock = new MockDevice();
+    const pass = new ReconstructionPass(mock);
+    const fields = dispatchChain(mock, slabScene(0.15, 8));
+    const submitsBefore = mock.submits.length;
+    mock.dispatchLog.length = 0; // only the reconstruction pass dispatches now
+    const stats = pass.dispatch({ ...fields, options: { radius: 2 }, dpr: 1 });
+    // full frame: one dispatchWorkgroups call of ceil(texels / WG)
+    const fullWorkgroups = Math.ceil(16 * 16 / RECONSTRUCTION_WORKGROUP_SIZE);
+    expect(stats.workgroupCountX).toBe(fullWorkgroups);
+    expect(pass.getSnapshot().lastDispatch.workgroupCountX).toBe(fullWorkgroups);
+    // the actual encoder dispatch log matches the returned stats exactly
+    expect(mock.dispatchLog).toEqual([fullWorkgroups]);
+    expect(stats.submissions).toBe(1);
+    expect(mock.submits.length).toBe(submitsBefore + 1);
+  });
+
+  it("reports stats.workgroupCountX matching the ACTUAL dispatched workgroups (partial band)", () => {
+    const mock = new MockDevice();
+    const pass = new ReconstructionPass(mock);
+    const fields = dispatchChain(mock, slabScene(0.15, 8));
+    mock.dispatchLog.length = 0;
+    const stats = pass.dispatch({
+      ...fields,
+      options: { radius: 2 },
+      dpr: 1,
+      region: { y0: 4, y1: 9 },
+    });
+    // partial: ceil(bandTexels / WG) — NEVER the full-frame count
+    const bandWorkgroups = Math.ceil(16 * 6 / RECONSTRUCTION_WORKGROUP_SIZE);
+    const fullWorkgroups = Math.ceil(16 * 16 / RECONSTRUCTION_WORKGROUP_SIZE);
+    expect(bandWorkgroups).toBeLessThan(fullWorkgroups);
+    expect(stats.workgroupCountX).toBe(bandWorkgroups);
+    expect(pass.getSnapshot().lastDispatch.workgroupCountX).toBe(bandWorkgroups);
+    // the actual encoder dispatch log matches the returned stats exactly
+    expect(mock.dispatchLog).toEqual([bandWorkgroups]);
+    // the uniform carries the band: yOffset = 4*16, regionEnd = 10*16
+    const view = new DataView(mock.writes.at(-1)!.bytes.buffer);
+    expect(view.getUint32(12, true)).toBe(4 * 16);
+    expect(view.getUint32(16, true)).toBe(10 * 16);
+    expect(stats.submissions).toBe(1);
+  });
+
+  it("reports the logical band total and chunk submissions on a limit-split frame", () => {
+    // Force a split: a 300x100 frame needs ceil(30000/64)=469 workgroups but
+    // the mock's per-dimension cap is clamped to 8; a single row only needs
+    // ceil(300/64)=5 <= 8, so planDispatchChunks splits rows into chunks.
+    const mock = new MockDevice();
+    (mock.limits as unknown as Record<string, unknown>).maxComputeWorkgroupsPerDimension = 8;
+    const pass = new ReconstructionPass(mock);
+    // synthetic fields at 300x100 (the pass only needs extent-consistent
+    // bindings; no shader execution happens in the mock)
+    const provenance = {} as HeightPassProvenance;
+    const mk = (width: number, height: number) => ({
+      rawVisibility: { buffer: new MockBuffer(width * height * 4, 0x80), byteLength: width * height * 4, format: "f32" as const, usage: 0x80, width, height, provenance },
+      height: { buffer: new MockBuffer(width * height * 4, 0x80), byteLength: width * height * 4, format: "f32" as const, usage: 0x80, width, height, provenance },
+      objectId: { buffer: new MockBuffer(width * height * 4, 0x80), byteLength: width * height * 4, format: "u32" as const, usage: 0x80, width, height, provenance },
+    });
+    const fields = mk(300, 100);
+    mock.dispatchLog.length = 0;
+    const stats = pass.dispatch({ ...fields, options: { radius: 2 }, dpr: 1 });
+    // 30000 texels / 64 = 468.75 -> 469 workgroups as the LOGICAL band total
+    // (the same convention as the other field passes' lastDispatch); the
+    // 8-workgroup cap splits it into sequential chunks (submissions > 1).
+    expect(stats.workgroupCountX).toBe(469);
+    expect(pass.getSnapshot().lastDispatch.workgroupCountX).toBe(469);
+    expect(stats.submissions).toBeGreaterThan(1);
+    expect(stats.submissions).toBe(mock.submits.length);
+    // the actual per-chunk dispatches are recorded by the encoder log: one
+    // dispatchWorkgroups call per chunk, each within the cap. The chunk
+    // boundaries (row-aligned) need not align with 64-texel workgroup
+    // blocks, so the per-chunk sum can exceed the LOGICAL total — the
+    // documented single-number convention (shared with the other field
+    // passes) is the logical total, while the profiler counts the real
+    // dispatches/submissions.
+    expect(mock.dispatchLog.length).toBe(stats.submissions);
+    expect(Math.max(...mock.dispatchLog)).toBeLessThanOrEqual(8);
+    expect(mock.dispatchLog.length).toBe(100); // one row per chunk
+    // the chunk uniforms tile the full band: first chunk starts at 0, last
+    // chunk ends at 30000 texels (100 rows x 300 width)
+    const first = new DataView(mock.writes[0].bytes.buffer);
+    const last = new DataView(mock.writes.at(-1)!.bytes.buffer);
+    expect(first.getUint32(12, true)).toBe(0);
+    expect(last.getUint32(16, true)).toBe(300 * 100);
   });
 
   it("dispatches with a uniform upload and one submission, reusing allocations", () => {

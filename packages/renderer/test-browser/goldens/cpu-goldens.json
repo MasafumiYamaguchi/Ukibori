@@ -36,7 +36,7 @@
       "buffer": "visibility-reconstructed",
       "policy": "reconstructed-abs-tolerance",
       "tolerance": 0.000001,
-      "description": "#43 reconstructed visibility: SEPARATE tight policy from raw #41. The gated tap average sum/tapCount is NOT dyadic (3/25, 7/49, ...), so the CPU's exact f64 quotient rounded to f32 once and the GPU's f32 accumulation must NOT be promised bit-identical across legal WebGPU backends. Every value must be finite and inside [0,1] with |gpu - cpu| <= 1e-6 (~16-30 f32 ulp — evidence-driven; the ULP simulation measures 0 ulp for the exact dyadic accumulation and the headroom covers backend division rounding); max abs/ULP errors are reported so regressions surface even under the tolerance."
+      "description": "#43 reconstructed visibility: SEPARATE tight policy from raw #41. The gated tap average sum/tapCount is NOT dyadic (3/25, 7/49, ...), so the CPU's exact f64 quotient rounded to f32 once and the GPU's f32 accumulation must NOT be promised bit-identical across legal WebGPU backends. Every value must be finite and inside [0,1] with |gpu - cpu| <= 1e-6 (~16-30 f32 ulp —evidence-driven; the ULP simulation measures 0 ulp for the exact dyadic accumulation and the headroom covers backend division rounding); max abs/ULP errors are reported so regressions surface even under the tolerance."
     },
     {
       "buffer": "height",

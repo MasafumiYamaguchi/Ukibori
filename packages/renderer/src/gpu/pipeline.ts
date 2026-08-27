@@ -781,13 +781,19 @@ export class GpuScenePipeline {
    * - unknown byte mutations -> full ("no-scene-change" / "unknown"; the
    *   classification only ever emits the conservative full chain for
    *   unknown/structural changes)
-   * - pass-option changes mixed with the scene change -> full
-   *   ("option-change-with-scene")
-   * - the exact per-surface/mask diff yields the dirty scene rect, expanded
-   *   by the shadow receiver halo and the 1-texel profile/normal halo; the
+   * - GEOMETRY-ONLY scene change -> eligible for partial: the exact
+   *   per-surface/mask diff yields the dirty scene rect, expanded by the
+   *   shadow receiver halo and the 1-texel profile/normal halo; the
    *   dispatch band covering the dirty tiles is partial only when it covers
    *   at most PARTIAL_DISPATCH_RATIO of the frame (deterministic coverage
    *   ratio, never a timing), otherwise full ("band-coverage ...").
+   * - geometry + GLOBAL pass-option/semantic change -> full
+   *   ("option-change-with-scene" for shadow/reconstruction/normal/lighting
+   *   options; "<semantic>-change" for the encoded header fields). The
+   *   partial-locality proof only holds while the global shadow /
+   *   reconstruction semantics are IDENTICAL to the retained frame — a
+   *   partial update would mix new and retained visibility semantics
+   *   frame-wide (#43 review).
    *
    * The scene fingerprint is never trusted alone: `planPartialScene` diffs
    * the EXACT retained bytes against the fresh encoding.
@@ -848,10 +854,19 @@ export class GpuScenePipeline {
     if (report.reasons.includes("viewport")) {
       return full("viewport-change");
     }
+    // #43 review: a geometry change combined with a global PASS-OPTION
+    // change (shadow options / reconstruction options / normal / lighting)
+    // never takes the partial path: the partial-locality proof only holds
+    // while the global shadow/reconstruction semantics are identical to the
+    // retained frame — a partial update would mix new and retained
+    // visibility semantics frame-wide.
     if (
       report.reasons.some(
         (reason) =>
-          reason === "normal-options" || reason === "shadow-options" || reason === "lighting-options",
+          reason === "normal-options" ||
+          reason === "shadow-options" ||
+          reason === "reconstruction-options" ||
+          reason === "lighting-options",
       )
     ) {
       return full("option-change-with-scene");

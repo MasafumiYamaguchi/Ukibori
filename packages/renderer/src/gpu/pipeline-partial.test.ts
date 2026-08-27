@@ -731,3 +731,115 @@ describe("GpuScenePipeline — #43 reconstruction halo propagation on partial fr
     expect(uniforms.reconstruction).toHaveLength(0);
   });
 });
+
+describe("GpuScenePipeline — #43 geometry + global option change is NEVER partial", () => {
+  // The partial-locality proof only holds while the global shadow /
+  // reconstruction semantics are identical to the retained frame. A small
+  // geometry edit combined with a global semantic change must therefore
+  // plan FULL ("option-change-with-scene" / "<semantic>-change"), never
+  // partial — otherwise the dirty band would use the NEW semantics while
+  // the retained region keeps the OLD ones (mixed-semantic frame).
+
+  const SOFT_OPTIONS_A = {
+    ...BOUNDED_SHADOW,
+    samples: 4 as const,
+    reconstruction: { enabled: true, radius: 2 },
+  };
+  const SOFT_OPTIONS_B = {
+    ...BOUNDED_SHADOW,
+    samples: 16 as const,
+    reconstruction: { enabled: true, radius: 4 },
+  };
+
+  function softTall(angularRadius = Math.fround(0.2)): Scene {
+    return createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius },
+    });
+  }
+
+  it("geometry + samples/radius change plans full (option-change-with-scene)", () => {
+    const { pipeline } = setup();
+    pipeline.render({ scene: softTall(), dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+    const moved = createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: Math.fround(0.2) },
+      surfaces: [{ ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, TALL_SCENE.surfaces![1]!, TALL_SCENE.surfaces![2]!],
+    });
+    const stats = pipeline.render({ scene: moved, dpr: 1, shadowOptions: SOFT_OPTIONS_B, tileSize: 32 });
+    expect(stats.invalidation.reasons).toEqual(["scene", "shadow-options", "reconstruction-options"]);
+    expect(stats.planning.mode).toBe("full");
+    expect(stats.planning.reason).toBe("option-change-with-scene");
+    // the full chain ran with the NEW options everywhere
+    expect(stats.reconstructionActive).toBe(true);
+    expect(pipeline.getSnapshot().reconstructionPass!.options.radiusTexels).toBe(4);
+  });
+
+  it("geometry + angularRadius change plans full (<semantic>-change)", () => {
+    const { pipeline } = setup();
+    pipeline.render({ scene: softTall(Math.fround(0.1)), dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+    const moved = createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: Math.fround(0.2) },
+      surfaces: [{ ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, TALL_SCENE.surfaces![1]!, TALL_SCENE.surfaces![2]!],
+    });
+    const stats = pipeline.render({ scene: moved, dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+    expect(stats.invalidation.reasons).toContain("scene");
+    expect(stats.invalidation.reasons).toContain("light-angular-radius");
+    expect(stats.planning.mode).toBe("full");
+    expect(stats.planning.reason).toBe("light-angular-radius-change");
+  });
+
+  it("geometry + reconstruction disabled plans full (no stale reconstructed field outside the band)", () => {
+    const { pipeline } = setup();
+    pipeline.render({ scene: softTall(), dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+    const moved = createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: Math.fround(0.2) },
+      surfaces: [{ ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, TALL_SCENE.surfaces![1]!, TALL_SCENE.surfaces![2]!],
+    });
+    const disabledOpts = { ...BOUNDED_SHADOW, samples: 8 as const, reconstruction: { enabled: false } };
+    const stats = pipeline.render({ scene: moved, dpr: 1, shadowOptions: disabledOpts, tileSize: 32 });
+    expect(stats.invalidation.reasons).toContain("scene");
+    expect(stats.invalidation.reasons).toContain("reconstruction-options");
+    expect(stats.planning.mode).toBe("full");
+    expect(stats.planning.reason).toBe("option-change-with-scene");
+    // reconstruction bypassed everywhere: raw visibility consumed
+    expect(stats.reconstructionActive).toBe(false);
+    expect(pipeline.getSnapshot().reconstructionPass).toBeNull();
+  });
+
+  it("geometry + hard<->soft transitions plan full in both directions", () => {
+    // soft -> hard (angularRadius 0)
+    {
+      const { pipeline } = setup();
+      pipeline.render({ scene: softTall(), dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+      const moved = createScene({
+        ...TALL_SCENE,
+        light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: 0 },
+        surfaces: [{ ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, TALL_SCENE.surfaces![1]!, TALL_SCENE.surfaces![2]!],
+      });
+      const stats = pipeline.render({ scene: moved, dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+      expect(stats.invalidation.reasons).toContain("scene");
+      expect(stats.invalidation.reasons).toContain("light-angular-radius");
+      expect(stats.planning.mode).toBe("full");
+      expect(stats.reconstructionActive).toBe(false);
+    }
+    // hard -> soft (samples 1 -> 8 with geometry)
+    {
+      const { pipeline } = setup();
+      const hardOpts = { ...BOUNDED_SHADOW, samples: 1 as const, reconstruction: { enabled: true, radius: 2 } };
+      pipeline.render({ scene: tallScene(), dpr: 1, shadowOptions: hardOpts, tileSize: 32 });
+      const moved = createScene({
+        ...TALL_SCENE,
+        light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: Math.fround(0.2) },
+        surfaces: [{ ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, TALL_SCENE.surfaces![1]!, TALL_SCENE.surfaces![2]!],
+      });
+      const stats = pipeline.render({ scene: moved, dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+      expect(stats.invalidation.reasons).toContain("scene");
+      expect(stats.invalidation.reasons).toContain("shadow-options");
+      expect(stats.planning.mode).toBe("full");
+      expect(stats.reconstructionActive).toBe(true);
+    }
+  });
+});

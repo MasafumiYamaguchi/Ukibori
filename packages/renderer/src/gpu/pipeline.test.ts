@@ -741,7 +741,11 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
       scene: withLight({ x: 0, y: 0, z: 1 }),
       dpr: 1,
     });
-    expect(stats.invalidation.reasons).toEqual(["light-direction"]);
+    // #43 review: the direction change also moved |light.xy|, which shifts
+    // the context-derived default maxDistance — the effective shadow options
+    // changed, so shadow-options fires alongside light-direction (never
+    // swallowed). The planning stays full with the semantic reason.
+    expect(stats.invalidation.reasons).toEqual(["light-direction", "shadow-options"]);
     expect(stats.invalidation.executed).toEqual(["upload", "shadow", "reconstruction", "lighting", "presentation"]);
     expect(stats.invalidation.skipped).toEqual(["height", "normal"]);
     // exactly four stages submitted: no height/normal work
@@ -805,7 +809,14 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
     pipeline.render({ scene: withLight({ x: 0, y: 0, z: 1 }), dpr: 1 });
     const submits = device.submits.length;
     const stats = pipeline.render({ scene: taller(), dpr: 1 });
-    expect(stats.invalidation.reasons).toEqual(["scene"]);
+    // #43 review: the geometry edit also re-introduced the sceneA light
+    // direction (|light.xy| moved back), so the global semantic reasons are
+    // composed with "scene" instead of being swallowed.
+    expect(stats.invalidation.reasons).toEqual([
+      "scene",
+      "light-direction",
+      "shadow-options",
+    ]);
     expect(stats.invalidation.executed).toHaveLength(7);
     expect(device.submits.length).toBe(submits + 5);
     const snapshot = pipeline.getSnapshot();
@@ -820,7 +831,13 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
     pipeline.render({ scene: sceneA(), dpr: 1 });
     const submits = device.submits.length;
     const stats = pipeline.render({ scene: withLight({ x: 0, y: 0, z: 1 }, 2), dpr: 1 });
-    expect(stats.invalidation.reasons).toEqual(["light-direction", "light-intensity"]);
+    // #43 review: shadow-options composes with the semantic reasons (the
+    // direction change moved |light.xy| -> the effective shadow default).
+    expect(stats.invalidation.reasons).toEqual([
+      "light-direction",
+      "light-intensity",
+      "shadow-options",
+    ]);
     expect(stats.invalidation.executed).toEqual(["upload", "shadow", "reconstruction", "lighting", "presentation"]);
     expect(device.submits.length).toBe(submits + 3);
   });

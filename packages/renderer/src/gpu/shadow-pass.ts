@@ -278,6 +278,14 @@ export interface ShadowPassDispatchStats {
   readonly newAllocations: number;
   readonly allocationCount: number;
   readonly totalAllocationBytes: number;
+  /**
+   * The workgroup count THIS dispatch invocation actually dispatched:
+   * `ceil(bandTexels / SHADOW_WORKGROUP_SIZE)` for a partial band (== the
+   * single `dispatchWorkgroups` call), `ceil(fullTexels / WG)` for a full
+   * frame, and the LOGICAL band total on a limit-split chunked frame (the
+   * chunks tile the band; `submissions` reports the chunk count). Never the
+   * full-frame count of a partial band.
+   */
   readonly workgroupCountX: number;
   /**
    * queue.submit calls performed by this dispatch: 1 on the historical
@@ -431,7 +439,6 @@ export class ShadowPass {
           `the scene diagonal/options are too large for a terminating march`,
       );
     }
-    const workgroupCountX = Math.ceil(texelCount / SHADOW_WORKGROUP_SIZE);
     // #32 region dispatch: only the band rows are dispatched; the in-shader
     // guard is the exclusive region end, so the band stays in bounds and its
     // dispatch padding never writes a retained texel.
@@ -599,7 +606,13 @@ export class ShadowPass {
       newAllocations: this.newAllocations,
       allocationCount: this.allocations.size,
       totalAllocationBytes: sumOf(this.allocationSizes),
-      workgroupCountX,
+      // #43 review: report the workgroup count THIS invocation actually
+      // dispatched (ceil(bandTexels / WG) on a partial band, matching
+      // lastDispatch.workgroupCountX and the other field passes; the LOGICAL
+      // band total on a limit-split chunked frame, with `submissions`
+      // reporting the chunk count) — never the full-frame count of a
+      // partial band.
+      workgroupCountX: dispatchCountX,
       submissions,
     };
     this.newAllocations = 0;

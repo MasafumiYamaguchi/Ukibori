@@ -90,6 +90,27 @@ import { bytesEqual } from "./tiles";
  * - `material-values` — only the material-table VALUE bytes changed:
  *   lighting + presentation (the height stage reads material FLAGS only).
  *
+ * ### Reason composition with a simultaneous geometry change (#43 review)
+ *
+ * The global semantic header fields (light direction / angular radius /
+ * intensity / exposure / environment) live at FIXED header offsets, so a
+ * geometry change NEVER swallows them: `classifySceneChange` returns
+ * `["scene", "light-angular-radius", ...]` for a combined edit. Likewise
+ * the shadow/reconstruction OPTION fingerprints are independent of the
+ * scene fingerprint — `["scene", "shadow-options"]` /
+ * `["scene", "reconstruction-options"]` are produced when a global pass
+ * option changed alongside geometry. The PLANNER contract:
+ *
+ * - geometry-only scene change -> eligible for partial
+ * - geometry + global pass-option/semantic change -> full
+ *   (`option-change-with-scene` / `<semantic>-change`)
+ *
+ * The partial-locality proof only holds while the global shadow /
+ * reconstruction semantics are IDENTICAL to the retained frame; a partial
+ * update with changed global semantics would mix new and retained
+ * visibility semantics frame-wide. `stagesForReasons` unions stages, so
+ * extra reasons never double-execute a pass.
+ *
  * Every change class includes `upload`: the changed bytes must reach the
  * GPU. The retained height-stage fields are only ever combined with the new
  * upload when `HeightPassProvenance.heightInputs` matches the fresh bytes
@@ -301,49 +322,35 @@ export function computeFrameKey(
  * regions (`gpu/height-inputs.ts`) — a hash is never consulted here:
  *
  * - byte-length / header-geometry / surface / mask / mask-pixel / material-
- *   flags differences -> `["scene"]` (conservative full chain; any layout or
- *   height-input change makes the rest of the classification meaningless)
+ *   flags differences -> `["scene", ...headerSemanticChanges]` (conservative
+ *   full chain). The GLOBAL SEMANTIC header fields (light direction /
+ *   angular radius / intensity / exposure / environment) live at FIXED
+ *   header offsets, so they are ALWAYS compared — a geometry change must
+ *   never swallow a simultaneous `light-angular-radius` (or direction /
+ *   intensity / environment) change: the planner needs those reasons to
+ *   refuse the partial path (a partial update with changed global shadow /
+ *   lighting semantics would mix new and retained semantics frame-wide).
  * - otherwise the union of the changed light/environment/material regions:
- *   `light-direction`, `light-intensity`, `environment` (environment vec4 or
- *   exposure), `material-values` — each with its own downstream closure
+ *   `light-direction`, `light-angular-radius`, `light-intensity`,
+ *   `environment` (environment vec4 or exposure), `material-values` — each
+ *   with its own downstream closure. `material-values` is only compared
+ *   when the geometry is byte-identical (the materials section OFFSET is
+ *   layout-dependent; a shifted layout makes a positional comparison
+ *   meaningless — a geometry change already forces the full chain anyway).
  * - no differences -> `[]` (byte-identical scenes)
  */
 export function classifySceneChange(
   prevBytes: Uint8Array,
   nextBytes: Uint8Array,
 ): InvalidationReason[] {
-  if (prevBytes.byteLength !== nextBytes.byteLength) {
-    return ["scene"];
-  }
   const prevHeader = parseHeader(prevBytes);
   const nextHeader = parseHeader(nextBytes);
   const prevLayout = sceneSectionLayout(prevHeader);
   const nextLayout = sceneSectionLayout(nextHeader);
-  // Any height-input byte differs -> the height chain must re-run and no
-  // downstream reuse is legal: classify as the conservative full chain. The
-  // material FLAGS fields are height-dependent too (the material-id output
-  // reads them), so they are checked here rather than with the material
-  // VALUES below.
-  if (
-    !regionsEqual(prevBytes, nextBytes, HEADER_GEOMETRY_REGIONS) ||
-    !regionEqual(prevBytes, nextBytes, {
-      offset: prevLayout.surfacesOffset,
-      byteLength: prevLayout.surfacesByteLength,
-    }) ||
-    !regionEqual(prevBytes, nextBytes, {
-      offset: prevLayout.masksOffset,
-      byteLength: prevLayout.masksByteLength,
-    }) ||
-    !regionEqual(prevBytes, nextBytes, {
-      offset: prevLayout.maskPixelsOffset,
-      byteLength: prevLayout.maskPixelsByteLength,
-    }) ||
-    !regionsEqual(prevBytes, nextBytes, materialFlagsRanges(prevHeader, prevLayout))
-  ) {
-    return ["scene"];
-  }
-  // Geometry/header/sections are byte-identical, so both layouts agree and
-  // the remaining comparisons are positional and in bounds.
+  // The global semantic header fields are at FIXED offsets (64..112 of the
+  // 128-byte header) regardless of the section layout, so they are compared
+  // BEFORE any geometry decision — the same helpers and region constants
+  // the byte-identical branch uses, never a duplicate comparison.
   const changes: InvalidationReason[] = [];
   if (!regionEqual(prevBytes, nextBytes, LIGHT_DIRECTION_REGION)) {
     changes.push("light-direction");
@@ -360,6 +367,32 @@ export function classifySceneChange(
   ) {
     changes.push("environment");
   }
+  // Any height-input byte differs -> the height chain must re-run and no
+  // downstream reuse is legal: classify as the conservative full chain. The
+  // material FLAGS fields are height-dependent too (the material-id output
+  // reads them), so they are checked here rather than with the material
+  // VALUES below. The fixed-offset global semantic reasons above are kept.
+  const geometryChanged =
+    prevBytes.byteLength !== nextBytes.byteLength ||
+    !regionsEqual(prevBytes, nextBytes, HEADER_GEOMETRY_REGIONS) ||
+    !regionEqual(prevBytes, nextBytes, {
+      offset: prevLayout.surfacesOffset,
+      byteLength: prevLayout.surfacesByteLength,
+    }) ||
+    !regionEqual(prevBytes, nextBytes, {
+      offset: prevLayout.masksOffset,
+      byteLength: prevLayout.masksByteLength,
+    }) ||
+    !regionEqual(prevBytes, nextBytes, {
+      offset: prevLayout.maskPixelsOffset,
+      byteLength: prevLayout.maskPixelsByteLength,
+    }) ||
+    !regionsEqual(prevBytes, nextBytes, materialFlagsRanges(prevHeader, prevLayout));
+  if (geometryChanged) {
+    return ["scene", ...changes];
+  }
+  // Geometry/header/sections are byte-identical, so both layouts agree and
+  // the material-VALUES comparison is positional and in bounds.
   if (
     !regionEqual(prevBytes, nextBytes, {
       offset: prevLayout.materialsOffset,
@@ -418,22 +451,20 @@ export function computeInvalidationReasons(
   if (key.normal !== previous.normal) {
     reasons.push("normal-options");
   }
-  const shadowAlreadyInvalidated = reasons.some(
-    (reason) =>
-      reason === "scene" ||
-      reason === "viewport" ||
-      reason === "light-direction" ||
-      reason === "light-angular-radius" ||
-      reason === "first-frame",
-  );
-  if (key.shadow !== previous.shadow && !shadowAlreadyInvalidated) {
+  // #43 review: shadow/reconstruction OPTION fingerprints are meaningful
+  // even when a scene/light reason already fired — a geometry change must
+  // never swallow a simultaneous global shadow/reconstruction semantic
+  // change, or the planner could take the partial path and mix new and
+  // retained semantics frame-wide. Reasons are only omitted for the
+  // first-frame / viewport cases where the whole pipeline is recreated
+  // anyway. `stagesForReasons` unions stages, so extra reasons never
+  // double-execute a pass.
+  const alwaysInvalidated =
+    reasons.includes("first-frame") || reasons.includes("viewport");
+  if (key.shadow !== previous.shadow && !alwaysInvalidated) {
     reasons.push("shadow-options");
   }
-  // #43: reconstruction-option changes only matter when shadow is not
-  // already invalidated (its closure includes the reconstruction stage).
-  const reconstructionAlreadyInvalidated =
-    shadowAlreadyInvalidated || reasons.includes("shadow-options");
-  if (key.reconstruction !== previous.reconstruction && !reconstructionAlreadyInvalidated) {
+  if (key.reconstruction !== previous.reconstruction && !alwaysInvalidated) {
     reasons.push("reconstruction-options");
   }
   if (key.lighting !== previous.lighting) {

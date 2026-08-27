@@ -271,7 +271,11 @@ describe("#31 reportInvalidations", () => {
       light: { direction: { x: 0, y: 0, z: 1 }, intensity: 1 },
     });
     const diff = report(next, prev);
-    expect(diff.reasons).toEqual(["light-direction"]);
+    // #43 review: option fingerprints are retained independently of the
+    // semantic reasons — this direction change also moved |light.xy|, which
+    // shifts the context-derived default maxDistance, so the EFFECTIVE
+    // shadow options changed too and shadow-options legitimately fires.
+    expect(diff.reasons).toEqual(["light-direction", "shadow-options"]);
     expect(diff.executed).toEqual(["upload", "shadow", "reconstruction", "lighting", "presentation"]);
     expect(diff.skipped).toEqual(["height", "normal"]);
     expect(diff.retained).toBe(false);
@@ -350,7 +354,16 @@ describe("#31 reportInvalidations", () => {
       },
     });
     const diff = report(next, prev);
-    expect(diff.reasons).toEqual(["light-direction", "light-intensity", "environment", "material-values"]);
+    // the direction change shifted |light.xy| -> the context-derived shadow
+    // default changed too, so shadow-options fires alongside the semantic
+    // reasons (#43 review: option fingerprints are never swallowed).
+    expect(diff.reasons).toEqual([
+      "light-direction",
+      "light-intensity",
+      "environment",
+      "material-values",
+      "shadow-options",
+    ]);
     expect(diff.executed).toEqual(["upload", "shadow", "reconstruction", "lighting", "presentation"]);
     expect(diff.skipped).toEqual(["height", "normal"]);
   });
@@ -442,5 +455,88 @@ describe("classifySceneChange — exact-byte semantic classification", () => {
         moved.bytes,
       ),
     ).toBe(false);
+  });
+});
+
+describe("#43 geometry + global shadow/reconstruction change composition", () => {
+  // The review pin: a geometry edit combined with a GLOBAL shadow /
+  // reconstruction semantic change must keep BOTH reasons — never swallow
+  // the option reason behind "scene" — so the planner can refuse the
+  // partial path (a partial update with changed global semantics would mix
+  // new and retained visibility semantics frame-wide).
+
+  const movedSurface = { ...BASE.surfaces![0]!, position: { x: 12, y: 11 } };
+
+  /** Encode two frames (scenes + optional shadow options) and diff them. */
+  function diffFrames(
+    prevScene: SceneInput,
+    prevOptions: object | undefined,
+    nextScene: SceneInput,
+    nextOptions: object | undefined,
+  ) {
+    const prevBytes = encodeScene(createScene(prevScene), 1).bytes;
+    const nextBytes = encodeScene(createScene(nextScene), 1).bytes;
+    const prevKey = computeFrameKey({ bytes: prevBytes }, { dpr: 1, shadowOptions: prevOptions });
+    const nextKey = computeFrameKey({ bytes: nextBytes }, { dpr: 1, shadowOptions: nextOptions });
+    return reportInvalidations(nextKey, prevKey, nextBytes, prevBytes);
+  }
+
+  const base = { ...BASE, light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 } };
+  const moved = { ...BASE, surfaces: [movedSurface], light: base.light };
+
+  it("keeps light-angular-radius alongside a geometry change", () => {
+    const prev = { ...base, light: { ...base.light, angularRadius: Math.fround(0.1) } };
+    const next = { ...moved, light: { ...moved.light, angularRadius: Math.fround(0.2) } };
+    const diff = diffFrames(prev, undefined, next, undefined);
+    expect(diff.reasons).toContain("scene");
+    expect(diff.reasons).toContain("light-angular-radius");
+  });
+
+  it("keeps shadow-options alongside a geometry change (samples/stepSize/bias/maxDistance)", () => {
+    for (const [prevOpts, nextOpts] of [
+      [{ samples: 4 }, { samples: 16 }],
+      [{ stepSize: 0.5 }, { stepSize: 0.25 }],
+      [{ bias: 0.5 }, { bias: 1 }],
+      [{ maxDistance: 10 }, { maxDistance: 30 }],
+    ] as const) {
+      const diff = diffFrames(base, prevOpts, moved, nextOpts);
+      expect(diff.reasons).toContain("scene");
+      expect(diff.reasons).toContain("shadow-options");
+    }
+  });
+
+  it("keeps reconstruction-options alongside a geometry change (radius/enabled/heightGate)", () => {
+    for (const [prevOpts, nextOpts] of [
+      [{ samples: 4, reconstruction: { enabled: true, radius: 2 } }, { samples: 4, reconstruction: { enabled: true, radius: 4 } }],
+      [{ samples: 4, reconstruction: { enabled: true, radius: 2 } }, { samples: 4, reconstruction: { enabled: false } }],
+      [{ samples: 4, reconstruction: { enabled: false } }, { samples: 4, reconstruction: { enabled: true, radius: 2 } }],
+      [{ samples: 4, reconstruction: { heightGate: 0.5 } }, { samples: 4, reconstruction: { heightGate: 1 } }],
+    ] as const) {
+      const diff = diffFrames(base, prevOpts, moved, nextOpts);
+      expect(diff.reasons).toContain("scene");
+      expect(diff.reasons).toContain("reconstruction-options");
+    }
+  });
+
+  it("keeps shadow-options AND reconstruction-options alongside a geometry change", () => {
+    const diff = diffFrames(
+      base,
+      { samples: 4, reconstruction: { enabled: true, radius: 2 } },
+      moved,
+      { samples: 16, reconstruction: { enabled: true, radius: 4 } },
+    );
+    expect(diff.reasons).toContain("scene");
+    expect(diff.reasons).toContain("shadow-options");
+    expect(diff.reasons).toContain("reconstruction-options");
+  });
+
+  it("keeps light-angular-radius alongside geometry + option changes (hard<->soft combined)", () => {
+    const prev = { ...base, light: { ...base.light, angularRadius: Math.fround(0.2) } };
+    const next = { ...moved, light: { ...moved.light, angularRadius: 0 } };
+    const diff = diffFrames(prev, { samples: 8 }, next, { samples: 8 });
+    expect(diff.reasons).toContain("scene");
+    expect(diff.reasons).toContain("light-angular-radius");
+    // hard<->soft transitions with geometry are full by composition
+    expect(diff.executed).toEqual(ALL_STAGES);
   });
 });

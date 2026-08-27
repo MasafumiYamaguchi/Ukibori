@@ -149,6 +149,14 @@ export interface ReconstructionPassDispatchStats {
   readonly newAllocations: number;
   readonly allocationCount: number;
   readonly totalAllocationBytes: number;
+  /**
+   * The workgroup count THIS dispatch invocation actually dispatched:
+   * `ceil(bandTexels / WORKGROUP_SIZE)` for a partial band (== the single
+   * `pass.dispatchWorkgroups` call), `ceil(fullTexels / WORKGROUP_SIZE)`
+   * for a full frame, and the LOGICAL band total on a limit-split chunked
+   * frame (the chunks tile the band; `submissions` reports the chunk
+   * count). Never the full-frame count of a partial band.
+   */
   readonly workgroupCountX: number;
   /** queue.submit calls (1 single-chunk, more on a limit-split band) */
   readonly submissions: number;
@@ -247,7 +255,6 @@ export class ReconstructionPass {
           "the stage instead (hard-path frames keep the historical raw bytes)",
       );
     }
-    const workgroupCountX = Math.ceil(texelCount / RECONSTRUCTION_WORKGROUP_SIZE);
     const region = assertBandRegion(input.region, h);
     const bandRows = region === null ? h : region.y1 - region.y0 + 1;
     const bandTexels = width * bandRows;
@@ -354,7 +361,15 @@ export class ReconstructionPass {
       newAllocations: this.newAllocations,
       allocationCount: this.allocations.size,
       totalAllocationBytes: sumOf(this.allocationSizes),
-      workgroupCountX,
+      // #43 review: report the workgroup count THIS invocation actually
+      // dispatched — ceil(bandTexels / WORKGROUP_SIZE) on a partial band,
+      // ceil(fullTexels / WORKGROUP_SIZE) on a full frame — matching
+      // `lastDispatch.workgroupCountX` and the other field passes'
+      // semantics (the LOGICAL total for a band; on a limit-split chunked
+      // frame the chunks tile the band and this is the documented total,
+      // with `submissions` reporting the chunk count). Never the full-frame
+      // count of an unrelated extent.
+      workgroupCountX: dispatchCountX,
       submissions,
     };
     this.newAllocations = 0;

@@ -2688,6 +2688,172 @@ function partialReconstructionScene(edit) {
 }
 
 /**
+ * #43 real-WebGPU retained-vs-fresh regression for the GLOBAL-change bug
+ * (geometry + shadow/reconstruction option change in ONE frame).
+ *
+ * Frame A: soft shadow, samples 4, reconstruction radius 2.
+ * Frame B: small caster move AND samples 16 AND reconstruction radius 4.
+ *
+ * The retained pipeline must plan Frame B FULL (never partial — a partial
+ * update with changed global semantics would mix new and retained
+ * visibility frame-wide), and every output of the retained Frame B must
+ * equal a FRESH pipeline's first-frame full render of Frame B:
+ *
+ * - raw visibility: EXACT bytes
+ * - reconstructed visibility: the documented tolerance policy
+ * - lighting color: the documented RGBA8 policy
+ * - final canvas: the documented canvas policy
+ */
+async function runRetainedGlobalChangeParity(device) {
+  const problems = [];
+  const frameA = partialReconstructionScene();
+  const optionsA = {
+    ...frameA.shadowOptions,
+    samples: 4,
+    reconstruction: { enabled: true, radius: 2 },
+  };
+  const frameB = partialReconstructionScene("move");
+  const optionsB = {
+    ...frameB.shadowOptions,
+    samples: 16,
+    reconstruction: { enabled: true, radius: 4 },
+  };
+  let pipeline = null;
+  let canvas = null;
+  try {
+    const first = await makeRetainedCanvas();
+    canvas = first.canvas;
+    pipeline = new api.GpuScenePipeline(device, first.context, first.canvasFormat);
+    pipeline.render({
+      scene: frameA.scene,
+      dpr: 1,
+      shadowOptions: optionsA,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    // Frame B on the RETAINED pipeline: geometry + global options together.
+    const statsB = pipeline.render({
+      scene: frameB.scene,
+      dpr: 1,
+      shadowOptions: optionsB,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    if (statsB.planning.mode !== "full") {
+      problems.push(
+        `global-change frame planned ${statsB.planning.mode}/${statsB.planning.reason} ` +
+          "(expected full: geometry + samples + reconstruction radius changed together)",
+      );
+    }
+    for (const reason of ["scene", "shadow-options", "reconstruction-options"]) {
+      if (!statsB.invalidation.reasons.includes(reason)) {
+        problems.push(`global-change frame lost reason "${reason}" (got ${statsB.invalidation.reasons.join(",")})`);
+      }
+    }
+    // read back the retained pipeline's Frame B outputs
+    const snapshotB = pipeline.getSnapshot();
+    const [rawB, reconB, colorB] = await Promise.all([
+      readback(device, snapshotB.shadowPass.output.buffer, snapshotB.shadowPass.output.byteLength),
+      readback(device, snapshotB.reconstructionPass.output.buffer, snapshotB.reconstructionPass.output.byteLength),
+      readback(device, snapshotB.lightingPass.color.buffer, snapshotB.lightingPass.color.byteLength),
+    ]);
+    const canvasB = await capturePresented(
+      device,
+      first.context,
+      first.canvasFormat,
+      statsB.renderWidth,
+      statsB.renderHeight,
+    );
+    pipeline.dispose();
+    pipeline = null;
+    canvas.remove();
+    canvas = null;
+
+    // FRESH pipeline: first-frame full render of Frame B.
+    const second = await makeRetainedCanvas();
+    const fresh = new api.GpuScenePipeline(device, second.context, second.canvasFormat);
+    const freshStats = fresh.render({
+      scene: frameB.scene,
+      dpr: 1,
+      shadowOptions: optionsB,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    const freshSnapshot = fresh.getSnapshot();
+    const [rawF, reconF, colorF] = await Promise.all([
+      readback(device, freshSnapshot.shadowPass.output.buffer, freshSnapshot.shadowPass.output.byteLength),
+      readback(device, freshSnapshot.reconstructionPass.output.buffer, freshSnapshot.reconstructionPass.output.byteLength),
+      readback(device, freshSnapshot.lightingPass.color.buffer, freshSnapshot.lightingPass.color.byteLength),
+    ]);
+    const canvasF = await capturePresented(
+      device,
+      second.context,
+      second.canvasFormat,
+      freshStats.renderWidth,
+      freshStats.renderHeight,
+    );
+    fresh.dispose();
+    second.canvas.remove();
+
+    // comparisons (retained Frame B vs fresh full render of Frame B)
+    const texels = freshSnapshot.shadowPass.output.byteLength / 4;
+    const width = freshSnapshot.width;
+    if (!oracle.bytesEqual(rawB, rawF)) {
+      problems.push("global-change: raw visibility differs between retained and fresh full render");
+    }
+    // reconstructed visibility: the documented tolerance policy (never a
+    // bit-exact promise — the gated tap average is not dyadic)
+    const reconCompare = oracle.compareReconstructedVisibility(
+      { id: "global-change-recon", shadowOptions: optionsB, scene: frameB.scene },
+      new Float32Array(reconF.buffer, reconF.byteOffset, texels),
+      new Float32Array(reconB.buffer, reconB.byteOffset, texels),
+      width,
+    );
+    if (reconCompare.mismatches > 0) {
+      problems.push(`global-change: reconstructed visibility mismatch (${reconCompare.mismatches} texels)`);
+    }
+    // lighting color via the documented RGBA8 policy (one GPU output as the
+    // other's reference — deterministic same-backend render must match)
+    const colorCompare = oracle.compareColor(
+      { id: "global-change-color", shadowOptions: optionsB, scene: frameB.scene },
+      colorF,
+      colorB,
+      width,
+    );
+    if (colorCompare.hard > 0 || colorCompare.alphaBad > 0) {
+      problems.push(
+        `global-change: lighting color mismatch (hard ${colorCompare.hard}, alpha ${colorCompare.alphaBad})`,
+      );
+    }
+    // final canvas via the documented canvas policy (exact alpha, at-most-
+    // one-channel-by-one)
+    const canvasCompare = oracle.compareCanvas(
+      { id: "global-change-canvas", shadowOptions: optionsB, scene: frameB.scene },
+      canvasF,
+      canvasB,
+      width,
+    );
+    if (canvasCompare.hard > 0 || canvasCompare.alphaBad > 0) {
+      problems.push(
+        `global-change: final canvas mismatch (hard ${canvasCompare.hard}, alpha ${canvasCompare.alphaBad})`,
+      );
+    }
+    if (statsB.reconstructionActive !== true || freshStats.reconstructionActive !== true) {
+      problems.push("global-change: reconstruction not active on the combined frame");
+    }
+  } catch (error) {
+    problems.push(`global-change parity threw: ${String(error?.stack ?? error)}`);
+  }
+  try {
+    pipeline?.dispose();
+    canvas?.remove();
+  } catch {
+    // disposal must never mask the outcome
+  }
+  return problems;
+}
+
+/**
  * #32 tile benchmark at the documented 640x360 demo-frame proxy scene:
  * several tile sizes x dirty-area ratios (small/medium/large edits).
  * Binning overhead (the planner's host wall-clock `planningHostMs`) is
@@ -3017,13 +3183,32 @@ async function main() {
     } catch (error) {
       reconPartialFailure = String(error?.stack ?? error);
     }
+    // #43 real-WebGPU retained-vs-fresh regression for the GLOBAL-change
+    // bug: a geometry edit combined with samples 4->16 and reconstruction
+    // radius 2->4 must plan FULL on the retained pipeline and every output
+    // (raw visibility exact, reconstructed visibility tolerance, lighting
+    // color, final canvas) must equal a fresh pipeline's full render.
+    const globalChangeProblems = [];
+    let globalChangeFailure = null;
+    try {
+      globalChangeProblems.push(...(await runRetainedGlobalChangeParity(device)));
+    } catch (error) {
+      globalChangeFailure = String(error?.stack ?? error);
+    }
     summaryData.partialProblems = partialProblems.length;
     summaryData.reconPartialProblems = reconPartialProblems.length;
+    summaryData.globalChangeProblems = globalChangeProblems.length;
     if (reconPartialFailure !== null) {
       detail.push(`recon partial parity failed: ${reconPartialFailure}`);
     }
     for (const problem of reconPartialProblems) {
       detail.push(`recon partial parity: ${problem}`);
+    }
+    if (globalChangeFailure !== null) {
+      detail.push(`global-change parity failed: ${globalChangeFailure}`);
+    }
+    for (const problem of globalChangeProblems) {
+      detail.push(`global-change parity: ${problem}`);
     }
     // #32 tile benchmark: report-only (deterministic cost ratio decides the
     // path, never a timing), run after the parity gates so failures surface
@@ -3582,6 +3767,21 @@ async function main() {
         MARKER_FAIL,
         `recon partial/full parity problems (${reconPartialProblems.length}): ` +
           reconPartialProblems.join("; "),
+      );
+      return;
+    }
+    if (globalChangeFailure !== null) {
+      finish(
+        MARKER_FAIL,
+        `global-change retained-vs-fresh parity failed: ${globalChangeFailure}`,
+      );
+      return;
+    }
+    if (globalChangeProblems.length > 0) {
+      finish(
+        MARKER_FAIL,
+        `global-change retained-vs-fresh parity problems (${globalChangeProblems.length}): ` +
+          globalChangeProblems.join("; "),
       );
       return;
     }
