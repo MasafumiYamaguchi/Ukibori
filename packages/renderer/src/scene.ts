@@ -4,7 +4,48 @@ import { isFiniteNumber, normalizeVec3 } from "./math";
 import { resolveMaterial, sanitizeMaterialTable } from "./material";
 import type { Material } from "./material";
 import { sanitizeAngularRadius } from "./shadow-sampling";
-import type { Vec2, Vec3 } from "./types";
+import type { LinearRgb, Vec2, Vec3 } from "./types";
+
+/** #45 default directional-light color: white. */
+export const DEFAULT_LIGHT_COLOR: LinearRgb = { r: 1, g: 1, b: 1 };
+
+/**
+ * #45 sanitize one directional-light color channel to the CANONICAL f32
+ * domain — the same domain the GPU ABI (`lightColor` vec4 of f32) reads:
+ *
+ * - missing / NaN / +-Infinity / negative values fall back to 1
+ * - finite >= 0 values are f32-rounded (`Math.fround`); a value whose f32
+ *   rounding OVERFLOWS to Infinity (e.g. `Number.MAX_VALUE`) falls back to 1
+ *   so the canonical Scene value can never be a value the GPU ABI cannot
+ *   represent
+ * - zero stays valid (explicit BLACK light, ABI v2)
+ * - values above 1 (HDR multipliers) are PRESERVED if f32-representable —
+ *   never clamped to [0, 1]
+ *
+ * `intensity` remains the scalar light-power control; `color` is the
+ * per-channel distribution of the direct light. The returned value IS the
+ * single source of truth: the CPU lighting path, the encoder bytes and the
+ * WGSL-observed value all consume this exact f32-rounded number.
+ */
+export function sanitizeLightColorChannel(v: number | undefined): number {
+  if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
+    return 1;
+  }
+  const f = Math.fround(v);
+  if (!Number.isFinite(f)) {
+    return 1;
+  }
+  return f;
+}
+
+/** #45 sanitize a directional-light color (per-channel policy above). */
+export function sanitizeLightColor(color: Partial<LinearRgb> | undefined): LinearRgb {
+  return {
+    r: sanitizeLightColorChannel(color?.r),
+    g: sanitizeLightColorChannel(color?.g),
+    b: sanitizeLightColorChannel(color?.b),
+  };
+}
 
 /**
  * #13 scene contract — 2.5D scene model.
@@ -139,6 +180,18 @@ export interface DirectionalLight {
   /** finite and >= 0; non-finite/negative falls back to 1 */
   intensity: number;
   /**
+   * #45 linear RGB color of the directional light (LINEAR space, not an
+   * sRGB CSS color). Applies ONLY to the direct/directional lighting
+   * contribution — ambient, environment and cast-shadow visibility are
+   * never tinted by it. Default white `{r:1, g:1, b:1}`; values above 1
+   * (HDR multipliers) are preserved; per-channel sanitization: missing /
+   * non-finite / negative / f32-overflowing channels fall back to 1, zero
+   * stays valid (explicit black light). Every channel is CANONICAL f32
+   * (`Math.fround`) so the CPU path, the encoded ABI bytes and the WGSL
+   * shader all consume the same value.
+   */
+  color: LinearRgb;
+  /**
    * #41 apparent light size: angular radius of the light cone around
    * `direction` in RADIANS (small-cone approximation). `0` (default) keeps
    * the exact #17 hard-shadow semantics; a positive value softens cast
@@ -197,6 +250,10 @@ export const DEFAULT_LIGHT_DIRECTION: Vec3 = { x: 0, y: 0, z: 1 };
  *   clamped roughness/metallic).
  * - `light.direction` and `light.intensity` are SANITIZED: invalid direction
  *   falls back to +z, invalid intensity falls back to 1
+ * - `light.color` (#45) is SANITIZED per channel to the canonical f32
+ *   domain: invalid channels (missing / non-finite / negative / f32
+ *   overflow) fall back to 1, zero stays valid (black light), HDR values
+ *   are f32-rounded and preserved
  * - `environment` and `exposure` (#22) are SANITIZED: invalid environment
  *   intensity falls back to 0.5, invalid exposure falls back to 1; zero is
  *   always preserved for both (environment OFF / exposure black)
@@ -224,12 +281,17 @@ export function createScene(input: SceneInput): Scene {
   // SINGLE source of truth — NaN / +-Infinity / negative / values whose f32
   // packing overflows to Infinity all fall back to the hard-shadow 0.
   const angularRadius = sanitizeAngularRadius(input.light?.angularRadius);
+  // #45 directional-light color: linear RGB, default white (missing /
+  // invalid / f32-overflowing channels fall back to 1, HDR values above 1
+  // are preserved, zero stays valid). The sanitized channels are canonical
+  // f32-rounded values — the CPU and GPU paths share them exactly.
+  const color = sanitizeLightColor(input.light?.color);
   return {
     width: input.width,
     height: input.height,
     surfaces,
     materials,
-    light: { direction, intensity, angularRadius },
+    light: { direction, intensity, color, angularRadius },
     environment: sanitizeEnvironment(input.environment),
     exposure: sanitizeExposure(input.exposure),
   };

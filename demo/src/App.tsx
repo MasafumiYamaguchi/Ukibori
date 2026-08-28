@@ -11,6 +11,15 @@ import { Surface, Ukibori, UkiboriText } from "ukibori";
 
 const MATERIALS = ["silicone", "matte", "metal"] as const;
 
+// #45 directional-light color presets: linear RGB (HDR values allowed).
+const LIGHT_COLORS: Record<string, { r: number; g: number; b: number }> = {
+  white: { r: 1, g: 1, b: 1 },
+  "warm amber": { r: 1, g: 0.55, b: 0.25 },
+  "cool blue": { r: 0.4, g: 0.6, b: 1 },
+  magenta: { r: 1, g: 0.2, b: 0.6 },
+};
+type LightColorName = keyof typeof LIGHT_COLORS;
+
 const TWO_DECIMALS = (value: number) => value.toFixed(2);
 const PX = (value: number) => `${value}px`;
 
@@ -56,6 +65,7 @@ function SliderControl({
 export function App() {
   const [light, setLight] = useState({ x: -0.6, y: -0.8, z: 1 });
   const [intensity, setIntensity] = useState(1);
+  const [lightColor, setLightColor] = useState<LightColorName>("white");
   const [angularRadius, setAngularRadius] = useState(0);
   const [shadowSamples, setShadowSamples] = useState<1 | 4 | 8 | 16>(8);
   const [shadowView, setShadowView] = useState<"reconstructed" | "raw">("reconstructed");
@@ -79,6 +89,7 @@ export function App() {
     <Ukibori
       light={light}
       intensity={intensity}
+      lightColor={LIGHT_COLORS[lightColor]}
       angularRadius={angularRadius}
       shadow={{
         samples: shadowSamples,
@@ -165,6 +176,27 @@ export function App() {
               format={TWO_DECIMALS}
               onChange={setIntensity}
             />
+            <div className="field">
+              <div className="field-head">
+                <label htmlFor="color-select">Light color</label>
+              </div>
+              <select
+                id="color-select"
+                value={lightColor}
+                onChange={(event) => setLightColor(event.target.value as LightColorName)}
+              >
+                {Object.keys(LIGHT_COLORS).map((name) => (
+                  <option key={name} value={name}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <p className="hint">
+                #45 linear RGB directional-light color: tints ONLY the direct
+                contribution — ambient, environment and shadow visibility are
+                unaffected.
+              </p>
+            </div>
             <div className="field">
               <div className="field-head">
                 <label htmlFor="samples-select">Soft shadow samples</label>

@@ -47,7 +47,7 @@ import {
 } from "./layout";
 
 /**
- * #24 host-side encoder — a pure, deterministic `Scene` + DPR -> ABI v1
+ * #24 host-side encoder — a pure, deterministic `Scene` + DPR -> ABI v2
  * bytes mapping with no DOM, no callbacks and no host objects leaking into
  * the buffer.
  *
@@ -85,7 +85,7 @@ import {
  * `(tx + 0.5)` mapping alone is only correct at DPR 1.
  */
 export interface EncodedScene {
-  /** ABI v1 little-endian scene bytes (see layout.ts). */
+  /** ABI v2 little-endian scene bytes (see layout.ts). */
   bytes: Uint8Array;
 }
 
@@ -97,7 +97,7 @@ interface EncodedMaterial {
 }
 
 /**
- * Encode a validated scene at a device pixel ratio into the ABI v1 byte
+ * Encode a validated scene at a device pixel ratio into the ABI v2 byte
  * buffer. Deterministic: the same scene and DPR always produce identical
  * bytes.
  */
@@ -184,6 +184,14 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
   writeF32(view, 96, Math.fround(scene.environment.intensity));
   writeF32(view, 100, Math.fround(scene.environment.diffuseIntensity));
   writeF32(view, 104, Math.fround(scene.environment.specularIntensity));
+  // #45 directional-light linear RGB color at 112..124 (w stays 0 — the
+  // buffer is zero-filled). createScene already sanitized the channels to
+  // canonical f32 values (missing/non-finite/negative/f32-overflow -> 1,
+  // zero stays valid, HDR values > 1 preserved); the fround below is the
+  // idempotent ABI pack of that canonical value.
+  writeF32(view, 112, Math.fround(scene.light.color.r));
+  writeF32(view, 116, Math.fround(scene.light.color.g));
+  writeF32(view, 120, Math.fround(scene.light.color.b));
 
   // Surface records.
   let pixelCursor = maskPixelsOffset;
@@ -320,6 +328,11 @@ export function parseHeader(bytes: Uint8Array): EncodedHeader {
     lightIntensity: view.getFloat32(80, true),
     exposure: view.getFloat32(84, true),
     lightAngularRadius: view.getFloat32(88, true),
+    lightColor: {
+      r: view.getFloat32(112, true),
+      g: view.getFloat32(116, true),
+      b: view.getFloat32(120, true),
+    },
     environment: {
       intensity: view.getFloat32(96, true),
       diffuseIntensity: view.getFloat32(100, true),

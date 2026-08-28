@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createScene } from "../scene";
 import type { Scene, SceneInput } from "../scene";
-import { encodeScene } from "./encode";
+import { encodeScene, parseHeader } from "./encode";
 import { computeFrameKey } from "./dirty";
 import type { FrameKey } from "./dirty";
 import { planPartialScene } from "./tiles";
@@ -966,5 +966,56 @@ describe("GpuScenePipeline — #43 geometry + global option change is NEVER part
       expect(stats.planning.mode).toBe("full");
       expect(stats.reconstructionActive).toBe(true);
     }
+  });
+});
+
+describe("GpuScenePipeline — #45 geometry + light-color is NEVER partial", () => {
+  // A light-color-only change is a retained lighting/presentation update
+  // (height/normal/shadow/reconstruction stay retained); a geometry edit
+  // combined with a light-color change is a GLOBAL lighting semantic change
+  // and must plan FULL — a partial update would tint only the dirty band
+  // with the new color and leave the retained region in the old one.
+  it("plans full for geometry + light-color and retains light-color-only updates", () => {
+    const { pipeline } = setup();
+    pipeline.render({ scene: tallScene(), dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    // pure light-color change: retained lighting/presentation update only
+    const colored = createScene({
+      ...TALL_SCENE,
+      light: { ...TALL_SCENE.light, color: { r: 1, g: 0, b: 0 } },
+    });
+    const colorOnly = pipeline.render({ scene: colored, dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    expect(colorOnly.invalidation.reasons).toEqual(["light-color"]);
+    expect(colorOnly.invalidation.executed).toEqual(["upload", "lighting", "presentation"]);
+    expect(colorOnly.invalidation.skipped).toEqual(["height", "normal", "shadow", "reconstruction"]);
+    expect(colorOnly.planning.mode).toBe("full");
+    expect(colorOnly.planning.reason).toBe("light-color-change");
+
+    // geometry + light-color (from the WHITE baseline frame): full
+    const moved = createScene({
+      ...TALL_SCENE,
+      light: { ...TALL_SCENE.light, color: { r: 1, g: 0, b: 0 } },
+      surfaces: [{ ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, TALL_SCENE.surfaces![1]!, TALL_SCENE.surfaces![2]!],
+    });
+    const fresh = setup();
+    fresh.pipeline.render({ scene: tallScene(), dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    const combined = fresh.pipeline.render({ scene: moved, dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    expect(combined.invalidation.reasons).toEqual(["scene", "light-color"]);
+    expect(combined.planning.mode).toBe("full");
+    expect(combined.planning.reason).toBe("light-color-change");
+  });
+
+  it("removing an explicit color (colored -> white) restores the historical bytes via a full lighting update", () => {
+    const { pipeline } = setup();
+    const colored = createScene({
+      ...TALL_SCENE,
+      light: { ...TALL_SCENE.light, color: { r: 1, g: 0, b: 0 } },
+    });
+    pipeline.render({ scene: colored, dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    const stats = pipeline.render({ scene: tallScene(), dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    expect(stats.invalidation.reasons).toEqual(["light-color"]);
+    expect(stats.invalidation.executed).toEqual(["upload", "lighting", "presentation"]);
+    expect(stats.invalidation.skipped).toEqual(["height", "normal", "shadow", "reconstruction"]);
+    // the retained frame now carries the white default (headers agree)
+    expect(parseHeader(encodeScene(tallScene(), 1).bytes).lightColor).toEqual({ r: 1, g: 1, b: 1 });
   });
 });

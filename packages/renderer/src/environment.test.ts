@@ -200,8 +200,16 @@ describe("saturated linear stage (pre-encode finiteness)", () => {
     const envResult = evaluateEnvironment(material, env(Number.MAX_VALUE));
     expect(envResult.diffuse.r).toBeGreaterThan(Number.MAX_VALUE * 0.5);
     expect(envResult.specular.r).toBeGreaterThan(Number.MAX_VALUE * 0.5);
-    const brdf = brdfDirect(material, 1, 1, 1, 1);
-    const linear = accumulateLinear(material.baseColor, 0.08, Number.MAX_VALUE, brdf, envResult);
+    // #45: the direct term is per-channel (linear-RGB directional-light
+    // color x intensity x NdotL x visibility); MAX values in every
+    // channel exercise the saturation boundary the same way. `direct` is
+    // the FULL per-channel contribution (BRDF already applied).
+    const linear = accumulateLinear(
+      material.baseColor,
+      0.08,
+      { r: Number.MAX_VALUE, g: Number.MAX_VALUE, b: Number.MAX_VALUE },
+      envResult,
+    );
     for (const c of [linear.r, linear.g, linear.b]) {
       expect(Number.isFinite(c)).toBe(true);
       expect(c).toBeGreaterThanOrEqual(0);

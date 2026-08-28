@@ -1,10 +1,11 @@
 import { HostBuffer } from "./buffer";
-import { clamp } from "./math";
+import { clamp, saturatingAdd, saturatingMulF32 } from "./math";
 import { composeCasterHeightField, composeSdfHeightField } from "./geometry";
 import { computeVisibility } from "./shadow";
 import { reconstructVisibility, sanitizeReconstructionOptions } from "./shadow-reconstruct";
 import { sanitizeAngularRadius, sanitizeShadowSamples } from "./shadow-sampling";
 import { brdfDirect } from "./brdf";
+import type { BrdfResult } from "./brdf";
 import {
   accumulateLinear,
   applyExposure,
@@ -188,7 +189,14 @@ export function computeNormals(height: HostBuffer, options: NormalOptions = {}):
  * - the degenerate half-vector `L = -V` (direction `{0, 0, -1}`) yields no
  *   half vector; specular resolves safely to 0 (no NaN)
  * - color = (baseColor * ambient + visibility * intensity * NdotL *
- *   (diffuse + specular) + environment) * exposure, encoded to sRGB8
+ *   lightColor * (diffuse + specular) + environment) * exposure,
+ *   encoded to sRGB8 (#45: lightColor is the linear-RGB per-channel
+ *   multiplier of the DIRECT contribution only; white keeps the historical
+ *   bytes; #45 review: the per-channel product is evaluated in the SAME
+ *   factor order and with the SAME f32 saturation as the WGSL pass — small
+ *   factors first (BRDF sum, NdotL, visibility), then intensity, then
+ *   lightColor — so a huge lightColor * intensity can never prematurely
+ *   saturate an intermediate the BRDF would bring back into range)
  */
 export function shadeHeightField(
   scene: Scene,
@@ -228,8 +236,10 @@ export function shadeHeightField(
  *   environment) is multiplied by `scene.exposure` before sRGB encoding
  * - the degenerate half-vector `L = -V` (direction `{0, 0, -1}`) yields no
  *   half vector; specular resolves safely to 0 (no NaN)
- * - color = (baseColor * ambient + visibility * intensity * NdotL *
- *   (diffuse + specular) + environment) * exposure, encoded to sRGB8
+ * - color = (baseColor * ambient + directContribution + environment) *
+ *   exposure, encoded to sRGB8 — the per-channel directContribution is
+ *   `directLightContribution` (#45 factor order + f32 saturation, the
+ *   exact CPU twin of the WGSL chain)
  */
 export function shadePreparedFields(
   scene: Scene,
@@ -293,12 +303,18 @@ export function shadePreparedFields(
       specular.set(x, y, 0, Math.min(luminance(brdf.specular) * cosine * vis, 1));
 
       const base = material.baseColor;
-      const direct = intensity * cosine * vis;
+      // #45: the DIRECT contribution is per-channel — the directional light
+      // color (linear RGB) times the scalar light-power intensity, NdotL and
+      // visibility. Ambient and environment are never multiplied by the
+      // light color. White light reproduces the historical scalar formula
+      // byte-for-byte (1 * intensity * cosine * vis).
+      const lightColor = scene.light.color ?? { r: 1, g: 1, b: 1 };
+      const direct = directLightContribution(lightColor, intensity, cosine, vis, brdf);
       const env = evaluateEnvironment(material, environment);
       // #22 linear accumulation: saturated arithmetic keeps every finite
       // input (including Number.MAX_VALUE-scale intensity/environment)
       // producing a finite pre-encode LinearRgb.
-      const linear = accumulateLinear(base, ambient, direct, brdf, env);
+      const linear = accumulateLinear(base, ambient, direct, env);
       // #22 exposure boundary: the pure function between linear RGB and the
       // sRGB encoder (the future tone mapper replaces `applyExposure` here).
       const exposed = applyExposure(linear, exposure);
@@ -343,6 +359,57 @@ export function lightScene(scene: Scene, options: LightingOptions = {}): Lightin
 }
 
 const ZERO_RGB: LinearRgb = { r: 0, g: 0, b: 0 };
+
+/**
+ * #45 review: per-channel DIRECT-light contribution — the single canonical
+ * factor order shared with the WGSL lighting pass (`lighting-pass-wgsl.ts`):
+ *
+ *     brdfSum = satAdd(brdfDiffuse, brdfSpecular)
+ *     direct  = satMul(satMul(satMul(satMul(brdfSum, NdotL), visibility),
+ *                     intensity), lightColorChannel)
+ *
+ * The SMALL factors (BRDF sum, NdotL, visibility) are multiplied FIRST and
+ * the large ones (intensity, lightColor) LAST, with each step saturated in
+ * the f32 domain (`saturatingMulF32`, the CPU twin of the WGSL `satMul`), so
+ * a huge but legal `lightColor * intensity` cannot prematurely saturate an
+ * intermediate that the BRDF would later bring back into the representable
+ * range. Any factor zero yields zero (never NaN); all inputs are finite and
+ * the result is always finite.
+ */
+export function directLightContributionChannel(
+  lightColorChannel: number,
+  intensity: number,
+  cosine: number,
+  visibility: number,
+  brdfDiffuse: number,
+  brdfSpecular: number,
+): number {
+  const brdfSum = saturatingAdd(brdfDiffuse, brdfSpecular);
+  const t1 = saturatingMulF32(brdfSum, cosine);
+  const t2 = saturatingMulF32(t1, visibility);
+  const t3 = saturatingMulF32(t2, intensity);
+  return saturatingMulF32(t3, lightColorChannel);
+}
+
+/**
+ * #45 review: the per-channel DIRECT contribution of the directional light
+ * for all three channels (see `directLightContributionChannel` for the
+ * canonical factor order and saturation policy). Ambient and environment are
+ * deliberately not involved — they are accumulated independently.
+ */
+export function directLightContribution(
+  lightColor: LinearRgb,
+  intensity: number,
+  cosine: number,
+  visibility: number,
+  brdf: BrdfResult,
+): LinearRgb {
+  return {
+    r: directLightContributionChannel(lightColor.r, intensity, cosine, visibility, brdf.diffuse.r, brdf.specular.r),
+    g: directLightContributionChannel(lightColor.g, intensity, cosine, visibility, brdf.diffuse.g, brdf.specular.g),
+    b: directLightContributionChannel(lightColor.b, intensity, cosine, visibility, brdf.diffuse.b, brdf.specular.b),
+  };
+}
 
 function luminance(c: LinearRgb): number {
   return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b;

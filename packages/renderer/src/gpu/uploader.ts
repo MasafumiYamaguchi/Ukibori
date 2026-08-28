@@ -243,6 +243,8 @@ export function assertBoundedSceneStructure(bytes: Uint8Array): EncodedHeader {
     throw new Error(`invalid magic 0x${header.magic.toString(16)}`);
   }
   if (header.version !== ABI_VERSION) {
+    // Legacy ABI v1 buffers (header 112..128 = reserved zero) are rejected
+    // here, never re-interpreted as a light color (#45 legacy policy).
     throw new Error(`unsupported ABI version ${header.version}`);
   }
   if (header.headerSize !== HEADER_SIZE) {

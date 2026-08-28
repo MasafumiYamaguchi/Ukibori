@@ -15,6 +15,7 @@ import type {
   GpuTimestampFrameResult,
   HostBuffer,
   LightingBuffers,
+  LinearRgb,
   Material,
 } from "ukibori-renderer";
 import { computeRegion, renderTargetSize, sanitizeDpr, scaleShadowOptions } from "./coords";
@@ -259,6 +260,12 @@ export class UkiboriDom {
       ...(Number.isFinite(options.light?.angularRadius) &&
       (options.light?.angularRadius ?? 0) >= 0
         ? { angularRadius: options.light?.angularRadius }
+        : {}),
+      // #45 directional-light color (linear RGB, dimensionless): forwarded
+      // verbatim — the renderer sanitizes each channel (missing /
+      // non-finite / negative -> 1, HDR values preserved, white default).
+      ...(options.light?.color !== undefined
+        ? { color: { r: options.light.color.r, g: options.light.color.g, b: options.light.color.b } }
         : {}),
     };
     this.environment = sanitizeEnvironmentState(options.environment);
@@ -589,11 +596,18 @@ export class UkiboriDom {
    *
    * The deletion matters: leaving a previous soft radius behind would keep
    * soft shadows active after the caller removed the prop (stale-state bug).
+   *
+   * #45 `color` (linear RGB, dimensionless): forwarded verbatim — the
+   * renderer sanitizes each channel (missing / non-finite / negative -> 1,
+   * HDR values preserved). `undefined` DELETES the stored color so the
+   * white default applies again (removing the prop must not leave a stale
+   * colored light behind).
    */
   setLight(
     direction: { x: number; y: number; z: number },
     intensity?: number,
     angularRadius?: number,
+    color?: LinearRgb,
   ): void {
     this.throwIfDisposed();
     this.light.direction = normalizeVec3(direction, DEFAULT_LIGHT_DIRECTION);
@@ -609,6 +623,11 @@ export class UkiboriDom {
       this.light.angularRadius = angularRadius;
     } else {
       delete this.light.angularRadius;
+    }
+    if (color !== undefined) {
+      this.light.color = { r: color.r, g: color.g, b: color.b };
+    } else {
+      delete this.light.color;
     }
     this.sceneDirty = true;
     this.scheduleRender();

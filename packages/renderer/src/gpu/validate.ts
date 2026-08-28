@@ -46,10 +46,20 @@ import {
 } from "./layout";
 
 /**
- * #24 strict validator — checks the ACTUAL ENCODED BYTES of an ABI v1 scene,
+ * #24 strict validator — checks the ACTUAL ENCODED BYTES of an ABI v2 scene,
  * never the source `Scene` object. It is the byte-level counterpart of
  * `encodeScene` and is safe for Node unit tests and for defending later GPU
  * uploads against corrupted or foreign buffers.
+ *
+ * ## Legacy ABI v1 policy (#45)
+ *
+ * v1 kept header offsets 112..128 as RESERVED ZERO; v2 reuses them for the
+ * `lightColor` vec4. v1 buffers are therefore NEVER re-interpreted: the
+ * version check below rejects any `version != ABI_VERSION` (2) as
+ * `unsupported ABI version N` — a legacy v1 scene with zeroed 112..128 must
+ * never be silently accepted as an explicit BLACK light (the v1 reserved
+ * bytes carry no color semantics at all). There is no migration path for v1
+ * input: re-encode with the current encoder (which always emits v2).
  *
  * Rejected (each with a specific error message):
  *
@@ -136,9 +146,16 @@ export function validateEncodedScene(bytes: Uint8Array): ValidationResult {
     `light angular radius at offset 88 must be a finite non-negative f32, got ${angularRadius}`,
   );
   check(readU32(92) === 0, "header reserved u32 at offset 92 must be 0");
-  for (let offset = 112; offset < HEADER_SIZE; offset += 4) {
-    check(readU32(offset) === 0, `header reserved u32 at ${offset} must be 0`);
-  }
+  // Offset 112..124 carries the #45 directional-light linear RGB color
+  // (f32): every channel must be finite and >= 0 (the encoder only emits
+  // createScene-sanitized channels; negative/NaN bytes are malformed). The
+  // fourth component (offset 124) is deterministic zero.
+  const color = header.lightColor;
+  check(
+    isFiniteNonNegative(color.r) && isFiniteNonNegative(color.g) && isFiniteNonNegative(color.b),
+    `light color must be finite and >= 0 per channel, got (${color.r}, ${color.g}, ${color.b})`,
+  );
+  check(readU32(124) === 0, "light color padding (offset 124) must be 0");
   check(readU32(76) === 0, "light direction padding (offset 76) must be 0");
   check(readU32(108) === 0, "environment padding (offset 108) must be 0");
 

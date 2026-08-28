@@ -116,6 +116,39 @@ tests.
   terms; intensity 0 leaves ambient only. The degenerate half-vector
   `L = -V` (direction `{0, 0, -1}`) resolves specular to 0 without NaN.
   Lighting is computed in linear space and sRGB-encoded on output.
+- directional-light color (#45): `scene.light.color` is a LINEAR RGB
+  multiplier of the DIRECT contribution only —
+  `direct.rgb = lightColor * intensity * visibility * NdotL * BRDF`. The
+  default is white (`{r:1, g:1, b:1}`); values above 1 (HDR multipliers)
+  are preserved; per-channel sanitization falls back to 1 for missing /
+  non-finite / negative channels and keeps zero (an explicit BLACK light
+  is legal). Every channel is canonical **f32** (`Math.fround`): a finite
+  f64 value whose f32 rounding overflows to Infinity (e.g.
+  `Number.MAX_VALUE`) falls back to 1 at sanitize time, so `Scene.light.color`,
+  the encoded ABI bytes and the WGSL-visible value are always the SAME
+  f32 number — no CPU/GPU numeric split. Ambient and environment
+  are NEVER multiplied by the light color, cast-shadow visibility keeps
+  scaling only the direct term, exposure stays a post-accumulation
+  multiplier, and the scalar `diffuse`/`specular` debug buffers stay
+  color-independent. White light reproduces the historical bytes exactly.
+- direct-light numeric contract (#45 review): the per-channel product is
+  evaluated in ONE canonical factor order on BOTH backends —
+  `brdfSum -> NdotL -> visibility -> intensity -> lightColor` — with each
+  step saturated in the **f32 domain** (`saturatingMulF32` on the CPU, the
+  WGSL `satMul` on the GPU: `0 * anything = 0`, a product above the largest
+  finite f32 clamps to `F32_MAX`). The SMALL factors (BRDF sum, NdotL,
+  visibility) multiply FIRST and the large ones (intensity, light color)
+  LAST, so a huge but legal `lightColor * intensity` (e.g. `F32_MAX * 2`)
+  can never prematurely saturate an intermediate that the BRDF would bring
+  back into the representable range; when the final contribution genuinely
+  overflows f32, both backends saturate at the same point. Finite legal
+  inputs never produce NaN/Infinity in the final lighting result.
+- scene ABI: the encoded scene header is versioned (`ABI_VERSION`, currently
+  2). ABI v1 (pre-#45) kept header offsets 112..128 as RESERVED ZERO; ABI v2
+  (#45) reuses them for `lightColor`. Legacy v1 buffers are REJECTED as
+  `unsupported ABI version 1` by the strict validator and the GPU uploader —
+  their reserved zero bytes are never re-interpreted as a black light.
+  Re-encode old scenes with the current encoder (which always writes v2).
 - debug buffers: `normal` (f32 x3), `diffuse` (raw N·L) / `specular`
   (specular direct contribution: `luminance(Fr) * NdotL * visibility`,
   before light intensity, f32 1ch), `color` (RGBA8), `visibility` (0/1 hard

@@ -27,7 +27,7 @@
 // supported by the scene contract —there is NO rotation/skew support, and
 // the catalog never claims any.
 
-export const CATALOG_VERSION = 5;
+export const CATALOG_VERSION = 7;
 
 // ---------------------------------------------------------------------------
 // Central comparison policy table (#30). One declaration, used by the
@@ -198,6 +198,7 @@ export const CATEGORIES = Object.freeze([
   "receive-flag",
   // lighting / environment / exposure
   "lighting",
+  "light-color",
   "material-silicone",
   "material-matte",
   "material-metal",
@@ -630,7 +631,7 @@ export function createCatalog(api) {
    * units —comfortably above the observed ~0.057 flip envelope —while the
    * soft path, reconstruction (radius 3) and a visible shadow remain real.
    */
-  function portableReconstructedScene() {
+  function portableReconstructedScene(lightOverrides = {}) {
     return {
       scene: createScene({
         width: 16,
@@ -641,7 +642,15 @@ export function createCatalog(api) {
           size: { x: 4, y: 2 },
           elevation: 2,
         })],
-        light: { direction: LIGHT_FROM_RIGHT, intensity: 1, angularRadius: Math.fround(0.25) },
+        // #45: `lightOverrides` may carry a linear-RGB `color` (e.g. the
+        // warm fixture) — createScene sanitizes it; the shadow/reconstruction
+        // fields stay color-invariant.
+        light: {
+          direction: LIGHT_FROM_RIGHT,
+          intensity: 1,
+          angularRadius: Math.fround(0.25),
+          ...lightOverrides,
+        },
       }),
       shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 3 } },
     };
@@ -1098,7 +1107,55 @@ export function createCatalog(api) {
 
   const withExposure = (scene, exposure) => ({ ...scene, exposure });
 
-  const withLight = (scene, direction) => ({ ...scene, light: { direction, intensity: 1 } });
+  const withLight = (scene, direction) => ({
+    ...scene,
+    // #45: a replaced light must carry the full sanitized DirectionalLight
+    // contract — the white color default, exactly as createScene emits it.
+    light: { direction, intensity: 1, color: { r: 1, g: 1, b: 1 } },
+  });
+
+  // #45: replace only the directional-light COLOR of an already-created
+  // scene (linear RGB; the other light fields stay as createScene emitted
+  // them).
+  const withLightColor = (scene, color) => ({
+    ...scene,
+    light: { ...scene.light, color },
+  });
+
+  // #45 review: the EXTREME-HDR direct-light overflow fixture. A flat
+  // full-coverage panel + button (both this material) under a VERTICAL light
+  // gives NdotL = NdotV = NdotH = 1 and visibility 1 everywhere, so every
+  // texel is ONE deterministic channel evaluation:
+  //
+  //   brdfSpecular ~= D*V*F ~= 0.00796 (metallic 1, roughness 1, F0 = 0.1)
+  //   directR = brdfSum * NdotL * vis * 2 * F32_MAX  ~= 5.4e36  (< F32_MAX)
+  //
+  // lightColor.r = F32_MAX with intensity 2 EXCEEDS F32_MAX before the BRDF
+  // scales it back: with the canonical factor order (BRDF sum -> NdotL ->
+  // visibility -> intensity -> lightColor) the intermediate stays
+  // representable on BOTH backends, and exposure 1e-37 brings the final red
+  // back to a visible mid-range byte. The OLD early-saturation order
+  // (lightColor -> intensity, then the BRDF) clamps at F32_MAX and produces
+  // a DIFFERENT visible byte — this fixture detects that CPU/GPU divergence.
+  // ambient 0, environment 0.
+  const HDR_EXTREME_MATERIAL = {
+    baseColor: { r: 0.1, g: 0.1, b: 0.1 },
+    roughness: 1,
+    metallic: 1,
+    ior: 1.5,
+  };
+
+  function hdrExtremeScene() {
+    return lightingPanel("metal", LIGHT_VERTICAL, {
+      materials: {
+        panel: HDR_EXTREME_MATERIAL,
+        metal: HDR_EXTREME_MATERIAL,
+      },
+      environment: { intensity: 0, diffuseIntensity: 1, specularIntensity: 1 },
+      exposure: 1e-37,
+      light: { direction: LIGHT_VERTICAL, intensity: 2, color: { r: F32_MAX, g: 2, b: 0 } },
+    });
+  }
 
   const LIGHTING_FIXTURES = [
     // built-in material coverage (silicone / matte / metal presets)
@@ -1170,6 +1227,20 @@ export function createCatalog(api) {
     { name: "lighting-ambient-0", scene: lightingPanel("silicone"), dpr: 1, lightingOptions: { ambient: 0 } },
     { name: "lighting-ambient-half", scene: lightingPanel("silicone"), dpr: 1, lightingOptions: { ambient: 0.5 } },
     { name: "lighting-ambient-saturated", scene: lightingPanel("silicone"), dpr: 1, lightingOptions: { ambient: 2 } },
+    // #45 directional-light color: linear-RGB tints of the DIRECT
+    // contribution — white (historical), red, green, blue, warm, and an HDR
+    // multiplier above 1. The shadows/reconstruction are color-invariant;
+    // only the final lighting color differs.
+    { name: "lighting-color-white", scene: lightingPanel("silicone"), dpr: 1 },
+    { name: "lighting-color-red", scene: withLightColor(lightingPanel("silicone"), { r: 1, g: 0, b: 0 }), dpr: 1 },
+    { name: "lighting-color-green", scene: withLightColor(lightingPanel("matte"), { r: 0, g: 1, b: 0 }), dpr: 1 },
+    { name: "lighting-color-blue", scene: withLightColor(lightingPanel("metal"), { r: 0, g: 0, b: 1 }), dpr: 1 },
+    { name: "lighting-color-warm", scene: withLightColor(lightingPanel("silicone"), { r: 1, g: 0.55, b: 0.25 }), dpr: 1 },
+    { name: "lighting-color-hdr", scene: withLightColor(lightingPanel("metal"), { r: 2, g: 1, b: 0.5 }), dpr: 1 },
+    // #45 review: extreme HDR light color (F32_MAX * intensity 2 > F32_MAX)
+    // scaled back by a small BRDF and a tiny exposure — pins the canonical
+    // CPU/GPU factor order and saturation policy on the real adapter.
+    { name: "lighting-color-hdr-extreme", scene: hdrExtremeScene(), dpr: 1, lightingOptions: { ambient: 0 } },
   ];
 
   const FIXTURES = [
@@ -1458,6 +1529,25 @@ export function createCatalog(api) {
       dpr: 1,
       compositeOptions: { shadowColor: [160, 70, 180], shadowAlpha: Math.fround(74 / 255) },
     },
+    // #45 colored light through the FULL soft + reconstruction chain: the
+    // final canvas carries the warm tint of the direct contribution while
+    // the reconstructed soft shadow reaches the canvas unchanged (the
+    // reconstructed-shadow canvas quantization guard applies as usual).
+    {
+      name: "present-reconstructed-soft-shadow-colored-light",
+      ...portableReconstructedScene({ color: { r: 1, g: 0.55, b: 0.25 } }),
+      dpr: 1,
+      compositeOptions: { shadowColor: [160, 70, 180], shadowAlpha: Math.fround(74 / 255) },
+    },
+    // #45 review: the EXTREME-HDR scene reaching the final CANVAS — the same
+    // canonical factor order / f32 saturation contract is compared end-to-end
+    // (lighting color via the compute fixture, final canvas here).
+    {
+      name: "present-color-hdr-extreme",
+      scene: hdrExtremeScene(),
+      dpr: 1,
+      lightingOptions: { ambient: 0 },
+    },
     // overlap/ownership, clipped/offscreen surfaces and empty scene behavior
     { name: "present-overlap-ownership", scene: tieOverlapScene().scene, dpr: 1 },
     { name: "present-clipped-offscreen", scene: clipScene(), dpr: 1 },
@@ -1521,6 +1611,26 @@ export function createCatalog(api) {
    * a plain JSON structure.
    */
   function describeScene(scene) {
+    const lightDescription = {
+      direction: { x: scene.light.direction.x, y: scene.light.direction.y, z: scene.light.direction.z },
+      intensity: scene.light.intensity,
+      // #41: the apparent light size (radians) affects the rendered
+      // visibility/canvas output, so it MUST be part of the canonical
+      // fixture metadata (mismatch reports and static-golden parameters).
+      angularRadius: scene.light.angularRadius ?? 0,
+    };
+    // #45: the canonical f32 light color affects the rendered output, so a
+    // NON-WHITE color must be part of the fixture metadata. The white
+    // default is deliberately OMITTED so the historical white-light golden
+    // payloads (and their digests) stay byte-identical.
+    const color = scene.light.color;
+    if (color !== undefined && (color.r !== 1 || color.g !== 1 || color.b !== 1)) {
+      lightDescription.color = {
+        r: color.r,
+        g: color.g,
+        b: color.b,
+      };
+    }
     return {
       width: scene.width,
       height: scene.height,
@@ -1544,14 +1654,7 @@ export function createCatalog(api) {
         receivesShadow: s.receivesShadow,
       })),
       materials: scene.materials,
-      light: {
-        direction: { x: scene.light.direction.x, y: scene.light.direction.y, z: scene.light.direction.z },
-        intensity: scene.light.intensity,
-        // #41: the apparent light size (radians) affects the rendered
-        // visibility/canvas output, so it MUST be part of the canonical
-        // fixture metadata (mismatch reports and static-golden parameters).
-        angularRadius: scene.light.angularRadius ?? 0,
-      },
+      light: lightDescription,
       environment: {
         intensity: scene.environment.intensity,
         diffuseIntensity: scene.environment.diffuseIntensity,
@@ -1663,6 +1766,14 @@ export function createCatalog(api) {
     "lighting-ambient-0": ["lighting", "lighting-options"],
     "lighting-ambient-half": ["lighting", "lighting-options"],
     "lighting-ambient-saturated": ["lighting", "lighting-options"],
+    // #45 directional-light color (linear RGB)
+    "lighting-color-white": ["lighting", "light-color"],
+    "lighting-color-red": ["lighting", "light-color"],
+    "lighting-color-green": ["lighting", "light-color"],
+    "lighting-color-blue": ["lighting", "light-color"],
+    "lighting-color-warm": ["lighting", "light-color"],
+    "lighting-color-hdr": ["lighting", "light-color"],
+    "lighting-color-hdr-extreme": ["lighting", "light-color", "extreme-f32"],
     // presentation fixtures
     "present-silicone-opaque": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "material-silicone", "opaque-owned-pixels", "static-golden"],
     "present-matte-opaque": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "material-matte"],
@@ -1686,6 +1797,21 @@ export function createCatalog(api) {
       "composite-options",
       "soft-shadow",
       "reconstruction",
+    ],
+    "present-reconstructed-soft-shadow-colored-light": [
+      "canvas-composition",
+      "canvas-format-normalization",
+      "canvas-transparency",
+      "composite-options",
+      "soft-shadow",
+      "reconstruction",
+      "light-color",
+    ],
+    "present-color-hdr-extreme": [
+      "canvas-composition",
+      "canvas-format-normalization",
+      "light-color",
+      "extreme-f32",
     ],
     "present-overlap-ownership": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "overlap", "ownership-tie", "paint-order"],
     "present-clipped-offscreen": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "clipping", "offscreen", "canvas-clipped-output"],
@@ -1721,6 +1847,7 @@ export function createCatalog(api) {
     "lighting-light-left",
     "lighting-frac-dpr1.5",
     "lighting-f32-stress",
+    "lighting-color-hdr-extreme",
     "present-silicone-opaque",
     "present-shadow-default",
     "present-frac-dpr1.5",

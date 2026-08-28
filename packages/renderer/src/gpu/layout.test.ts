@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, resolve } from "node:path";
 import { NO_OWNER } from "../compose";
 import {
   ABI_MAGIC,
@@ -36,20 +39,32 @@ function header(overrides: Partial<EncodedHeader> = {}): EncodedHeader {
     lightIntensity: 1,
     exposure: 1,
     lightAngularRadius: 0,
+    lightColor: { r: 1, g: 1, b: 1 },
     environment: { intensity: 0.5, diffuseIntensity: 1, specularIntensity: 1 },
     ...overrides,
   };
 }
 
-describe("ABI v1 layout constants", () => {
+describe("ABI v2 layout constants", () => {
   it("pins the versioned header/stride contract", () => {
-    expect(ABI_VERSION).toBe(1);
+    expect(ABI_VERSION).toBe(2);
     expect(ABI_MAGIC).toBe(0x554b4942);
     expect(HEADER_SIZE).toBe(128);
     expect(SURFACE_STRIDE).toBe(128);
     expect(MASK_STRIDE).toBe(32);
     expect(MATERIAL_STRIDE).toBe(64);
     expect(NO_OWNER).toBe(0xffffffff);
+  });
+
+  it("documents the v1->v2 header evolution of offsets 112..128", () => {
+    // v1: 112..128 reserved zero (no light color); v2 (#45): lightColor
+    // vec4. The layout docs must say so — a silent v1->black reinterpretation
+    // is the forbidden legacy corruption.
+    const source = readLayoutSource();
+    expect(source).toContain("ABI_VERSION = 2");
+    expect(source).toContain("v1");
+    expect(source).toContain("reserved zero");
+    expect(source).toContain("lightColor");
   });
 
   it("derives 16-byte-aligned section ranges from the header counts", () => {
@@ -98,3 +113,10 @@ describe("ABI v1 layout constants", () => {
     expect(WGSL_LAYOUT).toContain(`NO_OWNER ${NO_OWNER}`);
   });
 });
+
+function readLayoutSource(): string {
+  return readFileSync(
+    resolve(dirname(fileURLToPath(import.meta.url)), "layout.ts"),
+    "utf8",
+  );
+}

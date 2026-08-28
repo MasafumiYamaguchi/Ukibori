@@ -85,6 +85,24 @@ describe("validateEncodedScene — malformed headers", () => {
     expectRejected(mutate(validBytes(), 4, (v) => v.setUint32(4, 99, true)), /unsupported ABI version 99/);
   });
 
+  it("rejects a legacy ABI v1 buffer — its reserved-zero 112..128 is never read as a black light", () => {
+    // The pre-#45 ABI v1 kept header offsets 112..128 as RESERVED ZERO. A
+    // legacy v1 scene's bytes there are all 0x00000000, which v2 would read
+    // as lightColor {r:0, g:0, b:0} — a SILENT black light. The strict
+    // validator must reject the version instead of accepting the bytes
+    // (there is no v1 -> v2 migration; re-encode with the v2 encoder).
+    const legacyV1 = validBytes();
+    const view = new DataView(legacyV1.buffer);
+    view.setUint32(4, 1, true); // legacy version
+    view.setFloat32(112, 0, true); // reserved zero (not a light color)
+    view.setFloat32(116, 0, true);
+    view.setFloat32(120, 0, true);
+    view.setUint32(124, 0, true);
+    const result = validateEncodedScene(legacyV1);
+    expect(result.ok).toBe(false);
+    expect(result.errors.some((error) => error.match(/unsupported ABI version 1/))).toBe(true);
+  });
+
   it("rejects a wrong header size", () => {
     expectRejected(mutate(validBytes(), 8, (v) => v.setUint32(8, 64, true)), /invalid header size 64/);
   });
@@ -112,8 +130,40 @@ describe("validateEncodedScene — malformed headers", () => {
       /light angular radius at offset 88/,
     );
     expectRejected(mutate(validBytes(), 92, (v) => v.setUint32(92, 7, true)), /reserved u32 at offset 92/);
-    expectRejected(mutate(validBytes(), 112, (v) => v.setUint32(112, 7, true)), /reserved u32 at 112/);
+    // Offset 112..124 now carries the #45 lightColor: negative/NaN channels
+    // are rejected, the w component (offset 124) must stay zero, and a
+    // finite non-negative channel (even an HDR value above 1) passes.
+    expectRejected(
+      mutate(validBytes(), 112, (v) => v.setFloat32(112, -1, true)),
+      /light color must be finite and >= 0 per channel/,
+    );
+    expectRejected(
+      mutate(validBytes(), 116, (v) => v.setFloat32(116, Number.NaN, true)),
+      /light color must be finite and >= 0 per channel/,
+    );
+    expectRejected(
+      mutate(validBytes(), 116, (v) => v.setFloat32(116, Number.POSITIVE_INFINITY, true)),
+      /light color must be finite and >= 0 per channel/,
+    );
+    expectRejected(mutate(validBytes(), 124, (v) => v.setUint32(124, 1, true)), /light color padding \(offset 124\)/);
+    // a valid colored light (red channel 1, HDR green 2) passes validation
+    expect(validateEncodedScene(mutate(validBytes(), 112, (v) => v.setFloat32(112, 1, true))).ok).toBe(true);
+    expect(validateEncodedScene(mutate(validBytes(), 116, (v) => v.setFloat32(116, 2, true))).ok).toBe(true);
     expectRejected(mutate(validBytes(), 76, (v) => v.setUint32(76, 1, true)), /light direction padding/);
+  });
+
+  it("accepts an explicit v2 black light (all-zero RGB is legal, not a sentinel)", () => {
+    // ABI v2: color {r:0, g:0, b:0} is an EXPLICIT black directional light
+    // and must validate (the "zero == legacy white" sentinel is forbidden).
+    const bytes = mutate(validBytes(), 112, (v) => {
+      v.setFloat32(112, 0, true);
+      v.setFloat32(116, 0, true);
+      v.setFloat32(120, 0, true);
+    });
+    const result = validateEncodedScene(bytes);
+    expect(result.ok).toBe(true);
+    expect(result.errors).toEqual([]);
+    expect(result.header?.lightColor).toEqual({ r: 0, g: 0, b: 0 });
   });
 });
 

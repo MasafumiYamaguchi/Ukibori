@@ -2,6 +2,7 @@ import type {
   GpuScenePipelineFrameStats,
   GpuTimestampFrameResult,
   HeightProfile,
+  LinearRgb,
   MaskSource,
   Vec3,
 } from "ukibori-renderer";
@@ -96,6 +97,15 @@ export interface DomLightState {
   direction: Vec3;
   /** finite >= 0 */
   intensity: number;
+  /**
+   * #45 LINEAR RGB directional-light color (dimensionless — NEVER
+   * dpr-scaled; not an sRGB CSS color). Applies only to the direct/
+   * directional lighting contribution; ambient/environment are never
+   * tinted. Omitted -> white. Per-channel sanitization follows the
+   * renderer: missing / non-finite / negative channels fall back to 1,
+   * zero stays valid, values above 1 (HDR) are preserved.
+   */
+  color?: LinearRgb;
   /**
    * #41 apparent light size: angular radius of the light cone in RADIANS
    * (dimensionless — NEVER dpr-scaled). 0 (default) keeps the exact #17

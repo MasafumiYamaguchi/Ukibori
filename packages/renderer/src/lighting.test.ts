@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { HostBuffer, readElement } from "./buffer";
 import { NO_OWNER } from "./compose";
-import { lightScene, computeNormals, shadeHeightField } from "./lighting";
+import { F32_MAX, saturatingMul, saturatingMulF32 } from "./math";
+import { lightScene, computeNormals, shadeHeightField, directLightContributionChannel } from "./lighting";
 import { createScene } from "./scene";
 import type { Scene, SurfaceNode } from "./scene";
-import { composeSdfHeightField } from "./geometry";
+import { composeCasterHeightField, composeSdfHeightField } from "./geometry";
 import { computeVisibility } from "./shadow";
 import { reconstructVisibility } from "./shadow-reconstruct";
+import { brdfDirect } from "./brdf";
 
 function heightFrom(values: number[][], width: number, height: number): HostBuffer {
   const buf = new HostBuffer({ width, height, channels: 1, format: "f32" });
@@ -538,5 +540,410 @@ describe("#43 lightScene reconstruction consumption (CPU oracle semantics)", () 
         expect(disabled.visibility!.get(x, y, 0)).toBe(softRaw.raw.get(x, y, 0));
       }
     }
+  });
+});
+
+describe("#45 directional-light color (linear RGB)", () => {
+  // A panel with a raised slab: direct-lit top texels + cast-shadowed base
+  // plane texels exercise the full accumulation path.
+  function colorScene(lightColor: { r: number; g: number; b: number } | undefined, angularRadius = 0.2) {
+    return createScene({
+      width: 48,
+      height: 48,
+      surfaces: [
+        {
+          id: "slab",
+          position: { x: 12, y: 8 },
+          size: { x: 16, y: 16 },
+          elevation: 2,
+          thickness: 4,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "silicone",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      light: {
+        direction: { x: -0.6, y: -0.4, z: 0.8 },
+        intensity: 1,
+        ...(angularRadius !== undefined ? { angularRadius } : {}),
+        ...(lightColor !== undefined ? { color: lightColor } : {}),
+      },
+      environment: { intensity: 0.5, diffuseIntensity: 1, specularIntensity: 1 },
+      exposure: 1,
+    });
+  }
+
+  function rgba(buf: HostBuffer) {
+    const out: number[] = [];
+    for (let y = 0; y < buf.spec.height; y++) {
+      for (let x = 0; x < buf.spec.width; x++) {
+        out.push(buf.get(x, y, 0), buf.get(x, y, 1), buf.get(x, y, 2), buf.get(x, y, 3));
+      }
+    }
+    return out;
+  }
+
+  it("explicit white color is byte-identical to an omitted color", () => {
+    const omitted = rgba(lightScene(colorScene(undefined)).color);
+    const white = rgba(lightScene(colorScene({ r: 1, g: 1, b: 1 })).color);
+    expect(white).toEqual(omitted);
+  });
+
+  it("tints ONLY the directly-illuminated contribution (red light)", () => {
+    const white = lightScene(colorScene({ r: 1, g: 1, b: 1 }));
+    const red = lightScene(colorScene({ r: 1, g: 0, b: 0 }));
+    const { width, height } = white.color.spec;
+    let directTinted = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const [wr, wg, wb] = [white.color.get(x, y, 0), white.color.get(x, y, 1), white.color.get(x, y, 2)];
+        const [rr, rg, rb] = [red.color.get(x, y, 0), red.color.get(x, y, 1), red.color.get(x, y, 2)];
+        if (rr > wr || rg < wg || rb < wb) {
+          directTinted += 1;
+        }
+      }
+    }
+    expect(directTinted).toBeGreaterThan(0);
+    // fully shadowed texels keep the ambient+environment response: the red
+    // light must never raise green/blue channels there
+    let gbRaisedInShadow = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        if (white.visibility!.get(x, y, 0) !== 0) {
+          continue;
+        }
+        if (red.color.get(x, y, 1) > white.color.get(x, y, 1) || red.color.get(x, y, 2) > white.color.get(x, y, 2)) {
+          gbRaisedInShadow += 1;
+        }
+      }
+    }
+    expect(gbRaisedInShadow).toBe(0);
+  });
+
+  it("ambient and environment are never multiplied by the light color", () => {
+    // A HORIZONTAL light is edge-on to every flat surface (normal +z), so
+    // max(N.L, 0) = 0 everywhere: NO direct contribution exists. A colored
+    // light must then be indistinguishable from white (only ambient +
+    // environment remain, neither tinted by the light color).
+    const env = { intensity: 0.5, diffuseIntensity: 1, specularIntensity: 1 };
+    const horizontal = (color: { r: number; g: number; b: number }) =>
+      createScene({
+        width: 16,
+        height: 16,
+        surfaces: [
+          {
+            // a full-coverage panel with zero thickness: every texel is
+            // flat (normal +z), so a horizontal light gives max(N.L, 0) = 0
+            // EVERYWHERE — no direct contribution, no edge-tilted normals
+            id: "s",
+            position: { x: 0, y: 0 },
+            size: { x: 16, y: 16 },
+            elevation: 0,
+            thickness: 0,
+            shape: { kind: "roundedRect", radius: 0 },
+            profile: { kind: "flat" },
+            material: "silicone",
+            castsShadow: false,
+            receivesShadow: true,
+          },
+        ],
+        light: { direction: { x: 1, y: 0, z: 0 }, intensity: 1, color },
+        environment: env,
+        exposure: 1,
+      });
+    expect(rgba(lightScene(horizontal({ r: 1, g: 0, b: 0 })).color)).toEqual(
+      rgba(lightScene(horizontal({ r: 1, g: 1, b: 1 })).color),
+    );
+    // intensity 0 with a non-white color: the color must have no effect
+    const zeroIntensity = (color: { r: number; g: number; b: number }) =>
+      createScene({
+        width: 16,
+        height: 16,
+        surfaces: [],
+        light: { direction: { x: -0.6, y: -0.4, z: 0.8 }, intensity: 0, color },
+        environment: env,
+        exposure: 1,
+      });
+    expect(rgba(lightScene(zeroIntensity({ r: 1, g: 0, b: 0 })).color)).toEqual(
+      rgba(lightScene(zeroIntensity({ r: 1, g: 1, b: 1 })).color),
+    );
+  });
+
+  it("keeps the scalar diffuse/specular debug buffers independent of the light color", () => {
+    const white = lightScene(colorScene({ r: 1, g: 1, b: 1 }));
+    const red = lightScene(colorScene({ r: 1, g: 0, b: 0 }));
+    const { width, height } = white.diffuse.spec;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        expect(red.diffuse.get(x, y, 0)).toBe(white.diffuse.get(x, y, 0));
+        expect(red.specular.get(x, y, 0)).toBe(white.specular.get(x, y, 0));
+      }
+    }
+  });
+});
+
+describe("#45 white vs colored light — shadow/reconstruction invariance", () => {
+  // Identical geometry/light direction/angularRadius/shadow options with a
+  // white vs red light must produce identical height, normals, raw
+  // visibility, reconstructed visibility and the caster field — only the
+  // final lighting color may differ.
+  function fields(color: { r: number; g: number; b: number }) {
+    const scene = createScene({
+      width: 32,
+      height: 32,
+      surfaces: [
+        {
+          id: "slab",
+          position: { x: 10, y: 8 },
+          size: { x: 12, y: 12 },
+          elevation: 2,
+          thickness: 4,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "silicone",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      light: { direction: { x: -0.6, y: -0.4, z: 0.8 }, intensity: 1, color, angularRadius: 0.2 },
+    });
+    const composed = composeSdfHeightField(scene);
+    const raw = computeVisibility(scene, composed.height, {
+      samples: 8,
+      objectId: composed.objectId,
+      casterHeight: composed.height,
+    });
+    const recon = reconstructVisibility(
+      raw,
+      composed.height,
+      { objectId: composed.objectId },
+      { enabled: true, radius: 2 },
+    );
+    const normal = computeNormals(composed.height);
+    return { scene, composed, raw, recon, normal };
+  }
+
+  function bytes(buf: HostBuffer) {
+    return Array.from(buf.data);
+  }
+
+  it("white vs red produce identical height/normals/raw/reconstructed/caster fields", () => {
+    const white = fields({ r: 1, g: 1, b: 1 });
+    const red = fields({ r: 1, g: 0, b: 0 });
+    expect(bytes(white.composed.height)).toEqual(bytes(red.composed.height));
+    expect(bytes(white.composed.objectId)).toEqual(bytes(red.composed.objectId));
+    expect(bytes(composeCasterHeightField(white.scene))).toEqual(bytes(composeCasterHeightField(red.scene)));
+    expect(bytes(white.raw)).toEqual(bytes(red.raw));
+    expect(bytes(white.recon)).toEqual(bytes(red.recon));
+    expect(bytes(white.normal)).toEqual(bytes(red.normal));
+    // and the HARD path is equally invariant (angularRadius 0)
+    const hard = (color: { r: number; g: number; b: number }) => {
+      const scene = createScene({
+        width: 32,
+        height: 32,
+        surfaces: [
+          {
+            id: "slab",
+            position: { x: 10, y: 8 },
+            size: { x: 12, y: 12 },
+            elevation: 2,
+            thickness: 4,
+            shape: { kind: "roundedRect", radius: 0 },
+            profile: { kind: "flat" },
+            material: "silicone",
+            castsShadow: true,
+            receivesShadow: true,
+          },
+        ],
+        light: { direction: { x: -0.6, y: -0.4, z: 0.8 }, intensity: 1, color },
+      });
+      const composed = composeSdfHeightField(scene);
+      return computeVisibility(scene, composed.height, {
+        samples: 8,
+        objectId: composed.objectId,
+        casterHeight: composed.height,
+      });
+    };
+    expect(bytes(hard({ r: 1, g: 1, b: 1 }))).toEqual(bytes(hard({ r: 1, g: 0, b: 0 })));
+  });
+});
+
+describe("#45 review — extreme-HDR direct-light overflow semantics (CPU/GPU parity)", () => {
+  // A full-coverage flat panel (normal +z everywhere) under a VERTICAL light:
+  // NdotL = NdotV = NdotH = 1 and visibility 1 on every texel, so the whole
+  // scene is a single deterministic channel evaluation.
+  const HDR_MATERIAL = {
+    baseColor: { r: 0.1, g: 0.1, b: 0.1 },
+    roughness: 1,
+    metallic: 1,
+    ior: 1.5,
+  };
+
+  function hdrScene(
+    color: { r: number; g: number; b: number },
+    intensity: number,
+    exposure: number,
+    light: { x: number; y: number; z: number } = { x: 0, y: 0, z: 1 },
+  ): Scene {
+    return createScene({
+      width: 16,
+      height: 16,
+      surfaces: [
+        {
+          id: "s",
+          position: { x: 0, y: 0 },
+          size: { x: 16, y: 16 },
+          elevation: 0,
+          thickness: 0,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "hdr-metal",
+          castsShadow: false,
+          receivesShadow: true,
+        },
+      ],
+      materials: { "hdr-metal": HDR_MATERIAL },
+      light: { direction: light, intensity, color },
+      environment: { intensity: 0, diffuseIntensity: 1, specularIntensity: 1 },
+      exposure,
+    });
+  }
+
+  function srgbByte(linear: number): number {
+    const c = Math.min(1, Math.max(0, linear));
+    const encoded = c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1 / 2.4) - 0.055;
+    return Math.round(encoded * 255);
+  }
+
+  it("keeps a huge lightColor * intensity recoverable through the small BRDF (documented factor order)", () => {
+    // lightColor.r = F32_MAX, intensity = 2: lightColor * intensity exceeds
+    // F32_MAX, but the BRDF (~0.008 for this material) scales it back below
+    // F32_MAX when the SMALL factors multiply first. The canonical order is
+    //   brdfSum -> NdotL -> visibility -> intensity -> lightColor
+    // with each step saturated in the f32 domain.
+    const scene = hdrScene({ r: F32_MAX, g: 2, b: 0 }, 2, 1e-37);
+    const { color, diffuse, specular } = lightScene(scene, { ambient: 0 });
+    const { width, height } = color.spec;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        for (let c = 0; c < 4; c++) {
+          const v = color.get(x, y, c);
+          expect(Number.isFinite(v)).toBe(true);
+          expect(v).toBeGreaterThanOrEqual(0);
+          expect(v).toBeLessThanOrEqual(255);
+        }
+      }
+    }
+    // diffuse = NdotL = 1, specular = min(luminance(brdf.specular), 1):
+    // the debug buffers stay color-independent.
+    expect(diffuse.get(8, 8, 0)).toBe(1);
+    expect(Number.isFinite(specular.get(8, 8, 0))).toBe(true);
+
+    // the documented formula reproduces the byte EXACTLY (ambient 0,
+    // environment 0, so linear = direct contribution):
+    const brdf = brdfDirect(HDR_MATERIAL, 1, 1, 1, 1);
+    const directR = directLightContributionChannel(F32_MAX, 2, 1, 1, brdf.diffuse.r, brdf.specular.r);
+    expect(directR).toBeLessThan(F32_MAX); // NO premature intermediate saturation
+    expect(directR).toBeGreaterThan(0);
+    const expectedRed = srgbByte(saturatingMul(directR, 1e-37));
+    expect(expectedRed).toBeGreaterThan(0);
+    expect(expectedRed).toBeLessThan(255); // visible intermediate, not white-out
+    expect(color.get(8, 8, 0)).toBe(expectedRed);
+    // green (moderate HDR 2) and blue (0) stay independent and negligible at
+    // this exposure: a per-channel regression cannot hide in the red byte.
+    expect(color.get(8, 8, 1)).toBe(0);
+    expect(color.get(8, 8, 2)).toBe(0);
+
+    // the PRE-REVIEW early-saturation order (lightColor -> intensity ->
+    // NdotL -> visibility, THEN the BRDF) would clamp the irradiance at
+    // F32_MAX and produce a DIFFERENT visible byte — this is the exact
+    // divergence the review blocked.
+    const brdfSum = brdf.diffuse.r + brdf.specular.r;
+    const premature = saturatingMulF32(
+      brdfSum,
+      saturatingMulF32(saturatingMulF32(saturatingMulF32(F32_MAX, 2), 1), 1),
+    );
+    expect(premature).toBeLessThan(directR); // F32_MAX clamp lost information
+    expect(srgbByte(saturatingMul(premature, 1e-37))).not.toBe(expectedRed);
+  });
+
+  it("saturates at F32_MAX identically when the final direct contribution genuinely overflows", () => {
+    // intensity = F32_MAX: brdfSum * F32_MAX * F32_MAX > F32_MAX, so the
+    // LAST step saturates at F32_MAX (exposure 1 -> white). Zero factor
+    // safety still holds: no NaN, no Infinity.
+    const scene = hdrScene({ r: F32_MAX, g: F32_MAX, b: F32_MAX }, F32_MAX, 1);
+    const { color } = lightScene(scene, { ambient: 0 });
+    expect(color.get(8, 8, 0)).toBe(255);
+    expect(color.get(8, 8, 1)).toBe(255);
+    expect(color.get(8, 8, 2)).toBe(255);
+    expect(Number.isFinite(color.get(8, 8, 0))).toBe(true);
+  });
+
+  it("zero NdotL kills the direct term even at F32_MAX light color (no NaN, no white)", () => {
+    // A horizontal light is edge-on to the flat panel: NdotL = 0 everywhere.
+    // The direct chain must yield exactly 0 (0 * anything = 0, never NaN),
+    // so with ambient/environment 0 the output is black and finite.
+    const scene = hdrScene({ r: F32_MAX, g: F32_MAX, b: F32_MAX }, F32_MAX, 1, { x: 1, y: 0, z: 0 });
+    const { color } = lightScene(scene, { ambient: 0 });
+    const { width, height } = color.spec;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        expect(color.get(x, y, 0)).toBe(0);
+        expect(color.get(x, y, 1)).toBe(0);
+        expect(color.get(x, y, 2)).toBe(0);
+        expect(color.get(x, y, 3)).toBe(255);
+      }
+    }
+  });
+
+  it("zero visibility kills the direct term at F32_MAX light color (shadowed texels stay finite)", () => {
+    // A raised casting slab with a side light: the shadowed base-plane
+    // texels have visibility 0, so their direct term must be exactly 0 even
+    // at F32_MAX color/intensity — the ambient+environment response stays
+    // and nothing becomes NaN/Infinity.
+    const scene = createScene({
+      width: 32,
+      height: 32,
+      surfaces: [
+        {
+          id: "slab",
+          position: { x: 8, y: 8 },
+          size: { x: 12, y: 12 },
+          elevation: 4,
+          thickness: 0,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "hdr-metal",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      materials: { "hdr-metal": HDR_MATERIAL },
+      light: { direction: { x: 1, y: 0, z: 0.5 }, intensity: F32_MAX, color: { r: F32_MAX, g: 0, b: 0 } },
+      environment: { intensity: 0, diffuseIntensity: 1, specularIntensity: 1 },
+      exposure: 1,
+    });
+    const { color, visibility } = lightScene(scene, { ambient: 0 });
+    const { width, height } = color.spec;
+    let shadowed = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        for (let c = 0; c < 4; c++) {
+          expect(Number.isFinite(color.get(x, y, c))).toBe(true);
+        }
+        if (visibility!.get(x, y, 0) === 0) {
+          shadowed += 1;
+          expect(color.get(x, y, 0)).toBe(0);
+          expect(color.get(x, y, 1)).toBe(0);
+          expect(color.get(x, y, 2)).toBe(0);
+        }
+      }
+    }
+    expect(shadowed).toBeGreaterThan(0);
+    // lit texels are finite and non-black (the extreme direct term survives
+    // the BRDF and saturates the sRGB clamp)
+    expect(color.get(15, 15, 0)).toBe(255);
   });
 });

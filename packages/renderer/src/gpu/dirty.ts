@@ -16,6 +16,7 @@ import {
   EXPOSURE_REGION,
   HEADER_GEOMETRY_REGIONS,
   LIGHT_ANGULAR_RADIUS_REGION,
+  LIGHT_COLOR_REGION,
   LIGHT_DIRECTION_REGION,
   LIGHT_INTENSITY_REGION,
   materialFlagsRanges,
@@ -60,6 +61,7 @@ import { bytesEqual } from "./tiles";
  * | `light-angular-radius`| upload, shadow, reconstruction, lighting,   |
  * |                       | presentation (#41)                          |
  * | `light-intensity`     | upload, lighting, presentation              |
+ * | `light-color` (#45)   | upload, lighting, presentation              |
  * | `environment`         | upload, lighting, presentation              |
  * | `material-values`     | upload, lighting, presentation              |
  * | `normal-options`      | normal, lighting, presentation              |
@@ -96,8 +98,8 @@ import { bytesEqual } from "./tiles";
  * The GLOBAL SEMANTIC fields are always compared, so a geometry change
  * NEVER swallows them:
  *
- * - the header fields (light direction / angular radius / intensity /
- *   exposure / environment) live at FIXED header offsets;
+ * - the header fields (light direction / color / angular radius / intensity / exposure
+ *   / environment) live at FIXED header offsets;
  * - the material VALUES table is compared at each scene's OWN
  *   `materialsOffset` whenever `materialCount` is unchanged (the
  *   surface/mask layout may shift, but the same-length table at its own
@@ -116,7 +118,7 @@ import { bytesEqual } from "./tiles";
  *   (`option-change-with-scene` / `<semantic>-change`)
  *
  * The GLOBAL semantics whose change breaks the partial-locality proof:
- * light direction / angular radius / intensity / environment / exposure,
+ * light direction / color / angular radius / intensity / environment / exposure,
  * shadow options (samples/step/bias/maxDistance), reconstruction options
  * (enabled/radius/heightGate), and MATERIAL VALUES (baseColor / roughness
  * / metallic / ior). The partial-locality proof only holds while ALL of
@@ -169,6 +171,7 @@ export type InvalidationReason =
   | "light-direction"
   | "light-intensity"
   | "light-angular-radius"
+  | "light-color"
   | "environment"
   | "material-values"
   | "normal-options"
@@ -208,6 +211,10 @@ export const REASON_STAGES: Readonly<Record<InvalidationReason, readonly Pipelin
   // (and downstream visibility consumers); the height/normal fields never
   // read it, so they stay retained.
   "light-angular-radius": ["upload", "shadow", "reconstruction", "lighting", "presentation"],
+  // #45: the directional light COLOR feeds only the lighting stage (the
+  // per-channel direct contribution) — height/normal/shadow/reconstruction
+  // are never affected, so they stay retained.
+  "light-color": ["upload", "lighting", "presentation"],
   "light-intensity": ["upload", "lighting", "presentation"],
   environment: ["upload", "lighting", "presentation"],
   "material-values": ["upload", "lighting", "presentation"],
@@ -338,7 +345,7 @@ export function computeFrameKey(
  * - byte-length / header-geometry / surface / mask / mask-pixel / material-
  *   flags differences -> `["scene", ...globalSemanticChanges]` (conservative
  *   full chain). The GLOBAL SEMANTIC fields — the fixed-offset header fields
- *   (light direction / angular radius / intensity / exposure / environment)
+ *   (light direction / color / angular radius / intensity / exposure / environment)
  *   AND the material VALUES table (compared at each scene's OWN
  *   `materialsOffset` whenever `materialCount` is unchanged, even when the
  *   surface/mask layout shifted) — are ALWAYS compared, so a geometry change
@@ -362,7 +369,7 @@ export function classifySceneChange(
   const nextHeader = parseHeader(nextBytes);
   const prevLayout = sceneSectionLayout(prevHeader);
   const nextLayout = sceneSectionLayout(nextHeader);
-  // The global semantic header fields are at FIXED offsets (64..112 of the
+  // The global semantic header fields are at FIXED offsets (64..128 of the
   // 128-byte header) regardless of the section layout, so they are compared
   // BEFORE any geometry decision — the same helpers and region constants
   // the byte-identical branch uses, never a duplicate comparison.
@@ -375,6 +382,9 @@ export function classifySceneChange(
   }
   if (!regionEqual(prevBytes, nextBytes, LIGHT_INTENSITY_REGION)) {
     changes.push("light-intensity");
+  }
+  if (!regionEqual(prevBytes, nextBytes, LIGHT_COLOR_REGION)) {
+    changes.push("light-color");
   }
   if (
     !regionEqual(prevBytes, nextBytes, EXPOSURE_REGION) ||

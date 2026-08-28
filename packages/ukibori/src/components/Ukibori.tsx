@@ -72,6 +72,7 @@ export function Ukibori({
   light = DEFAULT_LIGHT,
   intensity = DEFAULT_INTENSITY,
   angularRadius,
+  lightColor,
   environment = {},
   exposure = DEFAULT_EXPOSURE,
   color = DEFAULT_COLOR,
@@ -111,6 +112,17 @@ export function Ukibori({
   // to the physical layer; anything else means "renderer default" (hard).
   const safeAngularRadius =
     Number.isFinite(angularRadius) && (angularRadius ?? 0) >= 0 ? angularRadius : undefined;
+
+  // #45 directional-light color (linear RGB, dimensionless): forwarded
+  // verbatim to the physical layer — the renderer sanitizes each channel
+  // (missing / non-finite / negative -> 1, HDR preserved). `undefined`
+  // (prop omitted or removed) DELETES the stored color so white applies.
+  // Primitive-field identity: a per-channel change always yields a new
+  // object, so the update key below sees it.
+  const safeLightColor =
+    lightColor === undefined
+      ? undefined
+      : { r: lightColor.r, g: lightColor.g, b: lightColor.b };
 
   // Physical-only image-level controls (#22): environment illumination and
   // exposure. Sanitized with the RENDERER's own policy so the React entry
@@ -230,6 +242,7 @@ export function Ukibori({
             direction: cssEnv.light,
             intensity: cssEnv.intensity,
             ...(safeAngularRadius !== undefined ? { angularRadius: safeAngularRadius } : {}),
+            ...(safeLightColor !== undefined ? { color: safeLightColor } : {}),
           } satisfies DomLightState,
           environment: {
             intensity: envEnv.intensity,
@@ -283,6 +296,9 @@ export function Ukibori({
   const updateDataKey = [
     cssEnv.key,
     safeAngularRadius === undefined ? "" : String(safeAngularRadius),
+    // #45: the light color is part of the retained-update key — a change
+    // (including removal -> white) must reach the existing layer.
+    safeLightColor === undefined ? "" : JSON.stringify(safeLightColor),
     envEnv.key,
     safeExposure,
     JSON.stringify(shadow),
@@ -305,6 +321,7 @@ export function Ukibori({
       { x: cssEnv.light.x, y: cssEnv.light.y, z: cssEnv.light.z },
       cssEnv.intensity,
       safeAngularRadius,
+      safeLightColor,
     );
     current.setEnvironment({
       intensity: envEnv.intensity,

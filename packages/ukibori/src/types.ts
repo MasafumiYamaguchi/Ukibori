@@ -6,7 +6,7 @@ import type {
   DomShape,
   UkiboriDom,
 } from "ukibori-dom";
-import type { HeightProfile } from "ukibori-renderer";
+import type { HeightProfile, LinearRgb } from "ukibori-renderer";
 import type { MaterialTokensOverride } from "./core/materials";
 
 /**
@@ -81,6 +81,15 @@ export interface UkiboriProps {
    * light). Used by the physical layer and the CSS fallback. */
   light?: LightVector;
   intensity?: number;
+  /**
+   * #45 LINEAR RGB directional-light color (dimensionless, never
+   * dpr-scaled; not an sRGB CSS color). Applies ONLY to the direct/
+   * directional lighting contribution — ambient, environment and shadow
+   * visibility are never tinted. Omitted -> white; per-channel sanitization
+   * follows the renderer (missing / non-finite / negative -> 1, zero valid,
+   * HDR values above 1 preserved). Removing the prop restores white.
+   */
+  lightColor?: LinearRgb;
   /**
    * #41 apparent light size for the physical layer: angular radius of the
    * light cone in RADIANS (dimensionless, never dpr-scaled). 0/undefined

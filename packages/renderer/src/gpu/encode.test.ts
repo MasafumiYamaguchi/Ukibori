@@ -35,6 +35,7 @@ import {
   sceneSectionLayout,
 } from "./layout";
 import { encodeScene, parseHeader } from "./encode";
+import { validateEncodedScene } from "./validate";
 import { texelCenterToLogical } from "./layout";
 
 function roundedScene(): Scene {
@@ -115,6 +116,12 @@ describe("encodeScene — determinism and header", () => {
     expect(view.getFloat32(96, true)).toBe(0.5);
     expect(view.getFloat32(100, true)).toBe(Math.fround(0.8));
     expect(view.getFloat32(104, true)).toBe(Math.fround(0.4));
+    // #45: lightColor at 112..124 (linear RGB, w = 0); the roundedScene
+    // light carries no color -> white default
+    expect(view.getFloat32(112, true)).toBe(1);
+    expect(view.getFloat32(116, true)).toBe(1);
+    expect(view.getFloat32(120, true)).toBe(1);
+    expect(view.getUint32(124, true)).toBe(0);
     expect(parseHeader(bytes)).toMatchObject({
       logicalWidth: 100,
       logicalHeight: 80,
@@ -123,7 +130,73 @@ describe("encodeScene — determinism and header", () => {
       surfaceCount: 2,
       maskCount: 0,
       materialCount: 2,
+      lightColor: { r: 1, g: 1, b: 1 },
     });
+  });
+
+  it("encodes a colored light at 112..124 and parses it back (f32-rounded)", () => {
+    const scene = roundedScene();
+    scene.light.color = { r: 1, g: 0.55, b: Math.fround(0.25) };
+    const { bytes } = encodeScene(scene, 1);
+    const view = new DataView(bytes.buffer);
+    expect(view.getFloat32(112, true)).toBe(1);
+    expect(view.getFloat32(116, true)).toBe(Math.fround(0.55));
+    expect(view.getFloat32(120, true)).toBe(Math.fround(0.25));
+    expect(view.getUint32(124, true)).toBe(0); // deterministic zero w
+    expect(parseHeader(bytes).lightColor).toEqual({
+      r: 1,
+      g: Math.fround(0.55),
+      b: Math.fround(0.25),
+    });
+  });
+
+  it("always writes the current ABI version (v2) and rejects nothing upstream", () => {
+    const { bytes } = encodeScene(roundedScene(), 1);
+    const view = new DataView(bytes.buffer);
+    expect(view.getUint32(4, true)).toBe(2);
+    expect(parseHeader(bytes).version).toBe(2);
+  });
+
+  it("encodes an explicit v2 black light as all-zero RGB (legal, not a sentinel)", () => {
+    const scene = createScene({
+      ...roundedScene(),
+      light: { ...roundedScene().light, color: { r: 0, g: 0, b: 0 } },
+    });
+    const { bytes } = encodeScene(scene, 1);
+    const view = new DataView(bytes.buffer);
+    expect(view.getFloat32(112, true)).toBe(0);
+    expect(view.getFloat32(116, true)).toBe(0);
+    expect(view.getFloat32(120, true)).toBe(0);
+    expect(view.getUint32(124, true)).toBe(0);
+    expect(parseHeader(bytes).lightColor).toEqual({ r: 0, g: 0, b: 0 });
+    expect(scene.light.color).toEqual({ r: 0, g: 0, b: 0 });
+  });
+
+  it("CPU Scene, parsed ABI and WGSL-visible bytes share the SAME canonical f32 light color", () => {
+    // #45 CPU/WebGPU parity: createScene sanitizes the color to canonical
+    // f32 values; the encoder packs those EXACT values; the WGSL shader
+    // reads the very same f32 bytes. No backend may round independently.
+    const scene = createScene({
+      ...roundedScene(),
+      light: { ...roundedScene().light, color: { r: 0.1, g: 0.3, b: 1.7 } },
+    });
+    const canonical = {
+      r: Math.fround(0.1),
+      g: Math.fround(0.3),
+      b: Math.fround(1.7),
+    };
+    // 1. Scene.light.color is the canonical f32 value
+    expect(scene.light.color).toEqual(canonical);
+    // 2. the parsed ABI lightColor equals it exactly
+    const { bytes } = encodeScene(scene, 1);
+    expect(parseHeader(bytes).lightColor).toEqual(canonical);
+    // 3. the raw bytes the WGSL `SceneHeader.lightColor` reads ARE those
+    //    canonical f32 bit patterns (little-endian)
+    const view = new DataView(bytes.buffer);
+    expect(view.getFloat32(112, true)).toBe(canonical.r);
+    expect(view.getFloat32(116, true)).toBe(canonical.g);
+    expect(view.getFloat32(120, true)).toBe(canonical.b);
+    expect(validateEncodedScene(bytes).ok).toBe(true);
   });
 
   it("rejects invalid DPR values", () => {
