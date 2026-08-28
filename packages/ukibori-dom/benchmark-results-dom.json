@@ -1,0 +1,2078 @@
+{
+  "schemaVersion": 1,
+  "commit": "bbbf1e5cdb7557be009d5ed2f8bf9e50c932f69e",
+  "generatedAt": "2026-08-28T20:17:18.473Z",
+  "environment": {
+    "timestamp": "2026-08-28T20:17:18.473Z",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+    "devicePixelRatio": 1,
+    "backend": "webgpu"
+  },
+  "cases": [
+    {
+      "id": "dom/stable-page/1",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "stable-page",
+        "surfaceCount": 1,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0.5,
+          "p95": 0.5,
+          "min": 0.5,
+          "max": 0.5
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 7.099999999627471,
+          "p95": 7.099999999627471,
+          "min": 7.099999999627471,
+          "max": 7.099999999627471
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "192x164",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/one-surface-resize/1",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "one-surface-resize",
+        "surfaceCount": 1,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0.6999999992549419,
+          "p95": 0.6999999992549419,
+          "min": 0.6999999992549419,
+          "max": 0.6999999992549419
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 3,
+          "p95": 3,
+          "min": 3,
+          "max": 3
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 0.599999999627471,
+          "p95": 0.599999999627471,
+          "min": 0.599999999627471,
+          "max": 0.599999999627471
+        },
+        "executed": "",
+        "retained": 1,
+        "renderSize": "192x164",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/unrelated-mutation/1",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "unrelated-mutation",
+        "surfaceCount": 1,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0.09999999962747097,
+          "max": 0.09999999962747097
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0.09999999962747097,
+          "max": 0.09999999962747097
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "192x164",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/frequent-mutations/1",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "frequent-mutations",
+        "surfaceCount": 1,
+        "frames": 10,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 0.2000000011175871,
+          "p95": 6.099999999627471,
+          "min": 0,
+          "max": 6.099999999627471
+        },
+        "rectCallsPerFrame": {
+          "samples": 10,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 10,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "192x164",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/scroll/1",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "scroll",
+        "surfaceCount": 1,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 1.299999998882413,
+          "p95": 1.299999998882413,
+          "min": 1.299999998882413,
+          "max": 1.299999998882413
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "192x164",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/stable-page/10",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "stable-page",
+        "surfaceCount": 10,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 1.800000000745058,
+          "p95": 1.800000000745058,
+          "min": 1.800000000745058,
+          "max": 1.800000000745058
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x224",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/one-surface-resize/10",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "one-surface-resize",
+        "surfaceCount": 10,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 1.599999999627471,
+          "p95": 1.599999999627471,
+          "min": 1.599999999627471,
+          "max": 1.599999999627471
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 12,
+          "p95": 12,
+          "min": 12,
+          "max": 12
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 1.5,
+          "p95": 1.5,
+          "min": 1.5,
+          "max": 1.5
+        },
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "822x224",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/unrelated-mutation/10",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "unrelated-mutation",
+        "surfaceCount": 10,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0.09999999962747097,
+          "max": 0.09999999962747097
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 10,
+          "p95": 10,
+          "min": 10,
+          "max": 10
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0.09999999962747097,
+          "max": 0.09999999962747097
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x224",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/frequent-mutations/10",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "frequent-mutations",
+        "surfaceCount": 10,
+        "frames": 10,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 0.2000000011175871,
+          "p95": 6,
+          "min": 0,
+          "max": 6
+        },
+        "rectCallsPerFrame": {
+          "samples": 10,
+          "median": 10,
+          "p95": 10,
+          "min": 10,
+          "max": 10
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 10,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "822x224",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/scroll/10",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "scroll",
+        "surfaceCount": 10,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0.10000000149011612,
+          "p95": 0.10000000149011612,
+          "min": 0.10000000149011612,
+          "max": 0.10000000149011612
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x224",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/stable-page/50",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "stable-page",
+        "surfaceCount": 50,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0.40000000037252903,
+          "p95": 0.40000000037252903,
+          "min": 0.40000000037252903,
+          "max": 0.40000000037252903
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 1.699999999254942,
+          "p95": 1.699999999254942,
+          "min": 1.699999999254942,
+          "max": 1.699999999254942
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x524",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/one-surface-resize/50",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "one-surface-resize",
+        "surfaceCount": 50,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 2.5,
+          "p95": 2.5,
+          "min": 2.5,
+          "max": 2.5
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 52,
+          "p95": 52,
+          "min": 52,
+          "max": 52
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 1.799999998882413,
+          "p95": 1.799999998882413,
+          "min": 1.799999998882413,
+          "max": 1.799999998882413
+        },
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "822x524",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/unrelated-mutation/50",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "unrelated-mutation",
+        "surfaceCount": 50,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0.6999999992549419,
+          "p95": 0.6999999992549419,
+          "min": 0.6999999992549419,
+          "max": 0.6999999992549419
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 50,
+          "p95": 50,
+          "min": 50,
+          "max": 50
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 0.19999999925494194,
+          "p95": 0.19999999925494194,
+          "min": 0.19999999925494194,
+          "max": 0.19999999925494194
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x524",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/frequent-mutations/50",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "frequent-mutations",
+        "surfaceCount": 50,
+        "frames": 10,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 0.900000000372529,
+          "p95": 5.5,
+          "min": 0.09999999962747097,
+          "max": 5.5
+        },
+        "rectCallsPerFrame": {
+          "samples": 10,
+          "median": 50,
+          "p95": 50,
+          "min": 50,
+          "max": 50
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 10,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 10,
+          "median": 0.10000000149011612,
+          "p95": 0.2999999988824129,
+          "min": 0,
+          "max": 0.2999999988824129
+        },
+        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "822x524",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/scroll/50",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "scroll",
+        "surfaceCount": 50,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 1.900000000372529,
+          "p95": 1.900000000372529,
+          "min": 1.900000000372529,
+          "max": 1.900000000372529
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x524",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/stable-page/100",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "stable-page",
+        "surfaceCount": 100,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0.599999999627471,
+          "p95": 0.599999999627471,
+          "min": 0.599999999627471,
+          "max": 0.599999999627471
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 4.5,
+          "p95": 4.5,
+          "min": 4.5,
+          "max": 4.5
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x884",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/one-surface-resize/100",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "one-surface-resize",
+        "surfaceCount": 100,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 1.799999998882413,
+          "p95": 1.799999998882413,
+          "min": 1.799999998882413,
+          "max": 1.799999998882413
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 102,
+          "p95": 102,
+          "min": 102,
+          "max": 102
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 1.799999998882413,
+          "p95": 1.799999998882413,
+          "min": 1.799999998882413,
+          "max": 1.799999998882413
+        },
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "822x884",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/unrelated-mutation/100",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "unrelated-mutation",
+        "surfaceCount": 100,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0.5,
+          "p95": 0.5,
+          "min": 0.5,
+          "max": 0.5
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 100,
+          "p95": 100,
+          "min": 100,
+          "max": 100
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 0.40000000037252903,
+          "p95": 0.40000000037252903,
+          "min": 0.40000000037252903,
+          "max": 0.40000000037252903
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x884",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/frequent-mutations/100",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "frequent-mutations",
+        "surfaceCount": 100,
+        "frames": 10,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 0.6999999992549419,
+          "p95": 5.5,
+          "min": 0.19999999925494194,
+          "max": 5.5
+        },
+        "rectCallsPerFrame": {
+          "samples": 10,
+          "median": 100,
+          "p95": 100,
+          "min": 100,
+          "max": 100
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 10,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 10,
+          "median": 0.19999999925494194,
+          "p95": 0.5,
+          "min": 0.19999999925494194,
+          "max": 0.5
+        },
+        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "822x884",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/scroll/100",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "scroll",
+        "surfaceCount": 100,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0.599999999627471,
+          "p95": 0.599999999627471,
+          "min": 0.599999999627471,
+          "max": 0.599999999627471
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 100,
+          "p95": 100,
+          "min": 100,
+          "max": 100
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 0.19999999925494194,
+          "p95": 0.19999999925494194,
+          "min": 0.19999999925494194,
+          "max": 0.19999999925494194
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x884",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/stable-page/250",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "stable-page",
+        "surfaceCount": 250,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 1.599999999627471,
+          "p95": 1.599999999627471,
+          "min": 1.599999999627471,
+          "max": 1.599999999627471
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 250,
+          "p95": 250,
+          "min": 250,
+          "max": 250
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 0.599999999627471,
+          "p95": 0.599999999627471,
+          "min": 0.599999999627471,
+          "max": 0.599999999627471
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x2024",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/one-surface-resize/250",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "one-surface-resize",
+        "surfaceCount": 250,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 4.699999999254942,
+          "p95": 4.699999999254942,
+          "min": 4.699999999254942,
+          "max": 4.699999999254942
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 252,
+          "p95": 252,
+          "min": 252,
+          "max": 252
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 4.599999999627471,
+          "p95": 4.599999999627471,
+          "min": 4.599999999627471,
+          "max": 4.599999999627471
+        },
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "822x2024",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/unrelated-mutation/250",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "unrelated-mutation",
+        "surfaceCount": 250,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0.599999999627471,
+          "p95": 0.599999999627471,
+          "min": 0.599999999627471,
+          "max": 0.599999999627471
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 250,
+          "p95": 250,
+          "min": 250,
+          "max": 250
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 0.5,
+          "p95": 0.5,
+          "min": 0.5,
+          "max": 0.5
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x2024",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/frequent-mutations/250",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "frequent-mutations",
+        "surfaceCount": 250,
+        "frames": 10,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 1.900000000372529,
+          "p95": 6.599999999627471,
+          "min": 1.099999999627471,
+          "max": 6.599999999627471
+        },
+        "rectCallsPerFrame": {
+          "samples": 10,
+          "median": 250,
+          "p95": 250,
+          "min": 250,
+          "max": 250
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 10,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 10,
+          "median": 1,
+          "p95": 1.400000000372529,
+          "min": 0.599999999627471,
+          "max": 1.400000000372529
+        },
+        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "822x2024",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/scroll/250",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "scroll",
+        "surfaceCount": 250,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 2.099999999627471,
+          "p95": 2.099999999627471,
+          "min": 2.099999999627471,
+          "max": 2.099999999627471
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 250,
+          "p95": 250,
+          "min": 250,
+          "max": 250
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 0.7999999988824129,
+          "p95": 0.7999999988824129,
+          "min": 0.7999999988824129,
+          "max": 0.7999999988824129
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x2024",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/stable-page/500",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "stable-page",
+        "surfaceCount": 500,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 1.900000000372529,
+          "p95": 1.900000000372529,
+          "min": 1.900000000372529,
+          "max": 1.900000000372529
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 9.199999999254942,
+          "p95": 9.199999999254942,
+          "min": 9.199999999254942,
+          "max": 9.199999999254942
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x3884",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/one-surface-resize/500",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "one-surface-resize",
+        "surfaceCount": 500,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 8.400000000372529,
+          "p95": 8.400000000372529,
+          "min": 8.400000000372529,
+          "max": 8.400000000372529
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 502,
+          "p95": 502,
+          "min": 502,
+          "max": 502
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 6.699999999254942,
+          "p95": 6.699999999254942,
+          "min": 6.699999999254942,
+          "max": 6.699999999254942
+        },
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "822x3884",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/unrelated-mutation/500",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "unrelated-mutation",
+        "surfaceCount": 500,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 2.900000000372529,
+          "p95": 2.900000000372529,
+          "min": 2.900000000372529,
+          "max": 2.900000000372529
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 500,
+          "p95": 500,
+          "min": 500,
+          "max": 500
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 1.599999999627471,
+          "p95": 1.599999999627471,
+          "min": 1.599999999627471,
+          "max": 1.599999999627471
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x3884",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/frequent-mutations/500",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "frequent-mutations",
+        "surfaceCount": 500,
+        "frames": 10,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 4.299999998882413,
+          "p95": 6.900000000372529,
+          "min": 2.099999999627471,
+          "max": 6.900000000372529
+        },
+        "rectCallsPerFrame": {
+          "samples": 10,
+          "median": 500,
+          "p95": 500,
+          "min": 500,
+          "max": 500
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 10,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 10,
+          "median": 1.900000000372529,
+          "p95": 2.200000001117587,
+          "min": 1,
+          "max": 2.200000001117587
+        },
+        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "822x3884",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/scroll/500",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "scroll",
+        "surfaceCount": 500,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 3.399999998509884,
+          "p95": 3.399999998509884,
+          "min": 3.399999998509884,
+          "max": 3.399999998509884
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 500,
+          "p95": 500,
+          "min": 500,
+          "max": 500
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 1.5,
+          "p95": 1.5,
+          "min": 1.5,
+          "max": 1.5
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x3884",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/stable-page/1000",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "stable-page",
+        "surfaceCount": 1000,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 2.400000000372529,
+          "p95": 2.400000000372529,
+          "min": 2.400000000372529,
+          "max": 2.400000000372529
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 8.400000000372529,
+          "p95": 8.400000000372529,
+          "min": 8.400000000372529,
+          "max": 8.400000000372529
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x7604",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/one-surface-resize/1000",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "one-surface-resize",
+        "surfaceCount": 1000,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 13.900000000372529,
+          "p95": 13.900000000372529,
+          "min": 13.900000000372529,
+          "max": 13.900000000372529
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 1002,
+          "p95": 1002,
+          "min": 1002,
+          "max": 1002
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 11.900000000372529,
+          "p95": 11.900000000372529,
+          "min": 11.900000000372529,
+          "max": 11.900000000372529
+        },
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "822x7604",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/unrelated-mutation/1000",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "unrelated-mutation",
+        "surfaceCount": 1000,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 3.900000000372529,
+          "p95": 3.900000000372529,
+          "min": 3.900000000372529,
+          "max": 3.900000000372529
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 1000,
+          "p95": 1000,
+          "min": 1000,
+          "max": 1000
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 2.699999999254942,
+          "p95": 2.699999999254942,
+          "min": 2.699999999254942,
+          "max": 2.699999999254942
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x7604",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/frequent-mutations/1000",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "frequent-mutations",
+        "surfaceCount": 1000,
+        "frames": 10,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 6,
+          "p95": 8.099999999627471,
+          "min": 2.799999998882413,
+          "max": 8.099999999627471
+        },
+        "rectCallsPerFrame": {
+          "samples": 10,
+          "median": 1000,
+          "p95": 1000,
+          "min": 1000,
+          "max": 1000
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 10,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 10,
+          "median": 2.5,
+          "p95": 3.200000001117587,
+          "min": 1.900000000372529,
+          "max": 3.200000001117587
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x7604",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/scroll/1000",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "scroll",
+        "surfaceCount": 1000,
+        "frames": 1,
+        "warmups": 2,
+        "samples": 5
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 5.600000001490116,
+          "p95": 5.600000001490116,
+          "min": 5.600000001490116,
+          "max": 5.600000001490116
+        },
+        "rectCallsPerFrame": {
+          "samples": 1,
+          "median": 1000,
+          "p95": 1000,
+          "min": 1000,
+          "max": 1000
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 1,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 1,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "lastRenderMsPerFrame": {
+          "samples": 1,
+          "median": 2.5,
+          "p95": 2.5,
+          "min": 2.5,
+          "max": 2.5
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x7604",
+        "backend": "webgpu"
+      }
+    }
+  ]
+}

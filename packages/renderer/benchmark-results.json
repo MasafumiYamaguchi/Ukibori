@@ -1,0 +1,4134 @@
+{
+  "schemaVersion": 1,
+  "commit": "bbbf1e5cdb7557be009d5ed2f8bf9e50c932f69e",
+  "generatedAt": "2026-08-28T20:10:59.292Z",
+  "environment": {
+    "timestamp": "2026-08-28T20:10:59.292Z",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+    "devicePixelRatio": 1,
+    "webgpuAvailable": true,
+    "adapterName": "",
+    "adapterArchitecture": "blackwell",
+    "adapterBackend": "unknown",
+    "adapterDevice": "",
+    "adapterVendor": "nvidia",
+    "timestampQuerySupported": true,
+    "canvasPreferredFormat": "bgra8unorm",
+    "maxStorageBufferBindingSize": 134217728
+  },
+  "cases": [
+    {
+      "id": "e2e/cold-first",
+      "parameters": {
+        "suite": "e2e",
+        "case": "cold-first",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 7.599999999627471,
+          "p95": 7.599999999627471,
+          "min": 7.599999999627471,
+          "max": 7.599999999627471
+        },
+        "hostMs": {
+          "samples": 1,
+          "median": 0.900000000372529,
+          "p95": 0.900000000372529,
+          "min": 0.900000000372529,
+          "max": 0.900000000372529
+        },
+        "gpuTimestampMs": {
+          "samples": 1,
+          "median": 0.139296,
+          "p95": 0.139296,
+          "min": 0.139296,
+          "max": 0.139296
+        },
+        "submissions": 5,
+        "dispatches": 8,
+        "bytesUploaded": 512,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "planningMode": "full"
+      }
+    },
+    {
+      "id": "e2e/warmed-full",
+      "parameters": {
+        "suite": "e2e",
+        "case": "warmed-full",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 2.900000000372529,
+          "p95": 4.100000001490116,
+          "min": 1.300000000745058,
+          "max": 4.100000001490116
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.40000000037252903,
+          "p95": 0.40000000037252903,
+          "min": 0.2999999988824129,
+          "max": 0.40000000037252903
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.11820800000000001,
+          "p95": 0.12016,
+          "min": 0.117312,
+          "max": 0.12016
+        },
+        "submissions": 5,
+        "dispatches": 8,
+        "bytesUploaded": 512,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "planningMode": "full"
+      }
+    },
+    {
+      "id": "e2e/retained",
+      "parameters": {
+        "suite": "e2e",
+        "case": "retained",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.19999999925494194,
+          "p95": 0.19999999925494194,
+          "min": 0.10000000149011612,
+          "max": 0.19999999925494194
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "gpuTimestampMs": null,
+        "submissions": 0,
+        "dispatches": 0,
+        "bytesUploaded": 0,
+        "executed": "",
+        "planningMode": "full"
+      }
+    },
+    {
+      "id": "e2e/repaint",
+      "parameters": {
+        "suite": "e2e",
+        "case": "repaint",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.5,
+          "p95": 3.400000000372529,
+          "min": 0.5,
+          "max": 3.400000000372529
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.005632,
+          "p95": 0.005952,
+          "min": 0.005632,
+          "max": 0.005952
+        },
+        "submissions": 1,
+        "dispatches": 0,
+        "bytesUploaded": 0,
+        "executed": "presentation",
+        "planningMode": "full"
+      }
+    },
+    {
+      "id": "e2e/light-intensity",
+      "parameters": {
+        "suite": "e2e",
+        "case": "light-intensity",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.8999999985098839,
+          "p95": 1.199999999254942,
+          "min": 0.599999999627471,
+          "max": 1.199999999254942
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.10000000149011612,
+          "min": 0.09999999962747097,
+          "max": 0.10000000149011612
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.012864,
+          "p95": 0.014112,
+          "min": 0.012672,
+          "max": 0.014112
+        },
+        "submissions": 2,
+        "dispatches": 1,
+        "bytesUploaded": 512,
+        "executed": "upload,lighting,presentation",
+        "planningMode": "full"
+      }
+    },
+    {
+      "id": "e2e/light-direction",
+      "parameters": {
+        "suite": "e2e",
+        "case": "light-direction",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.199999999254942,
+          "p95": 4.5,
+          "min": 3,
+          "max": 4.5
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.19999999925494194,
+          "p95": 0.19999999925494194,
+          "min": 0.09999999962747097,
+          "max": 0.19999999925494194
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.08336,
+          "p95": 0.08976,
+          "min": 0.08182400000000001,
+          "max": 0.08976
+        },
+        "submissions": 3,
+        "dispatches": 2,
+        "bytesUploaded": 512,
+        "executed": "upload,shadow,reconstruction,lighting,presentation",
+        "planningMode": "full"
+      }
+    },
+    {
+      "id": "e2e/material-values",
+      "parameters": {
+        "suite": "e2e",
+        "case": "material-values",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.099999999627471,
+          "p95": 3.5,
+          "min": 1.099999999627471,
+          "max": 3.5
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.19999999925494194,
+          "p95": 0.30000000074505806,
+          "min": 0.09999999962747097,
+          "max": 0.30000000074505806
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.012896000000000001,
+          "p95": 0.014592,
+          "min": 0.012608,
+          "max": 0.014592
+        },
+        "submissions": 2,
+        "dispatches": 1,
+        "bytesUploaded": 512,
+        "executed": "upload,lighting,presentation",
+        "planningMode": "full"
+      }
+    },
+    {
+      "id": "e2e/geometry-move",
+      "parameters": {
+        "suite": "e2e",
+        "case": "geometry-move",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.900000000372529,
+          "p95": 5.199999999254942,
+          "min": 1.400000000372529,
+          "max": 5.199999999254942
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.30000000074505806,
+          "p95": 0.30000000074505806,
+          "min": 0.2000000011175871,
+          "max": 0.30000000074505806
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.11718399999999998,
+          "p95": 0.11718400000000001,
+          "min": 0.116608,
+          "max": 0.11718400000000001
+        },
+        "submissions": 5,
+        "dispatches": 8,
+        "bytesUploaded": 512,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "planningMode": "full"
+      }
+    },
+    {
+      "id": "e2e/partial-geometry",
+      "parameters": {
+        "suite": "e2e",
+        "case": "partial-geometry",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 1.200000001117587,
+          "p95": 1.900000000372529,
+          "min": 1.200000001117587,
+          "max": 1.900000000372529
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.19999999925494194,
+          "p95": 0.2999999988824129,
+          "min": 0.19999999925494194,
+          "max": 0.2999999988824129
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.11740800000000001,
+          "p95": 0.119264,
+          "min": 0.11676800000000001,
+          "max": 0.119264
+        },
+        "submissions": 5,
+        "dispatches": 8,
+        "bytesUploaded": 512,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "planningMode": "full"
+      }
+    },
+    {
+      "id": "e2e/forced-full",
+      "parameters": {
+        "suite": "e2e",
+        "case": "forced-full",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.799999998882413,
+          "p95": 9,
+          "min": 3.599999999627471,
+          "max": 9
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.599999999627471,
+          "p95": 1.199999999254942,
+          "min": 0.40000000037252903,
+          "max": 1.199999999254942
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.135904,
+          "p95": 0.315712,
+          "min": 0.13561600000000001,
+          "max": 0.315712
+        },
+        "submissions": 5,
+        "dispatches": 8,
+        "bytesUploaded": 512,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "planningMode": "full"
+      }
+    },
+    {
+      "id": "resolution/320x180",
+      "parameters": {
+        "suite": "resolution",
+        "width": 320,
+        "height": 180,
+        "scene": "simple-rounded-rect"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.599999999627471,
+          "p95": 4.900000000372529,
+          "min": 1.199999999254942,
+          "max": 4.900000000372529
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.19999999925494194,
+          "p95": 0.40000000037252903,
+          "min": 0.19999999925494194,
+          "max": 0.40000000037252903
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.047424,
+          "p95": 0.047904,
+          "min": 0.045984,
+          "max": 0.047904
+        },
+        "gpuTimestampPass": {
+          "height": {
+            "samples": 3,
+            "median": 0.01168,
+            "p95": 0.01168,
+            "min": 0.011552,
+            "max": 0.01168
+          },
+          "normal": {
+            "samples": 3,
+            "median": 0.002592,
+            "p95": 0.002624,
+            "min": 0.00256,
+            "max": 0.002624
+          },
+          "shadow": {
+            "samples": 3,
+            "median": 0.025472,
+            "p95": 0.025664,
+            "min": 0.02544,
+            "max": 0.025664
+          },
+          "reconstruction": {
+            "samples": 3,
+            "median": 0,
+            "p95": 0,
+            "min": 0,
+            "max": 0
+          },
+          "lighting": {
+            "samples": 3,
+            "median": 0.003488,
+            "p95": 0.00352,
+            "min": 0.003456,
+            "max": 0.00352
+          },
+          "presentation": {
+            "samples": 3,
+            "median": 0.004384,
+            "p95": 0.004416,
+            "min": 0.002784,
+            "max": 0.004416
+          }
+        },
+        "renderExtent": "320x180",
+        "texels": 57600,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation"
+      }
+    },
+    {
+      "id": "resolution/640x360",
+      "parameters": {
+        "suite": "resolution",
+        "width": 640,
+        "height": 360,
+        "scene": "simple-rounded-rect"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.300000000745058,
+          "p95": 5.5,
+          "min": 3.900000000372529,
+          "max": 5.5
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.2999999988824129,
+          "p95": 0.5,
+          "min": 0.2000000011175871,
+          "max": 0.5
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.11641599999999999,
+          "p95": 0.1184,
+          "min": 0.11616000000000001,
+          "max": 0.1184
+        },
+        "gpuTimestampPass": {
+          "height": {
+            "samples": 3,
+            "median": 0.021248,
+            "p95": 0.021696,
+            "min": 0.021216,
+            "max": 0.021696
+          },
+          "normal": {
+            "samples": 3,
+            "median": 0.004256,
+            "p95": 0.004352,
+            "min": 0.004192,
+            "max": 0.004352
+          },
+          "shadow": {
+            "samples": 3,
+            "median": 0.078368,
+            "p95": 0.078528,
+            "min": 0.077376,
+            "max": 0.078528
+          },
+          "reconstruction": {
+            "samples": 3,
+            "median": 0,
+            "p95": 0,
+            "min": 0,
+            "max": 0
+          },
+          "lighting": {
+            "samples": 3,
+            "median": 0.008896,
+            "p95": 0.008928,
+            "min": 0.0088,
+            "max": 0.008928
+          },
+          "presentation": {
+            "samples": 3,
+            "median": 0.003808,
+            "p95": 0.005536,
+            "min": 0.003776,
+            "max": 0.005536
+          }
+        },
+        "renderExtent": "640x360",
+        "texels": 230400,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation"
+      }
+    },
+    {
+      "id": "resolution/1280x720",
+      "parameters": {
+        "suite": "resolution",
+        "width": 1280,
+        "height": 720,
+        "scene": "simple-rounded-rect"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 5.299999998882413,
+          "p95": 7.099999999627471,
+          "min": 0.900000000372529,
+          "max": 7.099999999627471
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.19999999925494194,
+          "p95": 0.19999999925494194,
+          "min": 0.19999999925494194,
+          "max": 0.19999999925494194
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.36208,
+          "p95": 0.366464,
+          "min": 0.36147199999999996,
+          "max": 0.366464
+        },
+        "gpuTimestampPass": {
+          "height": {
+            "samples": 3,
+            "median": 0.061056,
+            "p95": 0.061152,
+            "min": 0.060768,
+            "max": 0.061152
+          },
+          "normal": {
+            "samples": 3,
+            "median": 0.012128,
+            "p95": 0.012224,
+            "min": 0.012032,
+            "max": 0.012224
+          },
+          "shadow": {
+            "samples": 3,
+            "median": 0.260256,
+            "p95": 0.261216,
+            "min": 0.259424,
+            "max": 0.261216
+          },
+          "reconstruction": {
+            "samples": 3,
+            "median": 0,
+            "p95": 0,
+            "min": 0,
+            "max": 0
+          },
+          "lighting": {
+            "samples": 3,
+            "median": 0.021472,
+            "p95": 0.022016,
+            "min": 0.02144,
+            "max": 0.022016
+          },
+          "presentation": {
+            "samples": 3,
+            "median": 0.007584,
+            "p95": 0.009952,
+            "min": 0.007296,
+            "max": 0.009952
+          }
+        },
+        "renderExtent": "1280x720",
+        "texels": 921600,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation"
+      }
+    },
+    {
+      "id": "resolution/1920x1080",
+      "parameters": {
+        "suite": "resolution",
+        "width": 1920,
+        "height": 1080,
+        "scene": "simple-rounded-rect"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.5,
+          "p95": 5.100000001490116,
+          "min": 4.5,
+          "max": 5.100000001490116
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.2999999988824129,
+          "p95": 0.30000000074505806,
+          "min": 0.2999999988824129,
+          "max": 0.30000000074505806
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.8166080000000001,
+          "p95": 0.8173440000000001,
+          "min": 0.8154560000000001,
+          "max": 0.8173440000000001
+        },
+        "gpuTimestampPass": {
+          "height": {
+            "samples": 3,
+            "median": 0.126144,
+            "p95": 0.126496,
+            "min": 0.126144,
+            "max": 0.126496
+          },
+          "normal": {
+            "samples": 3,
+            "median": 0.028192,
+            "p95": 0.028512,
+            "min": 0.02688,
+            "max": 0.028512
+          },
+          "shadow": {
+            "samples": 3,
+            "median": 0.570656,
+            "p95": 0.57104,
+            "min": 0.568576,
+            "max": 0.57104
+          },
+          "reconstruction": {
+            "samples": 3,
+            "median": 0,
+            "p95": 0,
+            "min": 0,
+            "max": 0
+          },
+          "lighting": {
+            "samples": 3,
+            "median": 0.063264,
+            "p95": 0.06352,
+            "min": 0.062272,
+            "max": 0.06352
+          },
+          "presentation": {
+            "samples": 3,
+            "median": 0.029664,
+            "p95": 0.029696,
+            "min": 0.028352,
+            "max": 0.029696
+          }
+        },
+        "renderExtent": "1920x1080",
+        "texels": 2073600,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation"
+      }
+    },
+    {
+      "id": "surface-scale/1",
+      "parameters": {
+        "suite": "surface",
+        "surfaceCount": 1,
+        "resolution": "640x360",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.800000000745058,
+          "p95": 5,
+          "min": 1.099999999627471,
+          "max": 5
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.19999999925494194,
+          "p95": 0.2000000011175871,
+          "min": 0.09999999962747097,
+          "max": 0.2000000011175871
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.022272,
+          "p95": 0.023872,
+          "min": 0.02224,
+          "max": 0.023872
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.058272,
+          "p95": 0.058399999999999994,
+          "min": 0.05667199999999999,
+          "max": 0.058399999999999994
+        },
+        "submissions": 5,
+        "dispatches": 8,
+        "bytesUploaded": 512,
+        "encodedBytes": 512,
+        "candidateSurfaceCount": 2,
+        "heightWorkgroups": 3600,
+        "renderExtent": "640x360"
+      }
+    },
+    {
+      "id": "surface-scale/4",
+      "parameters": {
+        "suite": "surface",
+        "surfaceCount": 4,
+        "resolution": "640x360",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 1.3999999985098839,
+          "p95": 4.900000000372529,
+          "min": 1.299999998882413,
+          "max": 4.900000000372529
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.2999999988824129,
+          "p95": 0.2999999988824129,
+          "min": 0.19999999925494194,
+          "max": 0.2999999988824129
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.03296,
+          "p95": 0.034656,
+          "min": 0.03088,
+          "max": 0.034656
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.078304,
+          "p95": 0.081664,
+          "min": 0.07619200000000001,
+          "max": 0.081664
+        },
+        "submissions": 5,
+        "dispatches": 8,
+        "bytesUploaded": 960,
+        "encodedBytes": 960,
+        "candidateSurfaceCount": 5,
+        "heightWorkgroups": 3600,
+        "renderExtent": "640x360"
+      }
+    },
+    {
+      "id": "surface-scale/16",
+      "parameters": {
+        "suite": "surface",
+        "surfaceCount": 16,
+        "resolution": "640x360",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 1.200000001117587,
+          "p95": 1.5,
+          "min": 1.099999999627471,
+          "max": 1.5
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.2999999988824129,
+          "p95": 0.30000000074505806,
+          "min": 0.19999999925494194,
+          "max": 0.30000000074505806
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.05888,
+          "p95": 0.059136,
+          "min": 0.058816,
+          "max": 0.059136
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.11331200000000001,
+          "p95": 0.11353600000000001,
+          "min": 0.11286399999999999,
+          "max": 0.11353600000000001
+        },
+        "submissions": 5,
+        "dispatches": 8,
+        "bytesUploaded": 2496,
+        "encodedBytes": 2496,
+        "candidateSurfaceCount": 17,
+        "heightWorkgroups": 3600,
+        "renderExtent": "640x360"
+      }
+    },
+    {
+      "id": "surface-scale/64",
+      "parameters": {
+        "suite": "surface",
+        "surfaceCount": 64,
+        "resolution": "640x360",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 6.5,
+          "p95": 6.599999999627471,
+          "min": 4.399999998509884,
+          "max": 6.599999999627471
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.5,
+          "p95": 0.8000000007450581,
+          "min": 0.40000000037252903,
+          "max": 0.8000000007450581
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.1776,
+          "p95": 0.17792,
+          "min": 0.177216,
+          "max": 0.17792
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.23180800000000001,
+          "p95": 0.23308800000000002,
+          "min": 0.23065599999999997,
+          "max": 0.23308800000000002
+        },
+        "submissions": 5,
+        "dispatches": 8,
+        "bytesUploaded": 8640,
+        "encodedBytes": 8640,
+        "candidateSurfaceCount": 65,
+        "heightWorkgroups": 3600,
+        "renderExtent": "640x360"
+      }
+    },
+    {
+      "id": "surface-scale/128",
+      "parameters": {
+        "suite": "surface",
+        "surfaceCount": 128,
+        "resolution": "640x360",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 6,
+          "p95": 6.099999999627471,
+          "min": 1.300000000745058,
+          "max": 6.099999999627471
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 0.5,
+          "p95": 0.6000000014901161,
+          "min": 0.5,
+          "max": 0.6000000014901161
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.334304,
+          "p95": 0.338976,
+          "min": 0.333248,
+          "max": 0.338976
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.387296,
+          "p95": 0.393792,
+          "min": 0.385984,
+          "max": 0.393792
+        },
+        "submissions": 5,
+        "dispatches": 8,
+        "bytesUploaded": 16832,
+        "encodedBytes": 16832,
+        "candidateSurfaceCount": 129,
+        "heightWorkgroups": 3600,
+        "renderExtent": "640x360"
+      }
+    },
+    {
+      "id": "surface-scale/256",
+      "parameters": {
+        "suite": "surface",
+        "surfaceCount": 256,
+        "resolution": "640x360",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 2.200000001117587,
+          "p95": 2.300000000745058,
+          "min": 2,
+          "max": 2.300000000745058
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 1,
+          "p95": 1,
+          "min": 0.599999999627471,
+          "max": 1
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.69232,
+          "p95": 0.692416,
+          "min": 0.68576,
+          "max": 0.692416
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.746016,
+          "p95": 0.7478720000000001,
+          "min": 0.7392640000000001,
+          "max": 0.7478720000000001
+        },
+        "submissions": 5,
+        "dispatches": 8,
+        "bytesUploaded": 33216,
+        "encodedBytes": 33216,
+        "candidateSurfaceCount": 257,
+        "heightWorkgroups": 3600,
+        "renderExtent": "640x360"
+      }
+    },
+    {
+      "id": "surface-scale/512",
+      "parameters": {
+        "suite": "surface",
+        "surfaceCount": 512,
+        "resolution": "640x360",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.600000001490116,
+          "p95": 6,
+          "min": 4.599999999627471,
+          "max": 6
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 1.599999999627471,
+          "p95": 1.599999999627471,
+          "min": 1.199999999254942,
+          "max": 1.599999999627471
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 1.350752,
+          "p95": 1.35264,
+          "min": 1.28256,
+          "max": 1.35264
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 1.403808,
+          "p95": 1.4060480000000002,
+          "min": 1.3360640000000001,
+          "max": 1.4060480000000002
+        },
+        "submissions": 5,
+        "dispatches": 8,
+        "bytesUploaded": 65984,
+        "encodedBytes": 65984,
+        "candidateSurfaceCount": 513,
+        "heightWorkgroups": 3600,
+        "renderExtent": "640x360"
+      }
+    },
+    {
+      "id": "surface-scale/1000",
+      "parameters": {
+        "suite": "surface",
+        "surfaceCount": 1000,
+        "resolution": "640x360",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 6.699999999254942,
+          "p95": 7.099999999627471,
+          "min": 6.199999999254942,
+          "max": 7.099999999627471
+        },
+        "hostMs": {
+          "samples": 3,
+          "median": 2.599999999627471,
+          "p95": 2.800000000745058,
+          "min": 2.199999999254942,
+          "max": 2.800000000745058
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 2.891776,
+          "p95": 3.283488,
+          "min": 2.888,
+          "max": 3.283488
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 2.945536,
+          "p95": 3.3366720000000005,
+          "min": 2.94144,
+          "max": 3.3366720000000005
+        },
+        "submissions": 5,
+        "dispatches": 8,
+        "bytesUploaded": 128448,
+        "encodedBytes": 128448,
+        "candidateSurfaceCount": 1001,
+        "heightWorkgroups": 3600,
+        "renderExtent": "640x360"
+      }
+    },
+    {
+      "id": "mask-count/0",
+      "parameters": {
+        "suite": "mask",
+        "maskCount": 0,
+        "maskResolution": 32,
+        "resolution": "640x360",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.099999999627471,
+          "p95": 3.5,
+          "min": 0.900000000372529,
+          "max": 3.5
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.041344,
+          "p95": 0.044320000000000005,
+          "min": 0.041312,
+          "max": 0.044320000000000005
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.020736,
+          "p95": 0.022304,
+          "min": 0.01872,
+          "max": 0.022304
+        },
+        "maskSdfPasses": 0,
+        "composePasses": 5,
+        "totalMaskCells": 0,
+        "bytesUploaded": 320,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation"
+      }
+    },
+    {
+      "id": "mask-count/1",
+      "parameters": {
+        "suite": "mask",
+        "maskCount": 1,
+        "maskResolution": 32,
+        "resolution": "640x360",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 2.399999998509884,
+          "p95": 7,
+          "min": 1.700000001117587,
+          "max": 7
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.466368,
+          "p95": 0.467072,
+          "min": 0.46518400000000004,
+          "max": 0.467072
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.428256,
+          "p95": 0.428992,
+          "min": 0.42816,
+          "max": 0.428992
+        },
+        "maskSdfPasses": 1,
+        "composePasses": 5,
+        "totalMaskCells": 1156,
+        "bytesUploaded": 1568,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation"
+      }
+    },
+    {
+      "id": "mask-count/16",
+      "parameters": {
+        "suite": "mask",
+        "maskCount": 16,
+        "maskResolution": 32,
+        "resolution": "640x360",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.600000001490116,
+          "p95": 5.100000001490116,
+          "min": 4.5,
+          "max": 5.100000001490116
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.5632959999999999,
+          "p95": 0.5686399999999999,
+          "min": 0.563104,
+          "max": 0.5686399999999999
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.526848,
+          "p95": 0.531936,
+          "min": 0.5264,
+          "max": 0.531936
+        },
+        "maskSdfPasses": 1,
+        "composePasses": 5,
+        "totalMaskCells": 18496,
+        "bytesUploaded": 19328,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation"
+      }
+    },
+    {
+      "id": "mask-count/64",
+      "parameters": {
+        "suite": "mask",
+        "maskCount": 64,
+        "maskResolution": 32,
+        "resolution": "640x360",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 5.599999999627471,
+          "p95": 5.700000001117587,
+          "min": 3.5,
+          "max": 5.700000001117587
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 1.2468160000000001,
+          "p95": 1.336864,
+          "min": 1.2466240000000002,
+          "max": 1.336864
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 1.2096,
+          "p95": 1.29968,
+          "min": 1.209536,
+          "max": 1.29968
+        },
+        "maskSdfPasses": 1,
+        "composePasses": 5,
+        "totalMaskCells": 73984,
+        "bytesUploaded": 76160,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation"
+      }
+    },
+    {
+      "id": "mask-resolution/16",
+      "parameters": {
+        "suite": "mask",
+        "maskCount": 16,
+        "maskResolution": 16,
+        "resolution": "640x360",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.399999998509884,
+          "p95": 5.699999999254942,
+          "min": 2,
+          "max": 5.699999999254942
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.212672,
+          "p95": 0.21625599999999998,
+          "min": 0.21209599999999998,
+          "max": 0.21625599999999998
+        },
+        "maskSdfPasses": 1,
+        "totalMaskCells": 5184,
+        "bytesUploaded": 7040
+      }
+    },
+    {
+      "id": "mask-resolution/32",
+      "parameters": {
+        "suite": "mask",
+        "maskCount": 16,
+        "maskResolution": 32,
+        "resolution": "640x360",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.900000000372529,
+          "p95": 5.400000000372529,
+          "min": 3.300000000745058,
+          "max": 5.400000000372529
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.56176,
+          "p95": 0.5634880000000001,
+          "min": 0.560992,
+          "max": 0.5634880000000001
+        },
+        "maskSdfPasses": 1,
+        "totalMaskCells": 18496,
+        "bytesUploaded": 19328
+      }
+    },
+    {
+      "id": "mask-resolution/64",
+      "parameters": {
+        "suite": "mask",
+        "maskCount": 16,
+        "maskResolution": 64,
+        "resolution": "640x360",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 6.5,
+          "p95": 7,
+          "min": 5.5,
+          "max": 7
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 3.854784,
+          "p95": 4.026560000000001,
+          "min": 3.8523199999999997,
+          "max": 4.026560000000001
+        },
+        "maskSdfPasses": 1,
+        "totalMaskCells": 69696,
+        "bytesUploaded": 68480
+      }
+    },
+    {
+      "id": "mask-resolution/128",
+      "parameters": {
+        "suite": "mask",
+        "maskCount": 16,
+        "maskResolution": 128,
+        "resolution": "640x360",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 54.19999999925494,
+          "p95": 57.80000000074506,
+          "min": 54.19999999925494,
+          "max": 57.80000000074506
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 52.6496,
+          "p95": 54.075296,
+          "min": 52.271616,
+          "max": 54.075296
+        },
+        "maskSdfPasses": 1,
+        "totalMaskCells": 270400,
+        "bytesUploaded": 265088
+      }
+    },
+    {
+      "id": "mask-resolution/256",
+      "parameters": {
+        "suite": "mask",
+        "maskCount": 16,
+        "maskResolution": 256,
+        "resolution": "640x360",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 782.1999999992549,
+          "p95": 784.2999999988824,
+          "min": 775.2000000011176,
+          "max": 784.2999999988824
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 777.064384,
+          "p95": 780.93088,
+          "min": 770.097952,
+          "max": 780.93088
+        },
+        "maskSdfPasses": 1,
+        "totalMaskCells": 1065024,
+        "bytesUploaded": 1051520
+      }
+    },
+    {
+      "id": "mask/unrelated-geometry-after-mask",
+      "parameters": {
+        "suite": "mask",
+        "case": "unrelated-geometry-after-mask",
+        "maskCount": 16,
+        "maskResolution": 32
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 1,
+          "median": 0.2000000011175871,
+          "p95": 0.2000000011175871,
+          "min": 0.2000000011175871,
+          "max": 0.2000000011175871
+        },
+        "maskSdfPasses": 1,
+        "executed": "",
+        "planningMode": "full"
+      }
+    },
+    {
+      "id": "shadow/samples-1/radius-0",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 1,
+        "angularRadius": 0,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 1.1000000014901161,
+          "p95": 5.5,
+          "min": 1,
+          "max": 5.5
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.2000000011175871,
+          "min": 0.09999999962747097,
+          "max": 0.2000000011175871
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.101856,
+          "p95": 0.10224,
+          "min": 0.100768,
+          "max": 0.10224
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.11475199999999999,
+          "p95": 0.116736,
+          "min": 0.11471999999999999,
+          "max": 0.116736
+        },
+        "effectiveSamples": 1,
+        "softActive": false,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-4/radius-0",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 4,
+        "angularRadius": 0,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.400000000372529,
+          "p95": 6,
+          "min": 1,
+          "max": 6
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.101632,
+          "p95": 0.101952,
+          "min": 0.099904,
+          "max": 0.101952
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.114848,
+          "p95": 0.11648,
+          "min": 0.11299200000000001,
+          "max": 0.11648
+        },
+        "effectiveSamples": 4,
+        "softActive": false,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-8/radius-0",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 8,
+        "angularRadius": 0,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.599999999627471,
+          "p95": 5.900000000372529,
+          "min": 1,
+          "max": 5.900000000372529
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0.09999999962747097,
+          "max": 0.09999999962747097
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.10144,
+          "p95": 0.101888,
+          "min": 0.10064,
+          "max": 0.101888
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.114688,
+          "p95": 0.11584,
+          "min": 0.11353599999999998,
+          "max": 0.11584
+        },
+        "effectiveSamples": 8,
+        "softActive": false,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-16/radius-0",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 16,
+        "angularRadius": 0,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 1,
+          "p95": 1.200000001117587,
+          "min": 1,
+          "max": 1.200000001117587
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.100128,
+          "p95": 0.101856,
+          "min": 0.099264,
+          "max": 0.101856
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.112544,
+          "p95": 0.114592,
+          "min": 0.111712,
+          "max": 0.114592
+        },
+        "effectiveSamples": 16,
+        "softActive": false,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-1/radius-0.05",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 1,
+        "angularRadius": 0.05,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.099999999627471,
+          "p95": 4.200000001117587,
+          "min": 2,
+          "max": 4.200000001117587
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.101632,
+          "p95": 0.101792,
+          "min": 0.100288,
+          "max": 0.101792
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.11488,
+          "p95": 0.115552,
+          "min": 0.11462399999999999,
+          "max": 0.115552
+        },
+        "effectiveSamples": 1,
+        "softActive": false,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-4/radius-0.05",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 4,
+        "angularRadius": 0.05,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 1.099999999627471,
+          "p95": 3,
+          "min": 1,
+          "max": 3
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.409376,
+          "p95": 0.409664,
+          "min": 0.408096,
+          "max": 0.409664
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.442656,
+          "p95": 0.44294399999999995,
+          "min": 0.44198400000000004,
+          "max": 0.44294399999999995
+        },
+        "effectiveSamples": 4,
+        "softActive": true,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-8/radius-0.05",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 8,
+        "angularRadius": 0.05,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.099999999627471,
+          "p95": 4.300000000745058,
+          "min": 3.300000000745058,
+          "max": 4.300000000745058
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.814656,
+          "p95": 0.818816,
+          "min": 0.813312,
+          "max": 0.818816
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.8473600000000001,
+          "p95": 0.85248,
+          "min": 0.8465280000000001,
+          "max": 0.85248
+        },
+        "effectiveSamples": 8,
+        "softActive": true,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-16/radius-0.05",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 16,
+        "angularRadius": 0.05,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.900000000372529,
+          "p95": 4.599999999627471,
+          "min": 3.800000000745058,
+          "max": 4.599999999627471
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 1.609792,
+          "p95": 1.931552,
+          "min": 1.606912,
+          "max": 1.931552
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 1.646048,
+          "p95": 1.965056,
+          "min": 1.64048,
+          "max": 1.965056
+        },
+        "effectiveSamples": 16,
+        "softActive": true,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-1/radius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 1,
+        "angularRadius": 0.15,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.199999999254942,
+          "p95": 6.400000000372529,
+          "min": 0.599999999627471,
+          "max": 6.400000000372529
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0.19999999925494194,
+          "min": 0,
+          "max": 0.19999999925494194
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.100384,
+          "p95": 0.100992,
+          "min": 0.099904,
+          "max": 0.100992
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.11312,
+          "p95": 0.113504,
+          "min": 0.11264,
+          "max": 0.113504
+        },
+        "effectiveSamples": 1,
+        "softActive": false,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-4/radius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 4,
+        "angularRadius": 0.15,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.899999998509884,
+          "p95": 6,
+          "min": 4.5,
+          "max": 6
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0.10000000149011612,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.4624,
+          "p95": 0.462976,
+          "min": 0.458272,
+          "max": 0.462976
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.49619199999999997,
+          "p95": 0.496512,
+          "min": 0.49216,
+          "max": 0.496512
+        },
+        "effectiveSamples": 4,
+        "softActive": true,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-8/radius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 8,
+        "angularRadius": 0.15,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.399999998509884,
+          "p95": 3.599999999627471,
+          "min": 3.399999998509884,
+          "max": 3.599999999627471
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.19999999925494194,
+          "min": 0.09999999962747097,
+          "max": 0.19999999925494194
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.913152,
+          "p95": 0.920416,
+          "min": 0.909696,
+          "max": 0.920416
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.946912,
+          "p95": 0.9535359999999999,
+          "min": 0.94336,
+          "max": 0.9535359999999999
+        },
+        "effectiveSamples": 8,
+        "softActive": true,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-16/radius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 16,
+        "angularRadius": 0.15,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.400000000372529,
+          "p95": 5.199999999254942,
+          "min": 4,
+          "max": 5.199999999254942
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0.09999999962747097,
+          "max": 0.09999999962747097
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 1.807968,
+          "p95": 1.819456,
+          "min": 1.799392,
+          "max": 1.819456
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 1.8409600000000002,
+          "p95": 1.8524159999999998,
+          "min": 1.832576,
+          "max": 1.8524159999999998
+        },
+        "effectiveSamples": 16,
+        "softActive": true,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-1/radius-0.3",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 1,
+        "angularRadius": 0.3,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.099999999627471,
+          "p95": 3.5,
+          "min": 0.8000000007450581,
+          "max": 3.5
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.100256,
+          "p95": 0.10208,
+          "min": 0.09984,
+          "max": 0.10208
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.113856,
+          "p95": 0.11446400000000001,
+          "min": 0.112768,
+          "max": 0.11446400000000001
+        },
+        "effectiveSamples": 1,
+        "softActive": false,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-4/radius-0.3",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 4,
+        "angularRadius": 0.3,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.400000000372529,
+          "p95": 4.599999999627471,
+          "min": 3.399999998509884,
+          "max": 4.599999999627471
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.563808,
+          "p95": 0.923232,
+          "min": 0.563456,
+          "max": 0.923232
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.596704,
+          "p95": 0.9570560000000001,
+          "min": 0.596544,
+          "max": 0.9570560000000001
+        },
+        "effectiveSamples": 4,
+        "softActive": true,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-8/radius-0.3",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 8,
+        "angularRadius": 0.3,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4,
+          "p95": 6.799999998882413,
+          "min": 3,
+          "max": 6.799999998882413
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.19999999925494194,
+          "min": 0,
+          "max": 0.19999999925494194
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 1.128224,
+          "p95": 1.129536,
+          "min": 1.121792,
+          "max": 1.129536
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 1.161952,
+          "p95": 1.1637760000000001,
+          "min": 1.155232,
+          "max": 1.1637760000000001
+        },
+        "effectiveSamples": 8,
+        "softActive": true,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/samples-16/radius-0.3",
+      "parameters": {
+        "suite": "shadow",
+        "samples": 16,
+        "angularRadius": 0.3,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.799999998882413,
+          "p95": 5.099999999627471,
+          "min": 3.599999999627471,
+          "max": 5.099999999627471
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0.2000000011175871,
+          "min": 0,
+          "max": 0.2000000011175871
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 2.238688,
+          "p95": 2.244,
+          "min": 2.23232,
+          "max": 2.244
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 2.2725120000000003,
+          "p95": 2.277536,
+          "min": 2.265216,
+          "max": 2.277536
+        },
+        "effectiveSamples": 16,
+        "softActive": true,
+        "shadowWorkgroups": 3600,
+        "shadowSteps": 400,
+        "renderExtent": "640x360",
+        "texels": 230400
+      }
+    },
+    {
+      "id": "shadow/travel-short",
+      "parameters": {
+        "suite": "shadow",
+        "travel": "short",
+        "samples": 8,
+        "angularRadius": 0.15,
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.19999999925494194,
+          "p95": 0.2000000011175871,
+          "min": 0.09999999962747097,
+          "max": 0.2000000011175871
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 0,
+          "median": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "shadowSteps": 400
+      }
+    },
+    {
+      "id": "shadow/travel-medium",
+      "parameters": {
+        "suite": "shadow",
+        "travel": "medium",
+        "samples": 8,
+        "angularRadius": 0.15,
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.2000000011175871,
+          "min": 0,
+          "max": 0.2000000011175871
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 0,
+          "median": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "shadowSteps": 400
+      }
+    },
+    {
+      "id": "shadow/travel-long",
+      "parameters": {
+        "suite": "shadow",
+        "travel": "long",
+        "samples": 8,
+        "angularRadius": 0.15,
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0.09999999962747097,
+          "max": 0.09999999962747097
+        },
+        "shadowHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 0,
+          "median": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "shadowSteps": 400
+      }
+    },
+    {
+      "id": "reconstruction/dpr-1/radius-0",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 1,
+        "radius": 0,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3,
+          "p95": 5.900000000372529,
+          "min": 0.5,
+          "max": 5.900000000372529
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.012736,
+          "p95": 0.013503999999999999,
+          "min": 0.012704,
+          "max": 0.013503999999999999
+        },
+        "reconstructionActive": false,
+        "radiusTexels": 0,
+        "tapsPerTexel": 0,
+        "totalReconstructedTaps": 0,
+        "renderExtent": "640x360",
+        "texels": 230400,
+        "reconstructionWorkgroups": null,
+        "reconstructionRatio": 0
+      }
+    },
+    {
+      "id": "reconstruction/dpr-1/radius-1",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 1,
+        "radius": 1,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 1,
+          "p95": 3.699999999254942,
+          "min": 0.7999999988824129,
+          "max": 3.699999999254942
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.011648,
+          "p95": 0.012064,
+          "min": 0.011584,
+          "max": 0.012064
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.025888,
+          "p95": 0.026112000000000003,
+          "min": 0.024544,
+          "max": 0.026112000000000003
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 1,
+        "tapsPerTexel": 9,
+        "totalReconstructedTaps": 2073600,
+        "renderExtent": "640x360",
+        "texels": 230400,
+        "reconstructionWorkgroups": 3600,
+        "reconstructionRatio": 0.44746600741656367
+      }
+    },
+    {
+      "id": "reconstruction/dpr-1/radius-2",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 1,
+        "radius": 2,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.599999999627471,
+          "p95": 3.599999999627471,
+          "min": 0.599999999627471,
+          "max": 3.599999999627471
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.02032,
+          "p95": 0.020704,
+          "min": 0.020224,
+          "max": 0.020704
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.034527999999999996,
+          "p95": 0.034912,
+          "min": 0.032864000000000004,
+          "max": 0.034912
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 2,
+        "tapsPerTexel": 25,
+        "totalReconstructedTaps": 5760000,
+        "renderExtent": "640x360",
+        "texels": 230400,
+        "reconstructionWorkgroups": 3600,
+        "reconstructionRatio": 0.5930339138405133
+      }
+    },
+    {
+      "id": "reconstruction/dpr-1/radius-4",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 1,
+        "radius": 4,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 2,
+          "p95": 3.099999999627471,
+          "min": 1,
+          "max": 3.099999999627471
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.047904,
+          "p95": 0.048032,
+          "min": 0.04784,
+          "max": 0.048032
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.060704,
+          "p95": 0.063552,
+          "min": 0.06064,
+          "max": 0.063552
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 4,
+        "tapsPerTexel": 81,
+        "totalReconstructedTaps": 18662400,
+        "renderExtent": "640x360",
+        "texels": 230400,
+        "reconstructionWorkgroups": 3600,
+        "reconstructionRatio": 0.7557905337361531
+      }
+    },
+    {
+      "id": "reconstruction/dpr-2/radius-0",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 2,
+        "radius": 0,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.8000000007450581,
+          "p95": 0.900000000372529,
+          "min": 0.6999999992549419,
+          "max": 0.900000000372529
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.031136000000000004,
+          "p95": 0.034656,
+          "min": 0.029344,
+          "max": 0.034656
+        },
+        "reconstructionActive": false,
+        "radiusTexels": 0,
+        "tapsPerTexel": 0,
+        "totalReconstructedTaps": 0,
+        "renderExtent": "1280x720",
+        "texels": 921600,
+        "reconstructionWorkgroups": null,
+        "reconstructionRatio": 0
+      }
+    },
+    {
+      "id": "reconstruction/dpr-2/radius-1",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 2,
+        "radius": 1,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.6999999992549419,
+          "p95": 1.800000000745058,
+          "min": 0.6999999992549419,
+          "max": 1.800000000745058
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.061184,
+          "p95": 0.061472,
+          "min": 0.060864,
+          "max": 0.061472
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.09040000000000001,
+          "p95": 0.09353600000000001,
+          "min": 0.089728,
+          "max": 0.09353600000000001
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 2,
+        "tapsPerTexel": 25,
+        "totalReconstructedTaps": 23040000,
+        "renderExtent": "1280x720",
+        "texels": 921600,
+        "reconstructionWorkgroups": 14400,
+        "reconstructionRatio": 0.68188302425107
+      }
+    },
+    {
+      "id": "reconstruction/dpr-2/radius-2",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 2,
+        "radius": 2,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 2.899999998509884,
+          "p95": 4.300000000745058,
+          "min": 0.8000000007450581,
+          "max": 4.300000000745058
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.148768,
+          "p95": 0.14896,
+          "min": 0.14848,
+          "max": 0.14896
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.1792,
+          "p95": 0.179456,
+          "min": 0.17891200000000002,
+          "max": 0.179456
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 4,
+        "tapsPerTexel": 81,
+        "totalReconstructedTaps": 74649600,
+        "renderExtent": "1280x720",
+        "texels": 921600,
+        "reconstructionWorkgroups": 14400,
+        "reconstructionRatio": 0.8300641940085592
+      }
+    },
+    {
+      "id": "reconstruction/dpr-2/radius-4",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 2,
+        "radius": 4,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.099999999627471,
+          "p95": 3.699999999254942,
+          "min": 2.699999999254942,
+          "max": 3.699999999254942
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.464928,
+          "p95": 0.467456,
+          "min": 0.464832,
+          "max": 0.467456
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.497408,
+          "p95": 0.49939199999999995,
+          "min": 0.495648,
+          "max": 0.49939199999999995
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 8,
+        "tapsPerTexel": 289,
+        "totalReconstructedTaps": 266342400,
+        "renderExtent": "1280x720",
+        "texels": 921600,
+        "reconstructionWorkgroups": 14400,
+        "reconstructionRatio": 0.938020530699206
+      }
+    },
+    {
+      "id": "reconstruction/dpr-3/radius-0",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 3,
+        "radius": 0,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.599999999627471,
+          "p95": 1.199999999254942,
+          "min": 0.599999999627471,
+          "max": 1.199999999254942
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.093056,
+          "p95": 0.094208,
+          "min": 0.088704,
+          "max": 0.094208
+        },
+        "reconstructionActive": false,
+        "radiusTexels": 0,
+        "tapsPerTexel": 0,
+        "totalReconstructedTaps": 0,
+        "renderExtent": "1920x1080",
+        "texels": 2073600,
+        "reconstructionWorkgroups": null,
+        "reconstructionRatio": 0
+      }
+    },
+    {
+      "id": "reconstruction/dpr-3/radius-1",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 3,
+        "radius": 1,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.6999999992549419,
+          "p95": 5.099999999627471,
+          "min": 0.6999999992549419,
+          "max": 5.099999999627471
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.21904,
+          "p95": 0.21904,
+          "min": 0.217984,
+          "max": 0.21904
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.30121600000000004,
+          "p95": 0.30656,
+          "min": 0.30032000000000003,
+          "max": 0.30656
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 3,
+        "tapsPerTexel": 49,
+        "totalReconstructedTaps": 101606400,
+        "renderExtent": "1920x1080",
+        "texels": 2073600,
+        "reconstructionWorkgroups": 32400,
+        "reconstructionRatio": 0.7293553542887586
+      }
+    },
+    {
+      "id": "reconstruction/dpr-3/radius-2",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 3,
+        "radius": 2,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 5.099999999627471,
+          "p95": 5.199999999254942,
+          "min": 4.5,
+          "max": 5.199999999254942
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0.09999999962747097,
+          "max": 0.09999999962747097
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.611488,
+          "p95": 0.793568,
+          "min": 0.606784,
+          "max": 0.793568
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.692768,
+          "p95": 0.8808000000000001,
+          "min": 0.686592,
+          "max": 0.8808000000000001
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 6,
+        "tapsPerTexel": 169,
+        "totalReconstructedTaps": 350438400,
+        "renderExtent": "1920x1080",
+        "texels": 2073600,
+        "reconstructionWorkgroups": 32400,
+        "reconstructionRatio": 0.8826735645988267
+      }
+    },
+    {
+      "id": "reconstruction/dpr-3/radius-4",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 3,
+        "radius": 4,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 4.800000000745058,
+          "p95": 5.299999998882413,
+          "min": 4.300000000745058,
+          "max": 5.299999998882413
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 2.068928,
+          "p95": 2.07712,
+          "min": 2.068128,
+          "max": 2.07712
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 2.1580160000000004,
+          "p95": 2.1653439999999997,
+          "min": 2.156672,
+          "max": 2.1653439999999997
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 12,
+        "tapsPerTexel": 625,
+        "totalReconstructedTaps": 1296000000,
+        "renderExtent": "1920x1080",
+        "texels": 2073600,
+        "reconstructionWorkgroups": 32400,
+        "reconstructionRatio": 0.9592563583430624
+      }
+    },
+    {
+      "id": "reconstruction/dpr-4/radius-0",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 4,
+        "radius": 0,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.7000000011175871,
+          "p95": 0.900000000372529,
+          "min": 0.6999999992549419,
+          "max": 0.900000000372529
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.18575999999999998,
+          "p95": 0.18598399999999998,
+          "min": 0.183936,
+          "max": 0.18598399999999998
+        },
+        "reconstructionActive": false,
+        "radiusTexels": 0,
+        "tapsPerTexel": 0,
+        "totalReconstructedTaps": 0,
+        "renderExtent": "2560x1440",
+        "texels": 3686400,
+        "reconstructionWorkgroups": null,
+        "reconstructionRatio": 0
+      }
+    },
+    {
+      "id": "reconstruction/dpr-4/radius-1",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 4,
+        "radius": 1,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 5.299999998882413,
+          "p95": 6.5,
+          "min": 3,
+          "max": 6.5
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.568736,
+          "p95": 0.568864,
+          "min": 0.567712,
+          "max": 0.568864
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.753248,
+          "p95": 0.7536320000000001,
+          "min": 0.7526400000000001,
+          "max": 0.7536320000000001
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 4,
+        "tapsPerTexel": 81,
+        "totalReconstructedTaps": 298598400,
+        "renderExtent": "2560x1440",
+        "texels": 3686400,
+        "reconstructionWorkgroups": 57600,
+        "reconstructionRatio": 0.7542942176870747
+      }
+    },
+    {
+      "id": "reconstruction/dpr-4/radius-2",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 4,
+        "radius": 2,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 5.300000000745058,
+          "p95": 5.599999999627471,
+          "min": 3.599999999627471,
+          "max": 5.599999999627471
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 1.772928,
+          "p95": 1.77744,
+          "min": 1.77152,
+          "max": 1.77744
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 1.959232,
+          "p95": 1.960416,
+          "min": 1.948448,
+          "max": 1.960416
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 8,
+        "tapsPerTexel": 289,
+        "totalReconstructedTaps": 1065369600,
+        "renderExtent": "2560x1440",
+        "texels": 3686400,
+        "reconstructionWorkgroups": 57600,
+        "reconstructionRatio": 0.9122337367997503
+      }
+    },
+    {
+      "id": "reconstruction/dpr-4/radius-4",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 4,
+        "radius": 4,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 8.299999998882413,
+          "p95": 9.5,
+          "min": 8,
+          "max": 9.5
+        },
+        "reconstructionHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0.09999999962747097,
+          "max": 0.09999999962747097
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 3,
+          "median": 6.502912,
+          "p95": 7.150976,
+          "min": 6.502816,
+          "max": 7.150976
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 6.689408,
+          "p95": 7.337248,
+          "min": 6.686176000000001,
+          "max": 7.337248
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 16,
+        "tapsPerTexel": 1089,
+        "totalReconstructedTaps": 4014489600,
+        "renderExtent": "2560x1440",
+        "texels": 3686400,
+        "reconstructionWorkgroups": 57600,
+        "reconstructionRatio": 0.9746128248629459
+      }
+    },
+    {
+      "id": "presentation/p4-production",
+      "parameters": {
+        "suite": "presentation",
+        "stage": "P4",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.5,
+          "p95": 4.599999999627471,
+          "min": 0.40000000037252903,
+          "max": 4.599999999627471
+        },
+        "canvasFormat": "bgra8unorm",
+        "alphaMode": "premultiplied",
+        "renderExtent": "640x360"
+      }
+    },
+    {
+      "id": "presentation/p0",
+      "parameters": {
+        "suite": "presentation",
+        "stage": "P0",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 5,
+          "p95": 6,
+          "min": 0.2000000011175871,
+          "max": 6
+        },
+        "gpuTimestampMs": null,
+        "canvasFormat": "bgra8unorm",
+        "renderExtent": "640x360"
+      }
+    },
+    {
+      "id": "presentation/p1",
+      "parameters": {
+        "suite": "presentation",
+        "stage": "P1",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 2.699999999254942,
+          "p95": 2.699999999254942,
+          "min": 0.40000000037252903,
+          "max": 2.699999999254942
+        },
+        "gpuTimestampMs": null,
+        "canvasFormat": "bgra8unorm",
+        "renderExtent": "640x360"
+      }
+    },
+    {
+      "id": "presentation/p2",
+      "parameters": {
+        "suite": "presentation",
+        "stage": "P2",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.400000000372529,
+          "p95": 3.599999999627471,
+          "min": 0.7999999988824129,
+          "max": 3.599999999627471
+        },
+        "gpuTimestampMs": null,
+        "canvasFormat": "bgra8unorm",
+        "renderExtent": "640x360"
+      }
+    },
+    {
+      "id": "presentation/p3",
+      "parameters": {
+        "suite": "presentation",
+        "stage": "P3",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 2.599999999627471,
+          "p95": 2.800000000745058,
+          "min": 2.5,
+          "max": 2.800000000745058
+        },
+        "gpuTimestampMs": null,
+        "canvasFormat": "bgra8unorm",
+        "renderExtent": "640x360"
+      }
+    },
+    {
+      "id": "submission/n-1",
+      "parameters": {
+        "suite": "submission",
+        "submissions": 1
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.30000000074505806,
+          "min": 0.09999999962747097,
+          "max": 0.30000000074505806
+        },
+        "submissions": 1
+      }
+    },
+    {
+      "id": "submission/n-2",
+      "parameters": {
+        "suite": "submission",
+        "submissions": 2
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.10000000149011612,
+          "p95": 0.19999999925494194,
+          "min": 0.09999999962747097,
+          "max": 0.19999999925494194
+        },
+        "submissions": 2
+      }
+    },
+    {
+      "id": "submission/n-4",
+      "parameters": {
+        "suite": "submission",
+        "submissions": 4
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.19999999925494194,
+          "min": 0.09999999962747097,
+          "max": 0.19999999925494194
+        },
+        "submissions": 4
+      }
+    },
+    {
+      "id": "submission/n-6",
+      "parameters": {
+        "suite": "submission",
+        "submissions": 6
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.30000000074505806,
+          "p95": 0.30000000074505806,
+          "min": 0.19999999925494194,
+          "max": 0.30000000074505806
+        },
+        "submissions": 6
+      }
+    },
+    {
+      "id": "submission/n-8",
+      "parameters": {
+        "suite": "submission",
+        "submissions": 8
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 0.19999999925494194,
+          "p95": 0.30000000074505806,
+          "min": 0.09999999962747097,
+          "max": 0.30000000074505806
+        },
+        "submissions": 8
+      }
+    },
+    {
+      "id": "upload/first",
+      "parameters": {
+        "suite": "upload",
+        "updateType": "first",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.10000000149011612,
+          "min": 0.09999999962747097,
+          "max": 0.10000000149011612
+        },
+        "encodedBytes": 8640,
+        "headerBytes": 128,
+        "surfaceBytes": 8320,
+        "maskRecordBytes": 0,
+        "maskPixelBytes": 0,
+        "materialBytes": 192,
+        "writeCalls": 3,
+        "bytesUploaded": 8640,
+        "newAllocations": 0
+      }
+    },
+    {
+      "id": "upload/identical",
+      "parameters": {
+        "suite": "upload",
+        "updateType": "identical",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "encodedBytes": 8640,
+        "headerBytes": 128,
+        "surfaceBytes": 8320,
+        "maskRecordBytes": 0,
+        "maskPixelBytes": 0,
+        "materialBytes": 192,
+        "writeCalls": 3,
+        "bytesUploaded": 8640,
+        "newAllocations": 0
+      }
+    },
+    {
+      "id": "upload/light-only",
+      "parameters": {
+        "suite": "upload",
+        "updateType": "light-only",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "encodedBytes": 8640,
+        "headerBytes": 128,
+        "surfaceBytes": 8320,
+        "maskRecordBytes": 0,
+        "maskPixelBytes": 0,
+        "materialBytes": 192,
+        "writeCalls": 3,
+        "bytesUploaded": 8640,
+        "newAllocations": 0
+      }
+    },
+    {
+      "id": "upload/material-values-only",
+      "parameters": {
+        "suite": "upload",
+        "updateType": "material-values-only",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "encodedBytes": 8640,
+        "headerBytes": 128,
+        "surfaceBytes": 8320,
+        "maskRecordBytes": 0,
+        "maskPixelBytes": 0,
+        "materialBytes": 192,
+        "writeCalls": 3,
+        "bytesUploaded": 8640,
+        "newAllocations": 0
+      }
+    },
+    {
+      "id": "upload/single-surface-geometry",
+      "parameters": {
+        "suite": "upload",
+        "updateType": "single-surface-geometry",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.10000000149011612,
+          "min": 0.09999999962747097,
+          "max": 0.10000000149011612
+        },
+        "encodedBytes": 8640,
+        "headerBytes": 128,
+        "surfaceBytes": 8320,
+        "maskRecordBytes": 0,
+        "maskPixelBytes": 0,
+        "materialBytes": 192,
+        "writeCalls": 3,
+        "bytesUploaded": 8640,
+        "newAllocations": 0
+      }
+    },
+    {
+      "id": "upload/mask-change",
+      "parameters": {
+        "suite": "upload",
+        "updateType": "mask-change",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.10000000149011612,
+          "min": 0.09999999962747097,
+          "max": 0.10000000149011612
+        },
+        "encodedBytes": 2240,
+        "headerBytes": 128,
+        "surfaceBytes": 1152,
+        "maskRecordBytes": 256,
+        "maskPixelBytes": 512,
+        "materialBytes": 192,
+        "writeCalls": 5,
+        "bytesUploaded": 2240,
+        "newAllocations": 0
+      }
+    },
+    {
+      "id": "partial/ratio-1",
+      "parameters": {
+        "suite": "partial",
+        "dirtyRatio": 1,
+        "resolution": "640x360",
+        "scene": "partial-edit",
+        "tileSize": 64
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 1.199999999254942,
+          "p95": 3.199999999254942,
+          "min": 1,
+          "max": 3.199999999254942
+        },
+        "planningHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.033312,
+          "p95": 0.034464,
+          "min": 0.032799999999999996,
+          "max": 0.034464
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.013792,
+          "p95": 0.014144,
+          "min": 0.013792,
+          "max": 0.014144
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.008544,
+          "p95": 0.008576,
+          "min": 0.008512,
+          "max": 0.008576
+        },
+        "planningMode": "partial",
+        "planningReason": "band 64..191 coverage 0.356",
+        "dirtyTileCount": 8,
+        "dirtyTexels": 10200,
+        "totalTileCount": 60,
+        "dispatchTexels": 81920,
+        "totalTexels": 230400,
+        "candidateSurfaceCount": 3,
+        "culledSurfaceCount": 1
+      }
+    },
+    {
+      "id": "partial/ratio-5",
+      "parameters": {
+        "suite": "partial",
+        "dirtyRatio": 5,
+        "resolution": "640x360",
+        "scene": "partial-edit",
+        "tileSize": 64
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 3.600000001490116,
+          "p95": 4.599999999627471,
+          "min": 1.099999999627471,
+          "max": 4.599999999627471
+        },
+        "planningHostMs": {
+          "samples": 3,
+          "median": 0.10000000149011612,
+          "p95": 0.19999999925494194,
+          "min": 0.09999999962747097,
+          "max": 0.19999999925494194
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.03376,
+          "p95": 0.034592000000000005,
+          "min": 0.032864,
+          "max": 0.034592000000000005
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.013888,
+          "p95": 0.014208,
+          "min": 0.013792,
+          "max": 0.014208
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.008512,
+          "p95": 0.008544,
+          "min": 0.008448,
+          "max": 0.008544
+        },
+        "planningMode": "partial",
+        "planningReason": "band 64..191 coverage 0.356",
+        "dirtyTileCount": 8,
+        "dirtyTexels": 8900,
+        "totalTileCount": 60,
+        "dispatchTexels": 81920,
+        "totalTexels": 230400,
+        "candidateSurfaceCount": 3,
+        "culledSurfaceCount": 1
+      }
+    },
+    {
+      "id": "partial/ratio-10",
+      "parameters": {
+        "suite": "partial",
+        "dirtyRatio": 10,
+        "resolution": "640x360",
+        "scene": "partial-edit",
+        "tileSize": 64
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 1.199999999254942,
+          "p95": 2.200000001117587,
+          "min": 0.8999999985098839,
+          "max": 2.200000001117587
+        },
+        "planningHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.034176,
+          "p95": 0.036224,
+          "min": 0.033216,
+          "max": 0.036224
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.014016,
+          "p95": 0.014752,
+          "min": 0.013664,
+          "max": 0.014752
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.008736,
+          "p95": 0.008768,
+          "min": 0.00848,
+          "max": 0.008768
+        },
+        "planningMode": "partial",
+        "planningReason": "band 64..191 coverage 0.356",
+        "dirtyTileCount": 8,
+        "dirtyTexels": 7300,
+        "totalTileCount": 60,
+        "dispatchTexels": 81920,
+        "totalTexels": 230400,
+        "candidateSurfaceCount": 3,
+        "culledSurfaceCount": 1
+      }
+    },
+    {
+      "id": "partial/ratio-25",
+      "parameters": {
+        "suite": "partial",
+        "dirtyRatio": 25,
+        "resolution": "640x360",
+        "scene": "partial-edit",
+        "tileSize": 64
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 1.099999999627471,
+          "p95": 3.5,
+          "min": 1,
+          "max": 3.5
+        },
+        "planningHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.033632,
+          "p95": 0.034784,
+          "min": 0.032799999999999996,
+          "max": 0.034784
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.013632,
+          "p95": 0.013824,
+          "min": 0.013568,
+          "max": 0.013824
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.008768,
+          "p95": 0.008864,
+          "min": 0.008416,
+          "max": 0.008864
+        },
+        "planningMode": "partial",
+        "planningReason": "band 64..191 coverage 0.356",
+        "dirtyTileCount": 6,
+        "dirtyTexels": 5700,
+        "totalTileCount": 60,
+        "dispatchTexels": 81920,
+        "totalTexels": 230400,
+        "candidateSurfaceCount": 3,
+        "culledSurfaceCount": 1
+      }
+    },
+    {
+      "id": "partial/ratio-50",
+      "parameters": {
+        "suite": "partial",
+        "dirtyRatio": 50,
+        "resolution": "640x360",
+        "scene": "partial-edit",
+        "tileSize": 64
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 1.299999998882413,
+          "p95": 4.799999998882413,
+          "min": 1.200000001117587,
+          "max": 4.799999998882413
+        },
+        "planningHostMs": {
+          "samples": 3,
+          "median": 0.09999999962747097,
+          "p95": 0.09999999962747097,
+          "min": 0.09999999962747097,
+          "max": 0.09999999962747097
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.033536,
+          "p95": 0.03596800000000001,
+          "min": 0.033120000000000004,
+          "max": 0.03596800000000001
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.014208,
+          "p95": 0.01456,
+          "min": 0.014176,
+          "max": 0.01456
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.008512,
+          "p95": 0.008544,
+          "min": 0.008512,
+          "max": 0.008544
+        },
+        "planningMode": "partial",
+        "planningReason": "band 64..191 coverage 0.356",
+        "dirtyTileCount": 12,
+        "dirtyTexels": 13700,
+        "totalTileCount": 60,
+        "dispatchTexels": 81920,
+        "totalTexels": 230400,
+        "candidateSurfaceCount": 3,
+        "culledSurfaceCount": 1
+      }
+    },
+    {
+      "id": "partial/ratio-75",
+      "parameters": {
+        "suite": "partial",
+        "dirtyRatio": 75,
+        "resolution": "640x360",
+        "scene": "partial-edit",
+        "tileSize": 64
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 1.300000000745058,
+          "p95": 4.199999999254942,
+          "min": 1,
+          "max": 4.199999999254942
+        },
+        "planningHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.033535999999999996,
+          "p95": 0.034208,
+          "min": 0.033184000000000005,
+          "max": 0.034208
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.013728,
+          "p95": 0.014048,
+          "min": 0.013568,
+          "max": 0.014048
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.008512,
+          "p95": 0.009024,
+          "min": 0.008512,
+          "max": 0.009024
+        },
+        "planningMode": "partial",
+        "planningReason": "band 64..191 coverage 0.356",
+        "dirtyTileCount": 16,
+        "dirtyTexels": 21700,
+        "totalTileCount": 60,
+        "dispatchTexels": 81920,
+        "totalTexels": 230400,
+        "candidateSurfaceCount": 3,
+        "culledSurfaceCount": 1
+      }
+    },
+    {
+      "id": "partial/ratio-100",
+      "parameters": {
+        "suite": "partial",
+        "dirtyRatio": 100,
+        "resolution": "640x360",
+        "scene": "partial-edit",
+        "tileSize": 64
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 3,
+          "median": 1.400000000372529,
+          "p95": 3.400000000372529,
+          "min": 0.900000000372529,
+          "max": 3.400000000372529
+        },
+        "planningHostMs": {
+          "samples": 3,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "gpuTimestampMs": {
+          "samples": 3,
+          "median": 0.031424,
+          "p95": 0.033568,
+          "min": 0.031008,
+          "max": 0.033568
+        },
+        "heightGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.012576,
+          "p95": 0.01264,
+          "min": 0.012352,
+          "max": 0.01264
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 3,
+          "median": 0.008416,
+          "p95": 0.008576,
+          "min": 0.008416,
+          "max": 0.008576
+        },
+        "planningMode": "partial",
+        "planningReason": "band 64..191 coverage 0.356",
+        "dirtyTileCount": 18,
+        "dirtyTexels": 25650,
+        "totalTileCount": 60,
+        "dispatchTexels": 81920,
+        "totalTexels": 230400,
+        "candidateSurfaceCount": 2,
+        "culledSurfaceCount": 2
+      }
+    },
+    {
+      "id": "retained/no-change",
+      "parameters": {
+        "suite": "retained",
+        "case": "no-change",
+        "frames": 20,
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 0.09999999962747097,
+          "p95": 0.2000000011175871,
+          "min": 0,
+          "max": 0.40000000037252903
+        },
+        "submissionsPerFrame": 0,
+        "dispatchesPerFrame": 0,
+        "bytesUploadedPerFrame": 0,
+        "executed": "",
+        "expectedExecuted": "",
+        "planningModes": "full"
+      }
+    },
+    {
+      "id": "retained/repaint-only",
+      "parameters": {
+        "suite": "retained",
+        "case": "repaint-only",
+        "frames": 20,
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 0.599999999627471,
+          "p95": 3.900000000372529,
+          "min": 0.40000000037252903,
+          "max": 4
+        },
+        "submissionsPerFrame": 1,
+        "dispatchesPerFrame": 0,
+        "bytesUploadedPerFrame": 0,
+        "executed": "presentation",
+        "expectedExecuted": "presentation",
+        "planningModes": "full"
+      }
+    },
+    {
+      "id": "retained/light-intensity",
+      "parameters": {
+        "suite": "retained",
+        "case": "light-intensity",
+        "frames": 20,
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 0.09999999962747097,
+          "p95": 0.40000000037252903,
+          "min": 0,
+          "max": 0.6999999992549419
+        },
+        "submissionsPerFrame": 0.1,
+        "dispatchesPerFrame": 0.05,
+        "bytesUploadedPerFrame": 25.6,
+        "executed": "upload,lighting,presentation|",
+        "expectedExecuted": "upload,lighting,presentation",
+        "planningModes": "full"
+      }
+    },
+    {
+      "id": "retained/light-direction",
+      "parameters": {
+        "suite": "retained",
+        "case": "light-direction",
+        "frames": 20,
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 0.09999999962747097,
+          "p95": 0.40000000037252903,
+          "min": 0,
+          "max": 3.700000001117587
+        },
+        "submissionsPerFrame": 0.15,
+        "dispatchesPerFrame": 0.1,
+        "bytesUploadedPerFrame": 25.6,
+        "executed": "upload,shadow,reconstruction,lighting,presentation|",
+        "expectedExecuted": "upload,shadow,reconstruction,lighting,presentation",
+        "planningModes": "full"
+      }
+    },
+    {
+      "id": "retained/material-values",
+      "parameters": {
+        "suite": "retained",
+        "case": "material-values",
+        "frames": 20,
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 0.09999999962747097,
+          "p95": 0.5,
+          "min": 0,
+          "max": 3.299999998882413
+        },
+        "submissionsPerFrame": 0.15,
+        "dispatchesPerFrame": 0.1,
+        "bytesUploadedPerFrame": 25.6,
+        "executed": "upload,shadow,reconstruction,lighting,presentation|",
+        "expectedExecuted": "upload,shadow,reconstruction,lighting,presentation",
+        "planningModes": "full"
+      }
+    },
+    {
+      "id": "retained/geometry",
+      "parameters": {
+        "suite": "retained",
+        "case": "geometry",
+        "frames": 20,
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 0.09999999962747097,
+          "p95": 0.599999999627471,
+          "min": 0,
+          "max": 1.099999999627471
+        },
+        "submissionsPerFrame": 0.25,
+        "dispatchesPerFrame": 0.4,
+        "bytesUploadedPerFrame": 25.6,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation|",
+        "expectedExecuted": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "planningModes": "full"
+      }
+    },
+    {
+      "id": "stage/upload",
+      "parameters": {
+        "suite": "stage",
+        "stage": "upload",
+        "resolution": "640x360",
+        "warmups": 3,
+        "samples": 5
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 5,
+          "median": 0,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "gpuTimestampMs": {
+          "samples": 0,
+          "median": null,
+          "p95": null,
+          "min": null,
+          "max": null
+        },
+        "submissions": 6,
+        "dispatches": 9,
+        "bytesUploaded": 704,
+        "newAllocations": 0,
+        "renderExtent": "640x360",
+        "workgroups": null
+      }
+    },
+    {
+      "id": "stage/height",
+      "parameters": {
+        "suite": "stage",
+        "stage": "height",
+        "resolution": "640x360",
+        "warmups": 3,
+        "samples": 5
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 5,
+          "median": 0.09999999962747097,
+          "p95": 0.19999999925494194,
+          "min": 0.09999999962747097,
+          "max": 0.19999999925494194
+        },
+        "gpuTimestampMs": {
+          "samples": 5,
+          "median": 0.02544,
+          "p95": 0.029984,
+          "min": 0.025184,
+          "max": 0.029984
+        },
+        "submissions": 6,
+        "dispatches": 9,
+        "bytesUploaded": 704,
+        "newAllocations": 0,
+        "renderExtent": "640x360",
+        "workgroups": 3600
+      }
+    },
+    {
+      "id": "stage/normal",
+      "parameters": {
+        "suite": "stage",
+        "stage": "normal",
+        "resolution": "640x360",
+        "warmups": 3,
+        "samples": 5
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 5,
+          "median": 0,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "gpuTimestampMs": {
+          "samples": 5,
+          "median": 0.004256,
+          "p95": 0.004416,
+          "min": 0.004128,
+          "max": 0.004416
+        },
+        "submissions": 6,
+        "dispatches": 9,
+        "bytesUploaded": 704,
+        "newAllocations": 0,
+        "renderExtent": "640x360",
+        "workgroups": 3600
+      }
+    },
+    {
+      "id": "stage/shadow",
+      "parameters": {
+        "suite": "stage",
+        "stage": "shadow",
+        "resolution": "640x360",
+        "warmups": 3,
+        "samples": 5
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 5,
+          "median": 0.10000000149011612,
+          "p95": 0.2000000011175871,
+          "min": 0.09999999962747097,
+          "max": 0.2000000011175871
+        },
+        "gpuTimestampMs": {
+          "samples": 5,
+          "median": 0.387296,
+          "p95": 0.392672,
+          "min": 0.386464,
+          "max": 0.392672
+        },
+        "submissions": 6,
+        "dispatches": 9,
+        "bytesUploaded": 704,
+        "newAllocations": 0,
+        "renderExtent": "640x360",
+        "workgroups": 3600
+      }
+    },
+    {
+      "id": "stage/reconstruction",
+      "parameters": {
+        "suite": "stage",
+        "stage": "reconstruction",
+        "resolution": "640x360",
+        "warmups": 3,
+        "samples": 5
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 5,
+          "median": 0.09999999962747097,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "gpuTimestampMs": {
+          "samples": 5,
+          "median": 0.020448,
+          "p95": 0.02064,
+          "min": 0.02,
+          "max": 0.02064
+        },
+        "submissions": 6,
+        "dispatches": 9,
+        "bytesUploaded": 704,
+        "newAllocations": 0,
+        "renderExtent": "640x360",
+        "workgroups": 3600
+      }
+    },
+    {
+      "id": "stage/lighting",
+      "parameters": {
+        "suite": "stage",
+        "stage": "lighting",
+        "resolution": "640x360",
+        "warmups": 3,
+        "samples": 5
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 5,
+          "median": 0.09999999962747097,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "gpuTimestampMs": {
+          "samples": 5,
+          "median": 0.008864,
+          "p95": 0.00896,
+          "min": 0.00864,
+          "max": 0.00896
+        },
+        "submissions": 6,
+        "dispatches": 9,
+        "bytesUploaded": 704,
+        "newAllocations": 0,
+        "renderExtent": "640x360",
+        "workgroups": 3600
+      }
+    },
+    {
+      "id": "stage/presentation",
+      "parameters": {
+        "suite": "stage",
+        "stage": "presentation",
+        "resolution": "640x360",
+        "warmups": 3,
+        "samples": 5
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 5,
+          "median": 0,
+          "p95": 0.09999999962747097,
+          "min": 0,
+          "max": 0.09999999962747097
+        },
+        "gpuTimestampMs": {
+          "samples": 5,
+          "median": 0.003744,
+          "p95": 0.004096,
+          "min": 0.003616,
+          "max": 0.004096
+        },
+        "submissions": 6,
+        "dispatches": 9,
+        "bytesUploaded": 704,
+        "newAllocations": 0,
+        "renderExtent": "640x360",
+        "workgroups": null
+      }
+    },
+    {
+      "id": "stage/frame-total",
+      "parameters": {
+        "suite": "stage",
+        "resolution": "640x360"
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 5,
+          "median": 1.800000000745058,
+          "p95": 5,
+          "min": 1.599999999627471,
+          "max": 5
+        },
+        "hostMs": {
+          "samples": 5,
+          "median": 0.5,
+          "p95": 0.6999999992549419,
+          "min": 0.30000000074505806,
+          "max": 0.6999999992549419
+        },
+        "gpuTimestampMs": {
+          "samples": 5,
+          "median": 0.45344,
+          "p95": 0.455296,
+          "min": 0.44924800000000004,
+          "max": 0.455296
+        },
+        "submissions": 6,
+        "dispatches": 9,
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "gpuTimestampStatus": "ok"
+      }
+    }
+  ]
+}
