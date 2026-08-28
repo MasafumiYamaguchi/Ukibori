@@ -40,6 +40,32 @@ export function saturatingMul(a: number, b: number): number {
   return a < 0 !== b < 0 ? -Number.MAX_VALUE : Number.MAX_VALUE;
 }
 
+/** Largest finite IEEE-754 binary32 value (the #22 GPU saturation bound). */
+export const F32_MAX = 3.4028234663852886e38;
+
+/**
+ * f32-domain saturated multiply (#45): the CPU twin of the WGSL lighting
+ * pass's `satMul` — zero times anything is zero (never NaN), and a product
+ * that exceeds the largest finite f32 clamps to `F32_MAX` instead of being
+ * carried as an f64 value the GPU ABI cannot represent. For the non-negative
+ * inputs the direct-light chain uses, this behaves EXACTLY like the WGSL
+ * `min(a * b, F32_MAX)`; the symmetric negative clamp is defensive only and
+ * never fires there. The result is always finite for finite inputs.
+ */
+export function saturatingMulF32(a: number, b: number): number {
+  if (a === 0 || b === 0) {
+    return 0;
+  }
+  const product = a * b;
+  if (product > F32_MAX) {
+    return F32_MAX;
+  }
+  if (product < -F32_MAX) {
+    return -F32_MAX;
+  }
+  return product;
+}
+
 export function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }

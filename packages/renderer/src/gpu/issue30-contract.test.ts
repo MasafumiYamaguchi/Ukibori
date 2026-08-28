@@ -75,10 +75,10 @@ interface PolicyEntry {
 const policyEntries = POLICY_TABLE as PolicyEntry[];
 
 describe("#30 catalog — every fixture has explicit metadata", () => {
-  it("pins the catalog version and fixture totals (98 compute + 20 presentation)", () => {
-    expect(CATALOG_VERSION).toBe(6);
-    expect(catalog.computeFixtures.length).toBe(98);
-    expect(catalog.presentationFixtures.length).toBe(20);
+  it("pins the catalog version and fixture totals (99 compute + 21 presentation)", () => {
+    expect(CATALOG_VERSION).toBe(7);
+    expect(catalog.computeFixtures.length).toBe(99);
+    expect(catalog.presentationFixtures.length).toBe(21);
   });
 
   it("gives every fixture a stable id, categories, dimensions, dpr, params and buffers", () => {

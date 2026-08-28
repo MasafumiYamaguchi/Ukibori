@@ -2,7 +2,6 @@ import { f0ForMaterial } from "./brdf";
 import { clamp, saturatingAdd, saturatingMul } from "./math";
 import type { Material } from "./material";
 import type { LinearRgb } from "./types";
-import type { BrdfResult } from "./brdf";
 
 /**
  * #22 environment illumination and exposure — scene/shared image-level
@@ -125,40 +124,33 @@ export function sanitizeExposure(exposure: number | undefined): number {
 }
 
 /**
- * Accumulate the linear lighting result with overflow-safe saturated
- * arithmetic:
+ * Accumulate the full LINEAR result (#22/#45): `direct` is the COMPLETE
+ * per-channel DIRECT contribution of the directional light — light color x
+ * intensity x visibility x NdotL x BRDF, already evaluated by
+ * `directLightContribution` in the #45-review factor order —
  *
- *     linear = baseColor * ambient + direct * (diffuse + specular)
+ *     linear = baseColor * ambient + direct
  *              + environment.diffuse + environment.specular
  *
- * All inputs must be finite; the result is always a finite `LinearRgb`
- * (values that would overflow to +-Infinity saturate to +-Number.MAX_VALUE,
- * which the sRGB encoder clamps to white/black anyway). This is the
- * pre-exposure linear accumulation of the lighting pass.
- */
-/**
- * Accumulate the full LINEAR result (#22/#45): the DIRECT contribution is
- * per-channel (directional-light RGB color x intensity x visibility x
- * NdotL x BRDF); ambient and environment are independent of the directional
- * light and never tinted by its color. Saturated arithmetic keeps every
- * finite input producing a finite pre-encode LinearRgb.
+ * Ambient and environment are independent of the directional light and are
+ * never tinted by its color. All inputs must be finite; the result is always
+ * a finite `LinearRgb` (values that would overflow to +-Infinity saturate to
+ * +-Number.MAX_VALUE, which the sRGB encoder clamps to white/black anyway).
+ * This is the pre-exposure linear accumulation of the lighting pass; the
+ * WGSL `accumulateChannel` mirrors it exactly.
  */
 export function accumulateLinear(
   base: LinearRgb,
   ambient: number,
   direct: LinearRgb,
-  brdf: BrdfResult,
   env: EnvironmentResult,
 ): LinearRgb {
-  const channel = (bc: number, dc: number, sc: number, ed: number, es: number, d: number): number =>
-    saturatingAdd(
-      saturatingAdd(saturatingMul(bc, ambient), saturatingMul(saturatingAdd(dc, sc), d)),
-      saturatingAdd(ed, es),
-    );
+  const channel = (bc: number, d: number, ed: number, es: number): number =>
+    saturatingAdd(saturatingAdd(saturatingMul(bc, ambient), d), saturatingAdd(ed, es));
   return {
-    r: channel(base.r, brdf.diffuse.r, brdf.specular.r, env.diffuse.r, env.specular.r, direct.r),
-    g: channel(base.g, brdf.diffuse.g, brdf.specular.g, env.diffuse.g, env.specular.g, direct.g),
-    b: channel(base.b, brdf.diffuse.b, brdf.specular.b, env.diffuse.b, env.specular.b, direct.b),
+    r: channel(base.r, direct.r, env.diffuse.r, env.specular.r),
+    g: channel(base.g, direct.g, env.diffuse.g, env.specular.g),
+    b: channel(base.b, direct.b, env.diffuse.b, env.specular.b),
   };
 }
 

@@ -7,6 +7,8 @@ import {
   normalizeVec3,
   saturatingAdd,
   saturatingMul,
+  saturatingMulF32,
+  F32_MAX,
 } from "./math";
 
 describe("clamp", () => {
@@ -57,6 +59,43 @@ describe("saturatingAdd / saturatingMul (overflow-safe)", () => {
     ] as const) {
       expect(Number.isFinite(saturatingAdd(a, b))).toBe(true);
       expect(Number.isFinite(saturatingMul(a, b))).toBe(true);
+    }
+  });
+});
+
+describe("saturatingMulF32 (#45 f32-domain saturation)", () => {
+  it("passes ordinary finite values through unchanged", () => {
+    expect(saturatingMulF32(2, 3)).toBe(6);
+    expect(saturatingMulF32(0.5, 0.5)).toBe(0.25);
+    expect(saturatingMulF32(F32_MAX, 1)).toBe(F32_MAX);
+    expect(saturatingMulF32(1, F32_MAX)).toBe(F32_MAX);
+  });
+
+  it("saturates at the largest finite f32, not the f64 range", () => {
+    expect(saturatingMulF32(F32_MAX, 2)).toBe(F32_MAX);
+    expect(saturatingMulF32(2, F32_MAX)).toBe(F32_MAX);
+    expect(saturatingMulF32(F32_MAX, F32_MAX)).toBe(F32_MAX);
+    // f64 could carry these products; the f32 domain must not
+    expect(F32_MAX * 2).toBeGreaterThan(F32_MAX);
+    expect(Number.isFinite(F32_MAX * 2)).toBe(true);
+    expect(saturatingMulF32(-F32_MAX, 2)).toBe(-F32_MAX);
+  });
+
+  it("keeps zero absorbing (0 * anything is 0, never NaN)", () => {
+    expect(saturatingMulF32(0, F32_MAX)).toBe(0);
+    expect(saturatingMulF32(F32_MAX, 0)).toBe(0);
+    expect(saturatingMulF32(0, 0)).toBe(0);
+  });
+
+  it("returns finite results for all finite inputs", () => {
+    for (const [a, b] of [
+      [F32_MAX, F32_MAX],
+      [F32_MAX, 1e-37],
+      [1e-37, F32_MAX],
+      [Number.MAX_VALUE, 1],
+      [Number.MAX_VALUE, Number.MAX_VALUE],
+    ] as const) {
+      expect(Number.isFinite(saturatingMulF32(a, b))).toBe(true);
     }
   });
 });

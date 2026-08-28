@@ -131,6 +131,18 @@ tests.
   scaling only the direct term, exposure stays a post-accumulation
   multiplier, and the scalar `diffuse`/`specular` debug buffers stay
   color-independent. White light reproduces the historical bytes exactly.
+- direct-light numeric contract (#45 review): the per-channel product is
+  evaluated in ONE canonical factor order on BOTH backends —
+  `brdfSum -> NdotL -> visibility -> intensity -> lightColor` — with each
+  step saturated in the **f32 domain** (`saturatingMulF32` on the CPU, the
+  WGSL `satMul` on the GPU: `0 * anything = 0`, a product above the largest
+  finite f32 clamps to `F32_MAX`). The SMALL factors (BRDF sum, NdotL,
+  visibility) multiply FIRST and the large ones (intensity, light color)
+  LAST, so a huge but legal `lightColor * intensity` (e.g. `F32_MAX * 2`)
+  can never prematurely saturate an intermediate that the BRDF would bring
+  back into the representable range; when the final contribution genuinely
+  overflows f32, both backends saturate at the same point. Finite legal
+  inputs never produce NaN/Infinity in the final lighting result.
 - scene ABI: the encoded scene header is versioned (`ABI_VERSION`, currently
   2). ABI v1 (pre-#45) kept header offsets 112..128 as RESERVED ZERO; ABI v2
   (#45) reuses them for `lightColor`. Legacy v1 buffers are REJECTED as

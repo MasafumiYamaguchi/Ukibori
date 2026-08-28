@@ -133,7 +133,8 @@ struct LightingPassParams {
 const LIGHTING_WORKGROUP_SIZE: u32 = ${LIGHTING_WORKGROUP_SIZE}u;
 const NO_OWNER: u32 = 0xffffffffu;
 // Largest finite f32: the saturation bound of the #22 overflow-safe
-// add/multiply (mirrors saturatingAdd/saturatingMul in math.ts).
+// add/multiply (mirrors saturatingAdd / saturatingMulF32 in math.ts; the
+// direct-light chain uses the f32 bound so CPU and GPU saturate identically).
 const F32_MAX: f32 = 3.4028234663852886e+38;
 const PI: f32 = 3.141592653589793;
 // Regularized GGX alpha so roughness = 0 keeps a mirror-like lobe (#16).
@@ -263,20 +264,19 @@ fn materialFor(owner: u32) -> MaterialRecord {
 }
 
 // Per-channel #22 linear accumulation with saturated arithmetic (mirrors
-// accumulateLinear exactly):
-//   satAdd(satAdd(satMul(base, ambient), satMul(satAdd(diff, spec), direct)),
-//          satAdd(envDiffuse, envSpecular))
+// accumulateLinear exactly): 'direct' is the COMPLETE per-channel DIRECT
+// contribution (BRDF x NdotL x visibility x intensity x light color, in the
+// #45-review factor order computed by the caller):
+//   satAdd(satAdd(satMul(base, ambient), direct), satAdd(envDiffuse, envSpecular))
 fn accumulateChannel(
   base: f32,
-  brdfDiffuse: f32,
-  brdfSpecular: f32,
   envDiffuse: f32,
   envSpecular: f32,
   ambient: f32,
   direct: f32,
 ) -> f32 {
   return satAdd(
-    satAdd(satMul(base, ambient), satMul(satAdd(brdfDiffuse, brdfSpecular), direct)),
+    satAdd(satMul(base, ambient), direct),
     satAdd(envDiffuse, envSpecular),
   );
 }
@@ -362,12 +362,22 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // Direct contribution scaled by the #45 directional-light color (linear
   // RGB per channel), light intensity and visibility only. Validated
   // headers carry intensity >= 0 and finite non-negative color channels;
-  // the max() guards are defensive. White light reduces to the historical
-  // satMul(satMul(intensity, cosine), vis) formula exactly.
+  // the max() guard is defensive. White light reduces to the historical
+  // satMul(satMul(satMul(intensity, cosine), vis), brdfSum) formula.
+  //
+  // #45 review: the per-channel factor order and f32 saturation policy are
+  // THE SAME as the CPU 'directLightContributionChannel' — the SMALL
+  // factors first (BRDF sum, NdotL, visibility), then intensity, then the
+  // light color LAST:
+  //   satMul(satMul(satMul(satMul(brdfSum, cosine), vis), intensity), lightColor)
+  // A huge lightColor * intensity therefore never prematurely saturates an
+  // intermediate that the BRDF would bring back into the representable f32
+  // range; each step saturates at F32_MAX (satMul), exactly like the CPU
+  // twin saturatingMulF32.
   let intensity = max(sceneHeader.lightIntensity, 0.0);
-  let directR = satMul(satMul(satMul(sceneHeader.lightColor.r, intensity), cosine), vis);
-  let directG = satMul(satMul(satMul(sceneHeader.lightColor.g, intensity), cosine), vis);
-  let directB = satMul(satMul(satMul(sceneHeader.lightColor.b, intensity), cosine), vis);
+  let directR = satMul(satMul(satMul(satMul(satAdd(brdfDiffuse.r, brdfSpecular.r), cosine), vis), intensity), sceneHeader.lightColor.r);
+  let directG = satMul(satMul(satMul(satMul(satAdd(brdfDiffuse.g, brdfSpecular.g), cosine), vis), intensity), sceneHeader.lightColor.g);
+  let directB = satMul(satMul(satMul(satMul(satAdd(brdfDiffuse.b, brdfSpecular.b), cosine), vis), intensity), sceneHeader.lightColor.b);
 
   // #22 shared environment (validated headers carry intensity >= 0 and
   // shares in [0, 1]; the clamps are defensive for f32-exact values).
@@ -387,9 +397,9 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   // direct contribution; ambient/environment are independent).
   let exposure = max(sceneHeader.exposure, 0.0);
   var linear = vec3<f32>(0.0);
-  linear.r = accumulateChannel(base.r, brdfDiffuse.r, brdfSpecular.r, envDiffuse.r, envSpecular.r, params.ambient, directR);
-  linear.g = accumulateChannel(base.g, brdfDiffuse.g, brdfSpecular.g, envDiffuse.g, envSpecular.g, params.ambient, directG);
-  linear.b = accumulateChannel(base.b, brdfDiffuse.b, brdfSpecular.b, envDiffuse.b, envSpecular.b, params.ambient, directB);
+  linear.r = accumulateChannel(base.r, envDiffuse.r, envSpecular.r, params.ambient, directR);
+  linear.g = accumulateChannel(base.g, envDiffuse.g, envSpecular.g, params.ambient, directG);
+  linear.b = accumulateChannel(base.b, envDiffuse.b, envSpecular.b, params.ambient, directB);
   let exposedR = satMul(linear.r, exposure);
   let exposedG = satMul(linear.g, exposure);
   let exposedB = satMul(linear.b, exposure);

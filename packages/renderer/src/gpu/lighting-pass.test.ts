@@ -1128,11 +1128,15 @@ describe("LightingPass shader — #16 BRDF formulas pinned in WGSL", () => {
 
   it("pins the direct-only visibility scaling, the #45 per-channel color and the #22 environment", () => {
     // #45: the direct contribution is per-channel (light color x intensity
-    // x NdotL x visibility) — white light reduces to the historical scalar
-    // formula; ambient/environment never see the light color.
-    expect(LIGHTING_PASS_WGSL).toContain("let directR = satMul(satMul(satMul(sceneHeader.lightColor.r, intensity), cosine), vis);");
-    expect(LIGHTING_PASS_WGSL).toContain("let directG = satMul(satMul(satMul(sceneHeader.lightColor.g, intensity), cosine), vis);");
-    expect(LIGHTING_PASS_WGSL).toContain("let directB = satMul(satMul(satMul(sceneHeader.lightColor.b, intensity), cosine), vis);");
+    // x NdotL x visibility x BRDF) — white light reduces to the historical
+    // scalar formula; ambient/environment never see the light color. #45
+    // review: the SMALL factors (BRDF sum, NdotL, visibility) multiply
+    // FIRST, intensity and lightColor LAST, with the same f32 saturation as
+    // the CPU directLightContributionChannel (no premature F32_MAX clamp of
+    // a huge lightColor * intensity before the BRDF can scale it back).
+    expect(LIGHTING_PASS_WGSL).toContain("let directR = satMul(satMul(satMul(satMul(satAdd(brdfDiffuse.r, brdfSpecular.r), cosine), vis), intensity), sceneHeader.lightColor.r);");
+    expect(LIGHTING_PASS_WGSL).toContain("let directG = satMul(satMul(satMul(satMul(satAdd(brdfDiffuse.g, brdfSpecular.g), cosine), vis), intensity), sceneHeader.lightColor.g);");
+    expect(LIGHTING_PASS_WGSL).toContain("let directB = satMul(satMul(satMul(satMul(satAdd(brdfDiffuse.b, brdfSpecular.b), cosine), vis), intensity), sceneHeader.lightColor.b);");
     expect(LIGHTING_PASS_WGSL).toContain("let envDiffuse = base * (1.0 - m.metallic) * diffuseScale;");
     expect(LIGHTING_PASS_WGSL).toContain("let envSpecular = specularScale * (f0 + (vec3<f32>(1.0) - f0) * t);");
     expect(LIGHTING_PASS_WGSL).toContain("let t = pow(1.0 - m.roughness, 5.0);");

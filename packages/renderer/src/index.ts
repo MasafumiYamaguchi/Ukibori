@@ -25,6 +25,8 @@ export {
   normalizeVec3,
   saturatingAdd,
   saturatingMul,
+  saturatingMulF32,
+  F32_MAX,
 } from "./math";
 export {
   HostBuffer,
@@ -288,7 +290,7 @@ export {
   sanitizeExposure,
 } from "./environment";
 export type { EnvironmentLight, EnvironmentResult } from "./environment";
-export { computeNormals, lightScene, shadeHeightField, shadePreparedFields } from "./lighting";
+export { computeNormals, lightScene, shadeHeightField, shadePreparedFields, directLightContribution, directLightContributionChannel } from "./lighting";
 export type {
   LightingBuffers,
   LightingOptions,

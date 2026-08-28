@@ -1,6 +1,6 @@
 {
   "format": "ukibori-cpu-goldens-v1",
-  "catalogVersion": 6,
+  "catalogVersion": 7,
   "policyTable": [
     {
       "buffer": "encodedHeader",
@@ -7583,6 +7583,412 @@
               "x": 31,
               "y": 31,
               "v": "255,255,255,255"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "lighting-color-hdr-extreme",
+      "logical": {
+        "width": 32,
+        "height": 32
+      },
+      "dpr": 1,
+      "render": {
+        "width": 32,
+        "height": 32
+      },
+      "params": {
+        "scene": {
+          "width": 32,
+          "height": 32,
+          "surfaces": [
+            {
+              "id": "panel",
+              "position": {
+                "x": 0,
+                "y": 0
+              },
+              "size": {
+                "x": 32,
+                "y": 32
+              },
+              "elevation": 0,
+              "thickness": 0,
+              "bevelWidth": 0,
+              "profile": "flat",
+              "shape": {
+                "kind": "roundedRect",
+                "radius": 0
+              },
+              "material": "panel",
+              "castsShadow": false,
+              "receivesShadow": true
+            },
+            {
+              "id": "btn",
+              "position": {
+                "x": 6,
+                "y": 6
+              },
+              "size": {
+                "x": 14,
+                "y": 14
+              },
+              "elevation": 3,
+              "thickness": 2,
+              "bevelWidth": 0,
+              "profile": "flat",
+              "shape": {
+                "kind": "roundedRect",
+                "radius": 0
+              },
+              "material": "metal",
+              "castsShadow": true,
+              "receivesShadow": true
+            }
+          ],
+          "materials": {
+            "panel": {
+              "baseColor": {
+                "r": 0.1,
+                "g": 0.1,
+                "b": 0.1
+              },
+              "roughness": 1,
+              "metallic": 1,
+              "ior": 1.5
+            },
+            "metal": {
+              "baseColor": {
+                "r": 0.1,
+                "g": 0.1,
+                "b": 0.1
+              },
+              "roughness": 1,
+              "metallic": 1,
+              "ior": 1.5
+            }
+          },
+          "light": {
+            "direction": {
+              "x": 0,
+              "y": 0,
+              "z": 1
+            },
+            "intensity": 2,
+            "angularRadius": 0,
+            "color": {
+              "r": 3.4028234663852886e+38,
+              "g": 2,
+              "b": 0
+            }
+          },
+          "environment": {
+            "intensity": 0,
+            "diffuseIntensity": 1,
+            "specularIntensity": 1
+          },
+          "exposure": 1e-37
+        },
+        "dpr": 1,
+        "render": {
+          "width": 32,
+          "height": 32
+        },
+        "options": {
+          "lighting": {
+            "ambient": 0
+          }
+        }
+      },
+      "buffers": [
+        {
+          "name": "height",
+          "policy": "height",
+          "tolerance": 0.0001,
+          "kind": "f32",
+          "digest": "3c24fea5f17a6ee948c79d6e4fa85c9fa10870b91f7a9714489a459fb5f91432",
+          "probes": [
+            {
+              "x": 0,
+              "y": 0,
+              "v": "0"
+            },
+            {
+              "x": 16,
+              "y": 16,
+              "v": "5"
+            },
+            {
+              "x": 31,
+              "y": 31,
+              "v": "0"
+            },
+            {
+              "x": 6,
+              "y": 6,
+              "v": 5,
+              "label": "maxAbs"
+            }
+          ]
+        },
+        {
+          "name": "coverage",
+          "policy": "coverage",
+          "tolerance": 0,
+          "kind": "u32",
+          "digest": "c72e248f75404ee648875c0d450c697a73660b907c9a32f9c334498d88be963e",
+          "probes": [
+            {
+              "x": 0,
+              "y": 0,
+              "v": "1"
+            },
+            {
+              "x": 16,
+              "y": 16,
+              "v": "1"
+            },
+            {
+              "x": 31,
+              "y": 31,
+              "v": "1"
+            },
+            {
+              "x": 0,
+              "y": 0,
+              "v": 1,
+              "label": "maxAbs"
+            }
+          ]
+        },
+        {
+          "name": "objectId",
+          "policy": "objectId",
+          "tolerance": 0,
+          "kind": "u32",
+          "digest": "863273c9655726d4b6326da20e957408a824f0a86c97424f293c6645795f3921",
+          "probes": [
+            {
+              "x": 0,
+              "y": 0,
+              "v": "0"
+            },
+            {
+              "x": 16,
+              "y": 16,
+              "v": "1"
+            },
+            {
+              "x": 31,
+              "y": 31,
+              "v": "0"
+            },
+            {
+              "x": 6,
+              "y": 6,
+              "v": 1,
+              "label": "maxAbs"
+            }
+          ]
+        },
+        {
+          "name": "materialId",
+          "policy": "materialId",
+          "tolerance": 0,
+          "kind": "u32",
+          "digest": "5a93f8c03b1d9acb782a368113899658e660389ad904e42964faa0a0c0b77308",
+          "probes": [
+            {
+              "x": 0,
+              "y": 0,
+              "v": "0"
+            },
+            {
+              "x": 16,
+              "y": 16,
+              "v": "1"
+            },
+            {
+              "x": 31,
+              "y": 31,
+              "v": "0"
+            },
+            {
+              "x": 6,
+              "y": 6,
+              "v": 1,
+              "label": "maxAbs"
+            }
+          ]
+        },
+        {
+          "name": "casterHeight",
+          "policy": "casterHeight",
+          "tolerance": 0.0001,
+          "kind": "f32",
+          "digest": "2e1fb13365e16ba3755e55911e46954ee4bd5109c95ab490ae23e26f26134764",
+          "probes": [
+            {
+              "x": 0,
+              "y": 0,
+              "v": "0"
+            },
+            {
+              "x": 16,
+              "y": 16,
+              "v": "5"
+            },
+            {
+              "x": 31,
+              "y": 31,
+              "v": "0"
+            },
+            {
+              "x": 6,
+              "y": 6,
+              "v": 5,
+              "label": "maxAbs"
+            }
+          ]
+        },
+        {
+          "name": "normal",
+          "policy": "normal",
+          "tolerance": 0.0001,
+          "kind": "f32",
+          "digest": "30354b7dca66a6330b009e5c263d26cd3f9cfa47ad3852d2df5c83ddb57022cc",
+          "probes": [
+            {
+              "x": 0,
+              "y": 0,
+              "v": "0,0,1"
+            },
+            {
+              "x": 16,
+              "y": 16,
+              "v": "0,0,1"
+            },
+            {
+              "x": 31,
+              "y": 31,
+              "v": "0,0,1"
+            }
+          ]
+        },
+        {
+          "name": "visibility",
+          "policy": "visibility",
+          "tolerance": 0,
+          "kind": "f32",
+          "digest": "f02f63384ebeb1c3f6a2db8865ed75a7cd500d4c4798ce39e041a5907e404475",
+          "probes": [
+            {
+              "x": 0,
+              "y": 0,
+              "v": "1"
+            },
+            {
+              "x": 16,
+              "y": 16,
+              "v": "1"
+            },
+            {
+              "x": 31,
+              "y": 31,
+              "v": "1"
+            },
+            {
+              "x": 0,
+              "y": 0,
+              "v": 1,
+              "label": "maxAbs"
+            }
+          ]
+        },
+        {
+          "name": "diffuse",
+          "policy": "diffuse",
+          "tolerance": 0.001,
+          "kind": "f32",
+          "digest": "772665dfa74437317d23a6418f246f0b037ae335cb301bc7c7fd13c6f17a6848",
+          "probes": [
+            {
+              "x": 0,
+              "y": 0,
+              "v": "1"
+            },
+            {
+              "x": 16,
+              "y": 16,
+              "v": "1"
+            },
+            {
+              "x": 31,
+              "y": 31,
+              "v": "1"
+            },
+            {
+              "x": 0,
+              "y": 0,
+              "v": 1,
+              "label": "maxAbs"
+            }
+          ]
+        },
+        {
+          "name": "specular",
+          "policy": "specular",
+          "tolerance": 0.001,
+          "kind": "f32",
+          "digest": "202619b6aed98b816b2c2909f54f2f3005ea19696ecc05ce3ef10002b086b8c3",
+          "probes": [
+            {
+              "x": 0,
+              "y": 0,
+              "v": "0.00795774721"
+            },
+            {
+              "x": 16,
+              "y": 16,
+              "v": "0.00795774721"
+            },
+            {
+              "x": 31,
+              "y": 31,
+              "v": "0.00795774721"
+            },
+            {
+              "x": 0,
+              "y": 0,
+              "v": 0.00795774721,
+              "label": "maxAbs"
+            }
+          ]
+        },
+        {
+          "name": "lightingColor",
+          "policy": "lightingColor",
+          "tolerance": 1,
+          "kind": "u8",
+          "digest": "b400b832bd1a51eb5c09e841a239611920e0cd89d6e152227be5d6f46a8f0026",
+          "probes": [
+            {
+              "x": 0,
+              "y": 0,
+              "v": "194,0,0,255"
+            },
+            {
+              "x": 16,
+              "y": 16,
+              "v": "194,0,0,255"
+            },
+            {
+              "x": 31,
+              "y": 31,
+              "v": "194,0,0,255"
             }
           ]
         }

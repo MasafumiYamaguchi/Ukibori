@@ -1163,6 +1163,10 @@ async function runPresentationFixture(device, fixture) {
         // silently fall back to the renderer default and could mask a
         // broken forwarding contract).
         shadowOptions: fixture.shadowOptions,
+        // #45: forward the lighting options (e.g. ambient 0 on the
+        // extreme-HDR fixture) so the presented frame matches the fixture
+        // metadata instead of silently falling back to the default ambient.
+        lightingOptions: fixture.lightingOptions,
         compositeOptions: fixture.compositeOptions,
       },
     ];
@@ -1174,6 +1178,7 @@ async function runPresentationFixture(device, fixture) {
         dpr: frame.dpr,
         normalOptions: frame.normalOptions,
         shadowOptions: frame.shadowOptions,
+        lightingOptions: frame.lightingOptions,
         compositeOptions: frame.compositeOptions,
         debugReadback: true,
       });
