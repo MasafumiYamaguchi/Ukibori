@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createScene } from "../scene";
-import type { SceneInput } from "../scene";
+import type { SceneInput, SurfaceNode } from "../scene";
 import {
   ALL_STAGES,
   REASON_STAGES,
@@ -431,13 +431,16 @@ describe("classifySceneChange — exact-byte semantic classification", () => {
       },
     });
     // mutate ONLY the material flags byte (offset 24 of the first record);
-    // flags are height-dependent (the material-id output reads them) and
-    // must NOT be classified as a material-values change
+    // flags are height-dependent (the material-id output reads them) and the
+    // change must NEVER be classified as a PURE material-values change (the
+    // flags field is part of the table bytes, so the VALUES comparison also
+    // fires — but the `scene` reason guarantees the full chain, and the
+    // union never drops the height stage)
     const bytes = next.bytes.slice();
     // materials section starts after header + surfaces + masks:
     // 128 + 1*128 + 0*32 = 256; flags at 256 + 24
     bytes[256 + 24] = 1;
-    expect(classifySceneChange(prev.bytes, bytes)).toEqual(["scene"]);
+    expect(classifySceneChange(prev.bytes, bytes)).toEqual(["scene", "material-values"]);
   });
 
   it("recomputes canonical height ranges instead of trusting forged metadata", () => {
@@ -538,5 +541,250 @@ describe("#43 geometry + global shadow/reconstruction change composition", () =>
     expect(diff.reasons).toContain("light-angular-radius");
     // hard<->soft transitions with geometry are full by composition
     expect(diff.executed).toEqual(ALL_STAGES);
+  });
+});
+
+describe("#43 geometry + material-value change composition", () => {
+  // The review pin: material VALUES are frame-global LIGHTING semantics.
+  // A geometry edit combined with a material table value change must keep
+  // "material-values" alongside "scene" — the planner then refuses the
+  // partial path (a partial update would light the dirty band with the NEW
+  // material and the retained region with the OLD one).
+
+  const GRAY = { r: 0.8, g: 0.8, b: 0.8 };
+  const RED = { r: 1, g: 0.1, b: 0.1 };
+  const BASE_MATS: SceneInput["materials"] = {
+    silicone: { baseColor: GRAY, roughness: 0.5, metallic: 0, ior: 1.45 },
+  };
+  const matScene = (over: Partial<SceneInput> = {}): SceneInput => ({
+    width: 100,
+    height: 80,
+    surfaces: [
+      {
+        id: "panel",
+        position: { x: 0, y: 0 },
+        size: { x: 100, y: 80 },
+        elevation: 0,
+        thickness: 0,
+        shape: { kind: "roundedRect", radius: 0 },
+        profile: { kind: "flat" },
+        material: "silicone",
+        castsShadow: false,
+        receivesShadow: true,
+      },
+      {
+        id: "btn",
+        position: { x: 10, y: 10 },
+        size: { x: 20, y: 20 },
+        elevation: 2,
+        thickness: 2,
+        shape: { kind: "roundedRect", radius: 0 },
+        profile: { kind: "flat" },
+        material: "silicone",
+        castsShadow: true,
+        receivesShadow: true,
+      },
+    ],
+    materials: BASE_MATS,
+    light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+    ...over,
+  });
+
+  // a tiny ADDED surface reusing the EXISTING "silicone" material: surface
+  // count changes, material count does NOT
+  const chip: SurfaceNode = {
+    id: "chip",
+    position: { x: 80, y: 60 },
+    size: { x: 6, y: 6 },
+    elevation: 1,
+    thickness: 1,
+    shape: { kind: "roundedRect", radius: 0 },
+    profile: { kind: "flat" },
+    material: "silicone",
+    castsShadow: true,
+    receivesShadow: true,
+  };
+
+  function diffMaterialFrame(prevScene: SceneInput, nextScene: SceneInput) {
+    const prevBytes = encodeScene(createScene(prevScene), 1).bytes;
+    const nextBytes = encodeScene(createScene(nextScene), 1).bytes;
+    const prevKey = computeFrameKey({ bytes: prevBytes }, { dpr: 1 });
+    const nextKey = computeFrameKey({ bytes: nextBytes }, { dpr: 1 });
+    return reportInvalidations(nextKey, prevKey, nextBytes, prevBytes);
+  }
+
+  it("Case 1: geometry-only keeps partial eligibility (no material-values)", () => {
+    const prev = matScene();
+    const next = matScene({ surfaces: [...matScene().surfaces!, chip] });
+    const diff = diffMaterialFrame(prev, next);
+    expect(diff.reasons).toEqual(["scene"]);
+    expect(diff.reasons).not.toContain("material-values");
+    expect(diff.executed).toEqual(ALL_STAGES);
+  });
+
+  it("Case 2: geometry + baseColor value change keeps material-values (full)", () => {
+    const prev = matScene();
+    const next = matScene({
+      surfaces: [...matScene().surfaces!, chip],
+      materials: { silicone: { ...BASE_MATS.silicone!, baseColor: RED } },
+    });
+    const diff = diffMaterialFrame(prev, next);
+    expect(diff.reasons).toEqual(["scene", "material-values"]);
+  });
+
+  it("Case 3: geometry + roughness change keeps material-values", () => {
+    const prev = matScene();
+    const next = matScene({
+      surfaces: [...matScene().surfaces!, chip],
+      materials: { silicone: { ...BASE_MATS.silicone!, roughness: 0.8 } },
+    });
+    expect(diffMaterialFrame(prev, next).reasons).toEqual(["scene", "material-values"]);
+  });
+
+  it("Case 4: geometry + metallic change keeps material-values", () => {
+    const prev = matScene();
+    const next = matScene({
+      surfaces: [...matScene().surfaces!, chip],
+      materials: { silicone: { ...BASE_MATS.silicone!, metallic: 1 } },
+    });
+    expect(diffMaterialFrame(prev, next).reasons).toEqual(["scene", "material-values"]);
+  });
+
+  it("Case 5: geometry + ior change keeps material-values", () => {
+    const prev = matScene();
+    const next = matScene({
+      surfaces: [...matScene().surfaces!, chip],
+      materials: { silicone: { ...BASE_MATS.silicone!, ior: 2 } },
+    });
+    expect(diffMaterialFrame(prev, next).reasons).toEqual(["scene", "material-values"]);
+  });
+
+  it("Case 6: surfaceCount change with an UNCHANGED material table never fires material-values", () => {
+    const prev = matScene();
+    // chip reuses silicone; the table bytes are identical (same material
+    // definition, same first-appearance order)
+    const next = matScene({ surfaces: [...matScene().surfaces!, chip] });
+    const diff = diffMaterialFrame(prev, next);
+    expect(diff.reasons).toEqual(["scene"]);
+    expect(diff.reasons).not.toContain("material-values");
+  });
+
+  it("Case 7: maskCount change + material value change keeps material-values", () => {
+    const maskScene = (addMask: boolean, red: boolean): SceneInput => {
+      const surfaces = matScene().surfaces!.map((s) => ({ ...s }));
+      const glyph: SurfaceNode = {
+        id: "glyph",
+        position: { x: 40, y: 30 },
+        size: { x: 12, y: 12 },
+        elevation: 2,
+        thickness: 2,
+        shape: { kind: "mask", mask: { width: 4, height: 4, alpha: new Float32Array(16).fill(1) } },
+        profile: { kind: "flat" },
+        material: "silicone",
+        castsShadow: true,
+        receivesShadow: true,
+      };
+      return {
+        width: 100,
+        height: 80,
+        surfaces: addMask ? [...surfaces, glyph] : surfaces,
+        materials: { silicone: { ...BASE_MATS.silicone!, baseColor: red ? RED : GRAY } },
+        light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+      };
+    };
+    const prev = maskScene(false, false);
+    const next = maskScene(true, true);
+    const diff = diffMaterialFrame(prev, next);
+    expect(diff.reasons).toEqual(["scene", "material-values"]);
+  });
+
+  it("material-only change keeps the historical material-values reason", () => {
+    const prev = matScene();
+    const next = matScene({ materials: { silicone: { ...BASE_MATS.silicone!, baseColor: RED } } });
+    const diff = diffMaterialFrame(prev, next);
+    expect(diff.reasons).toEqual(["material-values"]);
+    // the documented closure: upload + lighting + presentation only
+    expect(diff.executed).toEqual(["upload", "lighting", "presentation"]);
+  });
+});
+
+describe("classifySceneChange — #43 material-value direct regressions", () => {
+  const GRAY = { r: 0.8, g: 0.8, b: 0.8 };
+  const RED = { r: 1, g: 0.1, b: 0.1 };
+  const base = (over: Partial<SceneInput> = {}): SceneInput => ({
+    width: 100,
+    height: 80,
+    surfaces: [
+      {
+        id: "panel",
+        position: { x: 0, y: 0 },
+        size: { x: 100, y: 80 },
+        elevation: 0,
+        thickness: 0,
+        shape: { kind: "roundedRect", radius: 0 },
+        profile: { kind: "flat" },
+        material: "silicone",
+        castsShadow: false,
+        receivesShadow: true,
+      },
+    ],
+    materials: { silicone: { baseColor: GRAY, roughness: 0.5, metallic: 0, ior: 1.45 } },
+    light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+    ...over,
+  });
+  const chip: SurfaceNode = {
+    id: "chip",
+    position: { x: 80, y: 60 },
+    size: { x: 6, y: 6 },
+    elevation: 1,
+    thickness: 1,
+    shape: { kind: "roundedRect", radius: 0 },
+    profile: { kind: "flat" },
+    material: "silicone",
+    castsShadow: true,
+    receivesShadow: true,
+  };
+  const bytes = (scene: SceneInput) => encodeScene(createScene(scene), 1).bytes;
+
+  it("geometry-only -> ['scene']", () => {
+    expect(classifySceneChange(bytes(base()), bytes(base({ surfaces: [...base().surfaces!, chip] })))).toEqual(["scene"]);
+  });
+
+  it("material-only -> ['material-values']", () => {
+    expect(
+      classifySceneChange(
+        bytes(base()),
+        bytes(base({ materials: { silicone: { ...base().materials!.silicone!, baseColor: RED } } })),
+      ),
+    ).toEqual(["material-values"]);
+  });
+
+  it("geometry + material -> ['scene', 'material-values']", () => {
+    expect(
+      classifySceneChange(
+        bytes(base()),
+        bytes(
+          base({
+            surfaces: [...base().surfaces!, chip],
+            materials: { silicone: { ...base().materials!.silicone!, baseColor: RED } },
+          }),
+        ),
+      ),
+    ).toEqual(["scene", "material-values"]);
+  });
+
+  it("geometry + angularRadius + material -> ['scene', 'light-angular-radius', 'material-values']", () => {
+    expect(
+      classifySceneChange(
+        bytes(base()),
+        bytes(
+          base({
+            surfaces: [...base().surfaces!, chip],
+            light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: Math.fround(0.2) },
+            materials: { silicone: { ...base().materials!.silicone!, baseColor: RED } },
+          }),
+        ),
+      ),
+    ).toEqual(["scene", "light-angular-radius", "material-values"]);
   });
 });

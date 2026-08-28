@@ -554,6 +554,131 @@ describe("GpuScenePipeline — #32 partial/full planning and band dispatch", () 
     expect(retained.planning.reason).toBe("no-scene-change");
   });
 
+  it("never plans partial for a geometry + material-value change (surfaceCount changed, materialCount unchanged)", () => {
+    // THE #43 review bug: an added surface shifts the material table offset,
+    // and a simultaneous material table VALUE change is a frame-global
+    // lighting semantic — a partial band would light the dirty region with
+    // the NEW material and the retained region with the OLD one.
+    const baseScene = createScene({
+      width: 100,
+      height: 200,
+      surfaces: [
+        {
+          id: "panel",
+          position: { x: 0, y: 0 },
+          size: { x: 100, y: 200 },
+          elevation: 0,
+          thickness: 0,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: false,
+          receivesShadow: true,
+        },
+        {
+          id: "btn",
+          position: { x: 10, y: 10 },
+          size: { x: 30, y: 30 },
+          elevation: 2,
+          thickness: 2,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      materials: { matte: { baseColor: { r: 0.5, g: 0.5, b: 0.5 }, roughness: 0.5, metallic: 0 } },
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+    });
+    const edited = createScene({
+      ...baseScene,
+      surfaces: [
+        ...baseScene.surfaces,
+        {
+          id: "chip",
+          position: { x: 80, y: 170 },
+          size: { x: 6, y: 6 },
+          elevation: 1,
+          thickness: 1,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      // the EXISTING matte definition changes: materialCount unchanged
+      materials: { matte: { baseColor: { r: 1, g: 0, b: 0 }, roughness: 0.5, metallic: 0 } },
+    });
+    const { pipeline } = setup();
+    pipeline.render({ scene: baseScene, dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    const stats = pipeline.render({ scene: edited, dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    expect(stats.invalidation.reasons).toEqual(["scene", "material-values"]);
+    expect(stats.planning.mode).toBe("full");
+    expect(stats.planning.reason).toBe("material-values-change");
+  });
+
+  it("keeps partial eligibility when the surfaceCount changes but the material table is byte-identical", () => {
+    const baseScene = createScene({
+      width: 100,
+      height: 200,
+      surfaces: [
+        {
+          id: "panel",
+          position: { x: 0, y: 0 },
+          size: { x: 100, y: 200 },
+          elevation: 0,
+          thickness: 0,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: false,
+          receivesShadow: true,
+        },
+        {
+          id: "btn",
+          position: { x: 10, y: 10 },
+          size: { x: 30, y: 30 },
+          elevation: 2,
+          thickness: 2,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      materials: { matte: { baseColor: { r: 0.5, g: 0.5, b: 0.5 }, roughness: 0.5, metallic: 0 } },
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+    });
+    const edited = createScene({
+      ...baseScene,
+      surfaces: [
+        ...baseScene.surfaces,
+        {
+          id: "chip",
+          position: { x: 80, y: 170 },
+          size: { x: 6, y: 6 },
+          elevation: 1,
+          thickness: 1,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+    });
+    const { pipeline } = setup();
+    pipeline.render({ scene: baseScene, dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    const stats = pipeline.render({ scene: edited, dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    // material table bytes identical -> geometry-only partial eligibility
+    expect(stats.invalidation.reasons).toEqual(["scene"]);
+    expect(stats.invalidation.reasons).not.toContain("material-values");
+    expect(stats.planning.mode).toBe("partial");
+  });
+
   it("invalidates retained regional state when a partial frame fails mid-chain", () => {
     const { device, pipeline } = setup();
     render(pipeline, tallScene());

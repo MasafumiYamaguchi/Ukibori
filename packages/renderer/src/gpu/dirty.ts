@@ -19,10 +19,11 @@ import {
   LIGHT_DIRECTION_REGION,
   LIGHT_INTENSITY_REGION,
   materialFlagsRanges,
+  regionBytesEqual,
   regionEqual,
   regionsEqual,
 } from "./height-inputs";
-import { sceneSectionLayout } from "./layout";
+import { MATERIAL_STRIDE, sceneSectionLayout } from "./layout";
 import { bytesEqual } from "./tiles";
 
 /**
@@ -92,24 +93,37 @@ import { bytesEqual } from "./tiles";
  *
  * ### Reason composition with a simultaneous geometry change (#43 review)
  *
- * The global semantic header fields (light direction / angular radius /
- * intensity / exposure / environment) live at FIXED header offsets, so a
- * geometry change NEVER swallows them: `classifySceneChange` returns
- * `["scene", "light-angular-radius", ...]` for a combined edit. Likewise
- * the shadow/reconstruction OPTION fingerprints are independent of the
- * scene fingerprint — `["scene", "shadow-options"]` /
- * `["scene", "reconstruction-options"]` are produced when a global pass
+ * The GLOBAL SEMANTIC fields are always compared, so a geometry change
+ * NEVER swallows them:
+ *
+ * - the header fields (light direction / angular radius / intensity /
+ *   exposure / environment) live at FIXED header offsets;
+ * - the material VALUES table is compared at each scene's OWN
+ *   `materialsOffset` whenever `materialCount` is unchanged (the
+ *   surface/mask layout may shift, but the same-length table at its own
+ *   offset still describes the same logical materials); a materialCount
+ *   change is structural and covered by `scene`.
+ *
+ * `classifySceneChange` therefore returns `["scene",
+ * "light-angular-radius", ...]` / `["scene", "material-values"]` for
+ * combined edits. Likewise the shadow/reconstruction OPTION fingerprints
+ * are independent of the scene fingerprint — `["scene", "shadow-options"]`
+ * / `["scene", "reconstruction-options"]` are produced when a global pass
  * option changed alongside geometry. The PLANNER contract:
  *
  * - geometry-only scene change -> eligible for partial
  * - geometry + global pass-option/semantic change -> full
  *   (`option-change-with-scene` / `<semantic>-change`)
  *
- * The partial-locality proof only holds while the global shadow /
- * reconstruction semantics are IDENTICAL to the retained frame; a partial
- * update with changed global semantics would mix new and retained
- * visibility semantics frame-wide. `stagesForReasons` unions stages, so
- * extra reasons never double-execute a pass.
+ * The GLOBAL semantics whose change breaks the partial-locality proof:
+ * light direction / angular radius / intensity / environment / exposure,
+ * shadow options (samples/step/bias/maxDistance), reconstruction options
+ * (enabled/radius/heightGate), and MATERIAL VALUES (baseColor / roughness
+ * / metallic / ior). The partial-locality proof only holds while ALL of
+ * them are IDENTICAL to the retained frame; a partial update with changed
+ * global semantics would mix new and retained visibility/lighting
+ * semantics frame-wide. `stagesForReasons` unions stages, so extra reasons
+ * never double-execute a pass.
  *
  * Every change class includes `upload`: the changed bytes must reach the
  * GPU. The retained height-stage fields are only ever combined with the new
@@ -322,21 +336,22 @@ export function computeFrameKey(
  * regions (`gpu/height-inputs.ts`) — a hash is never consulted here:
  *
  * - byte-length / header-geometry / surface / mask / mask-pixel / material-
- *   flags differences -> `["scene", ...headerSemanticChanges]` (conservative
- *   full chain). The GLOBAL SEMANTIC header fields (light direction /
- *   angular radius / intensity / exposure / environment) live at FIXED
- *   header offsets, so they are ALWAYS compared — a geometry change must
- *   never swallow a simultaneous `light-angular-radius` (or direction /
- *   intensity / environment) change: the planner needs those reasons to
- *   refuse the partial path (a partial update with changed global shadow /
- *   lighting semantics would mix new and retained semantics frame-wide).
+ *   flags differences -> `["scene", ...globalSemanticChanges]` (conservative
+ *   full chain). The GLOBAL SEMANTIC fields — the fixed-offset header fields
+ *   (light direction / angular radius / intensity / exposure / environment)
+ *   AND the material VALUES table (compared at each scene's OWN
+ *   `materialsOffset` whenever `materialCount` is unchanged, even when the
+ *   surface/mask layout shifted) — are ALWAYS compared, so a geometry change
+ *   never swallows a simultaneous global semantic change: the planner needs
+ *   those reasons to refuse the partial path (a partial update with changed
+ *   global lighting/material semantics would mix new and retained semantics
+ *   frame-wide).
  * - otherwise the union of the changed light/environment/material regions:
  *   `light-direction`, `light-angular-radius`, `light-intensity`,
  *   `environment` (environment vec4 or exposure), `material-values` — each
- *   with its own downstream closure. `material-values` is only compared
- *   when the geometry is byte-identical (the materials section OFFSET is
- *   layout-dependent; a shifted layout makes a positional comparison
- *   meaningless — a geometry change already forces the full chain anyway).
+ *   with its own downstream closure. A materialCount change is a structural
+ *   change: the table length differs, so it is covered by `scene` (full
+ *   chain) — the planner never takes the partial path for it.
  * - no differences -> `[]` (byte-identical scenes)
  */
 export function classifySceneChange(
@@ -367,11 +382,35 @@ export function classifySceneChange(
   ) {
     changes.push("environment");
   }
+  // Material VALUES are frame-global LIGHTING semantics (#43 review): they
+  // are comparable whenever `materialCount` is unchanged, pairing each
+  // scene's OWN `materialsOffset` — the surface/mask layout may shift (an
+  // added surface moves the table), but the table bytes at their own
+  // offsets still describe the same logical materials. A materialCount
+  // change is structural (the table length differs): the `scene` reason
+  // covers it and the planner never takes the partial path.
+  if (
+    prevHeader.materialCount === nextHeader.materialCount &&
+    prevHeader.materialCount > 0
+  ) {
+    const byteLength = prevHeader.materialCount * MATERIAL_STRIDE;
+    if (
+      !regionBytesEqual(
+        prevBytes,
+        prevLayout.materialsOffset,
+        nextBytes,
+        nextLayout.materialsOffset,
+        byteLength,
+      )
+    ) {
+      changes.push("material-values");
+    }
+  }
   // Any height-input byte differs -> the height chain must re-run and no
   // downstream reuse is legal: classify as the conservative full chain. The
   // material FLAGS fields are height-dependent too (the material-id output
   // reads them), so they are checked here rather than with the material
-  // VALUES below. The fixed-offset global semantic reasons above are kept.
+  // VALUES above. The global semantic reasons are kept.
   const geometryChanged =
     prevBytes.byteLength !== nextBytes.byteLength ||
     !regionsEqual(prevBytes, nextBytes, HEADER_GEOMETRY_REGIONS) ||
@@ -390,16 +429,6 @@ export function classifySceneChange(
     !regionsEqual(prevBytes, nextBytes, materialFlagsRanges(prevHeader, prevLayout));
   if (geometryChanged) {
     return ["scene", ...changes];
-  }
-  // Geometry/header/sections are byte-identical, so both layouts agree and
-  // the material-VALUES comparison is positional and in bounds.
-  if (
-    !regionEqual(prevBytes, nextBytes, {
-      offset: prevLayout.materialsOffset,
-      byteLength: prevLayout.materialsByteLength,
-    })
-  ) {
-    changes.push("material-values");
   }
   return changes;
 }

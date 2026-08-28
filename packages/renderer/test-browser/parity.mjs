@@ -2854,6 +2854,189 @@ async function runRetainedGlobalChangeParity(device) {
 }
 
 /**
+ * #43 real-WebGPU retained-vs-fresh regression for the MATERIAL-VALUE bug
+ * (geometry + material table value change in ONE frame).
+ *
+ * Frame A: a large gray receiver panel.
+ * Frame B: a tiny local surface added AND the EXISTING "matte" definition
+ * changed gray -> visibly different red (materialCount unchanged).
+ *
+ * The retained pipeline must plan Frame B FULL (the material values are a
+ * frame-global lighting semantic; a partial update would light the dirty
+ * band with the NEW material and the retained region with the OLD one),
+ * and the retained Frame B's lighting color + final canvas must equal a
+ * FRESH pipeline's first-frame full render of Frame B.
+ */
+async function runRetainedMaterialChangeParity(device) {
+  const problems = [];
+  const gray = { baseColor: { r: 0.5, g: 0.5, b: 0.5 }, roughness: 0.5, metallic: 0 };
+  const red = { baseColor: { r: 1, g: 0, b: 0 }, roughness: 0.5, metallic: 0 };
+  const frameA = () =>
+    api.createScene({
+      width: 320,
+      height: 180,
+      surfaces: [
+        {
+          id: "panel",
+          position: { x: 0, y: 0 },
+          size: { x: 320, y: 180 },
+          elevation: 0,
+          thickness: 0,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: false,
+          receivesShadow: true,
+        },
+        {
+          id: "btn",
+          position: { x: 40, y: 40 },
+          size: { x: 60, y: 40 },
+          elevation: 2,
+          thickness: 3,
+          bevelWidth: 4,
+          shape: { kind: "roundedRect", radius: 10 },
+          profile: { kind: "bevel" },
+          material: "matte",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      materials: { matte: gray },
+      light: { direction: { x: 0, y: 0.1, z: 0.995 }, intensity: 1 },
+    });
+  const frameB = () =>
+    api.createScene({
+      width: 320,
+      height: 180,
+      surfaces: [
+        ...frameA().surfaces,
+        {
+          id: "chip",
+          position: { x: 300, y: 160 },
+          size: { x: 8, y: 8 },
+          elevation: 1,
+          thickness: 1,
+          shape: { kind: "roundedRect", radius: 2 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      // the EXISTING matte definition changes: materialCount unchanged
+      materials: { matte: red },
+      light: { direction: { x: 0, y: 0.1, z: 0.995 }, intensity: 1 },
+    });
+  const shadowOptions = { maxDistance: 40, stepSize: 0.5, bias: 0.5 };
+  let pipeline = null;
+  let canvas = null;
+  try {
+    const first = await makeRetainedCanvas();
+    canvas = first.canvas;
+    pipeline = new api.GpuScenePipeline(device, first.context, first.canvasFormat);
+    pipeline.render({
+      scene: frameA(),
+      dpr: 1,
+      shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    const statsB = pipeline.render({
+      scene: frameB(),
+      dpr: 1,
+      shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    if (statsB.planning.mode !== "full") {
+      problems.push(
+        `material-change frame planned ${statsB.planning.mode}/${statsB.planning.reason} ` +
+          "(expected full: geometry + material VALUES changed together)",
+      );
+    }
+    for (const reason of ["scene", "material-values"]) {
+      if (!statsB.invalidation.reasons.includes(reason)) {
+        problems.push(
+          `material-change frame lost reason "${reason}" (got ${statsB.invalidation.reasons.join(",")})`,
+        );
+      }
+    }
+    const snapshotB = pipeline.getSnapshot();
+    const [colorB] = await Promise.all([
+      readback(device, snapshotB.lightingPass.color.buffer, snapshotB.lightingPass.color.byteLength),
+    ]);
+    const canvasB = await capturePresented(
+      device,
+      first.context,
+      first.canvasFormat,
+      statsB.renderWidth,
+      statsB.renderHeight,
+    );
+    pipeline.dispose();
+    pipeline = null;
+    canvas.remove();
+    canvas = null;
+
+    const second = await makeRetainedCanvas();
+    const fresh = new api.GpuScenePipeline(device, second.context, second.canvasFormat);
+    const freshStats = fresh.render({
+      scene: frameB(),
+      dpr: 1,
+      shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    const freshSnapshot = fresh.getSnapshot();
+    const [colorF] = await Promise.all([
+      readback(device, freshSnapshot.lightingPass.color.buffer, freshSnapshot.lightingPass.color.byteLength),
+    ]);
+    const canvasF = await capturePresented(
+      device,
+      second.context,
+      second.canvasFormat,
+      freshStats.renderWidth,
+      freshStats.renderHeight,
+    );
+    fresh.dispose();
+    second.canvas.remove();
+
+    const width = freshSnapshot.width;
+    const colorCompare = oracle.compareColor(
+      { id: "material-change-color", shadowOptions, scene: frameB() },
+      colorF,
+      colorB,
+      width,
+    );
+    if (colorCompare.hard > 0 || colorCompare.alphaBad > 0) {
+      problems.push(
+        `material-change: lighting color mismatch (hard ${colorCompare.hard}, alpha ${colorCompare.alphaBad})`,
+      );
+    }
+    const canvasCompare = oracle.compareCanvas(
+      { id: "material-change-canvas", shadowOptions, scene: frameB() },
+      canvasF,
+      canvasB,
+      width,
+    );
+    if (canvasCompare.hard > 0 || canvasCompare.alphaBad > 0) {
+      problems.push(
+        `material-change: final canvas mismatch (hard ${canvasCompare.hard}, alpha ${canvasCompare.alphaBad})`,
+      );
+    }
+  } catch (error) {
+    problems.push(`material-change parity threw: ${String(error?.stack ?? error)}`);
+  }
+  try {
+    pipeline?.dispose();
+    canvas?.remove();
+  } catch {
+    // disposal must never mask the outcome
+  }
+  return problems;
+}
+
+/**
  * #32 tile benchmark at the documented 640x360 demo-frame proxy scene:
  * several tile sizes x dirty-area ratios (small/medium/large edits).
  * Binning overhead (the planner's host wall-clock `planningHostMs`) is
@@ -3195,9 +3378,22 @@ async function main() {
     } catch (error) {
       globalChangeFailure = String(error?.stack ?? error);
     }
+    // #43 real-WebGPU retained-vs-fresh regression for the MATERIAL-VALUE
+    // bug: a tiny surface add combined with an existing material table value
+    // change must plan FULL (material values are a frame-global lighting
+    // semantic) and the retained lighting color + final canvas must equal a
+    // fresh pipeline's full render.
+    const materialChangeProblems = [];
+    let materialChangeFailure = null;
+    try {
+      materialChangeProblems.push(...(await runRetainedMaterialChangeParity(device)));
+    } catch (error) {
+      materialChangeFailure = String(error?.stack ?? error);
+    }
     summaryData.partialProblems = partialProblems.length;
     summaryData.reconPartialProblems = reconPartialProblems.length;
     summaryData.globalChangeProblems = globalChangeProblems.length;
+    summaryData.materialChangeProblems = materialChangeProblems.length;
     if (reconPartialFailure !== null) {
       detail.push(`recon partial parity failed: ${reconPartialFailure}`);
     }
@@ -3209,6 +3405,12 @@ async function main() {
     }
     for (const problem of globalChangeProblems) {
       detail.push(`global-change parity: ${problem}`);
+    }
+    if (materialChangeFailure !== null) {
+      detail.push(`material-change parity failed: ${materialChangeFailure}`);
+    }
+    for (const problem of materialChangeProblems) {
+      detail.push(`material-change parity: ${problem}`);
     }
     // #32 tile benchmark: report-only (deterministic cost ratio decides the
     // path, never a timing), run after the parity gates so failures surface
@@ -3782,6 +3984,21 @@ async function main() {
         MARKER_FAIL,
         `global-change retained-vs-fresh parity problems (${globalChangeProblems.length}): ` +
           globalChangeProblems.join("; "),
+      );
+      return;
+    }
+    if (materialChangeFailure !== null) {
+      finish(
+        MARKER_FAIL,
+        `material-change retained-vs-fresh parity failed: ${materialChangeFailure}`,
+      );
+      return;
+    }
+    if (materialChangeProblems.length > 0) {
+      finish(
+        MARKER_FAIL,
+        `material-change retained-vs-fresh parity problems (${materialChangeProblems.length}): ` +
+          materialChangeProblems.join("; "),
       );
       return;
     }

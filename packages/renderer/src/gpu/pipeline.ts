@@ -789,11 +789,12 @@ export class GpuScenePipeline {
    *   ratio, never a timing), otherwise full ("band-coverage ...").
    * - geometry + GLOBAL pass-option/semantic change -> full
    *   ("option-change-with-scene" for shadow/reconstruction/normal/lighting
-   *   options; "<semantic>-change" for the encoded header fields). The
-   *   partial-locality proof only holds while the global shadow /
-   *   reconstruction semantics are IDENTICAL to the retained frame — a
-   *   partial update would mix new and retained visibility semantics
-   *   frame-wide (#43 review).
+   *   options; "<semantic>-change" for the encoded header fields AND the
+   *   material VALUES table). The partial-locality proof only holds while
+   *   the global semantics — light direction/radius/intensity/environment,
+   *   shadow options, reconstruction options and MATERIAL VALUES — are
+   *   IDENTICAL to the retained frame; a partial update would mix new and
+   *   retained visibility/lighting semantics frame-wide (#43 review).
    *
    * The scene fingerprint is never trusted alone: `planPartialScene` diffs
    * the EXACT retained bytes against the fresh encoding.

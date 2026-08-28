@@ -566,13 +566,20 @@ export function diffEncodedScenes(prev: Uint8Array, next: Uint8Array): SceneDiff
   const surfacesOffset = HEADER_SIZE;
   const prevLayout = sceneSectionLayout(prevHeader);
   const nextLayout = sceneSectionLayout(nextHeader);
+  // Material VALUES are frame-global LIGHTING semantics (#43 review): a
+  // partial-locality proof requires them to be identical to the retained
+  // frame. When materialCount is unchanged, the table bytes are compared at
+  // each scene's OWN materialsOffset — the surface/mask layout may shift
+  // (an added surface moves the table), but the same-length table at its
+  // own offsets still describes the same logical materials. A materialCount
+  // change (or table bytes differing) is a GLOBAL semantic change and must
+  // fall back to the conservative full recompute — never a partial band
+  // mixing new and retained material semantics.
   const materialBytes = nextHeader.materialCount * MATERIAL_STRIDE;
   if (prevHeader.materialCount !== nextHeader.materialCount) {
     return full("material-table-change");
   }
   if (
-    prevHeader.surfaceCount === nextHeader.surfaceCount &&
-    prevHeader.maskCount === nextHeader.maskCount &&
     !bytesEqual(
       prev.subarray(prevLayout.materialsOffset, prevLayout.materialsOffset + materialBytes),
       next.subarray(nextLayout.materialsOffset, nextLayout.materialsOffset + materialBytes),
