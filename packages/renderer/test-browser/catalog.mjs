@@ -642,8 +642,8 @@ export function createCatalog(api) {
           size: { x: 4, y: 2 },
           elevation: 2,
         })],
-        // #45: `lightOverrides` may carry a linear-RGB color (e.g. the warm
-        // fixture) — createScene sanitizes it; the shadow/reconstruction
+        // #45: `lightOverrides` may carry a linear-RGB `color` (e.g. the
+        // warm fixture) — createScene sanitizes it; the shadow/reconstruction
         // fields stay color-invariant.
         light: {
           direction: LIGHT_FROM_RIGHT,
@@ -1496,7 +1496,7 @@ export function createCatalog(api) {
     // reconstructed-shadow canvas quantization guard applies as usual).
     {
       name: "present-reconstructed-soft-shadow-colored-light",
-      ...portableReconstructedScene({ lightColor: { r: 1, g: 0.55, b: 0.25 } }),
+      ...portableReconstructedScene({ color: { r: 1, g: 0.55, b: 0.25 } }),
       dpr: 1,
       compositeOptions: { shadowColor: [160, 70, 180], shadowAlpha: Math.fround(74 / 255) },
     },
@@ -1563,6 +1563,26 @@ export function createCatalog(api) {
    * a plain JSON structure.
    */
   function describeScene(scene) {
+    const lightDescription = {
+      direction: { x: scene.light.direction.x, y: scene.light.direction.y, z: scene.light.direction.z },
+      intensity: scene.light.intensity,
+      // #41: the apparent light size (radians) affects the rendered
+      // visibility/canvas output, so it MUST be part of the canonical
+      // fixture metadata (mismatch reports and static-golden parameters).
+      angularRadius: scene.light.angularRadius ?? 0,
+    };
+    // #45: the canonical f32 light color affects the rendered output, so a
+    // NON-WHITE color must be part of the fixture metadata. The white
+    // default is deliberately OMITTED so the historical white-light golden
+    // payloads (and their digests) stay byte-identical.
+    const color = scene.light.color;
+    if (color !== undefined && (color.r !== 1 || color.g !== 1 || color.b !== 1)) {
+      lightDescription.color = {
+        r: color.r,
+        g: color.g,
+        b: color.b,
+      };
+    }
     return {
       width: scene.width,
       height: scene.height,
@@ -1586,14 +1606,7 @@ export function createCatalog(api) {
         receivesShadow: s.receivesShadow,
       })),
       materials: scene.materials,
-      light: {
-        direction: { x: scene.light.direction.x, y: scene.light.direction.y, z: scene.light.direction.z },
-        intensity: scene.light.intensity,
-        // #41: the apparent light size (radians) affects the rendered
-        // visibility/canvas output, so it MUST be part of the canonical
-        // fixture metadata (mismatch reports and static-golden parameters).
-        angularRadius: scene.light.angularRadius ?? 0,
-      },
+      light: lightDescription,
       environment: {
         intensity: scene.environment.intensity,
         diffuseIntensity: scene.environment.diffuseIntensity,

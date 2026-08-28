@@ -2,8 +2,18 @@ import { NO_OWNER } from "../compose";
 import type { LinearRgb, Vec2, Vec3 } from "../types";
 
 /**
- * #24 GPU scene/buffer ABI v1 — byte-exact layout shared by the host encoder,
+ * #24 GPU scene/buffer ABI — byte-exact layout shared by the host encoder,
  * the strict validator, the GPU upload owner, and the WGSL declarations.
+ *
+ * ## Version history
+ *
+ * - ABI v1 (pre-#45): header offsets 112..128 were RESERVED ZERO. A v1 buffer
+ *   never carries a light color — reading those bytes as RGB would silently
+ *   turn a legacy white-light scene into a black light.
+ * - ABI v2 (#45): header offsets 112..128 carry `lightColor` (linear RGB r,
+ *   g, b + deterministic zero w). v1 buffers are NOT reinterpreted: the
+ *   strict validator and the GPU uploader reject `version != ABI_VERSION` as
+ *   unsupported (see the legacy-v1 policy in `validate.ts`).
  *
  * This module is the SINGLE SOURCE OF TRUTH for every offset, stride and
  * sentinel. `wgsl.ts` mirrors these numbers as WGSL structs; both must stay
@@ -37,7 +47,17 @@ import type { LinearRgb, Vec2, Vec3 } from "../types";
  */
 
 export const ABI_MAGIC = 0x554b4942; // "UKIB" tag, little-endian u32
-export const ABI_VERSION = 1;
+/**
+ * Current scene ABI version.
+ *
+ * - 1: legacy (#24..#44). Header 112..128 = reserved zero (NO light color).
+ * - 2: #45. Header 112..128 = `lightColor` vec4 (linear RGB r, g, b + zero w).
+ *
+ * The encoder always writes the current version; v1 buffers are rejected as
+ * unsupported rather than re-interpreted (their reserved zero bytes are NOT
+ * a black light).
+ */
+export const ABI_VERSION = 2;
 export const HEADER_SIZE = 128;
 
 /**
@@ -67,8 +87,11 @@ export const HEADER_SIZE = 128;
  * | 92     | 4    | reserved (u32, 0)                                 |
  * | 96     | 16   | environment (vec4: intensity, diffuseIntensity,   |
  * |        |      |            specularIntensity, 0)                  |
- * | 112    | 16   | lightColor (#45 vec4: linear RGB r, g, b, 0;      |
- * |        |      |            white default, HDR values > 1 allowed) |
+ * | 112    | 16   | ABI v2 ONLY: lightColor (vec4: linear RGB r, g,  |
+ * |        |      |            b, 0; white default, HDR values > 1  |
+ * |        |      |            allowed). ABI v1 kept 112..128 as    |
+ * |        |      |            reserved zero and is REJECTED, never |
+ * |        |      |            re-interpreted (#45 legacy policy). |
  */
 
 export const SURFACE_STRIDE = 128;
@@ -246,7 +269,8 @@ export interface EncodedHeader {
   exposure: number;
   /** #41 light angular radius in radians (f32, >= 0; 0 = hard shadow) */
   lightAngularRadius: number;
-  /** #45 linear RGB directional-light color (f32; HDR values > 1 allowed) */
+  /** #45 linear RGB directional-light color (f32; HDR values > 1 allowed;
+   * ABI v2 field — v1 reserved this range and is rejected upstream) */
   lightColor: LinearRgb;
   environment: { intensity: number; diffuseIntensity: number; specularIntensity: number };
 }

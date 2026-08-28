@@ -109,14 +109,80 @@ describe("createScene", () => {
       expect(
         createScene({ width: 4, height: 4, light: { color: { r: bad, g: 0.4, b: 0.6 } } as never })
           .light.color,
-      ).toEqual({ r: 1, g: 0.4, b: 0.6 });
+      ).toEqual({ r: 1, g: Math.fround(0.4), b: Math.fround(0.6) });
     }
     // missing channels (a partial color object) fill with white
     expect(createScene({ width: 4, height: 4, light: { color: { r: 0.3 } } as never }).light.color).toEqual({
-      r: 0.3,
+      r: Math.fround(0.3),
       g: 1,
       b: 1,
     });
+  });
+
+  // #45 f32-domain contract: Scene.light.color is the CANONICAL f32 value —
+  // the exact number the encoder packs and the WGSL shader reads. A channel
+  // that is legal in the JS f64 domain but not representable as an f32
+  // (Math.fround -> Infinity) must fall back to 1 AT SANITIZE TIME, so the
+  // public API can never produce a value the GPU ABI cannot hold.
+  it("rounds every valid channel to its canonical f32 value", () => {
+    expect(
+      createScene({
+        width: 4,
+        height: 4,
+        light: { color: { r: 0.1, g: 0.2, b: 0.3 } },
+      }).light.color,
+    ).toEqual({
+      r: Math.fround(0.1),
+      g: Math.fround(0.2),
+      b: Math.fround(0.3),
+    });
+  });
+
+  it("preserves representable HDR channels and the largest finite f32", () => {
+    expect(
+      createScene({
+        width: 4,
+        height: 4,
+        light: { color: { r: 2, g: 16, b: 65504 } },
+      }).light.color,
+    ).toEqual({ r: 2, g: 16, b: 65504 });
+    // the largest finite f32 (f32-exact in JS): preserved, finite
+    const nearMax = 3.4028234663852886e38;
+    const scene = createScene({
+      width: 4,
+      height: 4,
+      light: { color: { r: nearMax, g: 1, b: 1 } },
+    });
+    expect(scene.light.color.r).toBe(nearMax);
+    expect(Number.isFinite(scene.light.color.r)).toBe(true);
+  });
+
+  it("falls back to 1 for finite f64 values whose f32 rounding overflows", () => {
+    // Math.fround(Number.MAX_VALUE) === Infinity: the canonical f32 value
+    // cannot exist, so the sanitizer must fall back to 1 instead of
+    // creating a CPU-valid / GPU-invalid split.
+    expect(
+      createScene({ width: 4, height: 4, light: { color: { r: Number.MAX_VALUE, g: 1, b: 1 } } })
+        .light.color,
+    ).toEqual({ r: 1, g: 1, b: 1 });
+    // 3.4028236e38 is above the f32 rounding-overflow boundary
+    expect(Math.fround(3.4028236e38)).toBe(Infinity);
+    expect(
+      createScene({ width: 4, height: 4, light: { color: { r: 3.4028236e38, g: 1, b: 1 } } })
+        .light.color,
+    ).toEqual({ r: 1, g: 1, b: 1 });
+    // just below the boundary stays a finite representable HDR value
+    expect(Math.fround(3.4028234e38)).not.toBe(Infinity);
+    expect(
+      createScene({ width: 4, height: 4, light: { color: { r: 3.4028234e38, g: 1, b: 1 } } })
+        .light.color.r,
+    ).toBe(Math.fround(3.4028234e38));
+  });
+
+  it("keeps zero as an explicit valid black-light channel", () => {
+    expect(
+      createScene({ width: 4, height: 4, light: { color: { r: 0, g: 0, b: 0 } } }).light.color,
+    ).toEqual({ r: 0, g: 0, b: 0 });
   });
 
   it("defaults environment to 0.5 and exposure to 1", () => {

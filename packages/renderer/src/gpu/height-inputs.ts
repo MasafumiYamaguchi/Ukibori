@@ -72,11 +72,12 @@ export const LIGHT_ANGULAR_RADIUS_REGION: SceneByteRegion = { offset: 88, byteLe
 /** Header `environment` vec4 (offsets 96..112). Lighting-only input. */
 export const ENVIRONMENT_REGION: SceneByteRegion = { offset: 96, byteLength: 16 };
 /**
- * Header #45 `lightColor` vec4 (offsets 112..128): the directional light's
- * LINEAR RGB color (w = 0). It feeds ONLY the lighting stage (the direct
- * contribution) — the height field never reads it, so a light-color-only
- * change keeps the retained height/normal/shadow/reconstruction fields
- * valid.
+ * Header #45 `lightColor` vec4 (offsets 112..128, ABI v2 only): the
+ * directional light's LINEAR RGB color (w = 0). It feeds ONLY the lighting
+ * stage (the direct contribution) — the height field never reads it, so a
+ * light-color-only change keeps the retained height/normal/shadow/
+ * reconstruction fields valid. Legacy ABI v1 reserved this range and is
+ * rejected upstream, never interpreted as a color.
  */
 export const LIGHT_COLOR_REGION: SceneByteRegion = { offset: 112, byteLength: 16 };
 

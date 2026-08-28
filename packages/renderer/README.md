@@ -121,11 +121,22 @@ tests.
   `direct.rgb = lightColor * intensity * visibility * NdotL * BRDF`. The
   default is white (`{r:1, g:1, b:1}`); values above 1 (HDR multipliers)
   are preserved; per-channel sanitization falls back to 1 for missing /
-  non-finite / negative channels and keeps zero. Ambient and environment
+  non-finite / negative channels and keeps zero (an explicit BLACK light
+  is legal). Every channel is canonical **f32** (`Math.fround`): a finite
+  f64 value whose f32 rounding overflows to Infinity (e.g.
+  `Number.MAX_VALUE`) falls back to 1 at sanitize time, so `Scene.light.color`,
+  the encoded ABI bytes and the WGSL-visible value are always the SAME
+  f32 number — no CPU/GPU numeric split. Ambient and environment
   are NEVER multiplied by the light color, cast-shadow visibility keeps
   scaling only the direct term, exposure stays a post-accumulation
   multiplier, and the scalar `diffuse`/`specular` debug buffers stay
   color-independent. White light reproduces the historical bytes exactly.
+- scene ABI: the encoded scene header is versioned (`ABI_VERSION`, currently
+  2). ABI v1 (pre-#45) kept header offsets 112..128 as RESERVED ZERO; ABI v2
+  (#45) reuses them for `lightColor`. Legacy v1 buffers are REJECTED as
+  `unsupported ABI version 1` by the strict validator and the GPU uploader —
+  their reserved zero bytes are never re-interpreted as a black light.
+  Re-encode old scenes with the current encoder (which always writes v2).
 - debug buffers: `normal` (f32 x3), `diffuse` (raw N·L) / `specular`
   (specular direct contribution: `luminance(Fr) * NdotL * visibility`,
   before light intensity, f32 1ch), `color` (RGBA8), `visibility` (0/1 hard

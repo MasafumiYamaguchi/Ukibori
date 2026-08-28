@@ -46,10 +46,20 @@ import {
 } from "./layout";
 
 /**
- * #24 strict validator — checks the ACTUAL ENCODED BYTES of an ABI v1 scene,
+ * #24 strict validator — checks the ACTUAL ENCODED BYTES of an ABI v2 scene,
  * never the source `Scene` object. It is the byte-level counterpart of
  * `encodeScene` and is safe for Node unit tests and for defending later GPU
  * uploads against corrupted or foreign buffers.
+ *
+ * ## Legacy ABI v1 policy (#45)
+ *
+ * v1 kept header offsets 112..128 as RESERVED ZERO; v2 reuses them for the
+ * `lightColor` vec4. v1 buffers are therefore NEVER re-interpreted: the
+ * version check below rejects any `version != ABI_VERSION` (2) as
+ * `unsupported ABI version N` — a legacy v1 scene with zeroed 112..128 must
+ * never be silently accepted as an explicit BLACK light (the v1 reserved
+ * bytes carry no color semantics at all). There is no migration path for v1
+ * input: re-encode with the current encoder (which always emits v2).
  *
  * Rejected (each with a specific error message):
  *

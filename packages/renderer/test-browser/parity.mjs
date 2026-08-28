@@ -3116,7 +3116,14 @@ async function runLightColorParity(device) {
         `light-color-only reasons ${colorOnly.invalidation.reasons.join(",")} (expected light-color)`,
       );
     }
-    if (colorOnly.invalidation.skipped.includes("shadow") || colorOnly.invalidation.skipped.includes("reconstruction")) {
+    // #45 scheduler closure: a light-color-only update MUST retain the
+    // shadow and reconstruction stages (they stay in `skipped` — the
+    // retained complement of `executed`) and re-run only upload/lighting/
+    // presentation.
+    if (
+      !colorOnly.invalidation.skipped.includes("shadow") ||
+      !colorOnly.invalidation.skipped.includes("reconstruction")
+    ) {
       problems.push("light-color-only update should retain shadow/reconstruction");
     }
     const colorOnlySnapshot = pipeline.getSnapshot();

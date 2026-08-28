@@ -12,7 +12,7 @@ import {
 } from "./layout";
 
 /**
- * #24 WGSL layout declarations for ABI v1 — MUST match `layout.ts` exactly
+ * #24 WGSL layout declarations for ABI v2 — MUST match `layout.ts` exactly
  * (same offsets, strides, 32-bit scalars, little-endian storage).
  *
  * Every binding is declared as a `var<storage>` buffer so compute passes
@@ -31,7 +31,7 @@ import {
  */
 
 export const WGSL_SCENE_BASE = /* wgsl */ `
-// Ukibori scene ABI v1 (magic ${ABI_MAGIC.toString(16)}, version ${ABI_VERSION},
+// Ukibori scene ABI v2 (magic ${ABI_MAGIC.toString(16)}, version ${ABI_VERSION},
 // header ${HEADER_SIZE} bytes, sentinel NO_OWNER ${NO_OWNER}).
 
 const SURFACE_STRIDE: u32 = ${SURFACE_STRIDE}u; // 128
@@ -122,7 +122,7 @@ struct MaterialRecord {
 `;
 
 /**
- * ABI v1 scene bindings (group 0, bindings 0-4). Compute passes must keep
+ * ABI v2 scene bindings (group 0, bindings 0-4). Compute passes must keep
  * these binding NUMBERS stable. A pass module may declare a SUBSET of these
  * bindings (its pipeline layout can bind more than the shader declares, but
  * never fewer); `WGSL_LAYOUT` below is the complete declaration.
