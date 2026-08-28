@@ -71,19 +71,26 @@ export const EXPOSURE_REGION: SceneByteRegion = { offset: 84, byteLength: 4 };
 export const LIGHT_ANGULAR_RADIUS_REGION: SceneByteRegion = { offset: 88, byteLength: 4 };
 /** Header `environment` vec4 (offsets 96..112). Lighting-only input. */
 export const ENVIRONMENT_REGION: SceneByteRegion = { offset: 96, byteLength: 16 };
+/**
+ * Header #45 `lightColor` vec4 (offsets 112..128): the directional light's
+ * LINEAR RGB color (w = 0). It feeds ONLY the lighting stage (the direct
+ * contribution) — the height field never reads it, so a light-color-only
+ * change keeps the retained height/normal/shadow/reconstruction fields
+ * valid.
+ */
+export const LIGHT_COLOR_REGION: SceneByteRegion = { offset: 112, byteLength: 16 };
 
 /**
  * Header bytes the height stage genuinely depends on: everything EXCEPT
- * light direction / intensity / angular radius / exposure / environment.
- * Covers the magic/version/length fields, logical+render extents, DPR,
- * section counts, coordinate flags and the remaining reserved word
- * (always zero, strict-validated) — so a count/layout change also lands
+ * light direction / intensity / angular radius / color / exposure /
+ * environment. Covers the magic/version/length fields, logical+render
+ * extents, DPR, section counts, coordinate flags and the remaining reserved
+ * word (always zero, strict-validated) — so a count/layout change also lands
  * here and forces the conservative full chain.
  */
 export const HEADER_GEOMETRY_REGIONS: readonly SceneByteRegion[] = [
   { offset: 0, byteLength: 64 },
   { offset: 92, byteLength: 4 },
-  { offset: 112, byteLength: 16 },
 ];
 
 /** The material FLAGS field of every record — the ONLY material-table bytes

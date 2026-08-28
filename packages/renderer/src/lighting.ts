@@ -188,7 +188,10 @@ export function computeNormals(height: HostBuffer, options: NormalOptions = {}):
  * - the degenerate half-vector `L = -V` (direction `{0, 0, -1}`) yields no
  *   half vector; specular resolves safely to 0 (no NaN)
  * - color = (baseColor * ambient + visibility * intensity * NdotL *
- *   (diffuse + specular) + environment) * exposure, encoded to sRGB8
+ *   lightColor * (diffuse + specular) + environment) * exposure,
+ *   encoded to sRGB8 (#45: lightColor is the linear-RGB per-channel
+ *   multiplier of the DIRECT contribution only; white keeps the historical
+ *   bytes)
  */
 export function shadeHeightField(
   scene: Scene,
@@ -293,7 +296,17 @@ export function shadePreparedFields(
       specular.set(x, y, 0, Math.min(luminance(brdf.specular) * cosine * vis, 1));
 
       const base = material.baseColor;
-      const direct = intensity * cosine * vis;
+      // #45: the DIRECT contribution is per-channel — the directional light
+      // color (linear RGB) times the scalar light-power intensity, NdotL and
+      // visibility. Ambient and environment are never multiplied by the
+      // light color. White light reproduces the historical scalar formula
+      // byte-for-byte (1 * intensity * cosine * vis).
+      const lightColor = scene.light.color ?? { r: 1, g: 1, b: 1 };
+      const direct = {
+        r: lightColor.r * intensity * cosine * vis,
+        g: lightColor.g * intensity * cosine * vis,
+        b: lightColor.b * intensity * cosine * vis,
+      };
       const env = evaluateEnvironment(material, environment);
       // #22 linear accumulation: saturated arithmetic keeps every finite
       // input (including Number.MAX_VALUE-scale intensity/environment)

@@ -136,9 +136,16 @@ export function validateEncodedScene(bytes: Uint8Array): ValidationResult {
     `light angular radius at offset 88 must be a finite non-negative f32, got ${angularRadius}`,
   );
   check(readU32(92) === 0, "header reserved u32 at offset 92 must be 0");
-  for (let offset = 112; offset < HEADER_SIZE; offset += 4) {
-    check(readU32(offset) === 0, `header reserved u32 at ${offset} must be 0`);
-  }
+  // Offset 112..124 carries the #45 directional-light linear RGB color
+  // (f32): every channel must be finite and >= 0 (the encoder only emits
+  // createScene-sanitized channels; negative/NaN bytes are malformed). The
+  // fourth component (offset 124) is deterministic zero.
+  const color = header.lightColor;
+  check(
+    isFiniteNonNegative(color.r) && isFiniteNonNegative(color.g) && isFiniteNonNegative(color.b),
+    `light color must be finite and >= 0 per channel, got (${color.r}, ${color.g}, ${color.b})`,
+  );
+  check(readU32(124) === 0, "light color padding (offset 124) must be 0");
   check(readU32(76) === 0, "light direction padding (offset 76) must be 0");
   check(readU32(108) === 0, "environment padding (offset 108) must be 0");
 

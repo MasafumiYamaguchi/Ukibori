@@ -136,22 +136,29 @@ export function sanitizeExposure(exposure: number | undefined): number {
  * which the sRGB encoder clamps to white/black anyway). This is the
  * pre-exposure linear accumulation of the lighting pass.
  */
+/**
+ * Accumulate the full LINEAR result (#22/#45): the DIRECT contribution is
+ * per-channel (directional-light RGB color x intensity x visibility x
+ * NdotL x BRDF); ambient and environment are independent of the directional
+ * light and never tinted by its color. Saturated arithmetic keeps every
+ * finite input producing a finite pre-encode LinearRgb.
+ */
 export function accumulateLinear(
   base: LinearRgb,
   ambient: number,
-  direct: number,
+  direct: LinearRgb,
   brdf: BrdfResult,
   env: EnvironmentResult,
 ): LinearRgb {
-  const channel = (bc: number, dc: number, sc: number, ed: number, es: number): number =>
+  const channel = (bc: number, dc: number, sc: number, ed: number, es: number, d: number): number =>
     saturatingAdd(
-      saturatingAdd(saturatingMul(bc, ambient), saturatingMul(saturatingAdd(dc, sc), direct)),
+      saturatingAdd(saturatingMul(bc, ambient), saturatingMul(saturatingAdd(dc, sc), d)),
       saturatingAdd(ed, es),
     );
   return {
-    r: channel(base.r, brdf.diffuse.r, brdf.specular.r, env.diffuse.r, env.specular.r),
-    g: channel(base.g, brdf.diffuse.g, brdf.specular.g, env.diffuse.g, env.specular.g),
-    b: channel(base.b, brdf.diffuse.b, brdf.specular.b, env.diffuse.b, env.specular.b),
+    r: channel(base.r, brdf.diffuse.r, brdf.specular.r, env.diffuse.r, env.specular.r, direct.r),
+    g: channel(base.g, brdf.diffuse.g, brdf.specular.g, env.diffuse.g, env.specular.g, direct.g),
+    b: channel(base.b, brdf.diffuse.b, brdf.specular.b, env.diffuse.b, env.specular.b, direct.b),
   };
 }
 

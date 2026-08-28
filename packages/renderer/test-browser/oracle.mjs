@@ -351,6 +351,13 @@ export function createOracle(api) {
           z: Math.fround(scene.light.direction.z),
         },
         intensity: Math.fround(scene.light.intensity),
+        // #45: the linear-RGB directional-light color exactly as the encoder
+        // packs it (f32-rounded; sanitized scenes always carry it).
+        color: {
+          r: Math.fround(scene.light.color?.r ?? 1),
+          g: Math.fround(scene.light.color?.g ?? 1),
+          b: Math.fround(scene.light.color?.b ?? 1),
+        },
       },
       exposure: Math.fround(scene.exposure),
       environment: {

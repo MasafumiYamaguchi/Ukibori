@@ -94,6 +94,18 @@ export function buildScene(input: BuildSceneInput): Scene {
     typeof rawAngularRadius === "number" && Number.isFinite(rawAngularRadius)
       ? rawAngularRadius
       : undefined;
+  // #45: the directional-light color is DIMENSIONLESS (linear RGB, not a
+  // length) — forwarded unscaled like direction/angularRadius; the renderer
+  // sanitizes it (missing/non-finite/negative channels -> 1, HDR preserved).
+  const rawColor = input.light.color;
+  const color =
+    rawColor === undefined
+      ? undefined
+      : {
+          r: rawColor.r,
+          g: rawColor.g,
+          b: rawColor.b,
+        };
   return createScene({
     width,
     height,
@@ -103,6 +115,7 @@ export function buildScene(input: BuildSceneInput): Scene {
       direction,
       intensity: sanitizeNonNegative(light.intensity),
       ...(angularRadius !== undefined ? { angularRadius } : {}),
+      ...(color !== undefined ? { color } : {}),
     },
     environment: input.environment,
     exposure: input.exposure,

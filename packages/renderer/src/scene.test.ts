@@ -80,6 +80,45 @@ describe("createScene", () => {
     expect(createScene({ width: 4, height: 4, light: { intensity: 2.5 } }).light.intensity).toBe(2.5);
   });
 
+  // #45 directional-light color sanitization: linear RGB, default white,
+  // HDR values above 1 preserved, invalid channels fall back to 1.
+  it("defaults the directional-light color to white", () => {
+    expect(createScene({ width: 4, height: 4 }).light.color).toEqual({ r: 1, g: 1, b: 1 });
+    expect(
+      createScene({ width: 4, height: 4, light: { direction: { x: 0, y: 0, z: 1 } } }).light.color,
+    ).toEqual({ r: 1, g: 1, b: 1 });
+  });
+
+  it("preserves valid finite non-negative channels including zero and HDR values", () => {
+    const scene = createScene({
+      width: 4,
+      height: 4,
+      light: { color: { r: 1, g: 0, b: 2 } },
+    });
+    expect(scene.light.color).toEqual({ r: 1, g: 0, b: 2 });
+  });
+
+  it("falls back per channel to 1 for missing / non-finite / negative values", () => {
+    // the issue's example: { r: NaN, g: 0.5, b: 2 } -> { r: 1, g: 0.5, b: 2 }
+    expect(createScene({ width: 4, height: 4, light: { color: { r: NaN, g: 0.5, b: 2 } } }).light.color).toEqual({
+      r: 1,
+      g: 0.5,
+      b: 2,
+    });
+    for (const bad of [NaN, Infinity, -Infinity, -1]) {
+      expect(
+        createScene({ width: 4, height: 4, light: { color: { r: bad, g: 0.4, b: 0.6 } } as never })
+          .light.color,
+      ).toEqual({ r: 1, g: 0.4, b: 0.6 });
+    }
+    // missing channels (a partial color object) fill with white
+    expect(createScene({ width: 4, height: 4, light: { color: { r: 0.3 } } as never }).light.color).toEqual({
+      r: 0.3,
+      g: 1,
+      b: 1,
+    });
+  });
+
   it("defaults environment to 0.5 and exposure to 1", () => {
     const scene = createScene({ width: 4, height: 4 });
     expect(scene.environment).toEqual({

@@ -3037,6 +3037,198 @@ async function runRetainedMaterialChangeParity(device) {
 }
 
 /**
+ * #45 real-WebGPU directional-light color regressions:
+ *
+ * 1. retained light-color-only update: Frame A (white) -> Frame B (warm
+ *    color) on a RETAINED pipeline must run upload/lighting/presentation
+ *    ONLY (height/normal/shadow/reconstruction retained) and the retained
+ *    Frame B must equal a FRESH pipeline's full render (lighting color +
+ *    final canvas).
+ * 2. geometry + light-color full fallback: Frame C (white) -> Frame D
+ *    (small caster move + warm color) must plan FULL with reasons
+ *    scene + light-color.
+ */
+async function runLightColorParity(device) {
+  const problems = [];
+  const warm = { r: 1, g: 0.55, b: 0.25 };
+  const baseScene = () =>
+    api.createScene({
+      width: 320,
+      height: 180,
+      surfaces: [
+        {
+          id: "panel",
+          position: { x: 0, y: 0 },
+          size: { x: 320, y: 180 },
+          elevation: 0,
+          thickness: 0,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: false,
+          receivesShadow: true,
+        },
+        {
+          id: "btn",
+          position: { x: 40, y: 40 },
+          size: { x: 60, y: 40 },
+          elevation: 2,
+          thickness: 3,
+          bevelWidth: 4,
+          shape: { kind: "roundedRect", radius: 10 },
+          profile: { kind: "bevel" },
+          material: "matte",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      materials: { matte: { baseColor: { r: 0.5, g: 0.5, b: 0.5 }, roughness: 0.5, metallic: 0 } },
+      light: { direction: { x: 0, y: 0.1, z: 0.995 }, intensity: 1 },
+    });
+  const shadowOptions = { maxDistance: 40, stepSize: 0.5, bias: 0.5 };
+  let pipeline = null;
+  let canvas = null;
+  try {
+    // ---- 1. retained light-color-only update ----
+    const first = await makeRetainedCanvas();
+    canvas = first.canvas;
+    pipeline = new api.GpuScenePipeline(device, first.context, first.canvasFormat);
+    pipeline.render({
+      scene: baseScene(),
+      dpr: 1,
+      shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    const colored = api.createScene({
+      ...baseScene(),
+      light: { ...baseScene().light, color: warm },
+    });
+    const colorOnly = pipeline.render({
+      scene: colored,
+      dpr: 1,
+      shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    if (colorOnly.invalidation.reasons.join(",") !== "light-color") {
+      problems.push(
+        `light-color-only reasons ${colorOnly.invalidation.reasons.join(",")} (expected light-color)`,
+      );
+    }
+    if (colorOnly.invalidation.skipped.includes("shadow") || colorOnly.invalidation.skipped.includes("reconstruction")) {
+      problems.push("light-color-only update should retain shadow/reconstruction");
+    }
+    const colorOnlySnapshot = pipeline.getSnapshot();
+    const [colorOnlyBytes] = await Promise.all([
+      readback(device, colorOnlySnapshot.lightingPass.color.buffer, colorOnlySnapshot.lightingPass.color.byteLength),
+    ]);
+    const colorOnlyCanvas = await capturePresented(
+      device,
+      first.context,
+      first.canvasFormat,
+      colorOnly.renderWidth,
+      colorOnly.renderHeight,
+    );
+    // fresh full render of the colored scene for comparison
+    pipeline.dispose();
+    pipeline = null;
+    canvas.remove();
+    canvas = null;
+    const freshColor = await makeRetainedCanvas();
+    const freshColorPipeline = new api.GpuScenePipeline(device, freshColor.context, freshColor.canvasFormat);
+    const freshColorStats = freshColorPipeline.render({
+      scene: colored,
+      dpr: 1,
+      shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    const freshColorSnapshot = freshColorPipeline.getSnapshot();
+    const [colorFreshBytes] = await Promise.all([
+      readback(device, freshColorSnapshot.lightingPass.color.buffer, freshColorSnapshot.lightingPass.color.byteLength),
+    ]);
+    const colorFreshCanvas = await capturePresented(
+      device,
+      freshColor.context,
+      freshColor.canvasFormat,
+      freshColorStats.renderWidth,
+      freshColorStats.renderHeight,
+    );
+    freshColorPipeline.dispose();
+    freshColor.canvas.remove();
+    const width = freshColorSnapshot.width;
+    const colorCompare = oracle.compareColor(
+      { id: "light-color-color", shadowOptions, scene: colored },
+      colorFreshBytes,
+      colorOnlyBytes,
+      width,
+    );
+    if (colorCompare.hard > 0 || colorCompare.alphaBad > 0) {
+      problems.push(
+        `light-color-only: lighting color mismatch (hard ${colorCompare.hard}, alpha ${colorCompare.alphaBad})`,
+      );
+    }
+    const canvasCompare = oracle.compareCanvas(
+      { id: "light-color-canvas", shadowOptions, scene: colored },
+      colorFreshCanvas,
+      colorOnlyCanvas,
+      width,
+    );
+    if (canvasCompare.hard > 0 || canvasCompare.alphaBad > 0) {
+      problems.push(
+        `light-color-only: final canvas mismatch (hard ${canvasCompare.hard}, alpha ${canvasCompare.alphaBad})`,
+      );
+    }
+
+    // ---- 2. geometry + light-color full fallback ----
+    const moved = api.createScene({
+      ...colored,
+      surfaces: colored.surfaces.map((s) =>
+        s.id === "btn" ? { ...s, position: { x: 44, y: 42 } } : s,
+      ),
+    });
+    const second = await makeRetainedCanvas();
+    const geoPipeline = new api.GpuScenePipeline(device, second.context, second.canvasFormat);
+    geoPipeline.render({
+      scene: baseScene(),
+      dpr: 1,
+      shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    const geoStats = geoPipeline.render({
+      scene: moved,
+      dpr: 1,
+      shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    if (geoStats.planning.mode !== "full") {
+      problems.push(
+        `geometry+light-color planned ${geoStats.planning.mode}/${geoStats.planning.reason} (expected full)`,
+      );
+    }
+    for (const reason of ["scene", "light-color"]) {
+      if (!geoStats.invalidation.reasons.includes(reason)) {
+        problems.push(`geometry+light-color lost reason "${reason}"`);
+      }
+    }
+    geoPipeline.dispose();
+    second.canvas.remove();
+  } catch (error) {
+    problems.push(`light-color parity threw: ${String(error?.stack ?? error)}`);
+  }
+  try {
+    pipeline?.dispose();
+    canvas?.remove();
+  } catch {
+    // disposal must never mask the outcome
+  }
+  return problems;
+}
+
+/**
  * #32 tile benchmark at the documented 640x360 demo-frame proxy scene:
  * several tile sizes x dirty-area ratios (small/medium/large edits).
  * Binning overhead (the planner's host wall-clock `planningHostMs`) is
@@ -3390,10 +3582,22 @@ async function main() {
     } catch (error) {
       materialChangeFailure = String(error?.stack ?? error);
     }
+    // #45 directional-light color regressions on the real adapter:
+    // retained light-color-only update (upload/lighting/presentation only,
+    // retained output == fresh full render) and geometry + light-color full
+    // fallback with both reasons.
+    const lightColorProblems = [];
+    let lightColorFailure = null;
+    try {
+      lightColorProblems.push(...(await runLightColorParity(device)));
+    } catch (error) {
+      lightColorFailure = String(error?.stack ?? error);
+    }
     summaryData.partialProblems = partialProblems.length;
     summaryData.reconPartialProblems = reconPartialProblems.length;
     summaryData.globalChangeProblems = globalChangeProblems.length;
     summaryData.materialChangeProblems = materialChangeProblems.length;
+    summaryData.lightColorProblems = lightColorProblems.length;
     if (reconPartialFailure !== null) {
       detail.push(`recon partial parity failed: ${reconPartialFailure}`);
     }
@@ -3411,6 +3615,12 @@ async function main() {
     }
     for (const problem of materialChangeProblems) {
       detail.push(`material-change parity: ${problem}`);
+    }
+    if (lightColorFailure !== null) {
+      detail.push(`light-color parity failed: ${lightColorFailure}`);
+    }
+    for (const problem of lightColorProblems) {
+      detail.push(`light-color parity: ${problem}`);
     }
     // #32 tile benchmark: report-only (deterministic cost ratio decides the
     // path, never a timing), run after the parity gates so failures surface
@@ -3999,6 +4209,21 @@ async function main() {
         MARKER_FAIL,
         `material-change retained-vs-fresh parity problems (${materialChangeProblems.length}): ` +
           materialChangeProblems.join("; "),
+      );
+      return;
+    }
+    if (lightColorFailure !== null) {
+      finish(
+        MARKER_FAIL,
+        `light-color parity failed: ${lightColorFailure}`,
+      );
+      return;
+    }
+    if (lightColorProblems.length > 0) {
+      finish(
+        MARKER_FAIL,
+        `light-color parity problems (${lightColorProblems.length}): ` +
+          lightColorProblems.join("; "),
       );
       return;
     }

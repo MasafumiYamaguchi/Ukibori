@@ -184,6 +184,12 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
   writeF32(view, 96, Math.fround(scene.environment.intensity));
   writeF32(view, 100, Math.fround(scene.environment.diffuseIntensity));
   writeF32(view, 104, Math.fround(scene.environment.specularIntensity));
+  // #45 directional-light linear RGB color at 112..124 (w stays 0 — the
+  // buffer is zero-filled). createScene already sanitized the channels
+  // (missing/non-finite/negative -> 1, HDR values > 1 preserved).
+  writeF32(view, 112, Math.fround(scene.light.color.r));
+  writeF32(view, 116, Math.fround(scene.light.color.g));
+  writeF32(view, 120, Math.fround(scene.light.color.b));
 
   // Surface records.
   let pixelCursor = maskPixelsOffset;
@@ -320,6 +326,11 @@ export function parseHeader(bytes: Uint8Array): EncodedHeader {
     lightIntensity: view.getFloat32(80, true),
     exposure: view.getFloat32(84, true),
     lightAngularRadius: view.getFloat32(88, true),
+    lightColor: {
+      r: view.getFloat32(112, true),
+      g: view.getFloat32(116, true),
+      b: view.getFloat32(120, true),
+    },
     environment: {
       intensity: view.getFloat32(96, true),
       diffuseIntensity: view.getFloat32(100, true),

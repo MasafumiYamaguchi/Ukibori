@@ -112,7 +112,21 @@ describe("validateEncodedScene — malformed headers", () => {
       /light angular radius at offset 88/,
     );
     expectRejected(mutate(validBytes(), 92, (v) => v.setUint32(92, 7, true)), /reserved u32 at offset 92/);
-    expectRejected(mutate(validBytes(), 112, (v) => v.setUint32(112, 7, true)), /reserved u32 at 112/);
+    // Offset 112..124 now carries the #45 lightColor: negative/NaN channels
+    // are rejected, the w component (offset 124) must stay zero, and a
+    // finite non-negative channel (even an HDR value above 1) passes.
+    expectRejected(
+      mutate(validBytes(), 112, (v) => v.setFloat32(112, -1, true)),
+      /light color must be finite and >= 0 per channel/,
+    );
+    expectRejected(
+      mutate(validBytes(), 116, (v) => v.setFloat32(116, Number.NaN, true)),
+      /light color must be finite and >= 0 per channel/,
+    );
+    expectRejected(mutate(validBytes(), 124, (v) => v.setUint32(124, 1, true)), /light color padding \(offset 124\)/);
+    // a valid colored light (red channel 1, HDR green 2) passes validation
+    expect(validateEncodedScene(mutate(validBytes(), 112, (v) => v.setFloat32(112, 1, true))).ok).toBe(true);
+    expect(validateEncodedScene(mutate(validBytes(), 116, (v) => v.setFloat32(116, 2, true))).ok).toBe(true);
     expectRejected(mutate(validBytes(), 76, (v) => v.setUint32(76, 1, true)), /light direction padding/);
   });
 });

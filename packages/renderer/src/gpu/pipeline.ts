@@ -791,7 +791,7 @@ export class GpuScenePipeline {
    *   ("option-change-with-scene" for shadow/reconstruction/normal/lighting
    *   options; "<semantic>-change" for the encoded header fields AND the
    *   material VALUES table). The partial-locality proof only holds while
-   *   the global semantics — light direction/radius/intensity/environment,
+   *   the global semantics — light direction/color/radius/intensity/environment,
    *   shadow options, reconstruction options and MATERIAL VALUES — are
    *   IDENTICAL to the retained frame; a partial update would mix new and
    *   retained visibility/lighting semantics frame-wide (#43 review).
@@ -828,9 +828,9 @@ export class GpuScenePipeline {
       return full("first-frame");
     }
     // Semantic non-geometry scene changes (light/env/exposure/material
-    // VALUES and the #41 light angular radius) never take the partial path:
-    // the height stage is retained, so there is no dirty geometry region to
-    // plan.
+    // VALUES, the #41 light angular radius and the #45 light color) never
+    // take the partial path: the height stage is retained, so there is no
+    // dirty geometry region to plan.
     const semanticChanges = report.reasons.filter(
       (
         reason,
@@ -838,11 +838,13 @@ export class GpuScenePipeline {
         | "light-direction"
         | "light-intensity"
         | "light-angular-radius"
+        | "light-color"
         | "environment"
         | "material-values" =>
         reason === "light-direction" ||
         reason === "light-intensity" ||
         reason === "light-angular-radius" ||
+        reason === "light-color" ||
         reason === "environment" ||
         reason === "material-values",
     );

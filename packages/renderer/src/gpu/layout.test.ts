@@ -36,6 +36,7 @@ function header(overrides: Partial<EncodedHeader> = {}): EncodedHeader {
     lightIntensity: 1,
     exposure: 1,
     lightAngularRadius: 0,
+    lightColor: { r: 1, g: 1, b: 1 },
     environment: { intensity: 0.5, diffuseIntensity: 1, specularIntensity: 1 },
     ...overrides,
   };

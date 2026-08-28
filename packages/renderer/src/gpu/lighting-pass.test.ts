@@ -1126,8 +1126,13 @@ describe("LightingPass shader — #16 BRDF formulas pinned in WGSL", () => {
     expect(LIGHTING_PASS_WGSL).toContain("return min(luminance(specular) * cosine * vis, 1.0);");
   });
 
-  it("pins the direct-only visibility scaling and the #22 environment", () => {
-    expect(LIGHTING_PASS_WGSL).toContain("let direct = satMul(satMul(intensity, cosine), vis);");
+  it("pins the direct-only visibility scaling, the #45 per-channel color and the #22 environment", () => {
+    // #45: the direct contribution is per-channel (light color x intensity
+    // x NdotL x visibility) — white light reduces to the historical scalar
+    // formula; ambient/environment never see the light color.
+    expect(LIGHTING_PASS_WGSL).toContain("let directR = satMul(satMul(satMul(sceneHeader.lightColor.r, intensity), cosine), vis);");
+    expect(LIGHTING_PASS_WGSL).toContain("let directG = satMul(satMul(satMul(sceneHeader.lightColor.g, intensity), cosine), vis);");
+    expect(LIGHTING_PASS_WGSL).toContain("let directB = satMul(satMul(satMul(sceneHeader.lightColor.b, intensity), cosine), vis);");
     expect(LIGHTING_PASS_WGSL).toContain("let envDiffuse = base * (1.0 - m.metallic) * diffuseScale;");
     expect(LIGHTING_PASS_WGSL).toContain("let envSpecular = specularScale * (f0 + (vec3<f32>(1.0) - f0) * t);");
     expect(LIGHTING_PASS_WGSL).toContain("let t = pow(1.0 - m.roughness, 5.0);");

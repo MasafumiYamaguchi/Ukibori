@@ -27,7 +27,7 @@
 // supported by the scene contract —there is NO rotation/skew support, and
 // the catalog never claims any.
 
-export const CATALOG_VERSION = 5;
+export const CATALOG_VERSION = 6;
 
 // ---------------------------------------------------------------------------
 // Central comparison policy table (#30). One declaration, used by the
@@ -198,6 +198,7 @@ export const CATEGORIES = Object.freeze([
   "receive-flag",
   // lighting / environment / exposure
   "lighting",
+  "light-color",
   "material-silicone",
   "material-matte",
   "material-metal",
@@ -630,7 +631,7 @@ export function createCatalog(api) {
    * units —comfortably above the observed ~0.057 flip envelope —while the
    * soft path, reconstruction (radius 3) and a visible shadow remain real.
    */
-  function portableReconstructedScene() {
+  function portableReconstructedScene(lightOverrides = {}) {
     return {
       scene: createScene({
         width: 16,
@@ -641,7 +642,15 @@ export function createCatalog(api) {
           size: { x: 4, y: 2 },
           elevation: 2,
         })],
-        light: { direction: LIGHT_FROM_RIGHT, intensity: 1, angularRadius: Math.fround(0.25) },
+        // #45: `lightOverrides` may carry a linear-RGB color (e.g. the warm
+        // fixture) — createScene sanitizes it; the shadow/reconstruction
+        // fields stay color-invariant.
+        light: {
+          direction: LIGHT_FROM_RIGHT,
+          intensity: 1,
+          angularRadius: Math.fround(0.25),
+          ...lightOverrides,
+        },
       }),
       shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 3 } },
     };
@@ -1098,7 +1107,20 @@ export function createCatalog(api) {
 
   const withExposure = (scene, exposure) => ({ ...scene, exposure });
 
-  const withLight = (scene, direction) => ({ ...scene, light: { direction, intensity: 1 } });
+  const withLight = (scene, direction) => ({
+    ...scene,
+    // #45: a replaced light must carry the full sanitized DirectionalLight
+    // contract — the white color default, exactly as createScene emits it.
+    light: { direction, intensity: 1, color: { r: 1, g: 1, b: 1 } },
+  });
+
+  // #45: replace only the directional-light COLOR of an already-created
+  // scene (linear RGB; the other light fields stay as createScene emitted
+  // them).
+  const withLightColor = (scene, color) => ({
+    ...scene,
+    light: { ...scene.light, color },
+  });
 
   const LIGHTING_FIXTURES = [
     // built-in material coverage (silicone / matte / metal presets)
@@ -1170,6 +1192,16 @@ export function createCatalog(api) {
     { name: "lighting-ambient-0", scene: lightingPanel("silicone"), dpr: 1, lightingOptions: { ambient: 0 } },
     { name: "lighting-ambient-half", scene: lightingPanel("silicone"), dpr: 1, lightingOptions: { ambient: 0.5 } },
     { name: "lighting-ambient-saturated", scene: lightingPanel("silicone"), dpr: 1, lightingOptions: { ambient: 2 } },
+    // #45 directional-light color: linear-RGB tints of the DIRECT
+    // contribution — white (historical), red, green, blue, warm, and an HDR
+    // multiplier above 1. The shadows/reconstruction are color-invariant;
+    // only the final lighting color differs.
+    { name: "lighting-color-white", scene: lightingPanel("silicone"), dpr: 1 },
+    { name: "lighting-color-red", scene: withLightColor(lightingPanel("silicone"), { r: 1, g: 0, b: 0 }), dpr: 1 },
+    { name: "lighting-color-green", scene: withLightColor(lightingPanel("matte"), { r: 0, g: 1, b: 0 }), dpr: 1 },
+    { name: "lighting-color-blue", scene: withLightColor(lightingPanel("metal"), { r: 0, g: 0, b: 1 }), dpr: 1 },
+    { name: "lighting-color-warm", scene: withLightColor(lightingPanel("silicone"), { r: 1, g: 0.55, b: 0.25 }), dpr: 1 },
+    { name: "lighting-color-hdr", scene: withLightColor(lightingPanel("metal"), { r: 2, g: 1, b: 0.5 }), dpr: 1 },
   ];
 
   const FIXTURES = [
@@ -1458,6 +1490,16 @@ export function createCatalog(api) {
       dpr: 1,
       compositeOptions: { shadowColor: [160, 70, 180], shadowAlpha: Math.fround(74 / 255) },
     },
+    // #45 colored light through the FULL soft + reconstruction chain: the
+    // final canvas carries the warm tint of the direct contribution while
+    // the reconstructed soft shadow reaches the canvas unchanged (the
+    // reconstructed-shadow canvas quantization guard applies as usual).
+    {
+      name: "present-reconstructed-soft-shadow-colored-light",
+      ...portableReconstructedScene({ lightColor: { r: 1, g: 0.55, b: 0.25 } }),
+      dpr: 1,
+      compositeOptions: { shadowColor: [160, 70, 180], shadowAlpha: Math.fround(74 / 255) },
+    },
     // overlap/ownership, clipped/offscreen surfaces and empty scene behavior
     { name: "present-overlap-ownership", scene: tieOverlapScene().scene, dpr: 1 },
     { name: "present-clipped-offscreen", scene: clipScene(), dpr: 1 },
@@ -1663,6 +1705,13 @@ export function createCatalog(api) {
     "lighting-ambient-0": ["lighting", "lighting-options"],
     "lighting-ambient-half": ["lighting", "lighting-options"],
     "lighting-ambient-saturated": ["lighting", "lighting-options"],
+    // #45 directional-light color (linear RGB)
+    "lighting-color-white": ["lighting", "light-color"],
+    "lighting-color-red": ["lighting", "light-color"],
+    "lighting-color-green": ["lighting", "light-color"],
+    "lighting-color-blue": ["lighting", "light-color"],
+    "lighting-color-warm": ["lighting", "light-color"],
+    "lighting-color-hdr": ["lighting", "light-color"],
     // presentation fixtures
     "present-silicone-opaque": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "material-silicone", "opaque-owned-pixels", "static-golden"],
     "present-matte-opaque": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "material-matte"],
@@ -1686,6 +1735,15 @@ export function createCatalog(api) {
       "composite-options",
       "soft-shadow",
       "reconstruction",
+    ],
+    "present-reconstructed-soft-shadow-colored-light": [
+      "canvas-composition",
+      "canvas-format-normalization",
+      "canvas-transparency",
+      "composite-options",
+      "soft-shadow",
+      "reconstruction",
+      "light-color",
     ],
     "present-overlap-ownership": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "overlap", "ownership-tie", "paint-order"],
     "present-clipped-offscreen": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "clipping", "offscreen", "canvas-clipped-output"],

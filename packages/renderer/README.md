@@ -116,6 +116,16 @@ tests.
   terms; intensity 0 leaves ambient only. The degenerate half-vector
   `L = -V` (direction `{0, 0, -1}`) resolves specular to 0 without NaN.
   Lighting is computed in linear space and sRGB-encoded on output.
+- directional-light color (#45): `scene.light.color` is a LINEAR RGB
+  multiplier of the DIRECT contribution only —
+  `direct.rgb = lightColor * intensity * visibility * NdotL * BRDF`. The
+  default is white (`{r:1, g:1, b:1}`); values above 1 (HDR multipliers)
+  are preserved; per-channel sanitization falls back to 1 for missing /
+  non-finite / negative channels and keeps zero. Ambient and environment
+  are NEVER multiplied by the light color, cast-shadow visibility keeps
+  scaling only the direct term, exposure stays a post-accumulation
+  multiplier, and the scalar `diffuse`/`specular` debug buffers stay
+  color-independent. White light reproduces the historical bytes exactly.
 - debug buffers: `normal` (f32 x3), `diffuse` (raw N·L) / `specular`
   (specular direct contribution: `luminance(Fr) * NdotL * visibility`,
   before light intensity, f32 1ch), `color` (RGBA8), `visibility` (0/1 hard

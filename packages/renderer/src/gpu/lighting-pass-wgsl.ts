@@ -359,10 +359,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   }
   outSpecular[g] = specularOutput(brdfSpecular, cosine, vis);
 
-  // Direct contribution scaled by light intensity and visibility only.
-  // Validated headers carry intensity >= 0; the max() guard is defensive.
+  // Direct contribution scaled by the #45 directional-light color (linear
+  // RGB per channel), light intensity and visibility only. Validated
+  // headers carry intensity >= 0 and finite non-negative color channels;
+  // the max() guards are defensive. White light reduces to the historical
+  // satMul(satMul(intensity, cosine), vis) formula exactly.
   let intensity = max(sceneHeader.lightIntensity, 0.0);
-  let direct = satMul(satMul(intensity, cosine), vis);
+  let directR = satMul(satMul(satMul(sceneHeader.lightColor.r, intensity), cosine), vis);
+  let directG = satMul(satMul(satMul(sceneHeader.lightColor.g, intensity), cosine), vis);
+  let directB = satMul(satMul(satMul(sceneHeader.lightColor.b, intensity), cosine), vis);
 
   // #22 shared environment (validated headers carry intensity >= 0 and
   // shares in [0, 1]; the clamps are defensive for f32-exact values).
@@ -377,12 +382,14 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   let envSpecular = specularScale * (f0 + (vec3<f32>(1.0) - f0) * t);
 
   // #22 saturated linear accumulation, then the exposure boundary, then the
-  // exact sRGB encoder (floor(encoded * 255 + 0.5), alpha 255).
+  // exact sRGB encoder (floor(encoded * 255 + 0.5), alpha 255). The direct
+  // term is PER-CHANNEL (#45: the directional light color tints only the
+  // direct contribution; ambient/environment are independent).
   let exposure = max(sceneHeader.exposure, 0.0);
   var linear = vec3<f32>(0.0);
-  linear.r = accumulateChannel(base.r, brdfDiffuse.r, brdfSpecular.r, envDiffuse.r, envSpecular.r, params.ambient, direct);
-  linear.g = accumulateChannel(base.g, brdfDiffuse.g, brdfSpecular.g, envDiffuse.g, envSpecular.g, params.ambient, direct);
-  linear.b = accumulateChannel(base.b, brdfDiffuse.b, brdfSpecular.b, envDiffuse.b, envSpecular.b, params.ambient, direct);
+  linear.r = accumulateChannel(base.r, brdfDiffuse.r, brdfSpecular.r, envDiffuse.r, envSpecular.r, params.ambient, directR);
+  linear.g = accumulateChannel(base.g, brdfDiffuse.g, brdfSpecular.g, envDiffuse.g, envSpecular.g, params.ambient, directG);
+  linear.b = accumulateChannel(base.b, brdfDiffuse.b, brdfSpecular.b, envDiffuse.b, envSpecular.b, params.ambient, directB);
   let exposedR = satMul(linear.r, exposure);
   let exposedG = satMul(linear.g, exposure);
   let exposedB = satMul(linear.b, exposure);

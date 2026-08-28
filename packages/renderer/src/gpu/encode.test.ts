@@ -115,6 +115,12 @@ describe("encodeScene — determinism and header", () => {
     expect(view.getFloat32(96, true)).toBe(0.5);
     expect(view.getFloat32(100, true)).toBe(Math.fround(0.8));
     expect(view.getFloat32(104, true)).toBe(Math.fround(0.4));
+    // #45: lightColor at 112..124 (linear RGB, w = 0); the roundedScene
+    // light carries no color -> white default
+    expect(view.getFloat32(112, true)).toBe(1);
+    expect(view.getFloat32(116, true)).toBe(1);
+    expect(view.getFloat32(120, true)).toBe(1);
+    expect(view.getUint32(124, true)).toBe(0);
     expect(parseHeader(bytes)).toMatchObject({
       logicalWidth: 100,
       logicalHeight: 80,
@@ -123,6 +129,23 @@ describe("encodeScene — determinism and header", () => {
       surfaceCount: 2,
       maskCount: 0,
       materialCount: 2,
+      lightColor: { r: 1, g: 1, b: 1 },
+    });
+  });
+
+  it("encodes a colored light at 112..124 and parses it back (f32-rounded)", () => {
+    const scene = roundedScene();
+    scene.light.color = { r: 1, g: 0.55, b: Math.fround(0.25) };
+    const { bytes } = encodeScene(scene, 1);
+    const view = new DataView(bytes.buffer);
+    expect(view.getFloat32(112, true)).toBe(1);
+    expect(view.getFloat32(116, true)).toBe(Math.fround(0.55));
+    expect(view.getFloat32(120, true)).toBe(Math.fround(0.25));
+    expect(view.getUint32(124, true)).toBe(0); // deterministic zero w
+    expect(parseHeader(bytes).lightColor).toEqual({
+      r: 1,
+      g: Math.fround(0.55),
+      b: Math.fround(0.25),
     });
   });
 

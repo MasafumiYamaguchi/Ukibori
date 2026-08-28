@@ -1,5 +1,5 @@
 import { NO_OWNER } from "../compose";
-import type { Vec2, Vec3 } from "../types";
+import type { LinearRgb, Vec2, Vec3 } from "../types";
 
 /**
  * #24 GPU scene/buffer ABI v1 — byte-exact layout shared by the host encoder,
@@ -67,7 +67,8 @@ export const HEADER_SIZE = 128;
  * | 92     | 4    | reserved (u32, 0)                                 |
  * | 96     | 16   | environment (vec4: intensity, diffuseIntensity,   |
  * |        |      |            specularIntensity, 0)                  |
- * | 112..128| 16  | reserved (u32, 0)                                 |
+ * | 112    | 16   | lightColor (#45 vec4: linear RGB r, g, b, 0;      |
+ * |        |      |            white default, HDR values > 1 allowed) |
  */
 
 export const SURFACE_STRIDE = 128;
@@ -245,6 +246,8 @@ export interface EncodedHeader {
   exposure: number;
   /** #41 light angular radius in radians (f32, >= 0; 0 = hard shadow) */
   lightAngularRadius: number;
+  /** #45 linear RGB directional-light color (f32; HDR values > 1 allowed) */
+  lightColor: LinearRgb;
   environment: { intensity: number; diffuseIntensity: number; specularIntensity: number };
 }
 

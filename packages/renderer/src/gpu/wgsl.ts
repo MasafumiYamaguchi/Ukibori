@@ -73,7 +73,7 @@ struct SceneHeader {
   lightAngularRadius: f32, // 88 (#41 radians >= 0; 0 = hard shadow)
   _reserved3: f32,         // 92
   environment: vec4<f32>,  // 96 (intensity, diffuseIntensity, specularIntensity, 0)
-  _reserved4: vec4<f32>,   // 112
+  lightColor: vec4<f32>,   // 112 (#45 linear RGB r, g, b, 0; white default, HDR > 1 allowed)
 }                          // size 128, align 16
 
 // surface records, stride 128, alignment 16

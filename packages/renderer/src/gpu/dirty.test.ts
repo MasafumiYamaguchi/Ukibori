@@ -787,4 +787,138 @@ describe("classifySceneChange — #43 material-value direct regressions", () => 
       ),
     ).toEqual(["scene", "light-angular-radius", "material-values"]);
   });
+
+  it("light-color-only -> ['light-color']", () => {
+    expect(
+      classifySceneChange(
+        bytes(base()),
+        bytes(base({ light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, color: RED } })),
+      ),
+    ).toEqual(["light-color"]);
+  });
+
+  it("geometry + light-color -> ['scene', 'light-color']", () => {
+    expect(
+      classifySceneChange(
+        bytes(base()),
+        bytes(
+          base({
+            surfaces: [...base().surfaces!, chip],
+            light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, color: RED },
+          }),
+        ),
+      ),
+    ).toEqual(["scene", "light-color"]);
+  });
+
+  it("geometry + light-color + material -> ['scene', 'light-color', 'material-values']", () => {
+    expect(
+      classifySceneChange(
+        bytes(base()),
+        bytes(
+          base({
+            surfaces: [...base().surfaces!, chip],
+            light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, color: RED },
+            materials: { silicone: { ...base().materials!.silicone!, baseColor: RED } },
+          }),
+        ),
+      ),
+    ).toEqual(["scene", "light-color", "material-values"]);
+  });
+});
+
+describe("#45 light-color scheduler closure", () => {
+  const WHITE = { r: 1, g: 1, b: 1 };
+  const RED = { r: 1, g: 0, b: 0 };
+  const matScene = (over: Partial<SceneInput> = {}): SceneInput => ({
+    width: 100,
+    height: 80,
+    surfaces: [
+      {
+        id: "panel",
+        position: { x: 0, y: 0 },
+        size: { x: 100, y: 80 },
+        elevation: 0,
+        thickness: 0,
+        shape: { kind: "roundedRect", radius: 0 },
+        profile: { kind: "flat" },
+        material: "silicone",
+        castsShadow: false,
+        receivesShadow: true,
+      },
+    ],
+    materials: { silicone: { baseColor: { r: 0.8, g: 0.8, b: 0.8 }, roughness: 0.5, metallic: 0 } },
+    light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+    ...over,
+  });
+  const moved = matScene({
+    surfaces: [{ ...matScene().surfaces![0]!, position: { x: 2, y: 2 } }],
+  });
+
+  function diffFrames(
+    prevScene: SceneInput,
+    nextScene: SceneInput,
+    prevOptions: object | undefined = undefined,
+    nextOptions: object | undefined = undefined,
+  ) {
+    const prevBytes = encodeScene(createScene(prevScene), 1).bytes;
+    const nextBytes = encodeScene(createScene(nextScene), 1).bytes;
+    const prevKey = computeFrameKey({ bytes: prevBytes }, { dpr: 1, shadowOptions: prevOptions });
+    const nextKey = computeFrameKey({ bytes: nextBytes }, { dpr: 1, shadowOptions: nextOptions });
+    return reportInvalidations(nextKey, prevKey, nextBytes, prevBytes);
+  }
+
+  it("pure light-color change -> upload/lighting/presentation only", () => {
+    const diff = diffFrames(matScene(), matScene({ light: { ...matScene().light, color: RED } }));
+    expect(diff.reasons).toEqual(["light-color"]);
+    expect(diff.executed).toEqual(["upload", "lighting", "presentation"]);
+    expect(diff.skipped).toEqual(["height", "normal", "shadow", "reconstruction"]);
+  });
+
+  it("geometry + light-color keeps both reasons and executes the full chain", () => {
+    const diff = diffFrames(matScene(), moved);
+    const combined = diffFrames(
+      matScene(),
+      matScene({
+        ...moved,
+        light: { ...moved.light, color: RED },
+      }),
+    );
+    expect(combined.reasons).toEqual(["scene", "light-color"]);
+    expect(combined.executed).toEqual(ALL_STAGES);
+  });
+
+  it("light-color + material-values (no geometry) unions to upload/lighting/presentation once", () => {
+    const combined = diffFrames(
+      matScene(),
+      matScene({
+        light: { ...matScene().light, color: RED },
+        materials: { silicone: { baseColor: { r: 1, g: 0, b: 0 }, roughness: 0.5, metallic: 0 } },
+      }),
+    );
+    expect(combined.reasons).toEqual(["light-color", "material-values"]);
+    expect(combined.executed).toEqual(["upload", "lighting", "presentation"]);
+  });
+
+  it("repeated identical color -> fully retained (zero work)", () => {
+    const diff = diffFrames(matScene({ light: { ...matScene().light, color: RED } }), matScene({
+      light: { ...matScene().light, color: RED },
+    }));
+    expect(diff.reasons).toEqual([]);
+    expect(diff.retained).toBe(true);
+  });
+
+  it("removing an explicit color (colored -> omitted) invalidates once and restores white", () => {
+    const colored = matScene({ light: { ...matScene().light, color: RED } });
+    const plain = matScene();
+    const diff = diffFrames(colored, plain);
+    expect(diff.reasons).toEqual(["light-color"]);
+    expect(diff.executed).toEqual(["upload", "lighting", "presentation"]);
+    // the restored scene is the white default
+    const bytesPlain = encodeScene(createScene(plain), 1).bytes;
+    const view = new DataView(bytesPlain.buffer);
+    expect(view.getFloat32(112, true)).toBe(1);
+    expect(view.getFloat32(116, true)).toBe(1);
+    expect(view.getFloat32(120, true)).toBe(1);
+  });
 });
