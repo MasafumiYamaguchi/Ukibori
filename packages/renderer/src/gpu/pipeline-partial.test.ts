@@ -7,6 +7,10 @@ import type { FrameKey } from "./dirty";
 import { planPartialScene } from "./tiles";
 import { PARTIAL_DISPATCH_RATIO } from "./tiles";
 import { MASK_META_FULL_SENTINEL } from "./height-pass-wgsl";
+import { computeVisibility } from "../shadow";
+import { reconstructVisibility } from "../shadow-reconstruct";
+import { computeNormals, shadeHeightField } from "../lighting";
+import { composeSdfHeightField } from "../geometry";
 import type {
   GpuBindGroupEntryLike,
   GpuBindGroupLayoutLike,
@@ -319,8 +323,22 @@ function uniformWrites(device: MockFullDevice) {
         view(w).getUint32(12, true) === RENDER_WIDTH &&
         view(w).getUint32(20, true) === WORKGROUP,
     ),
-    // #41: 352 bytes — 96 scalar/pad bytes + 16 packed vec4 cone directions
-    shadow: all.filter((w) => w.bytes.byteLength === 96 + 16 * 16),
+    // #43: 2144 bytes — 96 scalar/pad bytes + 8 kernel variants x 16 packed
+    // vec4 cone directions
+    shadow: all.filter((w) => w.bytes.byteLength === 96 + 8 * 16 * 16),
+    // #43 reconstruction: 32 bytes, width 100 at 0, height 200 at 4, the f32
+// height gate 0.5 at 20 and zeroed pads (distinct from the 32-byte
+// presentation uniform whose shadowAlphaByte sits at 20; the normal
+// uniform carries the render width at 12 instead)
+    reconstruction: all.filter(
+      (w) =>
+        w.bytes.byteLength === 32 &&
+        view(w).getUint32(0, true) === RENDER_WIDTH &&
+        view(w).getUint32(4, true) === RENDER_HEIGHT &&
+        view(w).getFloat32(20, true) === Math.fround(0.5) &&
+        view(w).getUint32(24, true) === 0 &&
+        view(w).getUint32(28, true) === 0,
+    ),
     // 16 bytes with the ambient f32 at 0 and workgroupSize 64 at 4
     lighting: all.filter(
       (w) =>
@@ -435,7 +453,7 @@ describe("GpuScenePipeline — #32 partial/full planning and band dispatch", () 
     expect(lightingView.getUint32(12, true)).toBe((y1 + 1) * RENDER_WIDTH);
     // the partial frame still executes the full stage chain and shares ONE
     // fresh per-dispatch provenance token across every pass
-    expect(stats.invalidation.executed).toHaveLength(6);
+    expect(stats.invalidation.executed).toHaveLength(7);
     const snapshot = pipeline.getSnapshot();
     expect(snapshot.heightPass.provenance).not.toBe(firstSnapshot.heightPass.provenance);
     expect(snapshot.normalPass.provenance).toBe(snapshot.heightPass.provenance);
@@ -536,6 +554,131 @@ describe("GpuScenePipeline — #32 partial/full planning and band dispatch", () 
     expect(retained.planning.reason).toBe("no-scene-change");
   });
 
+  it("never plans partial for a geometry + material-value change (surfaceCount changed, materialCount unchanged)", () => {
+    // THE #43 review bug: an added surface shifts the material table offset,
+    // and a simultaneous material table VALUE change is a frame-global
+    // lighting semantic — a partial band would light the dirty region with
+    // the NEW material and the retained region with the OLD one.
+    const baseScene = createScene({
+      width: 100,
+      height: 200,
+      surfaces: [
+        {
+          id: "panel",
+          position: { x: 0, y: 0 },
+          size: { x: 100, y: 200 },
+          elevation: 0,
+          thickness: 0,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: false,
+          receivesShadow: true,
+        },
+        {
+          id: "btn",
+          position: { x: 10, y: 10 },
+          size: { x: 30, y: 30 },
+          elevation: 2,
+          thickness: 2,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      materials: { matte: { baseColor: { r: 0.5, g: 0.5, b: 0.5 }, roughness: 0.5, metallic: 0 } },
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+    });
+    const edited = createScene({
+      ...baseScene,
+      surfaces: [
+        ...baseScene.surfaces,
+        {
+          id: "chip",
+          position: { x: 80, y: 170 },
+          size: { x: 6, y: 6 },
+          elevation: 1,
+          thickness: 1,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      // the EXISTING matte definition changes: materialCount unchanged
+      materials: { matte: { baseColor: { r: 1, g: 0, b: 0 }, roughness: 0.5, metallic: 0 } },
+    });
+    const { pipeline } = setup();
+    pipeline.render({ scene: baseScene, dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    const stats = pipeline.render({ scene: edited, dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    expect(stats.invalidation.reasons).toEqual(["scene", "material-values"]);
+    expect(stats.planning.mode).toBe("full");
+    expect(stats.planning.reason).toBe("material-values-change");
+  });
+
+  it("keeps partial eligibility when the surfaceCount changes but the material table is byte-identical", () => {
+    const baseScene = createScene({
+      width: 100,
+      height: 200,
+      surfaces: [
+        {
+          id: "panel",
+          position: { x: 0, y: 0 },
+          size: { x: 100, y: 200 },
+          elevation: 0,
+          thickness: 0,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: false,
+          receivesShadow: true,
+        },
+        {
+          id: "btn",
+          position: { x: 10, y: 10 },
+          size: { x: 30, y: 30 },
+          elevation: 2,
+          thickness: 2,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      materials: { matte: { baseColor: { r: 0.5, g: 0.5, b: 0.5 }, roughness: 0.5, metallic: 0 } },
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1 },
+    });
+    const edited = createScene({
+      ...baseScene,
+      surfaces: [
+        ...baseScene.surfaces,
+        {
+          id: "chip",
+          position: { x: 80, y: 170 },
+          size: { x: 6, y: 6 },
+          elevation: 1,
+          thickness: 1,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+    });
+    const { pipeline } = setup();
+    pipeline.render({ scene: baseScene, dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    const stats = pipeline.render({ scene: edited, dpr: 1, shadowOptions: BOUNDED_SHADOW, tileSize: 32 });
+    // material table bytes identical -> geometry-only partial eligibility
+    expect(stats.invalidation.reasons).toEqual(["scene"]);
+    expect(stats.invalidation.reasons).not.toContain("material-values");
+    expect(stats.planning.mode).toBe("partial");
+  });
+
   it("invalidates retained regional state when a partial frame fails mid-chain", () => {
     const { device, pipeline } = setup();
     render(pipeline, tallScene());
@@ -612,5 +755,216 @@ describe("GpuScenePipeline — #32 partial/full planning and band dispatch", () 
     );
     const maskMetaView = new DataView(uniformWrites(device).maskMeta.at(-1)!.bytes.buffer);
     expect(maskMetaView.getUint32(0, true)).toBe(0);
+  });
+});
+
+describe("GpuScenePipeline — #43 reconstruction halo propagation on partial frames", () => {
+  // A soft + reconstruction variant of the tall scene: the reconstruction
+  // filter's texel radius must expand the region lighting (and normal, and
+  // the filter itself) recompute, so a partial geometry update never leaves
+  // stale color in the reconstruction halo.
+  const SOFT_RECON_SHADOW = {
+    ...BOUNDED_SHADOW,
+    samples: 8 as const,
+    reconstruction: { enabled: true, radius: 2 },
+  };
+  const RADIUS_TEXELS = 2;
+
+  function softTallScene(angularRadius = Math.fround(0.2)): Scene {
+    return createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius },
+    });
+  }
+
+  function renderSoft(pipeline: GpuScenePipeline, scene: Scene) {
+    return pipeline.render({
+      scene,
+      dpr: 1,
+      shadowOptions: SOFT_RECON_SHADOW,
+      tileSize: 32,
+    });
+  }
+
+  it("propagates the reconstruction halo to normal/reconstruction/lighting on a partial frame", () => {
+    const { device, pipeline } = setup();
+    renderSoft(pipeline, softTallScene());
+    const moved = createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: Math.fround(0.2) },
+      surfaces: [
+        { ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } },
+        TALL_SCENE.surfaces![1]!,
+        TALL_SCENE.surfaces![2]!,
+      ],
+    });
+    const stats = renderSoft(pipeline, moved);
+    expect(stats.planning.mode).toBe("partial");
+    expect(stats.reconstructionActive).toBe(true);
+    const { y0, y1 } = stats.planning.band!;
+    const haloY0 = Math.max(0, y0 - RADIUS_TEXELS);
+    const haloY1 = Math.min(RENDER_HEIGHT - 1, y1 + RADIUS_TEXELS);
+    const uniforms = uniformWrites(device);
+    // height + shadow recompute ONLY the original band...
+    const heightView = new DataView(uniforms.height.at(-1)!.bytes.buffer);
+    expect(heightView.getUint32(8, true)).toBe(y0 * RENDER_WIDTH);
+    expect(heightView.getUint32(12, true)).toBe((y1 + 1) * RENDER_WIDTH);
+    const shadowView = new DataView(uniforms.shadow.at(-1)!.bytes.buffer);
+    expect(shadowView.getUint32(72, true)).toBe(y0 * RENDER_WIDTH);
+    expect(shadowView.getUint32(76, true)).toBe((y1 + 1) * RENDER_WIDTH);
+    // ...while the reconstruction filter, its normal guidance and the
+    // lighting that consumes it recompute the band EXPANDED by the radius
+    const reconView = new DataView(uniforms.reconstruction.at(-1)!.bytes.buffer);
+    expect(reconView.getUint32(12, true)).toBe(haloY0 * RENDER_WIDTH);
+    expect(reconView.getUint32(16, true)).toBe((haloY1 + 1) * RENDER_WIDTH);
+    const normalView = new DataView(uniforms.normal.at(-1)!.bytes.buffer);
+    expect(normalView.getUint32(24, true)).toBe(haloY0 * RENDER_WIDTH);
+    expect(normalView.getUint32(28, true)).toBe((haloY1 + 1) * RENDER_WIDTH);
+    const lightingView = new DataView(uniforms.lighting.at(-1)!.bytes.buffer);
+    expect(lightingView.getUint32(8, true)).toBe(haloY0 * RENDER_WIDTH);
+    expect(lightingView.getUint32(12, true)).toBe((haloY1 + 1) * RENDER_WIDTH);
+    // the reconstruction pass genuinely ran on the expanded band
+    expect(pipeline.getSnapshot().reconstructionPass).not.toBeNull();
+    expect(pipeline.getSnapshot().reconstructionPass!.lastDispatch.radiusTexels).toBe(
+      RADIUS_TEXELS,
+    );
+  });
+
+  it("keeps the historical band for normal/lighting on a partial frame when reconstruction is disabled", () => {
+    const { device, pipeline } = setup();
+    const shadowOptions = { ...BOUNDED_SHADOW, samples: 8 as const, reconstruction: { enabled: false } };
+    const renderDisabled = (scene: Scene) =>
+      pipeline.render({ scene, dpr: 1, shadowOptions, tileSize: 32 });
+    renderDisabled(softTallScene());
+    const moved = createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: Math.fround(0.2) },
+      surfaces: [{ ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, TALL_SCENE.surfaces![1]!, TALL_SCENE.surfaces![2]!],
+    });
+    const stats = renderDisabled(moved);
+    expect(stats.planning.mode).toBe("partial");
+    expect(stats.reconstructionActive).toBe(false);
+    const { y0, y1 } = stats.planning.band!;
+    const uniforms = uniformWrites(device);
+    const normalView = new DataView(uniforms.normal.at(-1)!.bytes.buffer);
+    expect(normalView.getUint32(24, true)).toBe(y0 * RENDER_WIDTH);
+    expect(normalView.getUint32(28, true)).toBe((y1 + 1) * RENDER_WIDTH);
+    const lightingView = new DataView(uniforms.lighting.at(-1)!.bytes.buffer);
+    expect(lightingView.getUint32(8, true)).toBe(y0 * RENDER_WIDTH);
+    expect(lightingView.getUint32(12, true)).toBe((y1 + 1) * RENDER_WIDTH);
+    // no reconstruction pass was dispatched
+    expect(uniforms.reconstruction).toHaveLength(0);
+  });
+});
+
+describe("GpuScenePipeline — #43 geometry + global option change is NEVER partial", () => {
+  // The partial-locality proof only holds while the global shadow /
+  // reconstruction semantics are identical to the retained frame. A small
+  // geometry edit combined with a global semantic change must therefore
+  // plan FULL ("option-change-with-scene" / "<semantic>-change"), never
+  // partial — otherwise the dirty band would use the NEW semantics while
+  // the retained region keeps the OLD ones (mixed-semantic frame).
+
+  const SOFT_OPTIONS_A = {
+    ...BOUNDED_SHADOW,
+    samples: 4 as const,
+    reconstruction: { enabled: true, radius: 2 },
+  };
+  const SOFT_OPTIONS_B = {
+    ...BOUNDED_SHADOW,
+    samples: 16 as const,
+    reconstruction: { enabled: true, radius: 4 },
+  };
+
+  function softTall(angularRadius = Math.fround(0.2)): Scene {
+    return createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius },
+    });
+  }
+
+  it("geometry + samples/radius change plans full (option-change-with-scene)", () => {
+    const { pipeline } = setup();
+    pipeline.render({ scene: softTall(), dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+    const moved = createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: Math.fround(0.2) },
+      surfaces: [{ ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, TALL_SCENE.surfaces![1]!, TALL_SCENE.surfaces![2]!],
+    });
+    const stats = pipeline.render({ scene: moved, dpr: 1, shadowOptions: SOFT_OPTIONS_B, tileSize: 32 });
+    expect(stats.invalidation.reasons).toEqual(["scene", "shadow-options", "reconstruction-options"]);
+    expect(stats.planning.mode).toBe("full");
+    expect(stats.planning.reason).toBe("option-change-with-scene");
+    // the full chain ran with the NEW options everywhere
+    expect(stats.reconstructionActive).toBe(true);
+    expect(pipeline.getSnapshot().reconstructionPass!.options.radiusTexels).toBe(4);
+  });
+
+  it("geometry + angularRadius change plans full (<semantic>-change)", () => {
+    const { pipeline } = setup();
+    pipeline.render({ scene: softTall(Math.fround(0.1)), dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+    const moved = createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: Math.fround(0.2) },
+      surfaces: [{ ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, TALL_SCENE.surfaces![1]!, TALL_SCENE.surfaces![2]!],
+    });
+    const stats = pipeline.render({ scene: moved, dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+    expect(stats.invalidation.reasons).toContain("scene");
+    expect(stats.invalidation.reasons).toContain("light-angular-radius");
+    expect(stats.planning.mode).toBe("full");
+    expect(stats.planning.reason).toBe("light-angular-radius-change");
+  });
+
+  it("geometry + reconstruction disabled plans full (no stale reconstructed field outside the band)", () => {
+    const { pipeline } = setup();
+    pipeline.render({ scene: softTall(), dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+    const moved = createScene({
+      ...TALL_SCENE,
+      light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: Math.fround(0.2) },
+      surfaces: [{ ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, TALL_SCENE.surfaces![1]!, TALL_SCENE.surfaces![2]!],
+    });
+    const disabledOpts = { ...BOUNDED_SHADOW, samples: 8 as const, reconstruction: { enabled: false } };
+    const stats = pipeline.render({ scene: moved, dpr: 1, shadowOptions: disabledOpts, tileSize: 32 });
+    expect(stats.invalidation.reasons).toContain("scene");
+    expect(stats.invalidation.reasons).toContain("reconstruction-options");
+    expect(stats.planning.mode).toBe("full");
+    expect(stats.planning.reason).toBe("option-change-with-scene");
+    // reconstruction bypassed everywhere: raw visibility consumed
+    expect(stats.reconstructionActive).toBe(false);
+    expect(pipeline.getSnapshot().reconstructionPass).toBeNull();
+  });
+
+  it("geometry + hard<->soft transitions plan full in both directions", () => {
+    // soft -> hard (angularRadius 0)
+    {
+      const { pipeline } = setup();
+      pipeline.render({ scene: softTall(), dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+      const moved = createScene({
+        ...TALL_SCENE,
+        light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: 0 },
+        surfaces: [{ ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, TALL_SCENE.surfaces![1]!, TALL_SCENE.surfaces![2]!],
+      });
+      const stats = pipeline.render({ scene: moved, dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+      expect(stats.invalidation.reasons).toContain("scene");
+      expect(stats.invalidation.reasons).toContain("light-angular-radius");
+      expect(stats.planning.mode).toBe("full");
+      expect(stats.reconstructionActive).toBe(false);
+    }
+    // hard -> soft (samples 1 -> 8 with geometry)
+    {
+      const { pipeline } = setup();
+      const hardOpts = { ...BOUNDED_SHADOW, samples: 1 as const, reconstruction: { enabled: true, radius: 2 } };
+      pipeline.render({ scene: tallScene(), dpr: 1, shadowOptions: hardOpts, tileSize: 32 });
+      const moved = createScene({
+        ...TALL_SCENE,
+        light: { direction: { x: -0.6, y: -0.8, z: 1 }, intensity: 1, angularRadius: Math.fround(0.2) },
+        surfaces: [{ ...TALL_SCENE.surfaces![0]!, position: { x: 12, y: 11 } }, TALL_SCENE.surfaces![1]!, TALL_SCENE.surfaces![2]!],
+      });
+      const stats = pipeline.render({ scene: moved, dpr: 1, shadowOptions: SOFT_OPTIONS_A, tileSize: 32 });
+      expect(stats.invalidation.reasons).toContain("scene");
+      expect(stats.invalidation.reasons).toContain("shadow-options");
+      expect(stats.planning.mode).toBe("full");
+      expect(stats.reconstructionActive).toBe(true);
+    }
   });
 });

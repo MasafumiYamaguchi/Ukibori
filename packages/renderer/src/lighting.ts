@@ -2,6 +2,8 @@ import { HostBuffer } from "./buffer";
 import { clamp } from "./math";
 import { composeCasterHeightField, composeSdfHeightField } from "./geometry";
 import { computeVisibility } from "./shadow";
+import { reconstructVisibility, sanitizeReconstructionOptions } from "./shadow-reconstruct";
+import { sanitizeAngularRadius, sanitizeShadowSamples } from "./shadow-sampling";
 import { brdfDirect } from "./brdf";
 import {
   accumulateLinear,
@@ -55,7 +57,7 @@ export interface ShadeInput {
   height: HostBuffer;
   /** u32 scalar: owning surface index per pixel (NO_OWNER = base plane) */
   objectId: HostBuffer;
-  /** f32 scalar: hard cast-shadow visibility 0..1; omit to skip shadows (treated as 1) */
+  /** f32 scalar: cast-shadow visibility 0..1 (1 = lit; continuous on the #41 soft path, 0/1 on the hard path); omit to skip shadows (treated as 1) */
   visibility?: HostBuffer;
 }
 
@@ -68,7 +70,7 @@ export interface LightingBuffers {
   diffuse: HostBuffer;
   /** f32 scalar: specular direct contribution, luminance(Fr) * NdotL * visibility, clamped 0..1 (before light intensity) */
   specular: HostBuffer;
-  /** f32 scalar: hard cast-shadow visibility, 0 or 1 (present when a shadow pass ran) */
+  /** f32 scalar: cast-shadow visibility 0..1 (continuous on the #41 soft path, 0/1 hard; present when a shadow pass ran) */
   visibility?: HostBuffer;
   /** RGBA8: combined lit color, sRGB-encoded */
   color: HostBuffer;
@@ -89,7 +91,7 @@ export interface PreparedFieldShadeInput {
   normal: HostBuffer;
   /** u32 scalar: owning surface index per pixel (NO_OWNER = base plane) */
   objectId: HostBuffer;
-  /** f32 scalar: hard cast-shadow visibility 0..1; omit to skip shadows (treated as 1) */
+  /** f32 scalar: cast-shadow visibility 0..1 (1 = lit; continuous on the #41 soft path, 0/1 on the hard path); omit to skip shadows (treated as 1) */
   visibility?: HostBuffer;
 }
 
@@ -101,7 +103,7 @@ export interface PreparedFieldShadingBuffers {
   specular: HostBuffer;
   /** RGBA8: combined lit color, sRGB-encoded */
   color: HostBuffer;
-  /** f32 scalar: hard cast-shadow visibility, 0 or 1 (present when a shadow pass ran) */
+  /** f32 scalar: cast-shadow visibility 0..1 (continuous on the #41 soft path, 0/1 hard; present when a shadow pass ran) */
   visibility?: HostBuffer;
 }
 
@@ -313,14 +315,29 @@ export function shadePreparedFields(
 export function lightScene(scene: Scene, options: LightingOptions = {}): LightingBuffers {
   const composed = composeSdfHeightField(scene);
   const needsCasterField = scene.surfaces.some((s) => !s.castsShadow);
+  const shadowOptions = options.shadow ?? {};
   const visibility = computeVisibility(scene, composed.height, {
-    ...options.shadow,
+    ...shadowOptions,
     objectId: composed.objectId,
     casterHeight: needsCasterField ? composeCasterHeightField(scene) : undefined,
   });
+  // #43 edge-aware penumbra reconstruction of the SOFT visibility field.
+  // Hard-path frames (angularRadius 0 / single sample) bypass the filter so
+  // the historical {0,1} field — and therefore every historical byte — stays
+  // unchanged; a disabled option bypasses identically.
+  const softActive =
+    sanitizeAngularRadius(
+      typeof scene.light.angularRadius === "number" ? scene.light.angularRadius : undefined,
+    ) > 0 && sanitizeShadowSamples(shadowOptions.samples) > 1;
+  const reconstructed =
+    softActive && sanitizeReconstructionOptions(shadowOptions.reconstruction).enabled
+      ? reconstructVisibility(visibility, composed.height, {
+          objectId: composed.objectId,
+        }, shadowOptions.reconstruction)
+      : visibility;
   return shadeHeightField(
     scene,
-    { height: composed.height, objectId: composed.objectId, visibility },
+    { height: composed.height, objectId: composed.objectId, visibility: reconstructed },
     options,
   );
 }

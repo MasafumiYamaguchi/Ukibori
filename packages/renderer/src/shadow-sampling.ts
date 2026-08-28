@@ -46,8 +46,28 @@ export const ALLOWED_SHADOW_SAMPLES: readonly number[] = [1, 4, 8, 16];
 /** Default sample count when `ShadowOptions.samples` is absent/invalid. */
 export const DEFAULT_SHADOW_SAMPLES = 8;
 
+/**
+ * #43 deterministic kernel-variant count. Neighboring texels must not share
+ * one orientation of the #41 Vogel disk, or the individual sampled shadow
+ * silhouettes stay spatially coherent and read as several offset hard
+ * shadows. The host precomputes EXACTLY this many f32 rotations of the disk
+ * pattern; every texel selects one variant through `softKernelVariant` — a
+ * stateless integer hash of its RENDER TEXEL coordinates — and both backends
+ * consume byte-identical variant arrays, so raw visibility keeps its exact
+ * CPU/GPU parity while sampling error becomes spatially decorrelated.
+ */
+export const SHADOW_KERNEL_VARIANTS = 8;
+
 /** Golden angle (radians) driving the deterministic Vogel sunflower disk. */
 const GOLDEN_ANGLE = 2.399963229728653;
+
+/**
+ * Angular step between two consecutive kernel variants: the full-circle
+ * rotation of the Vogel pattern split into SHADOW_KERNEL_VARIANTS even
+ * slices (f64 on the host; each variant's directions are f32-rounded ONCE,
+ * exactly like the unrotated #41 pattern).
+ */
+export const KERNEL_VARIANT_ROTATION = (Math.PI * 2) / SHADOW_KERNEL_VARIANTS;
 
 interface XYZ {
   x: number;
@@ -92,6 +112,31 @@ function diskSample(i: number, n: number): { x: number; y: number } {
   return { x: r * Math.cos(theta), y: r * Math.sin(theta) };
 }
 
+/**
+ * #43 deterministic per-texel kernel-variant selection — the EXACT integer
+ * hash mirrored by the WGSL shadow pass (`kernelVariant` in
+ * `shadow-pass-wgsl.ts`). Stateless, frame-independent, no mutable RNG
+ * state: the variant of render texel `(x, y)` is
+ *
+ *     h = (x + 1) * 0x9E3779B1 xor (y + 1) * 0x85EBCA77   (wrapping u32)
+ *     h ^= h >> 15; h = h * 0x2545F491 (wrapping u32); h ^= h >> 13
+ *     variant = h mod SHADOW_KERNEL_VARIANTS
+ *
+ * The +1 offsets keep the two lanes independent at (0, y)/(x, 0); both
+ * multipliers are odd u32 constants so the wrapping multiplies are
+ * invertible mixers (large low-bit avalanches after the shifts). JS uses
+ * `Math.imul` + `>>> 0`, WGSL uses `u32` arithmetic — identical semantics,
+ * and only INTEGER operations are involved, so no transcendental drift is
+ * possible between backends.
+ */
+export function softKernelVariant(x: number, y: number): number {
+  let h = (Math.imul(x + 1, 0x9e3779b1) ^ Math.imul(y + 1, 0x85ebca77)) >>> 0;
+  h = (h ^ (h >>> 15)) >>> 0;
+  h = Math.imul(h, 0x2545f491) >>> 0;
+  h = (h ^ (h >>> 13)) >>> 0;
+  return h % SHADOW_KERNEL_VARIANTS;
+}
+
 /** Stable orthonormal tangent basis `(u, v)` orthogonal to the unit light direction. */
 export function orthoBasis(l: XYZ): { u: XYZ; v: XYZ } {
   // Helper axis = the axis of the SMALLEST |component| of L, so cross(H, L)
@@ -129,19 +174,22 @@ export function orthoBasis(l: XYZ): { u: XYZ; v: XYZ } {
 
 /**
  * Compute the `samples` cone sample directions around the unit light
- * direction (f64 math, f32-rounded components):
+ * direction (f64 math, f32-rounded components) for ONE kernel variant:
  *
  *     dir_i = normalize(L + U * px_i * angularRadius + V * py_i * angularRadius)
  *
- * where `(px_i, py_i)` is the i-th unit-disk Vogel point and `angularRadius`
- * is the light's angular radius in radians (small-cone approximation). The
- * result is tightly packed `[x0, y0, z0, x1, ...]` — the EXACT array the GPU
- * uniform packs, so both backends march identical directions.
+ * where `(px_i, py_i)` is the i-th unit-disk Vogel point of the variant —
+ * the base pattern rotated by `variant * KERNEL_VARIANT_ROTATION` (variant 0
+ * reproduces the unrotated #41 pattern) — and `angularRadius` is the light's
+ * angular radius in radians (small-cone approximation). The result is
+ * tightly packed `[x0, y0, z0, x1, ...]` — the EXACT array the GPU uniform
+ * packs per variant, so both backends march identical directions.
  */
 export function computeSoftSampleDirections(
   lightDirection: XYZ,
   angularRadius: number,
   samples: number,
+  variant = 0,
 ): Float32Array {
   const n = Math.max(1, Math.min(SHADOW_MAX_SAMPLES, Math.floor(samples)));
   const radius = sanitizeAngularRadius(angularRadius);
@@ -157,10 +205,16 @@ export function computeSoftSampleDirections(
     return out;
   }
   const { u, v } = orthoBasis(lightDirection);
+  const rotation = variant * KERNEL_VARIANT_ROTATION;
+  const cosR = Math.cos(rotation);
+  const sinR = Math.sin(rotation);
   for (let i = 0; i < n; i++) {
     const d = diskSample(i, n);
-    const kx = d.x * radius;
-    const ky = d.y * radius;
+    // Rotate the disk point BEFORE scaling: same radii, rotated pattern.
+    const px = d.x * cosR - d.y * sinR;
+    const py = d.x * sinR + d.y * cosR;
+    const kx = px * radius;
+    const ky = py * radius;
     let dx = lightDirection.x + u.x * kx + v.x * ky;
     let dy = lightDirection.y + u.y * kx + v.y * ky;
     let dz = lightDirection.z + u.z * kx + v.z * ky;
@@ -173,4 +227,24 @@ export function computeSoftSampleDirections(
     out[i * 3 + 2] = Math.fround(dz);
   }
   return out;
+}
+
+/**
+ * #43 precompute ALL kernel variants' direction arrays for one soft-light
+ * configuration. Entry `v` is `computeSoftSampleDirections(light, radius,
+ * samples, v)` — computed on the HOST in f64 and f32-rounded once, so the
+ * CPU oracle and the GPU uniform consume byte-identical directions and raw
+ * visibility keeps its exact cross-backend parity while each texel hashes to
+ * its own deterministic variant.
+ */
+export function computeSoftSampleDirectionVariants(
+  lightDirection: XYZ,
+  angularRadius: number,
+  samples: number,
+): Float32Array[] {
+  const variants: Float32Array[] = new Array(SHADOW_KERNEL_VARIANTS);
+  for (let v = 0; v < SHADOW_KERNEL_VARIANTS; v++) {
+    variants[v] = computeSoftSampleDirections(lightDirection, angularRadius, samples, v);
+  }
+  return variants;
 }

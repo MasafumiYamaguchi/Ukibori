@@ -58,6 +58,8 @@ export function App() {
   const [intensity, setIntensity] = useState(1);
   const [angularRadius, setAngularRadius] = useState(0);
   const [shadowSamples, setShadowSamples] = useState<1 | 4 | 8 | 16>(8);
+  const [shadowView, setShadowView] = useState<"reconstructed" | "raw">("reconstructed");
+  const [reconstructionRadius, setReconstructionRadius] = useState(2);
   const [environment, setEnvironment] = useState(0.5);
   const [environmentSpecular, setEnvironmentSpecular] = useState(1);
   const [exposure, setExposure] = useState(1);
@@ -78,7 +80,13 @@ export function App() {
       light={light}
       intensity={intensity}
       angularRadius={angularRadius}
-      shadow={{ samples: shadowSamples }}
+      shadow={{
+        samples: shadowSamples,
+        reconstruction: {
+          enabled: shadowView === "reconstructed",
+          radius: reconstructionRadius,
+        },
+      }}
       environment={{ intensity: environment, specularIntensity: environmentSpecular }}
       exposure={exposure}
       backend={backend}
@@ -184,11 +192,41 @@ export function App() {
               format={(value) => `${value.toFixed(2)} rad`}
               onChange={setAngularRadius}
             />
+            <div className="field">
+              <div className="field-head">
+                <label htmlFor="view-select">Shadow view</label>
+              </div>
+              <select
+                id="view-select"
+                value={shadowView}
+                onChange={(event) =>
+                  setShadowView(event.target.value as "reconstructed" | "raw")
+                }
+              >
+                <option value="reconstructed">reconstructed — #43 edge-aware penumbra</option>
+                <option value="raw">raw — #41 decorrelated sampling (no filter)</option>
+              </select>
+            </div>
+            <SliderControl
+              label="Reconstruction radius"
+              value={reconstructionRadius}
+              min={0.5}
+              max={4}
+              step={0.5}
+              format={PX}
+              onChange={setReconstructionRadius}
+            />
             <p className="hint">
               #41 area-light soft shadows: a positive light size (angular radius, radians)
               softens cast shadows through deterministic multi-direction sampling; 0 keeps the
               exact hard-shadow semantics. The sample count controls the penumbra quality
               (effective only while the light size is positive).
+            </p>
+            <p className="hint">
+              #43 edge-aware reconstruction: with the soft path active the sampled field is
+              smoothed by a small gated box filter (height + ownership edge gates) before
+              lighting — switch to "raw" to see the decorrelated #41 field without the filter.
+              The radius is in CSS pixels; hard-shadow frames always bypass the filter.
             </p>
             <SliderControl
               label="Environment"

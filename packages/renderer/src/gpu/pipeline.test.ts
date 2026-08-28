@@ -420,6 +420,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
       "height",
       "normal",
       "shadow",
+      "reconstruction",
       "lighting",
       "presentation",
     ]);
@@ -459,6 +460,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
       "height",
       "normal",
       "shadow",
+      "reconstruction",
       "lighting",
       "presentation",
     ]);
@@ -511,7 +513,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     taller.surfaces[0].elevation += 2;
     const stats = pipeline.render({ scene: taller, dpr: 1 });
     expect(stats.invalidation.reasons).toEqual(["scene"]);
-    expect(stats.invalidation.executed).toHaveLength(6);
+    expect(stats.invalidation.executed).toHaveLength(7);
     expect(stats.invalidation.retained).toBe(false);
     expect(stats.upload.bytesUploaded).toBeGreaterThan(0);
     expect(stats.height.composePasses).toBe(5);
@@ -529,7 +531,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     });
     expect(stats.invalidation.reasons).toEqual(["normal-options"]);
     expect(stats.invalidation.executed).toEqual(["normal", "lighting", "presentation"]);
-    expect(stats.invalidation.skipped).toEqual(["upload", "height", "shadow"]);
+    expect(stats.invalidation.skipped).toEqual(["upload", "height", "shadow", "reconstruction"]);
     expect(device.submits.length).toBe(submits + 3);
     // upstream allocations are untouched (retained counts reported)
     expect(stats.upload.allocationCount).toBe(first.upload.allocationCount);
@@ -551,8 +553,9 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
       shadowOptions: { bias: 0.25, stepSize: 0.5 },
     });
     expect(stats.invalidation.reasons).toEqual(["shadow-options"]);
-    expect(stats.invalidation.executed).toEqual(["shadow", "lighting", "presentation"]);
+    expect(stats.invalidation.executed).toEqual(["shadow", "reconstruction", "lighting", "presentation"]);
     expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal"]);
+    // hard-shadow scene: reconstruction stays BYPASSED (3 dispatching stages)
     expect(device.submits.length).toBe(submits + 3);
   });
 
@@ -563,7 +566,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     const stats = pipeline.render({ scene: sceneA(), dpr: 1, lightingOptions: { ambient: 0.3 } });
     expect(stats.invalidation.reasons).toEqual(["lighting-options"]);
     expect(stats.invalidation.executed).toEqual(["lighting", "presentation"]);
-    expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal", "shadow"]);
+    expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal", "shadow", "reconstruction"]);
     expect(device.submits.length).toBe(submits + 2);
     // the effective ambient is the f32-packed value actually dispatched
     expect(pipeline.getSnapshot().lightingPass.ambient).toBeCloseTo(0.3, 6);
@@ -580,7 +583,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     });
     expect(stats.invalidation.reasons).toEqual(["composite-options"]);
     expect(stats.invalidation.executed).toEqual(["presentation"]);
-    expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal", "shadow", "lighting"]);
+    expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal", "shadow", "reconstruction", "lighting"]);
     expect(device.submits.length).toBe(submits + 1);
   });
 
@@ -589,7 +592,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     pipeline.render({ scene: sceneA(), dpr: 1 });
     const stats = pipeline.render({ scene: sceneA(), dpr: 2 });
     expect(stats.invalidation.reasons).toContain("viewport");
-    expect(stats.invalidation.executed).toHaveLength(6);
+    expect(stats.invalidation.executed).toHaveLength(7);
     expect(stats.renderWidth).toBe(200);
     expect(stats.renderHeight).toBe(160);
     expect(context.canvas.width).toBe(200);
@@ -611,7 +614,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     // options, so the replay legitimately reports all three reasons
     expect(replayed.invalidation.reasons).toContain("scene");
     expect(replayed.invalidation.reasons).toContain("viewport");
-    expect(replayed.invalidation.executed).toHaveLength(6);
+    expect(replayed.invalidation.executed).toHaveLength(7);
     // the replayed upload bytes are byte-identical to frame 1 (deterministic
     // encode) — the forced recompute produces the same effective payloads
     const replayWrites = device.writes.slice(writesBeforeReplay).map((w) => Array.from(w.bytes));
@@ -641,7 +644,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     // path: no retained key/encoding to skip or mix)
     const recovered = pipeline.render({ scene: sceneB(), dpr: 1 });
     expect(recovered.invalidation.reasons).toEqual(["first-frame"]);
-    expect(recovered.invalidation.executed).toHaveLength(6);
+    expect(recovered.invalidation.executed).toHaveLength(7);
     expect(recovered.upload.bytesUploaded).toBeGreaterThan(0);
     expect(recovered.height.composePasses).toBe(5);
     const snapshot = pipeline.getSnapshot();
@@ -652,7 +655,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     // the pre-failure scene ALSO recovers: re-uploading sceneA must not
     // skip the upload (no mixed provenance from the failed frame)
     const replayA = pipeline.render({ scene: sceneA(), dpr: 1 });
-    expect(replayA.invalidation.executed).toHaveLength(6);
+    expect(replayA.invalidation.executed).toHaveLength(7);
     expect(replayA.upload.bytesUploaded).toBeGreaterThan(0);
     expect(replayA.height.composePasses).toBe(5);
     expect(pipeline.getSnapshot().heightPass.provenance).not.toBe(snapshot.heightPass.provenance);
@@ -738,8 +741,12 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
       scene: withLight({ x: 0, y: 0, z: 1 }),
       dpr: 1,
     });
-    expect(stats.invalidation.reasons).toEqual(["light-direction"]);
-    expect(stats.invalidation.executed).toEqual(["upload", "shadow", "lighting", "presentation"]);
+    // #43 review: the direction change also moved |light.xy|, which shifts
+    // the context-derived default maxDistance — the effective shadow options
+    // changed, so shadow-options fires alongside light-direction (never
+    // swallowed). The planning stays full with the semantic reason.
+    expect(stats.invalidation.reasons).toEqual(["light-direction", "shadow-options"]);
+    expect(stats.invalidation.executed).toEqual(["upload", "shadow", "reconstruction", "lighting", "presentation"]);
     expect(stats.invalidation.skipped).toEqual(["height", "normal"]);
     // exactly four stages submitted: no height/normal work
     expect(device.submits.length).toBe(submits + 3);
@@ -769,7 +776,7 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
       const stats = pipeline.render({ scene, dpr: 1 });
       expect(stats.invalidation.reasons).toEqual([label]);
       expect(stats.invalidation.executed).toEqual(["upload", "lighting", "presentation"]);
-      expect(stats.invalidation.skipped).toEqual(["height", "normal", "shadow"]);
+      expect(stats.invalidation.skipped).toEqual(["height", "normal", "shadow", "reconstruction"]);
       expect(device.submits.length).toBe(submits + 2);
       expect(stats.planning.mode).toBe("full");
       expect(stats.planning.reason).toBe(`${label}-change`);
@@ -802,8 +809,15 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
     pipeline.render({ scene: withLight({ x: 0, y: 0, z: 1 }), dpr: 1 });
     const submits = device.submits.length;
     const stats = pipeline.render({ scene: taller(), dpr: 1 });
-    expect(stats.invalidation.reasons).toEqual(["scene"]);
-    expect(stats.invalidation.executed).toHaveLength(6);
+    // #43 review: the geometry edit also re-introduced the sceneA light
+    // direction (|light.xy| moved back), so the global semantic reasons are
+    // composed with "scene" instead of being swallowed.
+    expect(stats.invalidation.reasons).toEqual([
+      "scene",
+      "light-direction",
+      "shadow-options",
+    ]);
+    expect(stats.invalidation.executed).toHaveLength(7);
     expect(device.submits.length).toBe(submits + 5);
     const snapshot = pipeline.getSnapshot();
     expect(snapshot.heightPass.provenance).not.toBe(firstProvenance);
@@ -817,8 +831,14 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
     pipeline.render({ scene: sceneA(), dpr: 1 });
     const submits = device.submits.length;
     const stats = pipeline.render({ scene: withLight({ x: 0, y: 0, z: 1 }, 2), dpr: 1 });
-    expect(stats.invalidation.reasons).toEqual(["light-direction", "light-intensity"]);
-    expect(stats.invalidation.executed).toEqual(["upload", "shadow", "lighting", "presentation"]);
+    // #43 review: shadow-options composes with the semantic reasons (the
+    // direction change moved |light.xy| -> the effective shadow default).
+    expect(stats.invalidation.reasons).toEqual([
+      "light-direction",
+      "light-intensity",
+      "shadow-options",
+    ]);
+    expect(stats.invalidation.executed).toEqual(["upload", "shadow", "reconstruction", "lighting", "presentation"]);
     expect(device.submits.length).toBe(submits + 3);
   });
 });
@@ -830,5 +850,148 @@ describe("WebGpuBackend — capabilities.compute stays false until #30", () => {
     expect(backend.capabilities.backend).toBe("webgpu");
     expect(backend.capabilities.compute).toBe(false);
     backend.dispose();
+  });
+});
+
+describe("GpuScenePipeline — #43 reconstruction bypass and binding transitions", () => {
+  function softScene(angularRadius: number): Scene {
+    return createScene({
+      // same extent as sceneA so hard<->soft switches are light-direction/
+      // angular-radius-only (no viewport churn)
+      width: 100,
+      height: 80,
+      surfaces: [
+        {
+          id: "a",
+          position: { x: 10, y: 10 },
+          size: { x: 40, y: 30 },
+          elevation: 2,
+          thickness: 2,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "silicone",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      light: { direction: { x: -0.70710678, y: 0, z: 0.70710678 }, intensity: 1, angularRadius },
+    });
+  }
+
+  it("never dispatches reconstruction on hard-shadow, samples-1, disabled or radius-0 frames", () => {
+    const cases: Array<{ name: string; scene: Scene; shadowOptions: Record<string, unknown> }> = [
+      { name: "angularRadius 0", scene: sceneA(), shadowOptions: { samples: 8 } },
+      {
+        name: "samples 1",
+        scene: softScene(Math.fround(0.2)),
+        shadowOptions: { samples: 1 },
+      },
+      {
+        name: "enabled false",
+        scene: softScene(Math.fround(0.2)),
+        shadowOptions: { samples: 8, reconstruction: { enabled: false } },
+      },
+      {
+        name: "radius 0",
+        scene: softScene(Math.fround(0.2)),
+        shadowOptions: { samples: 8, reconstruction: { radius: 0 } },
+      },
+    ];
+    for (const c of cases) {
+      const { device, pipeline } = setup();
+      const stats = pipeline.render({ scene: c.scene, dpr: 1, shadowOptions: c.shadowOptions });
+      expect(stats.reconstructionActive, c.name).toBe(false);
+      // zeroed activity: no dispatch, no submission
+      expect(stats.reconstruction.workgroupCountX, c.name).toBe(0);
+      expect(stats.reconstruction.submissions, c.name).toBe(0);
+      // no stale ReconstructionPass snapshot is ever consumed
+      expect(pipeline.getSnapshot().reconstructionPass, c.name).toBeNull();
+      // the shadow pass still ran the soft/hard path as configured
+      expect(stats.shadow.workgroupCountX).toBeGreaterThan(0);
+    }
+  });
+
+  it("consumes the raw field on hard frames and the reconstructed field on soft frames", () => {
+    const { pipeline } = setup();
+    const hard = pipeline.render({ scene: sceneA(), dpr: 1, shadowOptions: { samples: 8 } });
+    expect(hard.reconstructionActive).toBe(false);
+    const soft = pipeline.render({
+      scene: softScene(Math.fround(0.2)),
+      dpr: 1,
+      shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 2 } },
+    });
+    expect(soft.invalidation.reasons).toEqual(["light-angular-radius"]);
+    expect(soft.invalidation.executed).toEqual([
+      "upload",
+      "shadow",
+      "reconstruction",
+      "lighting",
+      "presentation",
+    ]);
+    expect(soft.reconstructionActive).toBe(true);
+    // the reconstruction stage ran and its snapshot is retained
+    const softSnapshot = pipeline.getSnapshot();
+    expect(softSnapshot.reconstructionPass).not.toBeNull();
+    expect(softSnapshot.reconstructionPass!.options.radiusTexels).toBe(2);
+    // a reconstruction-only option change (radius) re-runs reconstruction +
+    // lighting + presentation on the SAME retained raw field
+    const reconOnly = pipeline.render({
+      scene: softScene(Math.fround(0.2)),
+      dpr: 1,
+      shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 4 } },
+    });
+    expect(reconOnly.invalidation.reasons).toEqual(["reconstruction-options"]);
+    expect(reconOnly.invalidation.executed).toEqual([
+      "reconstruction",
+      "lighting",
+      "presentation",
+    ]);
+    // the raw shadow snapshot is UNCHANGED by the recon-only change
+    expect(
+      pipeline.getSnapshot().shadowPass.lastDispatch.workgroupCountX,
+    ).toBe(softSnapshot.shadowPass.lastDispatch.workgroupCountX);
+  });
+
+  it("switching hard <-> soft never consumes a stale reconstruction snapshot", () => {
+    const { pipeline } = setup();
+    // soft frame first: reconstruction active
+    const soft = pipeline.render({
+      scene: softScene(Math.fround(0.2)),
+      dpr: 1,
+      shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 2 } },
+    });
+    expect(soft.reconstructionActive).toBe(true);
+    // back to hard: the angularRadius change re-runs shadow/lighting/
+    // presentation and MUST bind the RAW field (reconstructionActive false),
+    // not the retained reconstructed buffer
+    const hard = pipeline.render({ scene: sceneA(), dpr: 1, shadowOptions: { samples: 8 } });
+    expect(hard.invalidation.reasons).toEqual(["light-angular-radius"]);
+    expect(hard.reconstructionActive).toBe(false);
+    expect(pipeline.getSnapshot().reconstructionPass).toBeNull();
+    // soft again: a fresh reconstruction runs against the CURRENT raw field
+    const softAgain = pipeline.render({
+      scene: softScene(Math.fround(0.2)),
+      dpr: 1,
+      shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 2 } },
+    });
+    expect(softAgain.reconstructionActive).toBe(true);
+    expect(pipeline.getSnapshot().reconstructionPass).not.toBeNull();
+  });
+
+  it("disabling reconstruction on a soft frame binds the raw field (no stale recon)", () => {
+    const { pipeline } = setup();
+    pipeline.render({
+      scene: softScene(Math.fround(0.2)),
+      dpr: 1,
+      shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 2 } },
+    });
+    const disabled = pipeline.render({
+      scene: softScene(Math.fround(0.2)),
+      dpr: 1,
+      shadowOptions: { samples: 8, reconstruction: { enabled: false } },
+    });
+    expect(disabled.invalidation.reasons).toEqual(["reconstruction-options"]);
+    expect(disabled.reconstructionActive).toBe(false);
+    expect(pipeline.getSnapshot().reconstructionPass).toBeNull();
   });
 });

@@ -107,10 +107,13 @@ describe("parity.mjs + oracle.mjs — #27 shadow fixtures and harness hardening"
     expect(paritySource).toContain(
       "shadowSnapshot.output.buffer",
     );
-    // the exact 0/1 comparison is tolerance-free
-    expect(oracleSource).toContain(
-      "v !== 0 && v !== 1 ? `non-binary/non-finite ${v}` : v === oracle[g] ? null : `!= oracle ${oracle[g]}`",
-    );
+    // the exact 0/1 comparison is tolerance-free on the hard path; the #41
+    // soft path compares the continuous [0,1] field against the oracle with
+    // the same zero-tolerance equality
+    expect(oracleSource).toContain("v !== 0 && v !== 1");
+    expect(oracleSource).toContain("? `non-finite ${v}`");
+    expect(oracleSource).toContain("`out of [0,1]: ${v}`");
+    expect(oracleSource).toContain("v === oracle[g]");
   });
 
   it("pins the required shadow fixture set (brief fixture list)", () => {

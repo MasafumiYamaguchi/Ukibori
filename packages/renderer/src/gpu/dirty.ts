@@ -2,6 +2,9 @@ import { parseHeader } from "./encode";
 import type { EncodedScene } from "./encode";
 import { sanitizeNormalOptions } from "./normal-pass";
 import { sanitizeShadowOptions } from "./shadow-pass";
+import {
+  sanitizeReconstructionOptions,
+} from "../shadow-reconstruct";
 import { sanitizeAmbient } from "./lighting-pass";
 import type { LightingPassOptions } from "./lighting-pass";
 import { sanitizeCompositeOptions } from "./composite";
@@ -16,10 +19,11 @@ import {
   LIGHT_DIRECTION_REGION,
   LIGHT_INTENSITY_REGION,
   materialFlagsRanges,
+  regionBytesEqual,
   regionEqual,
   regionsEqual,
 } from "./height-inputs";
-import { sceneSectionLayout } from "./layout";
+import { MATERIAL_STRIDE, sceneSectionLayout } from "./layout";
 import { bytesEqual } from "./tiles";
 
 /**
@@ -28,10 +32,11 @@ import { bytesEqual } from "./tiles";
  *
  * ## Stages
  *
- * The six pipeline stages, in canonical execution order:
+ * The seven pipeline stages, in canonical execution order:
  *
  * ```text
- * upload -> height -> normal -> shadow -> lighting -> presentation
+ * upload -> height -> normal -> shadow -> reconstruction -> lighting
+ *        -> presentation
  * ```
  *
  * `height` is the PROVENANCE ROOT of the chain: the #25 `HeightPass`
@@ -47,16 +52,21 @@ import { bytesEqual } from "./tiles";
  *
  * | reason                | stages it invalidates                       |
  * |-----------------------|---------------------------------------------|
- * | `first-frame`         | all six (nothing retained yet)              |
- * | `viewport`            | all six (render extent / DPR changed)       |
- * | `scene`               | all six (height-input geometry changed)     |
- * | `light-direction`     | upload, shadow, lighting, presentation      |
- * | `light-angular-radius`| upload, shadow, lighting, presentation (#41)|
+ * | `first-frame`         | all seven (nothing retained yet)            |
+ * | `viewport`            | all seven (render extent / DPR changed)     |
+ * | `scene`               | all seven (height-input geometry changed)   |
+ * | `light-direction`     | upload, shadow, reconstruction, lighting,   |
+ * |                       | presentation                                |
+ * | `light-angular-radius`| upload, shadow, reconstruction, lighting,   |
+ * |                       | presentation (#41)                          |
  * | `light-intensity`     | upload, lighting, presentation              |
  * | `environment`         | upload, lighting, presentation              |
  * | `material-values`     | upload, lighting, presentation              |
  * | `normal-options`      | normal, lighting, presentation              |
- * | `shadow-options`      | shadow, lighting, presentation              |
+ * | `shadow-options`      | shadow, reconstruction, lighting,           |
+ * |                       | presentation                                |
+ * | `reconstruction-`     | reconstruction, lighting, presentation      |
+ * | `options` (#43)       |                                             |
  * | `lighting-options`    | lighting, presentation                      |
  * | `composite-options`   | presentation only                           |
  * | `debug-target`        | presentation only                           |
@@ -80,6 +90,40 @@ import { bytesEqual } from "./tiles";
  *   presentation.
  * - `material-values` — only the material-table VALUE bytes changed:
  *   lighting + presentation (the height stage reads material FLAGS only).
+ *
+ * ### Reason composition with a simultaneous geometry change (#43 review)
+ *
+ * The GLOBAL SEMANTIC fields are always compared, so a geometry change
+ * NEVER swallows them:
+ *
+ * - the header fields (light direction / angular radius / intensity /
+ *   exposure / environment) live at FIXED header offsets;
+ * - the material VALUES table is compared at each scene's OWN
+ *   `materialsOffset` whenever `materialCount` is unchanged (the
+ *   surface/mask layout may shift, but the same-length table at its own
+ *   offset still describes the same logical materials); a materialCount
+ *   change is structural and covered by `scene`.
+ *
+ * `classifySceneChange` therefore returns `["scene",
+ * "light-angular-radius", ...]` / `["scene", "material-values"]` for
+ * combined edits. Likewise the shadow/reconstruction OPTION fingerprints
+ * are independent of the scene fingerprint — `["scene", "shadow-options"]`
+ * / `["scene", "reconstruction-options"]` are produced when a global pass
+ * option changed alongside geometry. The PLANNER contract:
+ *
+ * - geometry-only scene change -> eligible for partial
+ * - geometry + global pass-option/semantic change -> full
+ *   (`option-change-with-scene` / `<semantic>-change`)
+ *
+ * The GLOBAL semantics whose change breaks the partial-locality proof:
+ * light direction / angular radius / intensity / environment / exposure,
+ * shadow options (samples/step/bias/maxDistance), reconstruction options
+ * (enabled/radius/heightGate), and MATERIAL VALUES (baseColor / roughness
+ * / metallic / ior). The partial-locality proof only holds while ALL of
+ * them are IDENTICAL to the retained frame; a partial update with changed
+ * global semantics would mix new and retained visibility/lighting
+ * semantics frame-wide. `stagesForReasons` unions stages, so extra reasons
+ * never double-execute a pass.
  *
  * Every change class includes `upload`: the changed bytes must reach the
  * GPU. The retained height-stage fields are only ever combined with the new
@@ -114,6 +158,7 @@ export type PipelineStage =
   | "height"
   | "normal"
   | "shadow"
+  | "reconstruction"
   | "lighting"
   | "presentation";
 
@@ -128,6 +173,7 @@ export type InvalidationReason =
   | "material-values"
   | "normal-options"
   | "shadow-options"
+  | "reconstruction-options"
   | "lighting-options"
   | "composite-options"
   | "debug-target";
@@ -137,6 +183,7 @@ export const ALL_STAGES: readonly PipelineStage[] = [
   "height",
   "normal",
   "shadow",
+  "reconstruction",
   "lighting",
   "presentation",
 ];
@@ -154,16 +201,21 @@ export const REASON_STAGES: Readonly<Record<InvalidationReason, readonly Pipelin
   "first-frame": ALL_STAGES,
   viewport: ALL_STAGES,
   scene: ALL_STAGES,
-  "light-direction": ["upload", "shadow", "lighting", "presentation"],
+  // #43: the reconstruction stage sits between shadow and lighting; every
+  // reason that invalidates shadow also re-runs it.
+  "light-direction": ["upload", "shadow", "reconstruction", "lighting", "presentation"],
   // #41: the light angular radius feeds only the shadow cone directions
   // (and downstream visibility consumers); the height/normal fields never
   // read it, so they stay retained.
-  "light-angular-radius": ["upload", "shadow", "lighting", "presentation"],
+  "light-angular-radius": ["upload", "shadow", "reconstruction", "lighting", "presentation"],
   "light-intensity": ["upload", "lighting", "presentation"],
   environment: ["upload", "lighting", "presentation"],
   "material-values": ["upload", "lighting", "presentation"],
   "normal-options": ["normal", "lighting", "presentation"],
-  "shadow-options": ["shadow", "lighting", "presentation"],
+  "shadow-options": ["shadow", "reconstruction", "lighting", "presentation"],
+  // #43: a reconstruction-only option change (enabled/radius) re-runs the
+  // filter and its consumers; the raw shadow field stays retained.
+  "reconstruction-options": ["reconstruction", "lighting", "presentation"],
   "lighting-options": ["lighting", "presentation"],
   "composite-options": ["presentation"],
   "debug-target": ["presentation"],
@@ -221,6 +273,8 @@ export interface FrameKey {
   readonly normal: string;
   /** effective (sanitized + f32-packed) shadow options */
   readonly shadow: string;
+  /** effective (sanitized + dpr-converted) #43 reconstruction options */
+  readonly reconstruction: string;
   /** effective (sanitized + f32-packed) ambient */
   readonly lighting: string;
   /** effective composite options */
@@ -265,6 +319,11 @@ export function computeFrameKey(
     scene: fingerprintBytes(encoded.bytes),
     normal: JSON.stringify(sanitizeNormalOptions(input.normalOptions)),
     shadow: JSON.stringify(sanitizeShadowOptions(input.shadowOptions, shadowContext)),
+    // #43: the reconstruction options are sanitized with the frame's DPR so
+    // the fingerprint reflects the effective texel radius actually run.
+    reconstruction: JSON.stringify(
+      sanitizeReconstructionOptions(input.shadowOptions?.reconstruction, header.dpr),
+    ),
     lighting: String(sanitizeAmbient(input.lightingOptions?.ambient)),
     composite: JSON.stringify(sanitizeCompositeOptions(input.compositeOptions)),
     debugTarget: input.debugReadback === true ? "debug" : "prod",
@@ -277,49 +336,36 @@ export function computeFrameKey(
  * regions (`gpu/height-inputs.ts`) — a hash is never consulted here:
  *
  * - byte-length / header-geometry / surface / mask / mask-pixel / material-
- *   flags differences -> `["scene"]` (conservative full chain; any layout or
- *   height-input change makes the rest of the classification meaningless)
+ *   flags differences -> `["scene", ...globalSemanticChanges]` (conservative
+ *   full chain). The GLOBAL SEMANTIC fields — the fixed-offset header fields
+ *   (light direction / angular radius / intensity / exposure / environment)
+ *   AND the material VALUES table (compared at each scene's OWN
+ *   `materialsOffset` whenever `materialCount` is unchanged, even when the
+ *   surface/mask layout shifted) — are ALWAYS compared, so a geometry change
+ *   never swallows a simultaneous global semantic change: the planner needs
+ *   those reasons to refuse the partial path (a partial update with changed
+ *   global lighting/material semantics would mix new and retained semantics
+ *   frame-wide).
  * - otherwise the union of the changed light/environment/material regions:
- *   `light-direction`, `light-intensity`, `environment` (environment vec4 or
- *   exposure), `material-values` — each with its own downstream closure
+ *   `light-direction`, `light-angular-radius`, `light-intensity`,
+ *   `environment` (environment vec4 or exposure), `material-values` — each
+ *   with its own downstream closure. A materialCount change is a structural
+ *   change: the table length differs, so it is covered by `scene` (full
+ *   chain) — the planner never takes the partial path for it.
  * - no differences -> `[]` (byte-identical scenes)
  */
 export function classifySceneChange(
   prevBytes: Uint8Array,
   nextBytes: Uint8Array,
 ): InvalidationReason[] {
-  if (prevBytes.byteLength !== nextBytes.byteLength) {
-    return ["scene"];
-  }
   const prevHeader = parseHeader(prevBytes);
   const nextHeader = parseHeader(nextBytes);
   const prevLayout = sceneSectionLayout(prevHeader);
   const nextLayout = sceneSectionLayout(nextHeader);
-  // Any height-input byte differs -> the height chain must re-run and no
-  // downstream reuse is legal: classify as the conservative full chain. The
-  // material FLAGS fields are height-dependent too (the material-id output
-  // reads them), so they are checked here rather than with the material
-  // VALUES below.
-  if (
-    !regionsEqual(prevBytes, nextBytes, HEADER_GEOMETRY_REGIONS) ||
-    !regionEqual(prevBytes, nextBytes, {
-      offset: prevLayout.surfacesOffset,
-      byteLength: prevLayout.surfacesByteLength,
-    }) ||
-    !regionEqual(prevBytes, nextBytes, {
-      offset: prevLayout.masksOffset,
-      byteLength: prevLayout.masksByteLength,
-    }) ||
-    !regionEqual(prevBytes, nextBytes, {
-      offset: prevLayout.maskPixelsOffset,
-      byteLength: prevLayout.maskPixelsByteLength,
-    }) ||
-    !regionsEqual(prevBytes, nextBytes, materialFlagsRanges(prevHeader, prevLayout))
-  ) {
-    return ["scene"];
-  }
-  // Geometry/header/sections are byte-identical, so both layouts agree and
-  // the remaining comparisons are positional and in bounds.
+  // The global semantic header fields are at FIXED offsets (64..112 of the
+  // 128-byte header) regardless of the section layout, so they are compared
+  // BEFORE any geometry decision — the same helpers and region constants
+  // the byte-identical branch uses, never a duplicate comparison.
   const changes: InvalidationReason[] = [];
   if (!regionEqual(prevBytes, nextBytes, LIGHT_DIRECTION_REGION)) {
     changes.push("light-direction");
@@ -336,13 +382,53 @@ export function classifySceneChange(
   ) {
     changes.push("environment");
   }
+  // Material VALUES are frame-global LIGHTING semantics (#43 review): they
+  // are comparable whenever `materialCount` is unchanged, pairing each
+  // scene's OWN `materialsOffset` — the surface/mask layout may shift (an
+  // added surface moves the table), but the table bytes at their own
+  // offsets still describe the same logical materials. A materialCount
+  // change is structural (the table length differs): the `scene` reason
+  // covers it and the planner never takes the partial path.
   if (
-    !regionEqual(prevBytes, nextBytes, {
-      offset: prevLayout.materialsOffset,
-      byteLength: prevLayout.materialsByteLength,
-    })
+    prevHeader.materialCount === nextHeader.materialCount &&
+    prevHeader.materialCount > 0
   ) {
-    changes.push("material-values");
+    const byteLength = prevHeader.materialCount * MATERIAL_STRIDE;
+    if (
+      !regionBytesEqual(
+        prevBytes,
+        prevLayout.materialsOffset,
+        nextBytes,
+        nextLayout.materialsOffset,
+        byteLength,
+      )
+    ) {
+      changes.push("material-values");
+    }
+  }
+  // Any height-input byte differs -> the height chain must re-run and no
+  // downstream reuse is legal: classify as the conservative full chain. The
+  // material FLAGS fields are height-dependent too (the material-id output
+  // reads them), so they are checked here rather than with the material
+  // VALUES above. The global semantic reasons are kept.
+  const geometryChanged =
+    prevBytes.byteLength !== nextBytes.byteLength ||
+    !regionsEqual(prevBytes, nextBytes, HEADER_GEOMETRY_REGIONS) ||
+    !regionEqual(prevBytes, nextBytes, {
+      offset: prevLayout.surfacesOffset,
+      byteLength: prevLayout.surfacesByteLength,
+    }) ||
+    !regionEqual(prevBytes, nextBytes, {
+      offset: prevLayout.masksOffset,
+      byteLength: prevLayout.masksByteLength,
+    }) ||
+    !regionEqual(prevBytes, nextBytes, {
+      offset: prevLayout.maskPixelsOffset,
+      byteLength: prevLayout.maskPixelsByteLength,
+    }) ||
+    !regionsEqual(prevBytes, nextBytes, materialFlagsRanges(prevHeader, prevLayout));
+  if (geometryChanged) {
+    return ["scene", ...changes];
   }
   return changes;
 }
@@ -394,16 +480,21 @@ export function computeInvalidationReasons(
   if (key.normal !== previous.normal) {
     reasons.push("normal-options");
   }
-  const shadowAlreadyInvalidated = reasons.some(
-    (reason) =>
-      reason === "scene" ||
-      reason === "viewport" ||
-      reason === "light-direction" ||
-      reason === "light-angular-radius" ||
-      reason === "first-frame",
-  );
-  if (key.shadow !== previous.shadow && !shadowAlreadyInvalidated) {
+  // #43 review: shadow/reconstruction OPTION fingerprints are meaningful
+  // even when a scene/light reason already fired — a geometry change must
+  // never swallow a simultaneous global shadow/reconstruction semantic
+  // change, or the planner could take the partial path and mix new and
+  // retained semantics frame-wide. Reasons are only omitted for the
+  // first-frame / viewport cases where the whole pipeline is recreated
+  // anyway. `stagesForReasons` unions stages, so extra reasons never
+  // double-execute a pass.
+  const alwaysInvalidated =
+    reasons.includes("first-frame") || reasons.includes("viewport");
+  if (key.shadow !== previous.shadow && !alwaysInvalidated) {
     reasons.push("shadow-options");
+  }
+  if (key.reconstruction !== previous.reconstruction && !alwaysInvalidated) {
+    reasons.push("reconstruction-options");
   }
   if (key.lighting !== previous.lighting) {
     reasons.push("lighting-options");

@@ -17,8 +17,8 @@ export const GPU_TIMESTAMP_USAGE_COPY_SRC = 0x0004;
 export const GPU_TIMESTAMP_USAGE_COPY_DST = 0x0008;
 export const GPU_TIMESTAMP_USAGE_QUERY_RESOLVE = 0x0200;
 
-/** Five timed stages, with a beginning and end query for each stage. */
-export const GPU_TIMESTAMP_QUERY_COUNT = 10;
+/** Six timed stages (#43 adds reconstruction), with two queries each. */
+export const GPU_TIMESTAMP_QUERY_COUNT = 12;
 /** WebGPU query-resolve offsets are 256-byte aligned. */
 export const GPU_TIMESTAMP_BUFFER_SIZE = 256;
 
@@ -31,6 +31,7 @@ export const GPU_TIMESTAMP_STAGES: readonly GpuTimestampStage[] = Object.freeze(
   "height",
   "normal",
   "shadow",
+  "reconstruction",
   "lighting",
   "presentation",
 ]);

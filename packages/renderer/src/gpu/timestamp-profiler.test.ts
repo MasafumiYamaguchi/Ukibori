@@ -188,7 +188,7 @@ describe("GpuTimestampProfiler", () => {
     });
   });
 
-  it("allocates ten query slots and canonical pass timestampWrites", () => {
+  it("allocates twelve query slots and canonical pass timestampWrites", () => {
     const mock = mockDevice();
     const profiler = new GpuTimestampProfiler(mock.device);
     const frame = profiler.beginFrame([
@@ -221,7 +221,7 @@ describe("GpuTimestampProfiler", () => {
       endOfPassWriteIndex: 5,
     });
     expect(frame.getTimestampWrites("normal")).toBeUndefined();
-    expect(GPU_TIMESTAMP_QUERY_COUNT).toBe(10);
+    expect(GPU_TIMESTAMP_QUERY_COUNT).toBe(12);
 
     frame.dispose();
     frame.dispose();

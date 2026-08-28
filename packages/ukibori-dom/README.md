@@ -132,7 +132,9 @@ generated unchanged by the #13–#19 pipeline and exposed via
 - lit base-plane pixels: fully transparent — the page IS the base plane
 - shadowed base-plane pixels: a translucent dark overlay (`shadowColor` at
   `shadowAlpha`, configurable — `shadowAlpha: 0` disables it) approximating
-  the hard #17 visibility mask.
+  the #17/#41 visibility mask (hard `{0,1}` or the #41 continuous
+  occlusion strength, scaled by the #43 reconstructed field when the soft
+  path is active).
 
 ## Double-rendering policy
 

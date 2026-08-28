@@ -1,4 +1,4 @@
-// #30 golden fixture catalog.
+﻿// #30 golden fixture catalog.
 //
 // The single source of truth for the parity fixture set. Every fixture has a
 // STABLE ID and explicit metadata:
@@ -24,10 +24,10 @@
 //
 // Scene construction mirrors the pre-#30 harness exactly; no scene feature is
 // invented here. Only translation/size (position/size) and DPR transforms are
-// supported by the scene contract — there is NO rotation/skew support, and
+// supported by the scene contract —there is NO rotation/skew support, and
 // the catalog never claims any.
 
-export const CATALOG_VERSION = 2;
+export const CATALOG_VERSION = 5;
 
 // ---------------------------------------------------------------------------
 // Central comparison policy table (#30). One declaration, used by the
@@ -68,6 +68,21 @@ export const POLICY_TABLE = Object.freeze([
       "(angularRadius 0 or samples 1): exact binary 0/1. SOFT shadow (#41 " +
       "area-light sampling): exact deterministic [0,1] fractional visibility " +
       "(dyadic k/n fractions of identical f32 cone rays on both backends)",
+  },
+  {
+    buffer: "visibility-reconstructed",
+    policy: "reconstructed-abs-tolerance",
+    tolerance: 1e-6,
+    description:
+      "#43 reconstructed visibility: SEPARATE tight policy from raw #41. " +
+      "The gated tap average sum/tapCount is NOT dyadic (3/25, 7/49, ...), " +
+      "so the CPU's exact f64 quotient rounded to f32 once and the GPU's " +
+      "f32 accumulation must NOT be promised bit-identical across legal " +
+      "WebGPU backends. Every value must be finite and inside [0,1] with " +
+      "|gpu - cpu| <= 1e-6 (~16-30 f32 ulp —evidence-driven; the ULP " +
+      "simulation measures 0 ulp for the exact dyadic accumulation and the " +
+      "headroom covers backend division rounding); max abs/ULP errors are " +
+      "reported so regressions surface even under the tolerance.",
   },
   {
     buffer: "height",
@@ -177,6 +192,8 @@ export const CATEGORIES = Object.freeze([
   "penumbra-separation",
   "sampling-boundary",
   "threshold-equality",
+  // #43 edge-aware visibility reconstruction
+  "reconstruction",
   "cast-flag",
   "receive-flag",
   // lighting / environment / exposure
@@ -259,6 +276,7 @@ export const REQUIRED_COVERAGE = Object.freeze([
   "canvas-transparency",
   "canvas-resize",
   "canvas-clipped-output",
+  "reconstruction",
 ]);
 
 /** Buffers every integrated compute fixture compares (full-chain passes). */
@@ -585,6 +603,50 @@ export function createCatalog(api) {
     };
   }
 
+  /**
+   * #43 reconstructed-soft-shadow fixture: the #41 soft scene with explicit
+   * reconstruction options; the harness ALSO dispatches the real
+   * ReconstructionPass and compares its output against the actual
+   * TypeScript reconstructVisibility oracle (exact equality).
+   */
+  function softShadowReconstructionScene(angularRadius, samples, separation, radius) {
+    return {
+      ...softShadowScene(angularRadius, samples, separation),
+      reconstructionOptions: { enabled: true, radius },
+    };
+  }
+
+  /**
+   * #43 PORTABLE reconstructed-canvas presentation scene (only used by the
+   * `present-reconstructed-soft-shadow` canvas fixture).
+   *
+   * Reconstructed visibility is a NON-DYADIC tap average, so the
+   * premultiplied canvas products (shadowAlpha x strength, tint x strength)
+   * can land arbitrarily close to an 8-bit rounding boundary and flip by one
+   * byte under the small unorm8 encode variance legal backends exhibit. This
+   * scene + the fixture's composite options were chosen by sweeping
+   * geometry/samples/radius/tint so that the measured minimum quantization
+   * margin (see oracle.reconstructedCanvasQuantizationReport) is ~0.122 byte
+   * units —comfortably above the observed ~0.057 flip envelope —while the
+   * soft path, reconstruction (radius 3) and a visible shadow remain real.
+   */
+  function portableReconstructedScene() {
+    return {
+      scene: createScene({
+        width: 16,
+        height: 16,
+        surfaces: [shadowSurface({
+          id: "slab",
+          position: { x: 8, y: 2 },
+          size: { x: 4, y: 2 },
+          elevation: 2,
+        })],
+        light: { direction: LIGHT_FROM_RIGHT, intensity: 1, angularRadius: Math.fround(0.25) },
+      }),
+      shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 3 } },
+    };
+  }
+
   /** Non-casting top (4.5) fully covering a lower casting slab (4). */
   function nonCastingTopScene() {
     return shadowScene(16, 16, [
@@ -705,6 +767,18 @@ export function createCatalog(api) {
   }
 
   /**
+   * #43 reconstructed variant of the mask/glyph caster: the glyph silhouette
+   * must be preserved by the reconstruction's ownership/height edge gates —
+   * the reconstructed field never bleeds across the glyph boundary.
+   */
+  function softShadowMaskCasterReconstruction(angularRadius, samples, radius) {
+    return {
+      ...softShadowMaskCaster(angularRadius, samples),
+      reconstructionOptions: { enabled: true, radius },
+    };
+  }
+
+  /**
    * Clipped caster whose shadow reaches the visible field + offscreen caster.
    * The caster's left edge is offscreen (x -10) and its right edge (x 10) is
    * visible; with the light FROM THE LEFT the shadow falls onto the visible
@@ -782,7 +856,7 @@ export function createCatalog(api) {
    * f32-vs-f64 threshold fixture: the caster top is f32(0.1 + 0.2) =
    * 0.30000001192092896 (f32-exact in both the composed CPU field and the
    * composed GPU field) and the f32 threshold f32(0 + 0.3) equals it EXACTLY,
-   * so the strict `>` comparison says LIT (equality) — while a naive f64
+   * so the strict `>` comparison says LIT (equality) —while a naive f64
    * comparison (0.30000001192092896 > 0.3) would say BLOCKED. The equality is
    * value-exact in both arithmetic paths (not margin luck), so this fixture is
    * deliberately exempt from the +/-5e-4 perturbation pre-check.
@@ -888,6 +962,59 @@ export function createCatalog(api) {
       // taller caster = larger separation = wider penumbra ring
       ...softShadowScene(Math.fround(0.25), 8, 12),
       name: "shadow-soft-tall-caster-separation",
+      dpr: 1,
+    },
+    // #43 edge-aware reconstruction of the raw soft field: 4-sample inputs
+    // are noisy (layered hard shadows); the reconstructed field must match
+    // the TypeScript reconstructVisibility oracle EXACTLY on the real GPU.
+    {
+      ...softShadowReconstructionScene(Math.fround(0.25), 4, 6, 2),
+      name: "shadow-reconstruction-radius-0.25-samples-4-r2",
+      dpr: 1,
+    },
+    {
+      ...softShadowReconstructionScene(Math.fround(0.15), 8, 6, 2),
+      name: "shadow-reconstruction-radius-0.15-samples-8-r2",
+      dpr: 1,
+    },
+    {
+      // larger caster/receiver separation: the reconstruction must follow
+      // the physical penumbra widening (never a fixed blur)
+      ...softShadowReconstructionScene(Math.fround(0.25), 8, 12, 3),
+      name: "shadow-reconstruction-tall-separation-r3",
+      dpr: 1,
+    },
+    {
+      ...softShadowMaskCasterReconstruction(Math.fround(0.25), 8, 2),
+      name: "shadow-reconstruction-mask-caster-r2",
+      dpr: 1,
+    },
+    // #43 DPR coverage: the same CSS scene at 1.5 / 2 render DPR must
+    // produce the same CSS-space reconstruction footprint (radius in scene
+    // units, texel conversion round(radius * dpr) exactly once).
+    // NOTE: separation 10 (not the 6 used by the DPR-1 soft fixtures): at
+    // separation 6 the dpr-2 grid puts a penumbra edge exactly on a texel
+    // center, so the CPU oracle's razor-edge stability pre-check
+    // (stableShadowOracle) correctly refuses to certify exact parity there.
+    // Separation 10 keeps both DPRs clear of every razor edge (verified via
+    // the oracle itself) while still exercising the DPR-invariant footprint.
+    {
+      ...softShadowReconstructionScene(Math.fround(0.2), 8, 10, 2),
+      name: "shadow-reconstruction-dpr1.5",
+      dpr: 1.5,
+    },
+    {
+      ...softShadowReconstructionScene(Math.fround(0.2), 8, 10, 2),
+      name: "shadow-reconstruction-dpr2",
+      dpr: 2,
+    },
+    // #43 non-dyadic tap count: radius 1 gives 9-tap neighborhoods whose
+    // gated averages produce non-dyadic quotients (1/3, 2/3, ...) —the
+    // reconstructed-vs-oracle comparison must use the documented tolerance,
+    // never a bit-exact promise.
+    {
+      ...softShadowReconstructionScene(Math.fround(0.25), 4, 6, 1),
+      name: "shadow-reconstruction-nondyadic-9-tap-r1",
       dpr: 1,
     },
     // non-dyadic step: pins the explicit f32-multiple march series
@@ -1027,7 +1154,7 @@ export function createCatalog(api) {
     { name: "lighting-frac-dpr1.5", scene: lightingPanel("silicone"), dpr: 1.5, normalOptions: DPR_NORMAL_OPTIONS[1.5] },
     { name: "lighting-frac-dpr2", scene: lightingPanel("silicone"), dpr: 2, normalOptions: DPR_NORMAL_OPTIONS[2] },
     // finite f32 stress: intensity/environment/exposure at the largest finite
-    // f32 — saturated non-negative accumulation must stay finite and saturate
+    // f32 —saturated non-negative accumulation must stay finite and saturate
     // to white on both the f64 oracle and the f32 shader
     {
       name: "lighting-f32-stress",
@@ -1180,7 +1307,7 @@ export function createCatalog(api) {
     },
     // #26 extreme-normal fixtures: the f32 height differences here are the
     // largest FINITE f32 values (F32_MAX, exact), so `dx * scaleX` with a
-    // largest-finite-f32 scale overflows to infinity in naive f32 — the
+    // largest-finite-f32 scale overflows to infinity in naive f32 —the
     // exponent-aligned normalization must still match the f64 oracle.
     {
       name: "synth-extreme-f32-diff-scale",
@@ -1250,7 +1377,7 @@ export function createCatalog(api) {
     ...SHADOW_FIXTURES,
     // #28 lighting fixtures (the real-GPU lighting stage: the full integrated
     // chain plus LightingPass, diffuse/specular tolerance parity and the
-    // RGBA8 color policy — all compared against shadePreparedFields).
+    // RGBA8 color policy —all compared against shadePreparedFields).
     ...LIGHTING_FIXTURES,
   ];
 
@@ -1291,17 +1418,45 @@ export function createCatalog(api) {
     // shadowAlpha 0.5 -> full-strength alpha byte round(0.5 * 255) = 128;
     // with samples=4 every dyadic strength keeps the products integral
     // (128 * 0.25 = 32, 128 * 0.5 = 64, 128 * 0.75 = 96), so NO texel ever
-    // lands on a halfway quantization boundary — the fixture stays portable
+    // lands on a halfway quantization boundary —the fixture stays portable
     // across WebGPU backends instead of depending on a rounding tie-break.
     // samples=4 deliberately DIFFERS from the renderer default (8): if the
     // fixture's shadowOptions stopped being forwarded to pipeline.render,
     // the canvas would silently fall back to 8-sample visibility and this
     // fixture would fail.
+    // #43: the pipeline reconstructs the soft field by DEFAULT, which would
+    // break this fixture's integral-product portability argument (recon
+    // quotients are non-dyadic); this fixture tests the RAW dyadic field
+    // end-to-end, so it explicitly disables reconstruction (the #43
+    // reconstructed-canvas path is covered by
+    // present-reconstructed-soft-shadow below).
     {
       name: "present-soft-shadow-custom-tint-alpha",
       ...softShadowScene(Math.fround(0.25), 4, 6),
+      shadowOptions: { samples: 4, reconstruction: { enabled: false } },
       dpr: 1,
       compositeOptions: { shadowColor: [200, 40, 220], shadowAlpha: 0.5 },
+    },
+    // #43 reconstructed soft shadow reaching the CANVAS: the presentation
+    // pipeline consumes the RECONSTRUCTED visibility (default-enabled on the
+    // soft path), so the canvas bytes must equal the reconstructVisibility
+    // oracle composed with the same tint/alpha. The explicit radius pins the
+    // option forwarding end-to-end.
+    //
+    // PORTABLE geometry/params: the reconstructed (non-dyadic) strength
+    // products must sit FAR from any 8-bit rounding boundary, because the
+    // canvas policy is exact-alpha and unorm8 encode behavior can vary by a
+    // small margin across legal backends (the parity harness verifies this
+    // fixture's minimum quantization margin via
+    // reconstructedCanvasQuantizationReport). This configuration (low slab,
+    // samples 8, radius 3, shadowAlpha ~0.29, tint [160,70,180]) measures a
+    // min margin of ~0.122 byte units —comfortably above the ~0.057
+    // backend flip envelope observed in the parity sweep.
+    {
+      name: "present-reconstructed-soft-shadow",
+      ...portableReconstructedScene(),
+      dpr: 1,
+      compositeOptions: { shadowColor: [160, 70, 180], shadowAlpha: Math.fround(74 / 255) },
     },
     // overlap/ownership, clipped/offscreen surfaces and empty scene behavior
     { name: "present-overlap-ownership", scene: tieOverlapScene().scene, dpr: 1 },
@@ -1468,6 +1623,14 @@ export function createCatalog(api) {
       "penumbra-separation",
     ],
     "shadow-soft-mask-caster": ["shadow-visibility", "soft-shadow", "mask-shape", "glyph-shape"],
+    // #43 reconstructed soft shadows (edge-aware visibility reconstruction)
+    "shadow-reconstruction-radius-0.25-samples-4-r2": ["shadow-visibility", "soft-shadow", "reconstruction"],
+    "shadow-reconstruction-radius-0.15-samples-8-r2": ["shadow-visibility", "soft-shadow", "reconstruction"],
+    "shadow-reconstruction-tall-separation-r3": ["shadow-visibility", "soft-shadow", "reconstruction"],
+    "shadow-reconstruction-mask-caster-r2": ["shadow-visibility", "soft-shadow", "reconstruction", "mask-shape", "glyph-shape"],
+    "shadow-reconstruction-dpr1.5": ["shadow-visibility", "soft-shadow", "reconstruction", "dpr-1.5", "fractional-extent"],
+    "shadow-reconstruction-dpr2": ["shadow-visibility", "soft-shadow", "reconstruction", "dpr-2"],
+    "shadow-reconstruction-nondyadic-9-tap-r1": ["shadow-visibility", "soft-shadow", "reconstruction"],
     "shadow-non-binary-step-0.1": ["shadow-visibility", "shadow-options"],
     "shadow-f32-vs-f64-equality": ["shadow-visibility", "threshold-equality"],
     "shadow-frac-dpr1": ["shadow-visibility", "dpr-1", "fractional-extent"],
@@ -1515,6 +1678,14 @@ export function createCatalog(api) {
       "canvas-transparency",
       "composite-options",
       "soft-shadow",
+    ],
+    "present-reconstructed-soft-shadow": [
+      "canvas-composition",
+      "canvas-format-normalization",
+      "canvas-transparency",
+      "composite-options",
+      "soft-shadow",
+      "reconstruction",
     ],
     "present-overlap-ownership": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "overlap", "ownership-tie", "paint-order"],
     "present-clipped-offscreen": ["canvas-composition", "canvas-format-normalization", "canvas-transparency", "clipping", "offscreen", "canvas-clipped-output"],

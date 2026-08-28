@@ -51,7 +51,7 @@ export interface CompositeInput {
   color: HostBuffer;
   /** u32 scalar owning-surface index per pixel (NO_OWNER = base plane) */
   objectId: HostBuffer;
-  /** f32 scalar hard cast-shadow visibility 0..1 (optional; 1 = lit) */
+  /** f32 scalar cast-shadow visibility 0..1 (optional; 1 = lit; continuous on the #41 soft path, 0/1 hard) */
   visibility: HostBuffer | null;
 }
 

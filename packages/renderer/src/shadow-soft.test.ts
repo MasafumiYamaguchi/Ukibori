@@ -4,10 +4,14 @@ import { computeVisibility, prepareShadowContext } from "./shadow";
 import {
   ALLOWED_SHADOW_SAMPLES,
   DEFAULT_SHADOW_SAMPLES,
+  KERNEL_VARIANT_ROTATION,
+  SHADOW_KERNEL_VARIANTS,
   SHADOW_MAX_SAMPLES,
+  computeSoftSampleDirectionVariants,
   computeSoftSampleDirections,
   sanitizeAngularRadius,
   sanitizeShadowSamples,
+  softKernelVariant,
 } from "./shadow-sampling";
 import { createScene } from "./scene";
 import type { Scene } from "./scene";
@@ -335,5 +339,93 @@ describe("#41 soft visibility on the slab fixture", () => {
     }
     // only the penumbra band may differ — most of the plane is identical
     expect(differing).toBeLessThan(hard.length / 4);
+  });
+});
+
+describe("#43 kernel-variant decorrelation", () => {
+  it("rotates the Vogel pattern into SHADOW_KERNEL_VARIANTS distinct f32 variants", () => {
+    const dirs0 = computeSoftSampleDirections(LIGHT_FROM_RIGHT, Math.fround(0.15), 8, 0);
+    expect(KERNEL_VARIANT_ROTATION).toBeCloseTo((Math.PI * 2) / SHADOW_KERNEL_VARIANTS, 12);
+    const variants = computeSoftSampleDirectionVariants(LIGHT_FROM_RIGHT, Math.fround(0.15), 8);
+    expect(variants).toHaveLength(SHADOW_KERNEL_VARIANTS);
+    for (let v = 0; v < SHADOW_KERNEL_VARIANTS; v++) {
+      expect(variants[v]).toHaveLength(8 * 3);
+      // variant 0 reproduces the unrotated #41 pattern bit-for-bit
+      if (v === 0) {
+        expect(Array.from(variants[0])).toEqual(Array.from(dirs0));
+      }
+      // all variants are unit-length f32 directions
+      for (let i = 0; i < 8; i++) {
+        const len = Math.hypot(variants[v][i * 3], variants[v][i * 3 + 1], variants[v][i * 3 + 2]);
+        expect(Math.abs(len - 1)).toBeLessThan(1e-6);
+      }
+      // consecutive variants differ in at least one direction component
+      if (v > 0) {
+        let differs = false;
+        for (let i = 0; i < 8 * 3 && !differs; i++) {
+          differs = variants[v][i] !== variants[v - 1][i];
+        }
+        expect(differs).toBe(true);
+      }
+    }
+  });
+
+  it("hashes render texels to a deterministic, well-mixed variant", () => {
+    // deterministic: same (x, y) -> same variant
+    expect(softKernelVariant(3, 7)).toBe(softKernelVariant(3, 7));
+    // the hash covers every variant and neighboring texels do not all share
+    // one orientation
+    const seen = new Set<number>();
+    let neighborsShare = 0;
+    const samples = 200;
+    for (let i = 0; i < samples; i++) {
+      const x = (i * 7) % 40;
+      const y = (i * 13) % 40;
+      seen.add(softKernelVariant(x, y));
+      if (softKernelVariant(x, y) === softKernelVariant(x + 1, y)) {
+        neighborsShare += 1;
+      }
+    }
+    expect(seen.size).toBeGreaterThanOrEqual(SHADOW_KERNEL_VARIANTS - 1);
+    // a 1-in-8 chance per neighbor pair: 200 pairs sharing > 60 would be a
+    // 60+ sigma deviation from uniformity
+    expect(neighborsShare).toBeLessThan(200 * 0.3);
+  });
+
+  it("keeps raw visibility a valid k/n dyadic fraction on the soft path", () => {
+    const receivers = flatReceivers();
+    const caster = slabCaster();
+    for (const samples of [4, 8, 16]) {
+      const vis = computeVisibility(sceneWithLight(LIGHT_FROM_RIGHT, 0.2), receivers, {
+        casterHeight: caster,
+        samples,
+      });
+      for (const v of toArray(vis)) {
+        const fraction = v * samples;
+        expect(Number.isInteger(fraction)).toBe(true);
+        expect(fraction).toBeGreaterThanOrEqual(0);
+        expect(fraction).toBeLessThanOrEqual(samples);
+      }
+    }
+  });
+
+  it("is deterministic across repeated identical dispatches (no frame-dependent seed)", () => {
+    const receivers = flatReceivers();
+    const options = { casterHeight: slabCaster(), samples: 8 as const };
+    const a = computeVisibility(sceneWithLight(LIGHT_FROM_RIGHT, 0.2), receivers, options);
+    const b = computeVisibility(sceneWithLight(LIGHT_FROM_RIGHT, 0.2), receivers, options);
+    expect(toArray(b)).toEqual(toArray(a));
+  });
+
+  it("exposes the per-texel variant through the prepared context", () => {
+    const receivers = flatReceivers();
+    const scene = sceneWithLight(LIGHT_FROM_RIGHT, 0.2);
+    const ctx = prepareShadowContext(scene, receivers, { samples: 8 });
+    expect(ctx.sampleDirVariants).not.toBeNull();
+    expect(ctx.sampleDirVariants).toHaveLength(SHADOW_KERNEL_VARIANTS);
+    expect(ctx.sampleDirs).toBe(ctx.sampleDirVariants![0]);
+    // hard paths never build variants
+    const hard = prepareShadowContext(sceneWithLight(LIGHT_FROM_RIGHT, 0), receivers, { samples: 8 });
+    expect(hard.sampleDirVariants).toBeNull();
   });
 });

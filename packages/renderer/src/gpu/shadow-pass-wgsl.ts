@@ -121,6 +121,13 @@ import { WGSL_SCENE_BASE } from "./wgsl";
  * |        |      |                  | shader guards `regionEnd != 0 &&      |
  * |        |      |                  | g >= regionEnd`, so dispatch padding  |
  * |        |      |                  | never writes a retained texel)        |
+ * | 80     | 4    | angularRadius    | #41 light angular radius in radians   |
+ * |        |      | (f32)            | (0 = hard path)                       |
+ * | 84     | 4    | sampleCount (u32)| #41 area-light samples (1 = hard path)|
+ * | 88     | 8    | _pad3 (vec2<f32>)| 0 (alignment)                         |
+ * | 96..   | 2048 | sampleDirs       | #43 KERNEL_VARIANTS x MAX_SAMPLES     |
+ * |        |      | (array<vec4<f32>>,| packed cone directions; variant v's   |
+ * |        |      | 128 entries)     | sample s lives at index v*16 + s      |
  *
  * `width`/`height` are host-validated (positive integers, u32-bounded
  * texel count, byte-length-consistent with every bound field), so the
@@ -142,15 +149,26 @@ export const SHADOW_WORKGROUP_SIZE = 64;
 /**
  * #41 maximum area-light sample count: the params uniform carries a fixed
  * `array<vec4<f32>, SHADOW_MAX_SAMPLES>` of host-computed cone directions
- * after the scalar fields.
+ * per KERNEL VARIANT after the scalar fields.
  */
 export const SHADOW_MAX_SAMPLES = 16;
 
 /**
- * ShadowPassParams uniform byte length: 96 bytes of scalars/padding (16-byte
- * aligned) plus 16 packed vec4 sample directions = 96 + 256 = 352 bytes.
+ * #43 deterministic kernel-variant count (mirrors
+ * `SHADOW_KERNEL_VARIANTS` in `shadow-sampling.ts`): the uniform packs this
+ * many full direction arrays and every texel selects one through the
+ * `kernelVariant(tx, ty)` integer hash below, decorrelating neighboring
+ * texels' sampling error while both backends trace byte-identical f32
+ * directions.
  */
-export const SHADOW_PARAMS_BYTE_LENGTH = 96 + SHADOW_MAX_SAMPLES * 16;
+export const SHADOW_KERNEL_VARIANTS = 8;
+
+/**
+ * ShadowPassParams uniform byte length: 96 bytes of scalars/padding (16-byte
+ * aligned) plus SHADOW_KERNEL_VARIANTS * 16 packed vec4 sample directions =
+ * 96 + 8 * 256 = 2144 bytes.
+ */
+export const SHADOW_PARAMS_BYTE_LENGTH = 96 + SHADOW_KERNEL_VARIANTS * SHADOW_MAX_SAMPLES * 16;
 
 /** Logical output bytes per render texel: one tightly packed f32 scalar. */
 export const SHADOW_OUTPUT_BYTES_PER_TEXEL = 4;
@@ -188,14 +206,18 @@ struct ShadowPassParams {
   angularRadius: f32,   // 80 #41 light angular radius in radians (0 = hard)
   sampleCount: u32,     // 84 #41 area-light samples (1 = hard path)
   _pad3: vec2<f32>,     // 88..95
-  // #41 host-computed cone directions around lightDirection (identical f32
-  // components to the CPU oracle; entry [s] drives sample s). Unused entries
-  // are zero-filled and never read because sampleCount bounds the loop.
-  sampleDirs: array<vec4<f32>, ${SHADOW_MAX_SAMPLES}>, // 96..351
-}                       // size 352, align 16
+  // #43 host-computed cone directions around lightDirection for EVERY kernel
+  // variant (identical f32 components to the CPU oracle's per-variant
+  // arrays; variant v's sample s lives at index v * SHADOW_MAX_SAMPLES + s).
+  // Unused entries are zero-filled and never read because sampleCount bounds
+  // the loop and variant < SHADOW_KERNEL_VARIANTS.
+  sampleDirs: array<vec4<f32>, ${SHADOW_KERNEL_VARIANTS * SHADOW_MAX_SAMPLES}>, // 96..
+}                       // size ${SHADOW_PARAMS_BYTE_LENGTH}, align 16
 
 const SHADOW_WORKGROUP_SIZE: u32 = ${SHADOW_WORKGROUP_SIZE}u;
 const SHADOW_MAX_SAMPLES: u32 = ${SHADOW_MAX_SAMPLES}u;
+// #43 must mirror SHADOW_KERNEL_VARIANTS in shadow-sampling.ts exactly.
+const SHADOW_KERNEL_VARIANTS: u32 = ${SHADOW_KERNEL_VARIANTS}u;
 const NO_OWNER: u32 = 0xffffffffu;
 // ABI SurfaceRecord flags (offset 28): bit0 castsShadow, bit1 receivesShadow
 const FLAG_RECEIVES_SHADOW: u32 = 0x2u;
@@ -246,8 +268,7 @@ fn sampleCasterHeight(sx: f32, sy: f32) -> f32 {
  * f32-multiple march series, maxHeight early exit, strict f32 comparison)
  * are identical by construction. Passing params.lightDirection reproduces
  * the historical hard-shadow result exactly.
- */
-fn traceOccluded(px: f32, py: f32, rz0: f32, dx: f32, dy: f32, dz: f32) -> bool {
+ */fn traceOccluded(px: f32, py: f32, rz0: f32, dx: f32, dy: f32, dz: f32) -> bool {
   // Integer step index: the loop terminates on every device (stepCount is
   // host-capped), even when a positive subnormal stepSize makes t round to
   // a constant in f32.
@@ -289,6 +310,18 @@ fn traceOccluded(px: f32, py: f32, rz0: f32, dx: f32, dy: f32, dz: f32) -> bool 
     stepIndex += 1u;
   }
   return false;
+}
+
+// #43 deterministic per-texel kernel-variant selection — the EXACT integer
+// hash mirrored from softKernelVariant() in shadow-sampling.ts
+// (wrapping u32 multiply/xor/shift only; no transcendentals, no mutable
+// state, identical semantics to JS Math.imul + >>> 0).
+fn kernelVariant(tx: u32, ty: u32) -> u32 {
+  var h = (u32(tx + 1u) * 0x9e3779b1u) ^ (u32(ty + 1u) * 0x85ebca77u);
+  h = h ^ (h >> 15u);
+  h = h * 0x2545f491u;
+  h = h ^ (h >> 13u);
+  return h % SHADOW_KERNEL_VARIANTS;
 }
 
 @compute @workgroup_size(SHADOW_WORKGROUP_SIZE)
@@ -349,8 +382,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
     return;
   }
   var visible = 0u;
+  // #43: this texel marches ITS OWN deterministic kernel variant (the same
+  // hash the CPU oracle evaluates), so neighboring texels decorrelate their
+  // sampling error while every backend traces byte-identical f32 directions.
+  let variantBase = kernelVariant(tx, ty) * SHADOW_MAX_SAMPLES;
   for (var s = 0u; s < params.sampleCount && s < SHADOW_MAX_SAMPLES; s += 1u) {
-    let dir = params.sampleDirs[s].xyz;
+    let dir = params.sampleDirs[variantBase + s].xyz;
     if (!traceOccluded(px, py, rz0, dir.x, dir.y, dir.z)) {
       visible += 1u;
     }

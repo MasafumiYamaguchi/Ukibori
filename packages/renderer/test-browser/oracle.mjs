@@ -42,6 +42,8 @@ export function createOracle(api) {
     surfaceHeight,
     computeNormals,
     computeVisibility,
+    reconstructVisibility,
+    sanitizeReconstructionOptions,
     shadePreparedFields,
     resolveMaterial,
     HostBuffer,
@@ -57,6 +59,7 @@ export function createOracle(api) {
     compositePixelBytes,
     compositeShadowPremultipliedBytes,
     compositeShadowPremultipliedStrengthBytes,
+    sanitizeCompositeOptions,
   } = api;
 
   /** DPR 1/1.5/2 sampling scales (scale = 0.5 * dpr), matching the catalog. */
@@ -252,6 +255,62 @@ export function createOracle(api) {
       }
     }
     return base;
+  }
+
+  /**
+   * #43 reconstructed-visibility CPU oracle: the ACTUAL TypeScript
+   * `reconstructVisibility` (the semantic reference for the GPU
+   * ReconstructionPass) applied to the raw #41 visibility oracle field.
+   *
+   * The comparison policy for the reconstructed field is a SEPARATE,
+   * documented tight tolerance (`compareReconstructedVisibility`): the gated
+   * tap average's quotient is not dyadic (3/25, 7/49, ...), so the CPU's
+   * exact f64 quotient rounded to f32 once and the GPU's f32 accumulation
+   * must NOT be assumed bit-identical across legal WebGPU backends. Raw
+   * #41 visibility keeps its EXACT (zero-tolerance) contract.
+   */
+  function reconstructionOracle(
+    scene,
+    rw,
+    rh,
+    height,
+    objectId,
+    rawVisibility,
+    dpr,
+    reconOptions,
+  ) {
+    if (!scene.surfaces.some((surface) => surface.castsShadow)) {
+      return rawVisibility;
+    }
+    const load = (spec, data, channels) => {
+      const buf = new HostBuffer(spec(rw, rh));
+      for (let g = 0; g < rw * rh; g++) {
+        for (let c = 0; c < channels; c++) {
+          buf.set(g % rw, Math.floor(g / rw), c, data[g * channels + c]);
+        }
+      }
+      return buf;
+    };
+    const recon = reconstructVisibility(
+      load(VISIBILITY_SPEC, rawVisibility, 1),
+      load(HEIGHT_SPEC, height, 1),
+      { objectId: load(OBJECT_ID_SPEC, objectId, 1), dpr },
+      reconOptions ?? {},
+    );
+    const out = new Float32Array(rw * rh);
+    for (let g = 0; g < rw * rh; g++) {
+      out[g] = recon.get(g % rw, Math.floor(g / rw), 0);
+    }
+    return out;
+  }
+
+  /**
+   * #43 effective reconstruction options as the GPU pipeline derives them
+   * for one frame: sanitized with the render DPR, so the oracle and the
+   * shader consume the identical texel radius.
+   */
+  function effectiveReconstructionOptions(scene, dpr, rawOptions) {
+    return sanitizeReconstructionOptions(rawOptions ?? {}, Math.fround(dpr));
   }
 
   /**
@@ -511,6 +570,96 @@ export function createOracle(api) {
       }
     }
     return { mismatches, samples };
+  }
+
+  /**
+   * #43 reconstructed-visibility comparison policy.
+   *
+   * Raw #41 soft visibility (`visibleSamples / samples`, dyadic k/n) keeps
+   * the EXACT equality contract — see `compareVisibility`. The RECONSTRUCTED
+   * field, however, is a gated tap AVERAGE `sum / tapCount` whose quotient is
+   * NOT dyadic (3/25, 7/49, ...): the CPU reference rounds the exact f64
+   * quotient to f32 once, while the GPU accumulates and divides in f32, so
+   * bit-identity must NOT be guaranteed across legal WebGPU backends (driver
+   * division rounding, relaxed evaluation). The documented policy is therefore
+   * a TIGHT NUMERIC TOLERANCE plus a strict domain audit:
+   *
+   * - every GPU value must be finite and inside [0, 1]
+   * - `abs(gpu - oracle) <= RECONSTRUCTION_VISIBILITY_TOLERANCE` (1e-6,
+   *   roughly 16-30 f32 ulp of the [0,1] range — far below any perceptual
+   *   threshold, chosen after the ULP evidence of the f32-accumulation
+   *   simulation in shadow-reconstruct.test.ts, which measures 0 ulp for the
+   *   exact-dyadic accumulation + single correctly-rounded division and
+   *   reserves headroom for backend variance)
+   * - the measured max absolute error and max ULP error are REPORTED with the
+   *   fixture result so regressions surface even when they stay under the
+   *   tolerance.
+   */
+  const RECONSTRUCTION_VISIBILITY_TOLERANCE = 1e-6;
+
+  /** IEEE f32 ULP of a normalized value (all reconstruction values are in
+   * [0, 1], so the exponent-based definition is exact for them). */
+  function f32Ulp(value) {
+    const v = Math.abs(value);
+    if (v === 0) {
+      return 1.4e-45; // f32 minimum subnormal
+    }
+    if (v < 1.18e-38) {
+      return 1.4e-45;
+    }
+    return Math.pow(2, Math.floor(Math.log2(v)) - 23);
+  }
+
+  function compareReconstructedVisibility(fixture, oracle, gpu, width) {
+    const texels = oracle.length;
+    let mismatches = 0;
+    let maxAbsError = 0;
+    let maxUlpError = 0;
+    const samples = [];
+    for (let g = 0; g < texels; g++) {
+      const v = gpu[g];
+      const o = oracle[g];
+      const absError = Math.abs(v - o);
+      const ulpError = absError / f32Ulp(o);
+      if (Number.isFinite(absError)) {
+        maxAbsError = Math.max(maxAbsError, absError);
+        maxUlpError = Math.max(maxUlpError, ulpError);
+      }
+      const bad =
+        !Number.isFinite(v)
+          ? `non-finite ${v}`
+          : v < 0 || v > 1
+            ? `out of [0,1]: ${v}`
+            : !(absError <= RECONSTRUCTION_VISIBILITY_TOLERANCE)
+              ? `|recon diff| ${absError.toExponential(3)} > ${RECONSTRUCTION_VISIBILITY_TOLERANCE}`
+              : null;
+      if (bad !== null) {
+        mismatches += 1;
+        if (samples.length < 8) {
+          // Semantic/domain violations (non-finite, out of [0, 1]) are
+          // CONTRACT breaks — never hide them under the numeric tolerance;
+          // only a finite in-range value above the documented tight
+          // tolerance is a PRECISION divergence.
+          samples.push(mismatchReport(
+            fixture,
+            "visibility-reconstructed",
+            g,
+            width,
+            o,
+            v,
+            absError,
+            {
+              tolerance: RECONSTRUCTION_VISIBILITY_TOLERANCE,
+              classification:
+                !Number.isFinite(v) || v < 0 || v > 1
+                  ? "contract"
+                  : "precision",
+            },
+          ));
+        }
+      }
+    }
+    return { mismatches, maxAbsError, maxUlpError, samples };
   }
 
   /** #27 caster-height comparison: the tight #25 tolerance plus the max error. */
@@ -864,7 +1013,7 @@ export function createOracle(api) {
   // from the CPU oracle fields. No second formula copy.
   // -------------------------------------------------------------------------
 
-  function presentationReference(scene, dpr, effectiveShadowOptions, ambient, compositeOptions) {
+  function presentationReference(scene, dpr, effectiveShadowOptions, ambient, compositeOptions, reconstructionOptions) {
     const oracle = cpuOracle(scene, dpr);
     const casterOracle = cpuCasterOracle(scene, dpr);
     const normal = normalOracle(
@@ -873,7 +1022,7 @@ export function createOracle(api) {
       oracle.rh,
       sanitizeNormalOptions(DPR_NORMAL_OPTIONS[dpr] ?? {}),
     );
-    const visibility = stableShadowOracle(
+    const rawVisibility = stableShadowOracle(
       scene,
       oracle.rw,
       oracle.rh,
@@ -883,6 +1032,27 @@ export function createOracle(api) {
       dpr,
       effectiveShadowOptions,
     );
+    // #43: the GPU pipeline reconstructs the soft visibility field before
+    // lighting/presentation whenever the soft path is active and
+    // reconstruction is enabled (default). The reference must mirror that
+    // decision exactly; hard-path frames keep the raw {0,1} bytes.
+    const softActive =
+      Math.fround(scene.light.angularRadius ?? 0) > 0 &&
+      (effectiveShadowOptions.samples ?? 8) > 1;
+    const reconOptions = sanitizeReconstructionOptions(reconstructionOptions ?? {}, Math.fround(dpr));
+    const visibility =
+      softActive && reconOptions.enabled && reconOptions.radiusTexels > 0
+        ? reconstructionOracle(
+            scene,
+            oracle.rw,
+            oracle.rh,
+            oracle.height,
+            oracle.objectId,
+            rawVisibility,
+            dpr,
+            reconstructionOptions,
+          )
+        : rawVisibility;
     const lighting = lightingOracleCPU(
       scene,
       oracle.rw,
@@ -917,7 +1087,117 @@ export function createOracle(api) {
       }
       ref.set(px, i);
     }
-    return { ref, texels: oracle.rw * oracle.rh, rw: oracle.rw, rh: oracle.rh };
+    return {
+      ref,
+      texels: oracle.rw * oracle.rh,
+      rw: oracle.rw,
+      rh: oracle.rh,
+      // #43 quantization-margin diagnostics: the exact visibility field and
+      // ownership the reference bytes were composed from, plus whether that
+      // field went through the reconstruction stage.
+      visibility,
+      objectId: oracle.objectId,
+      reconstructed:
+        softActive && reconOptions.enabled && reconOptions.radiusTexels > 0,
+    };
+  }
+
+  /**
+   * #43 final-canvas quantization-margin audit for RECONSTRUCTED soft
+   * shadows.
+   *
+   * The reconstructed visibility is NOT dyadic and carries a documented
+   * cross-backend tolerance (`RECONSTRUCTION_VISIBILITY_TOLERANCE`, 1e-6),
+   * so every byte it feeds through the premultiplied compositor must sit
+   * FAR enough from an 8-bit rounding boundary (.5 in byte space), or two
+   * legal backends legitimately land one byte apart and the exact-alpha
+   * canvas policy false-fails.
+   *
+   * For each shadowed base-plane texel this walks the EXACT byte-space
+   * products the presentation WGSL evaluates —
+   *
+   *     alpha    = saByte * strength            (byte units)
+   *     channel  = cByte * saByte / 255 * strength
+   *
+   * — measures the distance of each product from its nearest .5 quantization
+   * boundary, and reports the minimum together with the maximum LEGAL drift
+   * the reconstruction tolerance can inject (dStrength <= tolerance, so
+   * dAlpha <= saByte * tolerance and dChannel <= cByte*saByte/255*tolerance).
+   *
+   * A fixture is PORTABLE only when `minMargin` exceeds the legal drift by
+   * `REQUIRED_SAFETY_FACTOR` (16x) AND stays above the absolute floor
+   * `MARGIN_FLOOR` (1e-3 byte units). The factor is evidence-based, not
+   * arbitrary: the drift bound already scales the f32-level tolerance (1e-6
+   * ~= 16-30 ulp of [0,1]) linearly into byte space, and the 16x headroom
+   * guarantees that even a worst-case legal-backend deviation (bounded by
+   * the tolerance) can never cross a rounding boundary while remaining far
+   * below the ~950x margin this suite's fixtures actually provide. Observed
+   * backend behavior (e.g. a D3D deviation of ~0.057 byte units on past
+   * fixtures) is DIAGNOSTIC evidence only and is never fixed into the
+   * normative guard.
+   */
+  const REQUIRED_SAFETY_FACTOR = 16;
+
+  function reconstructedCanvasQuantizationReport(visibility, objectId, compositeOptions) {
+    const opts = sanitizeCompositeOptions(compositeOptions ?? {});
+    const saByte = Math.round(opts.shadowAlpha * 255);
+    const [cr, cg, cb] = opts.shadowColor;
+    const quantities = [
+      ["alpha", () => saByte],
+      ["r", () => (cr * saByte) / 255],
+      ["g", () => (cg * saByte) / 255],
+      ["b", () => (cb * saByte) / 255],
+    ];
+    let minMargin = Infinity;
+    let worstTexel = -1;
+    let worstQuantity = null;
+    for (let g = 0; g < visibility.length; g++) {
+      if (objectId !== null && objectId[g] !== NO_OWNER) {
+        continue; // surface texels are opaque; no shadow product involved
+      }
+      const vis = Math.min(1, Math.max(0, visibility[g]));
+      const strength = 1 - vis;
+      if (!(strength > 0)) {
+        continue; // fully lit -> exact transparent black, nothing to round
+      }
+      for (const [name, scale] of quantities) {
+        const value = scale() * strength;
+        const frac = value - Math.floor(value);
+        const margin = Math.abs(frac - 0.5);
+        if (margin < minMargin) {
+          minMargin = margin;
+          worstTexel = g;
+          worstQuantity = name;
+        }
+      }
+    }
+    const maxAlphaDrift = saByte * RECONSTRUCTION_VISIBILITY_TOLERANCE;
+    const maxRgbDrift =
+      (Math.max(cr, cg, cb) * saByte) / 255 * RECONSTRUCTION_VISIBILITY_TOLERANCE;
+    const maxLegalDrift = Math.max(maxAlphaDrift, maxRgbDrift);
+    const MARGIN_FLOOR = 1e-3;
+    const actualSafetyFactor =
+      Number.isFinite(minMargin) && maxLegalDrift > 0
+        ? minMargin / maxLegalDrift
+        : Number.POSITIVE_INFINITY;
+    // #43 review: the guard uses BOTH bounds the comment promises — the
+    // absolute floor AND the legal-drift safety factor (never just the
+    // floor).
+    const portable =
+      Number.isFinite(minMargin) &&
+      minMargin >= MARGIN_FLOOR &&
+      actualSafetyFactor > REQUIRED_SAFETY_FACTOR;
+    return {
+      minMargin,
+      worstTexel,
+      worstQuantity,
+      maxAlphaDrift,
+      maxRgbDrift,
+      marginFloor: MARGIN_FLOOR,
+      requiredSafetyFactor: REQUIRED_SAFETY_FACTOR,
+      safetyFactor: actualSafetyFactor,
+      portable,
+    };
   }
 
   /** bytesEqual helper shared by the mutation audits. */
@@ -940,8 +1220,13 @@ export function createOracle(api) {
     cpuCasterOracle,
     shadowOracleCPU,
     stableShadowOracle,
+    reconstructionOracle,
+    compareReconstructedVisibility,
+    RECONSTRUCTION_VISIBILITY_TOLERANCE,
+    effectiveReconstructionOptions,
     lightingOracleCPU,
     presentationReference,
+    reconstructedCanvasQuantizationReport,
     effectiveShadowOptions,
     bytesEqual,
     // comparisons
@@ -960,6 +1245,7 @@ export function createOracle(api) {
     sanitizerApi: {
       sanitizeNormalOptions,
       sanitizeShadowOptions,
+      sanitizeReconstructionOptions,
       sanitizeAmbient,
     },
     // canonicalization (static CPU goldens)

@@ -4,6 +4,9 @@ import { NO_OWNER } from "./compose";
 import { lightScene, computeNormals, shadeHeightField } from "./lighting";
 import { createScene } from "./scene";
 import type { Scene, SurfaceNode } from "./scene";
+import { composeSdfHeightField } from "./geometry";
+import { computeVisibility } from "./shadow";
+import { reconstructVisibility } from "./shadow-reconstruct";
 
 function heightFrom(values: number[][], width: number, height: number): HostBuffer {
   const buf = new HostBuffer({ width, height, channels: 1, format: "f32" });
@@ -434,6 +437,105 @@ describe("shading", () => {
     for (let y = 0; y < diffuse.spec.height; y++) {
       for (let x = 0; x < diffuse.spec.width; x++) {
         expect(diffuse.get(x, y, 0)).toBe(0);
+      }
+    }
+  });
+});
+
+describe("#43 lightScene reconstruction consumption (CPU oracle semantics)", () => {
+  // lightScene is the CPU reference the DOM layer and WasmCpuPipeline mirror;
+  // on the soft+enabled path the LIGHTING must consume the reconstructed
+  // field, and on hard / disabled paths the RAW field — never a path that
+  // computes reconstruction and then shades the raw field.
+  const slabSurface = {
+    id: "slab",
+    position: { x: 10, y: 8 },
+    size: { x: 12, y: 12 },
+    elevation: 2,
+    thickness: 4,
+    shape: { kind: "roundedRect", radius: 0 } as const,
+    profile: { kind: "flat" } as const,
+    material: "silicone",
+    castsShadow: true,
+    receivesShadow: true,
+  } satisfies SurfaceNode;
+
+  function sceneWith(angularRadius?: number) {
+    return createScene({
+      width: 48,
+      height: 48,
+      surfaces: [slabSurface],
+      light: {
+        direction: { x: -0.6, y: -0.4, z: 0.8 },
+        intensity: 1,
+        ...(angularRadius !== undefined ? { angularRadius } : {}),
+      },
+    });
+  }
+
+  it("consumes the reconstructed field on the soft path and the raw field on hard/disabled paths", () => {
+    const rawFor = (scene: ReturnType<typeof createScene>) => {
+      const composed = composeSdfHeightField(scene);
+      return {
+        composed,
+        raw: computeVisibility(scene, composed.height, {
+          samples: 8,
+          objectId: composed.objectId,
+          casterHeight: composed.height,
+        }),
+      };
+    };
+    // soft + enabled: the visibility exposed by lightScene MUST equal the
+    // reconstructed field (reconstruction consumed, not discarded)
+    const softScene = sceneWith(0.2);
+    const soft = lightScene(softScene, {
+      shadow: { samples: 8, reconstruction: { enabled: true, radius: 2 } },
+    });
+    const softRaw = rawFor(softScene);
+    const recon = reconstructVisibility(
+      softRaw.raw,
+      softRaw.composed.height,
+      { objectId: softRaw.composed.objectId },
+      { enabled: true, radius: 2 },
+    );
+    const { width, height } = soft.visibility!.spec;
+    let differsFromRaw = 0;
+    let differsFromRecon = 0;
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const v = soft.visibility!.get(x, y, 0);
+        if (v !== softRaw.raw.get(x, y, 0)) {
+          differsFromRaw += 1;
+        }
+        if (v !== recon.get(x, y, 0)) {
+          differsFromRecon += 1;
+        }
+      }
+    }
+    // the soft path genuinely changes the field (the filter is active) and
+    // lighting received exactly the reconstructed values
+    expect(differsFromRaw).toBeGreaterThan(0);
+    expect(differsFromRecon).toBe(0);
+
+    // hard path: visibility stays the raw field of the HARD scene (no filter)
+    const hardScene = sceneWith(0);
+    const hard = lightScene(hardScene, {
+      shadow: { samples: 8, reconstruction: { enabled: true, radius: 2 } },
+    });
+    const hardRaw = rawFor(hardScene);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        expect(hard.visibility!.get(x, y, 0)).toBe(hardRaw.raw.get(x, y, 0));
+      }
+    }
+
+    // disabled: visibility stays the raw field of the same soft scene
+    const disabled = lightScene(softScene, {
+      shadow: { samples: 8, reconstruction: { enabled: false } },
+    });
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        expect(disabled.visibility!.get(x, y, 0)).toBe(softRaw.raw.get(x, y, 0));
       }
     }
   });

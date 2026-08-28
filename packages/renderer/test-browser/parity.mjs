@@ -544,6 +544,61 @@ async function runFixture(device, fixture) {
       result.casterTexels = cpu.rw * cpu.rh;
       result.caster = oracle.compareCasterHeight(fixture, casterOracle.height, casterBytes, cpu.rw);
 
+      // #43 reconstruction stage: fixtures declaring `reconstructionOptions`
+      // also dispatch the real ReconstructionPass through the public helper
+      // and compare its output against the ACTUAL TypeScript
+      // reconstructVisibility oracle with the SEPARATE documented tight
+      // tolerance (the gated tap average's quotient is NOT dyadic, so the
+      // reconstructed field must not be promised bit-identical across legal
+      // WebGPU backends; raw #41 visibility keeps its exact contract above).
+      if (fixture.reconstructionOptions !== undefined) {
+        const reconstructionPass = new api.ReconstructionPass(device);
+        reconstructionPass.dispatch({
+          rawVisibility: {
+            buffer: shadowSnapshot.output.buffer,
+            byteLength: shadowSnapshot.output.byteLength,
+            format: "f32",
+            usage: shadowSnapshot.output.usage,
+            width: shadowSnapshot.width,
+            height: shadowSnapshot.height,
+            provenance: shadowSnapshot.provenance,
+          },
+          ...shadowInputs,
+          options: fixture.reconstructionOptions,
+          dpr: fixture.dpr ?? 1,
+        });
+        const reconstructionSnapshot = reconstructionPass.getSnapshot();
+        const [reconstructedBytes] = await Promise.all([
+          readback(
+            device,
+            reconstructionSnapshot.output.buffer,
+            reconstructionSnapshot.output.byteLength,
+          ),
+        ]);
+        const reconstructed = new Float32Array(
+          reconstructedBytes.buffer,
+          reconstructedBytes.byteOffset,
+          reconstructedBytes.byteLength / 4,
+        );
+        const reconstructionOracle = oracle.reconstructionOracle(
+          fixture.scene,
+          cpu.rw,
+          cpu.rh,
+          cpu.height,
+          cpu.objectId,
+          visibilityOracle,
+          fixture.dpr ?? 1,
+          fixture.reconstructionOptions,
+        );
+        result.reconstructionTexels = cpu.rw * cpu.rh;
+        result.reconstruction = oracle.compareReconstructedVisibility(
+          fixture,
+          reconstructionOracle,
+          reconstructed,
+          cpu.rw,
+        );
+      }
+
       // #28 lighting stage: consume the #25 materialId, #26 normal and #27
       // visibility fields DIRECTLY (through the public helpers, whose
       // per-HeightPass-dispatch provenance is propagated into the
@@ -702,6 +757,10 @@ async function checkShaders(device) {
     ["COMPOSE_CASTER_HEIGHT_WGSL", api.COMPOSE_CASTER_HEIGHT_WGSL],
     ["NORMAL_PASS_WGSL", api.NORMAL_PASS_WGSL],
     ["SHADOW_PASS_WGSL", api.SHADOW_PASS_WGSL],
+    // #43: the reconstruction stage must compile-check too (an unresolved
+    // host-constant interpolation here once produced an invalid module whose
+    // dispatches were silently dropped, zeroing the reconstructed field).
+    ["RECONSTRUCTION_PASS_WGSL", api.RECONSTRUCTION_PASS_WGSL],
     ["LIGHTING_PASS_WGSL", api.LIGHTING_PASS_WGSL],
     ["PRESENTATION_PASS_WGSL", api.PRESENTATION_PASS_WGSL],
   ]) {
@@ -1134,9 +1193,40 @@ async function runPresentationFixture(device, fixture) {
         snapshot.shadowPass.options,
         snapshot.lightingPass.ambient,
         frame.compositeOptions,
+        frame.shadowOptions?.reconstruction,
       );
       const compare = oracle.compareCanvas(fixture, reference.ref, gpu, width);
-      compared.push({ width, height, texels: reference.texels, compare });
+      // #43 quantization-margin pin: when the reference consumed a
+      // RECONSTRUCTED (non-dyadic) visibility field, every premultiplied
+      // canvas product must sit far enough from an 8-bit rounding boundary
+      // that the documented reconstruction tolerance and small backend
+      // unorm8-encode variance can never flip a byte (the exact-alpha canvas
+      // policy has no tolerance, so a boundary-adjacent texel would
+      // false-fail on a legal backend). This asserts the fact numerically
+      // instead of merely hoping the fixture passes.
+      let quantization = null;
+      if (reference.reconstructed === true) {
+        quantization = oracle.reconstructedCanvasQuantizationReport(
+          reference.visibility,
+          reference.objectId,
+          frame.compositeOptions,
+        );
+        detail.push(
+          `  quantization margin (${fixture.name}): min=${quantization.minMargin.toExponential(3)} ` +
+            `@texel ${quantization.worstTexel}/${quantization.worstQuantity} ` +
+            `legal-drift alpha<=${quantization.maxAlphaDrift.toExponential(2)} ` +
+            `rgb<=${quantization.maxRgbDrift.toExponential(2)} ` +
+            `safety=${quantization.safetyFactor === Infinity ? "inf" : quantization.safetyFactor.toFixed(0)}x ` +
+            `-> ${quantization.portable ? "PORTABLE" : "AT RISK"}`,
+        );
+      }
+      compared.push({
+        width,
+        height,
+        texels: reference.texels,
+        compare,
+        quantization,
+      });
       if (fixture.probe) {
         const current = context.getCurrentTexture();
         detail.push(
@@ -1335,6 +1425,131 @@ async function runShadowSampleBenchmark(device) {
 }
 
 /**
+ * #43 reconstruction-stage GPU benchmark on the 640x360 proxy scene: the
+ * REAL soft path (angularRadius > 0, 8 samples) followed by the REAL
+ * ReconstructionPass at radius 1/2/4, plus the combined 8-samples +
+ * radius-2 reconstruction chain. Report-only (correctness is owned by the
+ * reconstruction parity fixtures); each row reports the effective sample
+ * count, reconstructionActive and radiusTexels exactly as the passes
+ * sanitized them, and timings are host submission-to-queue-drain —
+ * explicitly labeled host time, never GPU execution time (timestamp-query
+ * GPU time is reported separately by the profiler where the device exposes
+ * it; an unsupported feature stays report-only, never a fabricated zero).
+ */
+const RECON_BENCH_SAMPLES = 8;
+const RECON_BENCH_RADII = [1, 2, 4];
+
+async function runReconstructionBenchmark(device) {
+  const base = benchmarkProxyScene();
+  const scene = {
+    ...base,
+    light: { ...base.light, angularRadius: SHADOW_BENCH_ANGULAR_RADIUS },
+  };
+  const encoded = api.encodeScene(scene, 1);
+  const uploader = new api.SceneUploader(device);
+  uploader.upload(encoded);
+  const bindings = uploader.getBindings();
+  const heightPass = new api.HeightPass(device);
+  heightPass.dispatch(encoded, bindings);
+  const inputs = api.shadowHeightBindingsFromHeightPass(heightPass.getSnapshot());
+  const rows = [];
+  const runTimed = async (fn) => {
+    for (let i = 0; i < SHADOW_BENCH_WARMUP; i++) {
+      fn();
+    }
+    await device.queue.onSubmittedWorkDone();
+    const timings = [];
+    for (let i = 0; i < SHADOW_BENCH_SAMPLES; i++) {
+      const t0 = performance.now();
+      fn();
+      await device.queue.onSubmittedWorkDone();
+      timings.push(performance.now() - t0);
+    }
+    return median(timings);
+  };
+  try {
+    const shadowPass = new api.ShadowPass(device);
+    const shadowInput = { scene: encoded, bindings, ...inputs, options: { samples: RECON_BENCH_SAMPLES } };
+    shadowPass.dispatch(shadowInput);
+    const shadowSnapshot = shadowPass.getSnapshot();
+    const rawVisibilityBinding = {
+      buffer: shadowSnapshot.output.buffer,
+      byteLength: shadowSnapshot.output.byteLength,
+      format: "f32",
+      usage: shadowSnapshot.output.usage,
+      width: shadowSnapshot.width,
+      height: shadowSnapshot.height,
+      provenance: shadowSnapshot.provenance,
+    };
+    // ShadowPass alone at the benchmark sample count (soft path)
+    rows.push({
+      stage: "shadow",
+      requestedSamples: RECON_BENCH_SAMPLES,
+      effectiveSamples: shadowSnapshot.options.samples,
+      softActive: SHADOW_BENCH_ANGULAR_RADIUS > 0 && shadowSnapshot.options.samples > 1,
+      reconstructionActive: false,
+      radiusTexels: 0,
+      hostMedianMs: await runTimed(() => shadowPass.dispatch(shadowInput)),
+      warmups: SHADOW_BENCH_WARMUP,
+      samples_taken: SHADOW_BENCH_SAMPLES,
+      width: BENCHMARK_WIDTH,
+      height: BENCHMARK_HEIGHT,
+    });
+    for (const radius of RECON_BENCH_RADII) {
+      const pass = new api.ReconstructionPass(device);
+      const input = { ...rawVisibilityBinding, ...inputs, options: { radius }, dpr: 1 };
+      pass.dispatch(input);
+      // the sanitized effective options the pass actually ran
+      const snapshot = pass.getSnapshot();
+      rows.push({
+        stage: "reconstruction",
+        requestedSamples: RECON_BENCH_SAMPLES,
+        effectiveSamples: RECON_BENCH_SAMPLES,
+        softActive: true,
+        reconstructionActive: true,
+        radiusTexels: snapshot.options.radiusTexels,
+        hostMedianMs: await runTimed(() => pass.dispatch(input)),
+        warmups: SHADOW_BENCH_WARMUP,
+        samples_taken: SHADOW_BENCH_SAMPLES,
+        width: BENCHMARK_WIDTH,
+        height: BENCHMARK_HEIGHT,
+      });
+      pass.dispose();
+    }
+    // combined chain: ShadowPass + ReconstructionPass(radius 2) per sample
+    const reconPass = new api.ReconstructionPass(device);
+    const combined = async () => {
+      shadowPass.dispatch(shadowInput);
+      reconPass.dispatch({
+        ...rawVisibilityBinding,
+        ...inputs,
+        options: { radius: 2 },
+        dpr: 1,
+      });
+    };
+    rows.push({
+      stage: "shadow+reconstruction",
+      requestedSamples: RECON_BENCH_SAMPLES,
+      effectiveSamples: RECON_BENCH_SAMPLES,
+      softActive: true,
+      reconstructionActive: true,
+      radiusTexels: reconPass.getSnapshot().options.radiusTexels,
+      hostMedianMs: await runTimed(combined),
+      warmups: SHADOW_BENCH_WARMUP,
+      samples_taken: SHADOW_BENCH_SAMPLES,
+      width: BENCHMARK_WIDTH,
+      height: BENCHMARK_HEIGHT,
+    });
+    reconPass.dispose();
+    shadowPass.dispose();
+  } finally {
+    heightPass.dispose?.();
+    uploader.dispose?.();
+  }
+  return rows;
+}
+
+/**
  * #31 retained-frame parity + scheduler counters on the REAL adapter.
  *
  * Drives the full public `GpuScenePipeline` (dirty-pass scheduler) and
@@ -1446,8 +1661,10 @@ async function runRetainedParity(device) {
       frameA.renderWidth,
       frameA.renderHeight,
     );
-    if (frameA.invalidation.executed.length !== 6) {
-      problems.push(`first frame executed ${frameA.invalidation.executed.join(",")} (expected all six)`);
+    // #43: the first frame executes ALL SEVEN stages (upload, height, normal,
+    // shadow, reconstruction, lighting, presentation).
+    if (frameA.invalidation.executed.length !== 7) {
+      problems.push(`first frame executed ${frameA.invalidation.executed.join(",")} (expected all seven)`);
     }
     const dispatchesAfterFirst = frameA.totals.dispatches;
     const allocationsAfterFirst = frameA.totals.newAllocations;
@@ -2158,6 +2375,668 @@ async function runPartialParity(device) {
 }
 
 /**
+ * #43 partial-recompute + reconstruction-halo parity on the REAL adapter.
+ *
+ * Drives the full public GpuScenePipeline on a SOFT + reconstruction scene
+ * through a small geometry edit that takes the partial path, and asserts:
+ *
+ * 1. the reconstruction stage is ACTIVE (reconstructionActive true) with the
+ *    expected sanitized radiusTexels;
+ * 2. the partial frame dispatches FEWER workgroups than the full baseline in
+ *    EVERY field pass (height/shadow) AND in the reconstruction/lighting
+ *    passes whose band the reconstruction halo expands (the expansion must
+ *    not silently become a full frame);
+ * 3. the partial frame's final canvas equals a forced FULL recompute on a
+ *    fresh pipeline BYTE-FOR-BYTE — the #43 requirement that the halo the
+ *    reconstruction wrote is fully recomputed downstream (reconstructed
+ *    visibility -> lighting -> presentation), never a stale seam.
+ */
+async function runPartialReconstructionParity(device) {
+  const problems = [];
+  // A soft variant of the #32 parity scene: same geometry, positive angular
+  // radius + 8 samples + reconstruction enabled, bounded shadow so the dirty
+  // band stays below the partial threshold.
+  const base = partialReconstructionScene();
+  let pipeline = null;
+  let canvas = null;
+  try {
+    const first = await makeRetainedCanvas();
+    canvas = first.canvas;
+    pipeline = new api.GpuScenePipeline(device, first.context, first.canvasFormat);
+    const frameBase = pipeline.render({
+      scene: base.scene,
+      dpr: 1,
+      shadowOptions: base.shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    if (frameBase.planning.mode !== "full") {
+      problems.push(`recon baseline plan ${frameBase.planning.mode} (expected full/first-frame)`);
+    }
+    if (frameBase.reconstructionActive !== true) {
+      problems.push("recon baseline did not run the reconstruction stage");
+    }
+    const baselineSnapshot = pipeline.getSnapshot();
+    const fullWorkgroups = {
+      height: baselineSnapshot.heightPass.lastDispatch.workgroupCountX,
+      normal: baselineSnapshot.normalPass.lastDispatch.workgroupCountX,
+      shadow: baselineSnapshot.shadowPass.lastDispatch.workgroupCountX,
+      reconstruction: baselineSnapshot.reconstructionPass.lastDispatch.workgroupCountX,
+      lighting: baselineSnapshot.lightingPass.lastDispatch.workgroupCountX,
+    };
+    const expectedRadiusTexels = baselineSnapshot.reconstructionPass.options.radiusTexels;
+    if (expectedRadiusTexels <= 0) {
+      problems.push(`recon baseline radiusTexels ${expectedRadiusTexels} (expected > 0)`);
+    }
+
+    // small local edit: partial plan + halo-expanded downstream bands
+    const move = partialReconstructionScene("move");
+    const frameMove = pipeline.render({
+      scene: move.scene,
+      dpr: 1,
+      shadowOptions: move.shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    // #43 regression proof: the sampled-direction UNION shadow halo must be
+    // strictly wider than the historical center-only halo for this soft
+    // frame, otherwise the partial band could omit receivers reached only by
+    // slanted sample rays (the whole reason item 1 exists). Computed with the
+    // EXACT exported pure helpers on the ACTUAL encoded bytes/options the
+    // planner consumed.
+    {
+      const encoded = api.encodeScene(move.scene, 1);
+      const header = api.parseHeader(encoded.bytes);
+      const diag = Math.hypot(
+        header.renderWidth / header.dpr,
+        header.renderHeight / header.dpr,
+      );
+      const xyLen = Math.hypot(header.lightDirection.x, header.lightDirection.y);
+      const effective = api.sanitizeShadowOptions(move.shadowOptions, {
+        sceneDiagonal: diag,
+        lightXYLength: xyLen,
+      });
+      const center = api.shadowHalo(header.lightDirection.x, header.lightDirection.y, effective.maxDistance);
+      const union = api.sampledShadowHaloUnion(
+        header.lightDirection,
+        api.sanitizeAngularRadius(header.lightAngularRadius),
+        effective.samples,
+        effective.maxDistance,
+      );
+      const wider =
+        union.left > center.left ||
+        union.right > center.right ||
+        union.top > center.top ||
+        union.bottom > center.bottom;
+      detail.push(
+        `  recon-partial halo: center=[${center.left.toFixed(3)},${center.right.toFixed(3)},${center.top.toFixed(3)},${center.bottom.toFixed(3)}] ` +
+          `union=[${union.left.toFixed(3)},${union.right.toFixed(3)},${union.top.toFixed(3)},${union.bottom.toFixed(3)}] ` +
+          `union>center=${wider} maxDistance=${effective.maxDistance} samples=${effective.samples} radius=${api.sanitizeAngularRadius(header.lightAngularRadius)}`,
+      );
+      if (!wider) {
+        problems.push(
+          "recon-partial soft frame union halo is NOT wider than the center-only halo " +
+            "(the #43 sampled-direction regression fixture cannot prove the fix)",
+        );
+      }
+    }
+    if (frameMove.planning.mode !== "partial") {
+      problems.push(
+        `recon small edit plan ${frameMove.planning.mode}/${frameMove.planning.reason} (expected partial)`,
+      );
+    } else {
+      const moveSnapshot = pipeline.getSnapshot();
+      for (const stage of ["height", "shadow", "reconstruction", "lighting"]) {
+        const workgroups = moveSnapshot[`${stage}Pass`].lastDispatch.workgroupCountX;
+        if (workgroups >= fullWorkgroups[stage]) {
+          problems.push(
+            `recon partial ${stage} dispatched ${workgroups} workgroups (full ${fullWorkgroups[stage]}): ` +
+              "a small edit must dispatch fewer workgroups",
+          );
+        }
+      }
+      if (moveSnapshot.reconstructionPass.options.radiusTexels !== expectedRadiusTexels) {
+        problems.push(
+          `recon partial radiusTexels ${moveSnapshot.reconstructionPass.options.radiusTexels} ` +
+            `!= baseline ${expectedRadiusTexels}`,
+        );
+      }
+      // the reconstruction halo must be strictly INSIDE the frame (the
+      // expansion is clipped, never wraps)
+      const band = frameMove.planning.band;
+      if (band !== null) {
+        const haloY0 = Math.max(0, band.y0 - expectedRadiusTexels);
+        const haloY1 = Math.min(frameMove.renderHeight - 1, band.y1 + expectedRadiusTexels);
+        if (haloY0 >= haloY1) {
+          problems.push(`recon partial halo ${haloY0}..${haloY1} degenerate`);
+        }
+      }
+    }
+    const partialCanvas = await capturePresented(
+      device,
+      first.context,
+      first.canvasFormat,
+      frameMove.renderWidth,
+      frameMove.renderHeight,
+    );
+    // capture the PARTIAL pipeline's raw/reconstructed/lighting buffers
+    // BEFORE disposal so the forced-full recompute can be compared field by
+    // field (the #43 requirement: every consumer of the halo-expanded region
+    // must be recomputed, not just the canvas).
+    const partialFields = {};
+    try {
+      const partialSnapshot = pipeline.getSnapshot();
+      partialFields.raw = await readbackF32(
+        device,
+        partialSnapshot.shadowPass.output.buffer,
+        partialSnapshot.shadowPass.output.byteLength,
+      );
+      partialFields.recon = partialSnapshot.reconstructionPass
+        ? await readbackF32(
+            device,
+            partialSnapshot.reconstructionPass.output.buffer,
+            partialSnapshot.reconstructionPass.output.byteLength,
+          )
+        : null;
+      partialFields.lighting = await readback(
+        device,
+        partialSnapshot.lightingPass.color.buffer,
+        partialSnapshot.lightingPass.color.byteLength,
+      );
+      partialFields.objectId = await readback(
+        device,
+        partialSnapshot.heightPass.outputs.objectId.buffer,
+        partialSnapshot.heightPass.outputs.objectId.byteLength,
+      );
+    } catch (error) {
+      problems.push(`recon partial field readback failed: ${String(error)}`);
+    }
+
+    // forced FULL recompute on a fresh pipeline must reproduce the partial
+    // frame byte-for-byte (the halo-correctness value assertion).
+    pipeline.dispose();
+    pipeline = null;
+    canvas.remove();
+    canvas = null;
+    const second = await makeRetainedCanvas();
+    const fresh = new api.GpuScenePipeline(device, second.context, second.canvasFormat);
+    const frameFull = fresh.render({
+      scene: move.scene,
+      dpr: 1,
+      shadowOptions: move.shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    const fullCanvas = await capturePresented(
+      device,
+      second.context,
+      second.canvasFormat,
+      frameFull.renderWidth,
+      frameFull.renderHeight,
+    );
+    if (!oracle.bytesEqual(partialCanvas, fullCanvas)) {
+      problems.push(
+        "recon partial frame differs from forced-full recompute (canvas bytes): " +
+          "the reconstruction halo must be fully recomputed downstream",
+      );
+    }
+    // field-by-field comparison: raw visibility, reconstructed visibility,
+    // lighting color and ownership must ALL match the forced-full recompute.
+    try {
+      const fullSnapshot = fresh.getSnapshot();
+      const fullRaw = await readbackF32(
+        device,
+        fullSnapshot.shadowPass.output.buffer,
+        fullSnapshot.shadowPass.output.byteLength,
+      );
+      const fullRecon = fullSnapshot.reconstructionPass
+        ? await readbackF32(
+            device,
+            fullSnapshot.reconstructionPass.output.buffer,
+            fullSnapshot.reconstructionPass.output.byteLength,
+          )
+        : null;
+      const fullLighting = await readback(
+        device,
+        fullSnapshot.lightingPass.color.buffer,
+        fullSnapshot.lightingPass.color.byteLength,
+      );
+      const fullObjectId = await readback(
+        device,
+        fullSnapshot.heightPass.outputs.objectId.buffer,
+        fullSnapshot.heightPass.outputs.objectId.byteLength,
+      );
+      const sameBytes = (a, b, label) => {
+        if (a === null || b === null) {
+          return; // reconstruction not active on one side (shouldn't happen here)
+        }
+        if (!oracle.bytesEqual(a, b)) {
+          problems.push(`recon partial ${label} differs from forced-full recompute`);
+        }
+      };
+      sameBytes(
+        new Uint8Array(partialFields.raw.buffer, partialFields.raw.byteOffset, partialFields.raw.byteLength),
+        new Uint8Array(fullRaw.buffer, fullRaw.byteOffset, fullRaw.byteLength),
+        "raw visibility",
+      );
+      if (partialFields.recon !== null) {
+        sameBytes(
+          new Uint8Array(partialFields.recon.buffer, partialFields.recon.byteOffset, partialFields.recon.byteLength),
+          new Uint8Array(fullRecon.buffer, fullRecon.byteOffset, fullRecon.byteLength),
+          "reconstructed visibility",
+        );
+      }
+      sameBytes(partialFields.lighting, fullLighting, "lighting color");
+      sameBytes(partialFields.objectId, fullObjectId, "objectId");
+    } catch (error) {
+      problems.push(`recon forced-full field comparison failed: ${String(error)}`);
+    }
+    fresh.dispose();
+    second.canvas.remove();
+  } catch (error) {
+    problems.push(`recon partial parity threw: ${String(error?.stack ?? error)}`);
+  }
+  try {
+    pipeline?.dispose();
+    canvas?.remove();
+  } catch {
+    // disposal must never mask the outcome
+  }
+  return problems;
+}
+
+/**
+ * #43 soft + reconstruction scene for `runPartialReconstructionParity`:
+ * mirrors `partialParityScene` with a positive angular radius, 8 samples
+ * and reconstruction enabled (radius 2 scene units at dpr 1 -> 2 texels).
+ *
+ * The SMALL local edit must keep the partial path even under the #43
+ * sampled-direction UNION shadow halo (a center-only halo would be enough
+ * for the historical hard path, but the soft path's slanted sample rays
+ * widen the dirty band): `move` edits the small lower BADGE by 1-2 px, which
+ * stays well below the PARTIAL_DISPATCH_RATIO (the original btn-a move is
+ * deliberately NOT used here — with the union halo its band crosses 0.5 and
+ * legitimately plans full, which would defeat the "partial" assertion).
+ */
+function partialReconstructionScene(edit) {
+  // The move edit is built from the BASE scene (btn-a stays put) so the diff
+  // is exactly ONE small surface (the badge): a two-surface edit would widen
+  // the dirty band far past the partial threshold under the union halo.
+  const base = partialParityScene(edit === "move" ? undefined : edit);
+  let scene = base.scene;
+  if (edit === "move") {
+    // badge 30,120 -> 32,121: a 2px local edit whose dirty band stays far
+    // under the partial threshold even after the union shadow halo.
+    scene = api.createScene({
+      ...scene,
+      surfaces: scene.surfaces.map((s) =>
+        s.id === "badge" ? { ...s, position: { x: 32, y: 121 } } : s,
+      ),
+    });
+  }
+  return {
+    scene: api.createScene({
+      ...scene,
+      light: { ...scene.light, angularRadius: SHADOW_BENCH_ANGULAR_RADIUS },
+    }),
+    shadowOptions: {
+      ...base.shadowOptions,
+      samples: 8,
+      reconstruction: { enabled: true, radius: 2 },
+    },
+  };
+}
+
+/**
+ * #43 real-WebGPU retained-vs-fresh regression for the GLOBAL-change bug
+ * (geometry + shadow/reconstruction option change in ONE frame).
+ *
+ * Frame A: soft shadow, samples 4, reconstruction radius 2.
+ * Frame B: small caster move AND samples 16 AND reconstruction radius 4.
+ *
+ * The retained pipeline must plan Frame B FULL (never partial — a partial
+ * update with changed global semantics would mix new and retained
+ * visibility frame-wide), and every output of the retained Frame B must
+ * equal a FRESH pipeline's first-frame full render of Frame B:
+ *
+ * - raw visibility: EXACT bytes
+ * - reconstructed visibility: the documented tolerance policy
+ * - lighting color: the documented RGBA8 policy
+ * - final canvas: the documented canvas policy
+ */
+async function runRetainedGlobalChangeParity(device) {
+  const problems = [];
+  const frameA = partialReconstructionScene();
+  const optionsA = {
+    ...frameA.shadowOptions,
+    samples: 4,
+    reconstruction: { enabled: true, radius: 2 },
+  };
+  const frameB = partialReconstructionScene("move");
+  const optionsB = {
+    ...frameB.shadowOptions,
+    samples: 16,
+    reconstruction: { enabled: true, radius: 4 },
+  };
+  let pipeline = null;
+  let canvas = null;
+  try {
+    const first = await makeRetainedCanvas();
+    canvas = first.canvas;
+    pipeline = new api.GpuScenePipeline(device, first.context, first.canvasFormat);
+    pipeline.render({
+      scene: frameA.scene,
+      dpr: 1,
+      shadowOptions: optionsA,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    // Frame B on the RETAINED pipeline: geometry + global options together.
+    const statsB = pipeline.render({
+      scene: frameB.scene,
+      dpr: 1,
+      shadowOptions: optionsB,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    if (statsB.planning.mode !== "full") {
+      problems.push(
+        `global-change frame planned ${statsB.planning.mode}/${statsB.planning.reason} ` +
+          "(expected full: geometry + samples + reconstruction radius changed together)",
+      );
+    }
+    for (const reason of ["scene", "shadow-options", "reconstruction-options"]) {
+      if (!statsB.invalidation.reasons.includes(reason)) {
+        problems.push(`global-change frame lost reason "${reason}" (got ${statsB.invalidation.reasons.join(",")})`);
+      }
+    }
+    // read back the retained pipeline's Frame B outputs
+    const snapshotB = pipeline.getSnapshot();
+    const [rawB, reconB, colorB] = await Promise.all([
+      readback(device, snapshotB.shadowPass.output.buffer, snapshotB.shadowPass.output.byteLength),
+      readback(device, snapshotB.reconstructionPass.output.buffer, snapshotB.reconstructionPass.output.byteLength),
+      readback(device, snapshotB.lightingPass.color.buffer, snapshotB.lightingPass.color.byteLength),
+    ]);
+    const canvasB = await capturePresented(
+      device,
+      first.context,
+      first.canvasFormat,
+      statsB.renderWidth,
+      statsB.renderHeight,
+    );
+    pipeline.dispose();
+    pipeline = null;
+    canvas.remove();
+    canvas = null;
+
+    // FRESH pipeline: first-frame full render of Frame B.
+    const second = await makeRetainedCanvas();
+    const fresh = new api.GpuScenePipeline(device, second.context, second.canvasFormat);
+    const freshStats = fresh.render({
+      scene: frameB.scene,
+      dpr: 1,
+      shadowOptions: optionsB,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    const freshSnapshot = fresh.getSnapshot();
+    const [rawF, reconF, colorF] = await Promise.all([
+      readback(device, freshSnapshot.shadowPass.output.buffer, freshSnapshot.shadowPass.output.byteLength),
+      readback(device, freshSnapshot.reconstructionPass.output.buffer, freshSnapshot.reconstructionPass.output.byteLength),
+      readback(device, freshSnapshot.lightingPass.color.buffer, freshSnapshot.lightingPass.color.byteLength),
+    ]);
+    const canvasF = await capturePresented(
+      device,
+      second.context,
+      second.canvasFormat,
+      freshStats.renderWidth,
+      freshStats.renderHeight,
+    );
+    fresh.dispose();
+    second.canvas.remove();
+
+    // comparisons (retained Frame B vs fresh full render of Frame B)
+    const texels = freshSnapshot.shadowPass.output.byteLength / 4;
+    const width = freshSnapshot.width;
+    if (!oracle.bytesEqual(rawB, rawF)) {
+      problems.push("global-change: raw visibility differs between retained and fresh full render");
+    }
+    // reconstructed visibility: the documented tolerance policy (never a
+    // bit-exact promise — the gated tap average is not dyadic)
+    const reconCompare = oracle.compareReconstructedVisibility(
+      { id: "global-change-recon", shadowOptions: optionsB, scene: frameB.scene },
+      new Float32Array(reconF.buffer, reconF.byteOffset, texels),
+      new Float32Array(reconB.buffer, reconB.byteOffset, texels),
+      width,
+    );
+    if (reconCompare.mismatches > 0) {
+      problems.push(`global-change: reconstructed visibility mismatch (${reconCompare.mismatches} texels)`);
+    }
+    // lighting color via the documented RGBA8 policy (one GPU output as the
+    // other's reference — deterministic same-backend render must match)
+    const colorCompare = oracle.compareColor(
+      { id: "global-change-color", shadowOptions: optionsB, scene: frameB.scene },
+      colorF,
+      colorB,
+      width,
+    );
+    if (colorCompare.hard > 0 || colorCompare.alphaBad > 0) {
+      problems.push(
+        `global-change: lighting color mismatch (hard ${colorCompare.hard}, alpha ${colorCompare.alphaBad})`,
+      );
+    }
+    // final canvas via the documented canvas policy (exact alpha, at-most-
+    // one-channel-by-one)
+    const canvasCompare = oracle.compareCanvas(
+      { id: "global-change-canvas", shadowOptions: optionsB, scene: frameB.scene },
+      canvasF,
+      canvasB,
+      width,
+    );
+    if (canvasCompare.hard > 0 || canvasCompare.alphaBad > 0) {
+      problems.push(
+        `global-change: final canvas mismatch (hard ${canvasCompare.hard}, alpha ${canvasCompare.alphaBad})`,
+      );
+    }
+    if (statsB.reconstructionActive !== true || freshStats.reconstructionActive !== true) {
+      problems.push("global-change: reconstruction not active on the combined frame");
+    }
+  } catch (error) {
+    problems.push(`global-change parity threw: ${String(error?.stack ?? error)}`);
+  }
+  try {
+    pipeline?.dispose();
+    canvas?.remove();
+  } catch {
+    // disposal must never mask the outcome
+  }
+  return problems;
+}
+
+/**
+ * #43 real-WebGPU retained-vs-fresh regression for the MATERIAL-VALUE bug
+ * (geometry + material table value change in ONE frame).
+ *
+ * Frame A: a large gray receiver panel.
+ * Frame B: a tiny local surface added AND the EXISTING "matte" definition
+ * changed gray -> visibly different red (materialCount unchanged).
+ *
+ * The retained pipeline must plan Frame B FULL (the material values are a
+ * frame-global lighting semantic; a partial update would light the dirty
+ * band with the NEW material and the retained region with the OLD one),
+ * and the retained Frame B's lighting color + final canvas must equal a
+ * FRESH pipeline's first-frame full render of Frame B.
+ */
+async function runRetainedMaterialChangeParity(device) {
+  const problems = [];
+  const gray = { baseColor: { r: 0.5, g: 0.5, b: 0.5 }, roughness: 0.5, metallic: 0 };
+  const red = { baseColor: { r: 1, g: 0, b: 0 }, roughness: 0.5, metallic: 0 };
+  const frameA = () =>
+    api.createScene({
+      width: 320,
+      height: 180,
+      surfaces: [
+        {
+          id: "panel",
+          position: { x: 0, y: 0 },
+          size: { x: 320, y: 180 },
+          elevation: 0,
+          thickness: 0,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: false,
+          receivesShadow: true,
+        },
+        {
+          id: "btn",
+          position: { x: 40, y: 40 },
+          size: { x: 60, y: 40 },
+          elevation: 2,
+          thickness: 3,
+          bevelWidth: 4,
+          shape: { kind: "roundedRect", radius: 10 },
+          profile: { kind: "bevel" },
+          material: "matte",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      materials: { matte: gray },
+      light: { direction: { x: 0, y: 0.1, z: 0.995 }, intensity: 1 },
+    });
+  const frameB = () =>
+    api.createScene({
+      width: 320,
+      height: 180,
+      surfaces: [
+        ...frameA().surfaces,
+        {
+          id: "chip",
+          position: { x: 300, y: 160 },
+          size: { x: 8, y: 8 },
+          elevation: 1,
+          thickness: 1,
+          shape: { kind: "roundedRect", radius: 2 },
+          profile: { kind: "flat" },
+          material: "matte",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+      ],
+      // the EXISTING matte definition changes: materialCount unchanged
+      materials: { matte: red },
+      light: { direction: { x: 0, y: 0.1, z: 0.995 }, intensity: 1 },
+    });
+  const shadowOptions = { maxDistance: 40, stepSize: 0.5, bias: 0.5 };
+  let pipeline = null;
+  let canvas = null;
+  try {
+    const first = await makeRetainedCanvas();
+    canvas = first.canvas;
+    pipeline = new api.GpuScenePipeline(device, first.context, first.canvasFormat);
+    pipeline.render({
+      scene: frameA(),
+      dpr: 1,
+      shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    const statsB = pipeline.render({
+      scene: frameB(),
+      dpr: 1,
+      shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    if (statsB.planning.mode !== "full") {
+      problems.push(
+        `material-change frame planned ${statsB.planning.mode}/${statsB.planning.reason} ` +
+          "(expected full: geometry + material VALUES changed together)",
+      );
+    }
+    for (const reason of ["scene", "material-values"]) {
+      if (!statsB.invalidation.reasons.includes(reason)) {
+        problems.push(
+          `material-change frame lost reason "${reason}" (got ${statsB.invalidation.reasons.join(",")})`,
+        );
+      }
+    }
+    const snapshotB = pipeline.getSnapshot();
+    const [colorB] = await Promise.all([
+      readback(device, snapshotB.lightingPass.color.buffer, snapshotB.lightingPass.color.byteLength),
+    ]);
+    const canvasB = await capturePresented(
+      device,
+      first.context,
+      first.canvasFormat,
+      statsB.renderWidth,
+      statsB.renderHeight,
+    );
+    pipeline.dispose();
+    pipeline = null;
+    canvas.remove();
+    canvas = null;
+
+    const second = await makeRetainedCanvas();
+    const fresh = new api.GpuScenePipeline(device, second.context, second.canvasFormat);
+    const freshStats = fresh.render({
+      scene: frameB(),
+      dpr: 1,
+      shadowOptions,
+      tileSize: 32,
+      debugReadback: true,
+    });
+    const freshSnapshot = fresh.getSnapshot();
+    const [colorF] = await Promise.all([
+      readback(device, freshSnapshot.lightingPass.color.buffer, freshSnapshot.lightingPass.color.byteLength),
+    ]);
+    const canvasF = await capturePresented(
+      device,
+      second.context,
+      second.canvasFormat,
+      freshStats.renderWidth,
+      freshStats.renderHeight,
+    );
+    fresh.dispose();
+    second.canvas.remove();
+
+    const width = freshSnapshot.width;
+    const colorCompare = oracle.compareColor(
+      { id: "material-change-color", shadowOptions, scene: frameB() },
+      colorF,
+      colorB,
+      width,
+    );
+    if (colorCompare.hard > 0 || colorCompare.alphaBad > 0) {
+      problems.push(
+        `material-change: lighting color mismatch (hard ${colorCompare.hard}, alpha ${colorCompare.alphaBad})`,
+      );
+    }
+    const canvasCompare = oracle.compareCanvas(
+      { id: "material-change-canvas", shadowOptions, scene: frameB() },
+      canvasF,
+      canvasB,
+      width,
+    );
+    if (canvasCompare.hard > 0 || canvasCompare.alphaBad > 0) {
+      problems.push(
+        `material-change: final canvas mismatch (hard ${canvasCompare.hard}, alpha ${canvasCompare.alphaBad})`,
+      );
+    }
+  } catch (error) {
+    problems.push(`material-change parity threw: ${String(error?.stack ?? error)}`);
+  }
+  try {
+    pipeline?.dispose();
+    canvas?.remove();
+  } catch {
+    // disposal must never mask the outcome
+  }
+  return problems;
+}
+
+/**
  * #32 tile benchmark at the documented 640x360 demo-frame proxy scene:
  * several tile sizes x dirty-area ratios (small/medium/large edits).
  * Binning overhead (the planner's host wall-clock `planningHostMs`) is
@@ -2440,6 +3319,16 @@ async function main() {
     } catch (error) {
       shadowSampleBenchFailure = String(error?.stack ?? error);
     }
+    // #43 reconstruction benchmark: the REAL soft path + ReconstructionPass
+    // at radius 1/2/4 and the combined 8-samples + radius-2 chain on the
+    // proxy scene (report-only; host submission times labeled as such).
+    let reconstructionBench = [];
+    let reconstructionBenchFailure = null;
+    try {
+      reconstructionBench = await runReconstructionBenchmark(device);
+    } catch (error) {
+      reconstructionBenchFailure = String(error?.stack ?? error);
+    }
     // #31 retained-frame parity + scheduler counters on the real adapter:
     // a byte-identical repeated frame must do ZERO GPU work, retained
     // re-presentation must reproduce the exact canvas bytes, partial
@@ -2465,7 +3354,64 @@ async function main() {
     } catch (error) {
       partialFailure = String(error?.stack ?? error);
     }
+    // #43 partial-recompute + reconstruction halo on the REAL adapter: a
+    // soft + reconstruction scene through a small edit must keep the partial
+    // path (fewer workgroups than full in every pass INCLUDING the
+    // halo-expanded reconstruction/lighting bands) and reproduce a forced
+    // full recompute byte-for-byte on the final canvas.
+    const reconPartialProblems = [];
+    let reconPartialFailure = null;
+    try {
+      reconPartialProblems.push(...(await runPartialReconstructionParity(device)));
+    } catch (error) {
+      reconPartialFailure = String(error?.stack ?? error);
+    }
+    // #43 real-WebGPU retained-vs-fresh regression for the GLOBAL-change
+    // bug: a geometry edit combined with samples 4->16 and reconstruction
+    // radius 2->4 must plan FULL on the retained pipeline and every output
+    // (raw visibility exact, reconstructed visibility tolerance, lighting
+    // color, final canvas) must equal a fresh pipeline's full render.
+    const globalChangeProblems = [];
+    let globalChangeFailure = null;
+    try {
+      globalChangeProblems.push(...(await runRetainedGlobalChangeParity(device)));
+    } catch (error) {
+      globalChangeFailure = String(error?.stack ?? error);
+    }
+    // #43 real-WebGPU retained-vs-fresh regression for the MATERIAL-VALUE
+    // bug: a tiny surface add combined with an existing material table value
+    // change must plan FULL (material values are a frame-global lighting
+    // semantic) and the retained lighting color + final canvas must equal a
+    // fresh pipeline's full render.
+    const materialChangeProblems = [];
+    let materialChangeFailure = null;
+    try {
+      materialChangeProblems.push(...(await runRetainedMaterialChangeParity(device)));
+    } catch (error) {
+      materialChangeFailure = String(error?.stack ?? error);
+    }
     summaryData.partialProblems = partialProblems.length;
+    summaryData.reconPartialProblems = reconPartialProblems.length;
+    summaryData.globalChangeProblems = globalChangeProblems.length;
+    summaryData.materialChangeProblems = materialChangeProblems.length;
+    if (reconPartialFailure !== null) {
+      detail.push(`recon partial parity failed: ${reconPartialFailure}`);
+    }
+    for (const problem of reconPartialProblems) {
+      detail.push(`recon partial parity: ${problem}`);
+    }
+    if (globalChangeFailure !== null) {
+      detail.push(`global-change parity failed: ${globalChangeFailure}`);
+    }
+    for (const problem of globalChangeProblems) {
+      detail.push(`global-change parity: ${problem}`);
+    }
+    if (materialChangeFailure !== null) {
+      detail.push(`material-change parity failed: ${materialChangeFailure}`);
+    }
+    for (const problem of materialChangeProblems) {
+      detail.push(`material-change parity: ${problem}`);
+    }
     // #32 tile benchmark: report-only (deterministic cost ratio decides the
     // path, never a timing), run after the parity gates so failures surface
     // before any benchmark noise.
@@ -2496,6 +3442,10 @@ async function main() {
     let totalShadowTexels = 0;
     let totalCasterMismatches = 0;
     let totalCasterTexels = 0;
+    let totalReconstructionMismatches = 0;
+    let totalReconstructionTexels = 0;
+    let reconstructionMaxAbsError = 0;
+    let reconstructionMaxUlpError = 0;
     let casterMaxError = 0;
     let maxComponentError = 0;
     let maxLengthError = 0;
@@ -2542,6 +3492,19 @@ async function main() {
         totalCasterMismatches += caster.mismatches ?? 0;
         totalCasterTexels += result.casterTexels ?? 0;
         casterMaxError = Math.max(casterMaxError, caster.maxError ?? 0);
+      }
+      const reconstruction = result.reconstruction;
+      if (reconstruction !== undefined) {
+        totalReconstructionMismatches += reconstruction.mismatches ?? 0;
+        totalReconstructionTexels += result.reconstructionTexels ?? 0;
+        reconstructionMaxAbsError = Math.max(
+          reconstructionMaxAbsError,
+          reconstruction.maxAbsError ?? 0,
+        );
+        reconstructionMaxUlpError = Math.max(
+          reconstructionMaxUlpError,
+          reconstruction.maxUlpError ?? 0,
+        );
       }
       const lighting = result.lighting;
       if (lighting !== undefined) {
@@ -2623,16 +3586,27 @@ async function main() {
       }
       let frameHard = 0;
       let frameAlphaBad = 0;
+      let frameQuantizationAtRisk = 0;
       const frameMaxDelta = [0, 0, 0, 0];
       for (const frame of result.compared ?? []) {
         totalPresentTexels += frame.texels;
         frameHard += frame.compare.hard;
         frameAlphaBad += frame.compare.alphaBad;
+        // #43 quantization-margin pin: a reconstructed-canvas fixture whose
+        // products sit too close to an 8-bit boundary is NOT portable (a
+        // legal backend could flip a byte under the exact-alpha policy), so
+        // it must FAIL even when this backend happened to round the same way.
+        if (frame.quantization !== null && frame.quantization !== undefined) {
+          if (frame.quantization.portable !== true) {
+            frameQuantizationAtRisk += 1;
+          }
+        }
         for (let ch = 0; ch < 4; ch++) {
           frameMaxDelta[ch] = Math.max(frameMaxDelta[ch], frame.compare.maxDelta[ch]);
           presentMaxDelta[ch] = Math.max(presentMaxDelta[ch], frame.compare.maxDelta[ch]);
         }
       }
+      frameHard += frameQuantizationAtRisk;
       totalPresentHard += frameHard;
       totalPresentAlphaBad += frameAlphaBad;
       const sizes = (result.compared ?? [])
@@ -2693,6 +3667,39 @@ async function main() {
       detail.push(`shadow sample benchmark failed: ${shadowSampleBenchFailure}`);
     }
 
+    // #43 reconstruction benchmark (report-only): REAL soft path +
+    // ReconstructionPass at radius 1/2/4 and the combined chain. Times are
+    // HOST submission-to-queue-drain medians — explicitly labeled, never
+    // presented as GPU execution time; timestamp-query GPU times come from
+    // the profiler where the device exposes the feature.
+    if (reconstructionBench.length > 0) {
+      detail.push(
+        `reconstruction benchmark ${reconstructionBench[0].width}x${reconstructionBench[0].height} ` +
+          `(soft path, angularRadius ${SHADOW_BENCH_ANGULAR_RADIUS}, samples 8): ` +
+          reconstructionBench
+            .map(
+              (row) =>
+                `${row.stage}` +
+                (row.softActive ? " (soft)" : " (hard)") +
+                ` reconActive=${row.reconstructionActive}` +
+                ` radiusTexels=${row.radiusTexels}` +
+                ` hostMedianMs=${row.hostMedianMs.toFixed(3)}`,
+            )
+            .join("; "),
+      );
+      summaryData.reconstructionBenchmark = reconstructionBench.map((row) => ({
+        stage: row.stage,
+        effectiveSamples: row.effectiveSamples,
+        softActive: row.softActive,
+        reconstructionActive: row.reconstructionActive,
+        radiusTexels: row.radiusTexels,
+        hostMedianMs: Math.round(row.hostMedianMs * 1000) / 1000,
+      }));
+    }
+    if (reconstructionBenchFailure !== null) {
+      detail.push(`reconstruction benchmark failed: ${reconstructionBenchFailure}`);
+    }
+
     // #30: fill the CI SUMMARY payload (fixture totals + per-pass mismatch
     // totals), emitted by finish() right after the first-line marker.
     summaryData.fixtures = fixtureResults.length;
@@ -2703,6 +3710,10 @@ async function main() {
     summaryData.shadowMismatches = totalShadowMismatches;
     summaryData.casterTexels = totalCasterTexels;
     summaryData.casterMismatches = totalCasterMismatches;
+    summaryData.reconstructionTexels = totalReconstructionTexels;
+    summaryData.reconstructionMismatches = totalReconstructionMismatches;
+    summaryData.reconstructionMaxAbsError = reconstructionMaxAbsError;
+    summaryData.reconstructionMaxUlpError = reconstructionMaxUlpError;
     summaryData.lightingTexels = totalLightingTexels;
     summaryData.diffuseMismatches = totalDiffuseMismatches;
     summaryData.specularMismatches = totalSpecularMismatches;
@@ -2763,6 +3774,17 @@ async function main() {
         MARKER_FAIL,
         `caster-height mismatches: ${totalCasterMismatches} of ${totalCasterTexels} texels ` +
           `(tolerance 1e-4, measured max error ${casterMaxError.toExponential(3)})`,
+      );
+      return;
+    }
+    if (totalReconstructionMismatches > 0) {
+      finish(
+        MARKER_FAIL,
+        `reconstructed-visibility mismatches: ${totalReconstructionMismatches} of ` +
+          `${totalReconstructionTexels} texels across ${fixtureResults.length} fixtures ` +
+          `(finite [0,1] + |diff| <= ${oracle.RECONSTRUCTION_VISIBILITY_TOLERANCE}; ` +
+          `measured max abs ${reconstructionMaxAbsError.toExponential(3)}, ` +
+          `max ulp ${reconstructionMaxUlpError.toFixed(2)})`,
       );
       return;
     }
@@ -2935,6 +3957,51 @@ async function main() {
       );
       return;
     }
+    if (reconPartialFailure !== null) {
+      finish(
+        MARKER_FAIL,
+        `recon partial/full parity failed: ${reconPartialFailure}`,
+      );
+      return;
+    }
+    if (reconPartialProblems.length > 0) {
+      finish(
+        MARKER_FAIL,
+        `recon partial/full parity problems (${reconPartialProblems.length}): ` +
+          reconPartialProblems.join("; "),
+      );
+      return;
+    }
+    if (globalChangeFailure !== null) {
+      finish(
+        MARKER_FAIL,
+        `global-change retained-vs-fresh parity failed: ${globalChangeFailure}`,
+      );
+      return;
+    }
+    if (globalChangeProblems.length > 0) {
+      finish(
+        MARKER_FAIL,
+        `global-change retained-vs-fresh parity problems (${globalChangeProblems.length}): ` +
+          globalChangeProblems.join("; "),
+      );
+      return;
+    }
+    if (materialChangeFailure !== null) {
+      finish(
+        MARKER_FAIL,
+        `material-change retained-vs-fresh parity failed: ${materialChangeFailure}`,
+      );
+      return;
+    }
+    if (materialChangeProblems.length > 0) {
+      finish(
+        MARKER_FAIL,
+        `material-change retained-vs-fresh parity problems (${materialChangeProblems.length}): ` +
+          materialChangeProblems.join("; "),
+      );
+      return;
+    }
     detail.push(
       "partial/full parity: PASS (small edits planned partial with fewer dispatched " +
         "workgroups; every partial/full frame byte-equal to a forced full recompute " +
@@ -2969,6 +4036,10 @@ async function main() {
         `max length error ${maxLengthError.toExponential(3)}; ` +
         `shadow ${totalShadowMismatches}/${totalShadowTexels} visibility texels exact, ` +
         `caster tolerance 1e-4 max err ${casterMaxError.toExponential(3)}; ` +
+        `reconstructed visibility ${totalReconstructionMismatches}/${totalReconstructionTexels} texels ` +
+        `within ${oracle.RECONSTRUCTION_VISIBILITY_TOLERANCE} ` +
+        `(max abs ${reconstructionMaxAbsError.toExponential(3)}, ` +
+        `max ulp ${reconstructionMaxUlpError.toFixed(2)}); ` +
         `lighting ${totalDiffuseMismatches + totalSpecularMismatches + totalColorHard}/${totalLightingTexels} texels ` +
         `(tolerance 1e-3, max diffuse err ${maxDiffuseError.toExponential(3)}, ` +
         `max specular err ${maxSpecularError.toExponential(3)}, ` +

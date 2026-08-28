@@ -177,6 +177,43 @@ export function regionsEqual(
 }
 
 /**
+ * Exact comparison of `byteLength` bytes at DIFFERENT offsets in two
+ * buffers. Used for layout-dependent sections (the material VALUES table):
+ * two scenes with different surface/mask layouts still carry their material
+ * tables at their own `materialsOffset`, so a comparison must pair each
+ * scene's OWN offset — a same-offset `regionEqual` would compare shifted
+ * sections whenever the layouts differ. Bounds-checked like `regionEqual`
+ * (an out-of-bounds range compares unequal — conservative, never a false
+ * "identical").
+ */
+export function regionBytesEqual(
+  prevBytes: Uint8Array,
+  prevOffset: number,
+  nextBytes: Uint8Array,
+  nextOffset: number,
+  byteLength: number,
+): boolean {
+  if (
+    !Number.isInteger(prevOffset) ||
+    !Number.isInteger(nextOffset) ||
+    !Number.isInteger(byteLength) ||
+    prevOffset < 0 ||
+    nextOffset < 0 ||
+    byteLength < 0 ||
+    prevOffset + byteLength > prevBytes.byteLength ||
+    nextOffset + byteLength > nextBytes.byteLength
+  ) {
+    return false;
+  }
+  for (let i = 0; i < byteLength; i++) {
+    if (prevBytes[prevOffset + i] !== nextBytes[nextOffset + i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/**
  * True when retained height-stage fields (a `HeightPassSnapshot` provenance)
  * may be combined with a freshly uploaded scene: the exact height-dependent
  * portions of the provenance's `sceneBytes` equal the corresponding bytes of
