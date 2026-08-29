@@ -20,6 +20,7 @@
     "bench:cpu": "npm run bench:cpu -w ukibori-renderer",
     "bench:gpu": "npm run bench:gpu -w ukibori-renderer",
     "bench:dom": "npm run bench:dom -w ukibori-dom",
-    "bench:report": "npm run bench:report -w ukibori-renderer"
+    "bench:report": "npm run bench:report -w ukibori-renderer",
+    "bench:baseline": "node packages/renderer/scripts/bench-baseline.mjs"
   }
 }

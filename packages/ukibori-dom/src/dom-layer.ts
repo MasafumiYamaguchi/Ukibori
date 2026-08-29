@@ -239,6 +239,12 @@ export class UkiboriDom {
   private renderSerial = 0;
   private measureSerial = 0;
   private sceneBuildSerial = 0;
+  /**
+   * #46 frame-local provenance: advances ONLY when the GPU pipeline's
+   * render() is actually invoked (never on the async gpuTiming readback,
+   * which replaces `lastGpuFrame` without advancing any render serial).
+   */
+  private gpuRenderSerial = 0;
   private lastBuffers: LightingBuffers | null = null;
   private lastObjectId: HostBuffer | null = null;
 
@@ -899,6 +905,11 @@ export class UkiboriDom {
   ): boolean {
     try {
       const pipeline = this.gpuPipeline!;
+      // #46 frame-local provenance: this serial advances ONLY when the GPU
+      // pipeline is actually invoked — the async gpuTiming readback later
+      // replaces `lastGpuFrame` WITHOUT touching it (a consumer must not
+      // mistake an async timing resolution for a render).
+      this.gpuRenderSerial += 1;
       const stats: GpuScenePipelineFrameStats = pipeline.render({
         scene,
         // The scene is already in raster/device-pixel space; see the DPR
@@ -1051,6 +1062,7 @@ export class UkiboriDom {
       renderSerial: this.renderSerial,
       measureSerial: this.measureSerial,
       sceneBuildSerial: this.sceneBuildSerial,
+      gpuRenderSerial: this.gpuRenderSerial,
       renderSize: this.lastRenderSize === null ? null : { ...this.lastRenderSize },
       backend: this.gpuPipeline !== null ? "webgpu" : "cpu",
       gpuFallbackReason: this.gpuFallbackReason,

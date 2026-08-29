@@ -32,6 +32,7 @@ import {
   isWorkingTreeDirty,
 } from "./bench/lib/env-node.mjs";
 import { summarizeSeries, median } from "./bench/lib/stats.mjs";
+import { cpuCompositeStage } from "./bench/lib/compositing.mjs";
 import {
   createResultDocument,
   validateResultDocument,
@@ -123,41 +124,8 @@ function reportStage(table, { label, summary, extra = {} }) {
 // CPU stage pipeline (mirrors the GPU stage chain; see #C)
 // ---------------------------------------------------------------------------
 
-/**
- * The compositing stage ALONE (benchmarkable separately): final RGBA byte
- * synthesis from the shading color + ownership + visibility fields, exactly
- * the loop inside cpuFrameStages.
- */
-function cpuCompositeStage(composed, visibility, color) {
-  const width = composed.height.spec.width;
-  const height = composed.height.spec.height;
-  const out = new Uint8Array(width * height * 4);
-  const objectId = composed.objectId.data;
-  const visibilityData = visibility.data;
-  const colorData = color.data;
-  const shadowByte = api.compositeShadowPremultipliedStrengthBytes(1);
-  const shadowAlpha = shadowByte[3];
-  for (let i = 0; i < objectId.length; i++) {
-    const o = objectId[i];
-    const v = visibilityData[i];
-    const p = i * 4;
-    if (o === api.NO_OWNER && v < 1) {
-      const s = Math.max(0, 1 - v);
-      const alphaByte = Math.round(shadowAlpha * s);
-      out[p] = Math.round(((shadowByte[0] * shadowAlpha) / 255) * s);
-      out[p + 1] = Math.round(((shadowByte[1] * shadowAlpha) / 255) * s);
-      out[p + 2] = Math.round(((shadowByte[2] * shadowAlpha) / 255) * s);
-      out[p + 3] = alphaByte;
-    } else if (o !== api.NO_OWNER) {
-      out[p] = colorData[p];
-      out[p + 1] = colorData[p + 1];
-      out[p + 2] = colorData[p + 2];
-      out[p + 3] = 255;
-    }
-  }
-  return out;
-}
-
+// The compositing stage ALONE (benchmarkable separately): see
+// scripts/bench/lib/compositing.mjs (the production-helper oracle).
 function cpuFrameStages(scene, { samples: shadowSamples = 4, reconstruction = undefined } = {}) {
   const composed = api.composeSdfHeightField(scene);
   const caster = api.composeCasterHeightField(scene);
@@ -179,11 +147,9 @@ function cpuFrameStages(scene, { samples: shadowSamples = 4, reconstruction = un
     visibility,
   });
   // #46 compositing: the final RGBA byte synthesis the presentation stage
-  // performs — for every base-plane texel (NO_OWNER) with partial
-  // visibility, the premultiplied shadow byte replaces the transparent
-  // clear; surface texels keep their shading bytes. Mirrors the GPU
-  // presentation shader's composite op (the same oracle family).
-  const finalBytes = cpuCompositeStage(composed, visibility, shaded.color);
+  // performs, via the PRODUCTION shared compositor helper per texel (the
+  // single source of truth; parity tests pin the bytes).
+  const finalBytes = cpuCompositeStage(api, composed, visibility, shaded.color);
   return { composed, caster, normal, raw, visibility, color: shaded.color, finalBytes };
 }
 
@@ -233,7 +199,7 @@ function suiteStage() {
     objectId: composed.objectId,
     visibility: raw,
   }), "lighting (shade + RGBA bytes)"));
-  reportStage(table, benchStage(() => cpuCompositeStage(composed, raw, shaded.color), "compositing (final RGBA synthesis)"));
+  reportStage(table, benchStage(() => cpuCompositeStage(api, composed, raw, shaded.color), "compositing (final RGBA synthesis)"));
   for (const row of table) {
     console.log(
       `  ${row.label.padEnd(34)} median ${row.medianMs.toFixed(3)}ms  ` +

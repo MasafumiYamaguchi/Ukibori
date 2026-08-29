@@ -46,8 +46,8 @@ import {
   sanitizeReconstructionOptions,
 } from "../shadow-reconstruct";
 import type { ShadowReconstructionOptions } from "../shadow-reconstruct";
-import { computeFrameKey, reportInvalidations } from "./dirty";
-import type { FrameKey, InvalidationReport } from "./dirty";
+import { computeFrameKey, reportInvalidations, ALL_STAGES } from "./dirty";
+import type { FrameKey, InvalidationReason, InvalidationReport, PipelineStage } from "./dirty";
 import { GpuPipelineProfiler } from "./profiler";
 import type { CumulativeProfile, FrameProfile, ProfilerStageRecord } from "./profiler";
 import { GpuTimestampProfiler } from "./timestamp-profiler";
@@ -198,6 +198,18 @@ export interface GpuScenePipelineInput {
    * decision — it never changes the produced pixels.
    */
   readonly tileSize?: number;
+  /**
+   * #46 benchmark-only execution seam: force this frame's EXECUTION plan to
+   * the FULL stage chain regardless of the scheduler's partial decision, so
+   * a benchmark can measure a true forced-full comparator on the SAME warm
+   * pipeline and state as the normal planner path (a fresh-first-frame
+   * comparator has different first-use resource costs and is not a fair
+   * baseline). The `planning` report keeps the REAL scheduler decision for
+   * diagnostics; only the executed stage set and the dispatch region are
+   * promoted to full. Production call paths never set this flag; it is
+   * inert unless explicitly passed and has no effect on any other call.
+   */
+  readonly debugForceFull?: boolean;
 }
 
 /**
@@ -459,8 +471,48 @@ export class GpuScenePipeline {
     // work: its wall-clock time is reported separately (planningHostMs,
     // labeled HOST time) and never mixed into GPU completion times.
     const planningStart = performance.now();
-    const plan = this.planFrame(encoded, report, input);
+    const realPlan = this.planFrame(encoded, report, input);
     const planningHostMs = performance.now() - planningStart;
+    // #46 benchmark-only forced-full seam: elevate the EXECUTION to the
+    // full stage chain. The `planning` report keeps the REAL scheduler
+    // decision (so diagnostics can compare what the planner chose against
+    // what the forced execution did); only the executed stage set and the
+    // dispatch region are promoted. Reconstruction stays gated by its own
+    // soft-shadow activity check inside the stage loop.
+    const forceFull = input.debugForceFull === true;
+    const plan: PartialPlan = forceFull
+      ? {
+          ...realPlan,
+          mode: "full",
+          reason: "debugForceFull",
+          dirtyTileCount: 0,
+          dirtyTexels: 0,
+          dispatchTexels: realPlan.totalTexels,
+          dirtyRect: null,
+          band: null,
+          candidateIndices: Array.from(
+            { length: parseHeader(encoded.bytes).surfaceCount },
+            (_, i) => i,
+          ),
+          candidateSurfaceCount: parseHeader(encoded.bytes).surfaceCount,
+          culledSurfaceCount: 0,
+        }
+      : realPlan;
+    if (forceFull) {
+      // the benchmark seam appends its own reason marker so diagnostics can
+      // see the elevation; production call paths never produce it. The full
+      // chain follows the pipeline's own "first-frame"/"scene" report
+      // convention (ALL_STAGES incl. reconstruction; the stage loop's soft-
+      // shadow activity gate decides whether the reconstruction pass really
+      // dispatches, exactly like a first frame on a hard-shadow scene).
+      report = {
+        ...report,
+        executed: [...ALL_STAGES],
+        skipped: [],
+        retained: false,
+        reasons: [...report.reasons, "debugForceFull" as InvalidationReason],
+      };
+    }
     const region: BandRegion | undefined =
       plan.mode === "partial" && plan.band !== null ? plan.band : undefined;
     // #32 ACTUAL height-stage culling: on a partial frame the HeightPass

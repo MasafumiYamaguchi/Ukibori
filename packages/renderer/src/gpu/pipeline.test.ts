@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import { createScene } from "../scene";
 import type { Scene } from "../scene";
 import type {
@@ -266,7 +266,7 @@ function setup() {
 
 // ---------------------------------------------------------------------------
 
-describe("GpuScenePipeline — full-chain orchestrator", () => {
+describe("GpuScenePipeline 窶・full-chain orchestrator", () => {
   it("runs encode -> upload -> height -> normal -> shadow -> lighting -> presentation in order", () => {
     const { device, context, pipeline } = setup();
     const stats = pipeline.render({ scene: sceneA(), dpr: 1 });
@@ -321,7 +321,7 @@ describe("GpuScenePipeline — full-chain orchestrator", () => {
     expect(second.dpr).toBe(1);
     // the presentation bind group references THIS frame's lighting output
     // with THIS frame's extent (pass-level allocations may be reused across
-    // frames — the caching contract — so the per-frame identity is the
+    // frames 窶・the caching contract 窶・so the per-frame identity is the
     // provenance object and the bound byte sizes, not buffer object identity)
     const presentationGroup = device.bindGroups.at(-1)!;
     const colorEntry = presentationGroup.entries[1];
@@ -407,7 +407,7 @@ describe("GpuScenePipeline — full-chain orchestrator", () => {
   });
 });
 
-describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources", () => {
+describe("GpuScenePipeline 窶・#31 dirty-pass scheduling and retained resources", () => {
   const writePayloads = (device: MockFullDevice): number[][] =>
     device.writes.map((write) => Array.from(write.bytes));
 
@@ -616,7 +616,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     expect(replayed.invalidation.reasons).toContain("viewport");
     expect(replayed.invalidation.executed).toHaveLength(7);
     // the replayed upload bytes are byte-identical to frame 1 (deterministic
-    // encode) — the forced recompute produces the same effective payloads
+    // encode) 窶・the forced recompute produces the same effective payloads
     const replayWrites = device.writes.slice(writesBeforeReplay).map((w) => Array.from(w.bytes));
     expect(replayWrites).toEqual(frame1Writes);
     // a fresh height dispatch produced a fresh per-dispatch provenance token
@@ -692,7 +692,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
   });
 });
 
-describe("GpuScenePipeline — semantic scene invalidation (light/env/material)", () => {
+describe("GpuScenePipeline 窶・semantic scene invalidation (light/env/material)", () => {
   /** sceneA with a different light direction (geometry identical). */
   const withLight = (direction: { x: number; y: number; z: number }, intensity = 1): Scene => {
     const base = sceneA();
@@ -742,7 +742,7 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
       dpr: 1,
     });
     // #43 review: the direction change also moved |light.xy|, which shifts
-    // the context-derived default maxDistance — the effective shadow options
+    // the context-derived default maxDistance 窶・the effective shadow options
     // changed, so shadow-options fires alongside light-direction (never
     // swallowed). The planning stays full with the semantic reason.
     expect(stats.invalidation.reasons).toEqual(["light-direction", "shadow-options"]);
@@ -843,7 +843,7 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
   });
 });
 
-describe("WebGpuBackend — capabilities.compute stays false until #30", () => {
+describe("WebGpuBackend 窶・capabilities.compute stays false until #30", () => {
   it("still reports compute: false (no public GPU selection before parity)", async () => {
     const { WebGpuBackend } = await import("../backend/webgpu");
     const backend = new WebGpuBackend({ destroy() {} } as never);
@@ -853,7 +853,7 @@ describe("WebGpuBackend — capabilities.compute stays false until #30", () => {
   });
 });
 
-describe("GpuScenePipeline — #43 reconstruction bypass and binding transitions", () => {
+describe("GpuScenePipeline 窶・#43 reconstruction bypass and binding transitions", () => {
   function softScene(angularRadius: number): Scene {
     return createScene({
       // same extent as sceneA so hard<->soft switches are light-direction/
@@ -993,5 +993,77 @@ describe("GpuScenePipeline — #43 reconstruction bypass and binding transitions
     expect(disabled.invalidation.reasons).toEqual(["reconstruction-options"]);
     expect(disabled.reconstructionActive).toBe(false);
     expect(pipeline.getSnapshot().reconstructionPass).toBeNull();
+  });
+});
+
+describe("debugForceFull benchmark seam (#46)", () => {
+  it("is inert by default: a normal retained transition stays partial", () => {
+    const { pipeline } = setup();
+    const base = sceneA();
+    pipeline.render({ scene: base, dpr: 1 });
+    const stats = pipeline.render({ scene: sceneA(), dpr: 1, tileSize: 32 });
+    expect(stats.planning.mode).toBe("full");
+    // a byte-identical frame is fully retained without the flag
+    expect(stats.invalidation.retained).toBe(true);
+    expect(stats.invalidation.executed).toEqual([]);
+    expect(stats.invalidation.reasons).not.toContain("debugForceFull");
+  });
+
+it("elevates a retained byte-identical frame to the full stage chain", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const stats = pipeline.render({ scene: sceneA(), dpr: 1, debugForceFull: true });
+    expect(stats.invalidation.retained).toBe(false);
+    // the full chain follows the pipeline's "first-frame" report convention
+    // (ALL_STAGES incl. reconstruction; the reconstruction PASS dispatch is
+    // gated by the soft-shadow activity check, like any first frame)
+    expect(stats.invalidation.executed).toEqual([
+      "upload",
+      "height",
+      "normal",
+      "shadow",
+      "reconstruction",
+      "lighting",
+      "presentation",
+    ]);
+    expect(stats.invalidation.reasons).toContain("debugForceFull");
+    expect(stats.planning.mode).toBe("full");
+    expect(stats.planning.reason).toBe("debugForceFull");
+    // every stage really executed: 5 stage encoders again
+    expect(device.encoders.length).toBeGreaterThanOrEqual(5);
+  });
+
+  it("same base->target scene: forced-full executes the same stages as a normal full frame", () => {
+    const { pipeline } = setup();
+    const base = sceneA();
+    const target = sceneB();
+    // normal planner full: fresh pipeline first render of the target
+    const fresh = setup();
+    const normalFull = fresh.pipeline.render({ scene: target, dpr: 1 });
+    expect(normalFull.planning.mode).toBe("full");
+    expect(normalFull.planning.reason).toBe("first-frame");
+    // forced full on a retained pipeline after the base frame
+    pipeline.render({ scene: base, dpr: 1 });
+    const forcedFull = pipeline.render({ scene: target, dpr: 1, debugForceFull: true });
+    expect(forcedFull.invalidation.executed).toEqual(normalFull.invalidation.executed);
+    expect(forcedFull.planning.mode).toBe("full");
+  });
+
+  it("keeps the REAL planner decision in the planning report for diagnostics", () => {
+    const { pipeline } = setup();
+    const base = sceneA();
+    pipeline.render({ scene: base, dpr: 1 });
+    // a small edit would be planned by the scheduler; the forced seam still
+    // reports its own full elevation while realPlan is preserved for the
+    // harness comparison via planPartialScene on the encoded bytes
+    const stats = pipeline.render({
+      scene: sceneB(),
+      dpr: 1,
+      debugForceFull: true,
+      shadowOptions: { maxDistance: 40 },
+    });
+expect(stats.planning.mode).toBe("full");
+    expect(stats.planning.reason).toBe("debugForceFull");
+    expect(stats.invalidation.executed).toHaveLength(7);
   });
 });

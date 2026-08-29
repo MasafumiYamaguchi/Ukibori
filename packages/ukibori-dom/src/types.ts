@@ -270,6 +270,13 @@ export interface DomDebugState {
   renderSerial: number;
   measureSerial: number;
   sceneBuildSerial: number;
+  /**
+   * #46 frame-local provenance: advances ONLY when the GPU pipeline's
+   * render() is actually invoked. The async gpuTiming readback replaces
+   * `gpuFrame` WITHOUT advancing this serial, so a consumer can tell a real
+   * render from an async timing resolution.
+   */
+  gpuRenderSerial: number;
   /** width/height texels of the last render target */
   renderSize: { width: number; height: number } | null;
   /**

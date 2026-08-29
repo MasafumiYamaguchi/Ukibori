@@ -689,15 +689,25 @@ async function suiteMask() {
         const encoded = api.encodeScene(moved, 1);
         uploader.upload(encoded);
         // warm the pass pipelines BEFORE the timed dispatches (the first
-        // dispatch on a fresh pass compiles shaders, which is not GPU work)
+        // dispatch on a fresh pass compiles shaders, which is not GPU work);
+        // the warmup query sets are destroyed after use
         for (let i = 0; i < SUBSTAGE_WARMUP; i++) {
-          heightPass.dispatch(encoded, uploader.getBindings(), {
-            substageTimestamps: {
-              querySet: device.createQuerySet({ type: "timestamp", count: 4, label: "ukibori-bench-height-warmup" }),
-              sdfBeginIndex: 0,
-              composeBeginIndex: 2,
-            },
+          const warmupQuerySet = device.createQuerySet({
+            type: "timestamp",
+            count: 4,
+            label: "ukibori-bench-height-warmup",
           });
+          try {
+            heightPass.dispatch(encoded, uploader.getBindings(), {
+              substageTimestamps: {
+                querySet: warmupQuerySet,
+                sdfBeginIndex: 0,
+                composeBeginIndex: 2,
+              },
+            });
+          } finally {
+            warmupQuerySet.destroy();
+          }
         }
         await device.queue.onSubmittedWorkDone();
         for (let i = 0; i < SUBSTAGE_SAMPLES; i++) {
@@ -866,7 +876,9 @@ async function suiteShadow() {
           maxDistance,
           stepSize: TRAVEL_STEP_SIZE,
           theoreticalMaxSteps,
-          samples: 8,
+          // the ray sample count per texel, kept SEPARATE from the
+          // statistical benchmark sample count (`samples` below)
+          shadowSamples: 8,
           angularRadius: 0.15,
           resolution: `${WIDTH}x${HEIGHT}`,
           warmups: WARMUP,
@@ -1320,10 +1332,16 @@ function sectionDeltas(before, after) {
 }
 
 // ---------------------------------------------------------------------------
-// #12  Epartial vs forced-full recompute, labeled by the PLANNER's actual
-// dirty ratio (never by the input knob alone). Every case is measured as a
-// PAIR: the retained-pipeline partial render of the target scene AND the
-// SAME target scene rendered full on a fresh warmed pipeline.
+// #12 — partial vs forced-full recompute, labeled by the PLANNER's actual
+// dirty ratio (never by the input knob alone). Every case is a PAIR measured
+// on the SAME warm retained pipeline with the SAME base -> target
+// transition:
+//   A. the normal scheduler render of the target (planning = real decision)
+//   B. the benchmark-only debugForceFull render of the SAME target
+// Both sides share the identical resource state (pipeline, allocations,
+// shader caches, canvas, device), so the only difference is the execution
+// plan. The calibration diagnostic normalFullToForcedFullRatio compares the
+// two sides on cases where the normal planner ALSO chose full.
 // ---------------------------------------------------------------------------
 
 const PARTIAL_MOVE_EDITS = [0.02, 0.05, 0.1, 0.2, 0.35, 0.55, 0.8, 1];
@@ -1332,7 +1350,6 @@ const PARTIAL_GROW_EDITS = [1, 2, 4, 7];
 async function suitePartial() {
   const base = sceneFor(() => partialEditScene({ width: WIDTH, height: HEIGHT }));
   const shadowOptions = { maxDistance: 40, stepSize: 0.5, bias: 0.5 };
-  const primerScene = sceneFor(() => simpleRoundedRectScene({ width: WIDTH, height: HEIGHT }));
   const casesSpec = [
     ...PARTIAL_MOVE_EDITS.map((edit) => ({ id: `move-${edit}`, edit, grow: 0 })),
     ...PARTIAL_GROW_EDITS.map((grow) => ({ id: `grow-${grow}`, edit: 0, grow })),
@@ -1344,84 +1361,67 @@ async function suitePartial() {
       partialEditScene({ width: WIDTH, height: HEIGHT, edit: spec.edit, grow: spec.grow }),
     );
     try {
-      // A. the retained pipeline's partial (or planned-full) render of the
-      // target scene; every sample is a real base -> edit transition
-      const series = await benchUpdateFrame(
-        pipeline,
-        { scene: base, dpr: 1, shadowOptions, tileSize: 64 },
-        { scene: edit, dpr: 1, shadowOptions, tileSize: 64 },
-      );
-      const first = series[0];
+      // A + B on the SAME pipeline: every sample resets to base, then the
+      // target is rendered once through the normal scheduler and once with
+      // debugForceFull — identical resource warm state on both sides.
+      const normalSeries = [];
+      const forcedSeries = [];
+      for (let i = 0; i < WARMUP + SAMPLES; i++) {
+        await timedRender(pipeline, { scene: base, dpr: 1, shadowOptions, tileSize: 64 });
+        const normal = await timedRender(pipeline, {
+          scene: edit,
+          dpr: 1,
+          shadowOptions,
+          tileSize: 64,
+        });
+        await timedRender(pipeline, { scene: base, dpr: 1, shadowOptions, tileSize: 64 });
+        const forced = await timedRender(pipeline, {
+          scene: edit,
+          dpr: 1,
+          shadowOptions,
+          tileSize: 64,
+          debugForceFull: true,
+        });
+        if (i >= WARMUP) {
+          normalSeries.push(normal);
+          forcedSeries.push(forced);
+        }
+      }
+      const first = normalSeries[0];
       const plan = first.stats.planning;
       const totalTexels = plan.totalTexels ?? WIDTH * HEIGHT;
       const dirtyTexels = plan.dirtyTexels ?? null;
       const actualDirtyRatio = dirtyTexels !== null ? dirtyTexels / totalTexels : null;
-      const partialGpu = totalGpuSummary(series)?.median;
-      // B. TRUE forced-full comparator: the SAME target scene rendered as
-      // the FIRST frame on a fresh pipeline (the first-frame contract is
-      // always planning.mode === "full" / reason "first-frame"). Shader/
-      // pipeline caches are warmed by a separate untimed warmup pipeline;
-      // each timed sample then uses a FRESH pipeline whose first render is
-      // the target — no primer scene, no second-render update that the
-      // planner could decide to run partial.
-      const fullGpuSamples = [];
-      const fullWallSamples = [];
-      const fullPlans = [];
-      const fullExecuted = [];
-      // warm the device-level shader/pipeline caches (untimed, separate
-      // pipeline so the timed samples never compile anything)
-      {
-        const warm = makeCanvas();
-        const warmPipeline = new api.GpuScenePipeline(device, warm.context, warm.canvasFormat);
-        try {
-          await timedRender(warmPipeline, { scene: edit, dpr: 1, shadowOptions, tileSize: 64 });
-        } finally {
-          warmPipeline.dispose();
-          warm.canvas.remove();
-        }
-      }
-      for (let i = 0; i < WARMUP + SAMPLES; i++) {
-        const fresh = makeCanvas();
-        const freshPipeline = new api.GpuScenePipeline(device, fresh.context, fresh.canvasFormat);
-        try {
-          const full = await timedRender(freshPipeline, {
-            scene: edit,
-            dpr: 1,
-            shadowOptions,
-            tileSize: 64,
-          });
-          if (i >= WARMUP) {
-            const plan = full.stats.planning;
-            if (plan.mode !== "full") {
-              notes.push(
-                `partial/${spec.id}: forced-full comparator planned ${plan.mode} (${plan.reason}) ` +
-                  "— the first-frame contract was violated",
-              );
-            }
-            const executed = full.stats.invalidation.executed.join(",");
-            if (executed !== "upload,height,normal,shadow,reconstruction,lighting,presentation") {
-              notes.push(
-                `partial/${spec.id}: forced-full comparator executed [${executed}] ` +
-                  "(expected the full seven-stage chain)",
-              );
-            }
-            fullPlans.push({ mode: plan.mode, reason: plan.reason });
-            fullExecuted.push(executed);
-            fullGpuSamples.push(full.gpuTiming?.totalGpuMs);
-            fullWallSamples.push(full.wallMs);
-          }
-        } finally {
-          freshPipeline.dispose();
-          fresh.canvas.remove();
-        }
-      }
-      const fullGpuMedian = summarizeSeries(gpuSeriesOf(fullGpuSamples, (v) => v));
-      const fullWall = summarizeSeries(fullWallSamples);
+      const partialGpu = totalGpuSummary(normalSeries)?.median;
+      const forcedGpuMedian = totalGpuSummary(forcedSeries);
+      const forcedWall = summarizeSeries(forcedSeries.map((r) => r.wallMs));
       const partialToFullRatio =
-        fullGpuMedian?.median !== null && fullGpuMedian?.median !== undefined && fullGpuMedian.median > 0
-          ? partialGpu / fullGpuMedian.median
+        forcedGpuMedian?.median !== null && forcedGpuMedian?.median !== undefined && forcedGpuMedian.median > 0
+          ? partialGpu / forcedGpuMedian.median
           : null;
-      const fullPlan = fullPlans[fullPlans.length - 1] ?? { mode: "unknown", reason: "unknown" };
+      // calibration: when the NORMAL planner also chose full, the two sides
+      // must agree (a systematic normal-vs-forced gap would mean the
+      // comparator is still unfair)
+      const normalFullToForcedFullRatio =
+        plan.mode === "full" && forcedGpuMedian?.median !== null && forcedGpuMedian?.median > 0
+          ? partialGpu / forcedGpuMedian.median
+          : null;
+      const forcedPlan = forcedSeries[forcedSeries.length - 1].stats.planning;
+      if (forcedPlan.mode !== "full") {
+        notes.push(
+          `partial/${spec.id}: debugForceFull planned ${forcedPlan.mode} — the seam must always plan full`,
+        );
+      }
+      const forcedExecuted =
+        forcedSeries[forcedSeries.length - 1].stats.invalidation.executed.join(",");
+      const expectedForcedExecuted =
+        "upload,height,normal,shadow,reconstruction,lighting,presentation";
+      if (forcedExecuted !== expectedForcedExecuted) {
+        notes.push(
+          `partial/${spec.id}: debugForceFull executed [${forcedExecuted}] ` +
+            "(expected the full seven-stage chain)",
+        );
+      }
       pushCase(
         `partial/${spec.id}`,
         {
@@ -1435,17 +1435,18 @@ async function suitePartial() {
           samples: SAMPLES,
         },
         {
-          wallMs: summarizeSeries(series.map((r) => r.wallMs)),
-          planningHostMs: summarizeSeries(series.map((r) => r.stats.planning.planningHostMs)),
-          gpuTimestampMs: totalGpuSummary(series),
-          heightGpuTimestampMs: summarizeSeries(gpuSeriesOf(series, (r) => r.gpuTiming?.passGpuMs?.height)),
-          shadowGpuTimestampMs: summarizeSeries(gpuSeriesOf(series, (r) => r.gpuTiming?.passGpuMs?.shadow)),
-          fullGpuTimestampMs: fullGpuMedian,
-          fullWallMs: fullWall,
-          fullPlanningMode: fullPlan.mode,
-          fullPlanningReason: fullPlan.reason,
-          fullExecuted: fullExecuted[fullExecuted.length - 1] ?? "",
+          wallMs: summarizeSeries(normalSeries.map((r) => r.wallMs)),
+          planningHostMs: summarizeSeries(normalSeries.map((r) => r.stats.planning.planningHostMs)),
+          gpuTimestampMs: totalGpuSummary(normalSeries),
+          heightGpuTimestampMs: summarizeSeries(gpuSeriesOf(normalSeries, (r) => r.gpuTiming?.passGpuMs?.height)),
+          shadowGpuTimestampMs: summarizeSeries(gpuSeriesOf(normalSeries, (r) => r.gpuTiming?.passGpuMs?.shadow)),
+          forcedFullGpuTimestampMs: forcedGpuMedian,
+          forcedFullWallMs: forcedWall,
+          forcedFullPlanningMode: forcedPlan.mode,
+          forcedFullPlanningReason: forcedPlan.reason,
+          forcedFullExecuted: forcedExecuted,
           partialToFullRatio,
+          normalFullToForcedFullRatio,
           partialPlanningMode: plan.mode,
           partialPlanningReason: plan.reason,
           actualDirtyRatio,

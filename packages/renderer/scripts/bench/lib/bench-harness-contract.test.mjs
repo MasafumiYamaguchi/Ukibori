@@ -169,3 +169,69 @@ describe("upload transition scene contract (built bundle)", () => {
     expect(Buffer.from(before.bytes).equals(Buffer.from(again.bytes))).toBe(true);
   });
 });
+
+
+describe("CPU compositing stage parity (#46 review)", () => {
+  const skip = it.skipIf(api === null);
+
+  skip("base-plane texels match the production strength helper exactly", () => {
+    const composite = (visibility, options) =>
+      api.compositeShadowPremultipliedStrengthBytes(Math.min(1, Math.max(0, 1 - visibility)), options);
+    // NO_OWNER + visibility 1 -> transparent [0,0,0,0]
+    expect(composite(1)).toEqual([0, 0, 0, 0]);
+    // NO_OWNER + visibility 0 -> the production full-strength premultiplied shadow
+    expect(composite(0)).toEqual(Array.from(api.compositeShadowPremultipliedBytes()));
+    // NO_OWNER + visibility 0.5 -> the strength helper exactly
+    expect(composite(0.5)).toEqual([...api.compositeShadowPremultipliedStrengthBytes(0.5)]);
+  });
+
+  skip("custom shadowColor / shadowAlpha flow through the production helper", () => {
+    const options = { shadowColor: [0.2, 0.4, 0.9], shadowAlpha: 0.6 };
+    const bytes = api.compositeShadowPremultipliedStrengthBytes(0.5, options);
+    expect(bytes[3]).toBe(Math.round(Math.round(0.6 * 255) * 0.5));
+    expect(bytes[0]).toBe(Math.round(((0.2 * Math.round(0.6 * 255)) / 255) * 0.5));
+  });
+
+  skip("a full representative buffer equals the per-texel production oracle", async () => {
+    const { cpuCompositeStage } = await import("./compositing.mjs");
+    const width = 4;
+    const height = 4;
+    const texels = width * height;
+    const makeField = (Ctor) => ({
+      spec: { width, height, channels: 1, format: "f32" },
+      data: new Ctor(texels),
+    });
+    const objectIdField = makeField(Uint32Array);
+    const visibilityField = makeField(Float32Array);
+    const colorField = {
+      spec: { width, height, channels: 4, format: "u8" },
+      data: new Uint8Array(texels * 4),
+    };
+    for (let i = 0; i < texels; i++) {
+      objectIdField.data[i] = i % 3 === 0 ? api.NO_OWNER : 1;
+      visibilityField.data[i] = (i % 5) / 4;
+      colorField.data[i * 4 + 0] = i * 3;
+      colorField.data[i * 4 + 1] = i * 5;
+      colorField.data[i * 4 + 2] = i * 7;
+      colorField.data[i * 4 + 3] = 255;
+    }
+    const composed = { height: objectIdField, objectId: objectIdField };
+    const out = cpuCompositeStage(api, composed, visibilityField, colorField);
+    for (let i = 0; i < texels; i++) {
+      const o = objectIdField.data[i];
+      const p = i * 4;
+      if (o === api.NO_OWNER) {
+        const strength = Math.min(1, Math.max(0, 1 - visibilityField.data[i]));
+        const bytes = api.compositeShadowPremultipliedStrengthBytes(strength);
+        expect(Array.from(out.subarray(p, p + 4))).toEqual(Array.from(bytes));
+      } else {
+        expect(Array.from(out.subarray(p, p + 4))).toEqual([
+          colorField.data[p],
+          colorField.data[p + 1],
+          colorField.data[p + 2],
+          255,
+        ]);
+      }
+    }
+  });
+});

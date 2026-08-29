@@ -141,6 +141,16 @@ function mountStage(surfaceCount) {
   spacer.style.height = "2400px";
   spacer.style.width = "1px";
   document.body.appendChild(spacer);
+  // CSSOM resize rule for the one-surface-resize scenario: changing the
+  // rule's style changes the target's LAYOUT size without producing any
+  // style-attribute MutationRecord, so the ResizeObserver path (per-surface
+  // markDirty) is what fires — never the document MutationObserver.
+  const styleEl = document.createElement("style");
+  styleEl.id = "bench-resize-rule";
+  styleEl.textContent =
+    "#bench-resize-target { width: 64px; height: 36px; }";
+  document.head.appendChild(styleEl);
+  const resizeRule = styleEl.sheet.cssRules[0];
   const buttons = [];
   for (let i = 0; i < surfaceCount; i++) {
     const button = document.createElement("button");
@@ -149,8 +159,14 @@ function mountStage(surfaceCount) {
     const rect = surfaceRect(i);
     button.style.left = `${rect.left}px`;
     button.style.top = `${rect.top}px`;
-    button.style.width = `${rect.width}px`;
-    button.style.height = `${rect.height}px`;
+    if (i === 0) {
+      // the resize target's width/height come from the CSSOM rule, not
+      // inline styles (a rule edit is not a DOM attribute mutation)
+      button.id = "bench-resize-target";
+    } else {
+      button.style.width = `${rect.width}px`;
+      button.style.height = `${rect.height}px`;
+    }
     button.style.padding = "0";
     button.style.border = "none";
     stage.appendChild(button);
@@ -167,7 +183,7 @@ function mountStage(surfaceCount) {
   // as the layer's own output (isManagedMutation), so an unrelated mutation
   // must live on a sibling to exercise the document MutationObserver path.
   document.body.appendChild(unrelated);
-  return { stage, buttons, unrelated, spacer };
+  return { stage, buttons, unrelated, spacer, resizeRule };
 }
 
 const BUTTON_OPTIONS = (i) => ({
@@ -179,7 +195,7 @@ const BUTTON_OPTIONS = (i) => ({
 });
 
 async function measureScenario(scenario, surfaceCount, { frames }) {
-  const { stage, buttons, unrelated, spacer } = mountStage(surfaceCount);
+  const { stage, buttons, unrelated, spacer, resizeRule } = mountStage(surfaceCount);
   const layer = await UkiboriDom.create({
     backend: "webgpu",
     observe: true,
@@ -210,14 +226,16 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
       const beforeRects = rectCounter.calls;
       const beforeStyles = styleCounter.calls;
       const beforePipelines = pipelineInvocations;
-      const beforeFrame = layer.debugState().gpuFrame;
       // frame-local provenance serials: only a frame whose serial advanced
       // may attribute the timing values (stale previous-frame values are
-      // forbidden for measurement/scene-build)
+      // forbidden). Render detection uses the SERIALS, never the gpuFrame
+      // object identity (the async gpuTiming readback replaces the object
+      // without a render).
       const beforeSerials = {
         render: layer.debugState().renderSerial,
         measure: layer.debugState().measureSerial,
         scene: layer.debugState().sceneBuildSerial,
+        gpuRender: layer.debugState().gpuRenderSerial,
       };
       const callbackTimer = { ms: 0 };
       const settleTimer = { ms: 0 };
@@ -227,6 +245,19 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
         case "stable-page":
           break; // no DOM change at all
         case "one-surface-resize": {
+          // REAL ResizeObserver path: edit the CSSOM rule so the target's
+          // LAYOUT size changes without producing any style-attribute
+          // MutationRecord (the document MutationObserver must NOT fire).
+          const t1 = performance.now();
+          const grow = frame + 1;
+          resizeRule.style.width = `${64 + grow}px`;
+          resizeRule.style.height = `${36 + grow}px`;
+          triggerHostMs = performance.now() - t1;
+          break;
+        }
+        case "surface-style-mutation": {
+          // the historical style-attribute mutation case, kept SEPARATE: the
+          // document MutationObserver -> markAllDirty path (NOT a resize)
           const target = buttons[0].button;
           const rect = surfaceRect(0);
           const t1 = performance.now();
@@ -259,11 +290,30 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
       await drain({ skipIdleWait, callbackTimer, settleTimer });
       const totalMs = performance.now() - t0;
       const state = layer.debugState();
-      const afterFrame = state.gpuFrame;
-      const rendered = afterFrame !== beforeFrame;
-      const gpuFrame = rendered ? afterFrame : null;
+      const rendererRan = state.gpuRenderSerial !== beforeSerials.gpuRender;
+      const renderRanThisFrame = state.renderSerial !== beforeSerials.render;
       const measureRanThisFrame = state.measureSerial !== beforeSerials.measure;
       const sceneBuiltThisFrame = state.sceneBuildSerial !== beforeSerials.scene;
+      // invariant: the pipeline-invocation counter and the gpuRenderSerial
+      // must agree on whether the renderer ran (GPU backend)
+      if (rendererRan !== (pipelineInvocations - beforePipelines > 0)) {
+        notes.push(
+          `dom ${scenario} surfaces-${surfaceCount}: gpuRenderSerial and pipeline ` +
+            `invocation counter disagree (rendererRan=${rendererRan}, ` +
+            `invocations=${pipelineInvocations - beforePipelines})`,
+        );
+      }
+      // current-frame executed stages: the renderer's own result is only
+      // readable when it RAN this frame; otherwise executed stays empty
+      // (the async gpuTiming object swap is not a render)
+      let executed = "";
+      let retained = null;
+      let gpuStats = null;
+      if (rendererRan) {
+        gpuStats = state.gpuFrame?.frame ?? null;
+        executed = gpuStats !== null ? gpuStats.invalidation.executed.join(",") : "";
+        retained = gpuStats !== null ? gpuStats.invalidation.retained === true : null;
+      }
       perFrame.push({
         totalMs,
         callbackHostMs: callbackTimer.ms,
@@ -272,14 +322,14 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
         rectCallsDelta: rectCounter.calls - beforeRects,
         styleCallsDelta: styleCounter.calls - beforeStyles,
         pipelineInvocationsDelta: pipelineInvocations - beforePipelines,
-        rendered,
+        rendererRan,
         dirtyCount: state.dirtyCount,
-        lastRenderMs: state.lastRenderMs,
+        renderHostMs: renderRanThisFrame ? state.lastRenderMs : 0,
         measureHostMs: measureRanThisFrame ? state.lastMeasureMs : 0,
         measuredEntries: measureRanThisFrame ? state.lastMeasuredEntries : 0,
         sceneBuildHostMs: sceneBuiltThisFrame ? state.lastSceneBuildMs : 0,
-        executed: gpuFrame !== null ? gpuFrame.frame.invalidation.executed.join(",") : "",
-        retained: gpuFrame !== null ? gpuFrame.frame.invalidation.retained === true : null,
+        executed,
+        retained,
         renderSize: state.renderSize !== null ? `${state.renderSize.width}x${state.renderSize.height}` : null,
       });
     }
@@ -307,12 +357,12 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
         rectCallsPerFrame: summarizeSeries(timed.map((f) => f.rectCallsDelta)),
         computedStyleCallsPerFrame: summarizeSeries(timed.map((f) => f.styleCallsDelta)),
         rendererInvocationsPerFrame: summarizeSeries(timed.map((f) => f.pipelineInvocationsDelta)),
-        skippedRenderPerFrame: summarizeSeries(timed.map((f) => (f.rendered ? 0 : 1))),
+        skippedRenderPerFrame: summarizeSeries(timed.map((f) => (f.rendererRan ? 0 : 1))),
         dirtyCountPerFrame: summarizeSeries(timed.map((f) => f.dirtyCount)),
         measureHostMsPerFrame: summarizeSeries(timed.map((f) => f.measureHostMs)),
         measuredEntriesPerFrame: summarizeSeries(timed.map((f) => f.measuredEntries)),
         sceneBuildHostMsPerFrame: summarizeSeries(timed.map((f) => f.sceneBuildHostMs)),
-        lastRenderMsPerFrame: summarizeSeries(timed.map((f) => f.lastRenderMs)),
+        renderHostMsPerFrame: summarizeSeries(timed.map((f) => f.renderHostMs)),
         executed: timed.map((f) => f.executed).filter((v, i, a) => a.indexOf(v) === i).join("|"),
         retained: timed.map((f) => (f.retained === true ? 1 : 0)).reduce((a, b) => a + b, 0) / timed.length,
         renderSize: timed[timed.length - 1].renderSize,
@@ -324,6 +374,7 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
     stage.remove();
     unrelated.remove();
     spacer.remove();
+    document.getElementById("bench-resize-rule")?.remove();
     window.scrollTo(0, 0);
   }
 }
@@ -354,6 +405,7 @@ async function main() {
   const scenarios = [
     "stable-page",
     "one-surface-resize",
+    "surface-style-mutation",
     "unrelated-mutation",
     "frequent-mutations",
     "scroll",

@@ -182,7 +182,7 @@ async function main() {
   const rendererBundle = join(repoRoot, "packages", "renderer", "dist", "index.js");
   if (!existsSync(rendererBundle)) {
     console.error(
-      `${MARKER_FAIL} renderer bundle not found at ${rendererBundle} 窶・run ` +
+      `${MARKER_FAIL} renderer bundle not found at ${rendererBundle}  - run ` +
         "`npm run build -w ukibori-renderer` first",
     );
     process.exit(1);
@@ -326,12 +326,12 @@ async function main() {
       await mkdir(dirname(jsonPath), { recursive: true });
       await writeFile(jsonPath, JSON.stringify(payload, null, 2), "utf8");
       console.log(
-        `bench:dom: wrote ${jsonPath} 窶・${payload.cases.length} cases, schema v${payload.schemaVersion}, ` +
+        `bench:dom: wrote ${jsonPath}  - ${payload.cases.length} cases, schema v${payload.schemaVersion}, ` +
           `commit ${payload.commit}, workingTreeDirty=${payload.workingTreeDirty}`, 
       );
       process.exitCode = 0;
     } else if (marker === MARKER_SKIP) {
-      console.error("bench:dom: SKIP 窶・only a real-adapter PASS counts");
+      console.error("bench:dom: SKIP  - only a real-adapter PASS counts");
       process.exitCode = 1;
     } else {
       console.error("bench:dom: FAIL");

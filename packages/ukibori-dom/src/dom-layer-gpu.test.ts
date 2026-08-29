@@ -588,3 +588,70 @@ describe("UkiboriDom — async WebGPU backend (auto/cpu/webgpu)", () => {
     expect(document.querySelectorAll("canvas[data-ukibori-overlay]")).toHaveLength(0);
   });
 });
+
+  it("advances gpuRenderSerial ONLY on pipeline invocations, never on the async gpuTiming readback", async () => {
+    stubGetContext();
+    const device = new MockFullDevice();
+    const layer = await UkiboriDom.create({
+      backend: "auto",
+      gpu: makeSeam(device),
+      schedule: (cb) => cb(),
+      observe: false,
+    });
+    layer.register(button, BUTTON_OPTIONS);
+    layer.render();
+    const state1 = layer.debugState();
+    expect(state1.backend).toBe("webgpu");
+    expect(state1.gpuRenderSerial).toBe(1);
+    expect(state1.gpuFrame).not.toBeNull();
+    // the async gpuTiming readback swaps the gpuFrame OBJECT without any
+    // render: the serial must NOT advance (a consumer must not count an
+    // async timing resolution as a render)
+    const frameBefore = state1.gpuFrame;
+    await Promise.resolve();
+    await Promise.resolve();
+    const state2 = layer.debugState();
+    expect(state2.gpuFrame).not.toBe(frameBefore);
+    expect(state2.gpuRenderSerial).toBe(1);
+    layer.dispose();
+  });
+
+it("advances gpuRenderSerial exactly once per real pipeline render (retained frames included)", async () => {
+    stubGetContext();
+    const device = new MockFullDevice();
+    const layer = await UkiboriDom.create({
+      backend: "auto",
+      gpu: makeSeam(device),
+      schedule: (cb) => cb(),
+      observe: false,
+    });
+    const rect = { x: 36, y: 136, width: 160, height: 44, left: 36, top: 136, right: 196, bottom: 180, toJSON: () => ({}) };
+    const a = document.createElement("button");
+    a.getBoundingClientRect = () => ({ ...rect, x: rect.x, y: rect.y });
+    document.body.appendChild(a);
+    layer.register(a, { ...BUTTON_OPTIONS, id: "a" });
+    layer.render();
+    expect(layer.debugState().gpuRenderSerial).toBe(1);
+    // geometry change -> real pipeline render -> exactly one more advance
+    const b = document.createElement("button");
+    b.getBoundingClientRect = () => ({ ...rect, x: rect.x + 10, y: rect.y, width: rect.width, height: rect.height });
+    document.body.appendChild(b);
+    layer.register(b, { ...BUTTON_OPTIONS, id: "b" });
+    layer.render();
+    expect(layer.debugState().gpuRenderSerial).toBe(2);
+    // an invalidate with UNCHANGED geometry skips the layer render (the
+    // layer itself short-circuits before the pipeline): no advance
+    layer.invalidate();
+    layer.render();
+    expect(layer.debugState().gpuRenderSerial).toBe(2);
+    // a REAL geometry change -> one more pipeline invocation
+    rect.width = 200;
+    layer.invalidate();
+    layer.render();
+    expect(layer.debugState().gpuRenderSerial).toBe(3);
+    // a skipped render (geometry unchanged, no dirty) does NOT invoke the
+    // pipeline -> no advance
+    layer.render();
+    expect(layer.debugState().gpuRenderSerial).toBe(3);
+    layer.dispose();
+  });

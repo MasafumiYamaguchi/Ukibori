@@ -17,13 +17,24 @@ import { validateResultDocument } from "./bench/lib/schema.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const pkgRoot = resolve(scriptDir, "..");
+const repoRoot = resolve(pkgRoot, "..", "..");
 
 const args = process.argv.slice(2);
 function flag(name, fallback) {
   const index = args.indexOf(name);
   return index === -1 ? fallback : args[index + 1];
 }
-const resultsArg = flag("--results", flag("--json", join(pkgRoot, "benchmark-results.json")));
+const resultsArg = flag(
+  "--results",
+  flag(
+    "--json",
+    [
+      join(pkgRoot, "benchmark-results.json"),
+      join(pkgRoot, "benchmark-results-cpu.json"),
+      join(repoRoot, "packages", "ukibori-dom", "benchmark-results-dom.json"),
+    ].join(","),
+  ),
+);
 const outPath = flag("--out", join(pkgRoot, "benchmark-report.md"));
 
 function fmt(v, digits = 3) {
@@ -423,6 +434,7 @@ function markdownReport(docs) {
     "travel",
     (c) => summaryOf(c.metrics, "shadowGpuTimestampMs")?.median,
     [
+      ["shadowSamples", (c) => c.parameters.shadowSamples],
       ["maxDistance", (c) => c.parameters.maxDistance],
       ["stepSize", (c) => c.parameters.stepSize],
       ["theoreticalMaxSteps", (c) => c.parameters.theoreticalMaxSteps],
@@ -433,16 +445,18 @@ function markdownReport(docs) {
     lines.push("## Shadow travel distance (median ShadowPass GPU ms)");
     lines.push("");
     lines.push(
-      "The travel axis is the EXPLICIT maxDistance (the ray-march budget): " +
-        "short 40 / medium 120 / long 300 scene units at stepSize 0.5, so the " +
-        "cases are genuinely different workloads.",
+      "The travel axis is the CONFIGURED march budget (the sanitized maxDistance " +
+        "the pass packs): short 40 / medium 120 / long 300 scene units at stepSize 0.5. " +
+        "The dispatch step counts differ by construction; the MEASURED GPU cost can " +
+        "saturate when scene bounds / early exits bound the effective ray travel " +
+        "(configured budget != executed work).",
     );
     lines.push("");
-    lines.push("| Travel | maxDistance | stepSize | Theoretical max steps | Shadow GPU ms | Dispatch step count |");
-    lines.push("|---|---|---|---|---|---|");
+    lines.push("| Travel | Shadow samples | maxDistance | stepSize | Theoretical max steps | Shadow GPU ms | Dispatch step count |");
+    lines.push("|---|---|---|---|---|---|---|");
     for (const r of travelRows) {
       lines.push(
-        `| ${r.label} | ${r.maxDistance} | ${r.stepSize} | ${r.theoreticalMaxSteps} | ${fmt(r.value)} | ${r.steps} |`,
+        `| ${r.label} | ${r.shadowSamples} | ${r.maxDistance} | ${r.stepSize} | ${r.theoreticalMaxSteps} | ${fmt(r.value)} | ${r.steps} |`,
       );
     }
     lines.push("");
@@ -558,11 +572,12 @@ function markdownReport(docs) {
       ["case", (c) => c.id.replace("partial/", "")],
       ["actualRatio", (c) => c.metrics.actualDirtyRatio],
       ["partialMode", (c) => c.metrics.partialPlanningMode],
-      ["fullMode", (c) => c.metrics.fullPlanningMode],
+      ["forcedMode", (c) => c.metrics.forcedFullPlanningMode],
       ["dirtyTexels", (c) => c.metrics.dirtyTexels],
       ["dispatchTexels", (c) => c.metrics.dispatchTexels],
-      ["fullGpu", (c) => summaryOf(c.metrics, "fullGpuTimestampMs")?.median],
+      ["forcedGpu", (c) => summaryOf(c.metrics, "forcedFullGpuTimestampMs")?.median],
       ["ratio", (c) => c.metrics.partialToFullRatio],
+      ["calibration", (c) => c.metrics.normalFullToForcedFullRatio],
     ],
   );
   if (partialRows.length > 0) {
@@ -570,30 +585,46 @@ function markdownReport(docs) {
     lines.push("");
     lines.push(
       "actualDirtyRatio = planner dirtyTexels / totalTexels (never the input knob). " +
-        "The full comparator is the SAME target scene rendered as the FIRST frame on a fresh " +
-        "pipeline (first-frame contract: fullPlanningMode must be 'full'); " +
-        "partialToFullRatio = partial GPU / forced-full GPU (< 1 = partial wins).",
+        "Both sides are measured on the SAME warm retained pipeline with the same " +
+        "base -> target transition: the normal scheduler render vs the benchmark-only " +
+        "debugForceFull render of the SAME target scene (identical resource state). " +
+        "partialToFullRatio = partial GPU / forced-full GPU (< 1 = partial wins). " +
+        "calibration = normal-full GPU / forced-full GPU on the cases where the normal " +
+        "planner ALSO chose full (a systematic gap would mean the comparator is unfair).",
     );
     lines.push("");
-    lines.push("| Case | Actual dirty ratio | Partial mode | Full mode | Partial GPU ms | Full GPU ms | P/F ratio | Dirty texels | Dispatch texels |");
-    lines.push("|---|---|---|---|---|---|---|---|---|");
+    lines.push("| Case | Actual dirty ratio | Partial mode | Forced-full mode | Partial GPU ms | Forced-full GPU ms | P/F ratio | Calibration | Dirty texels | Dispatch texels |");
+    lines.push("|---|---|---|---|---|---|---|---|---|---|");
     for (const r of partialRows) {
       lines.push(
-        `| ${r.case} | ${r.actualRatio !== null ? (r.actualRatio * 100).toFixed(1) + "%" : "n/a"} | ${r.partialMode} | ${r.fullMode} | ` +
-          `${fmt(r.value)} | ${fmt(r.fullGpu)} | ${r.ratio !== null ? r.ratio.toFixed(3) : "n/a"} | ${r.dirtyTexels} | ${r.dispatchTexels} |`,
+        `| ${r.case} | ${r.actualRatio !== null ? (r.actualRatio * 100).toFixed(1) + "%" : "n/a"} | ${r.partialMode} | ${r.forcedMode} | ` +
+          `${fmt(r.value)} | ${fmt(r.forcedGpu)} | ${r.ratio !== null ? r.ratio.toFixed(3) : "n/a"} | ` +
+          `${r.calibration !== null ? r.calibration.toFixed(3) : "n/a"} | ${r.dirtyTexels} | ${r.dispatchTexels} |`,
       );
     }
     lines.push("");
-    const nonFullComparators = partialRows.filter((r) => r.fullMode !== "full");
+    const nonFullComparators = partialRows.filter((r) => r.forcedMode !== "full");
     if (nonFullComparators.length > 0) {
       lines.push(
         `- VERIFICATION FAILURE: ${nonFullComparators.length} comparator case(s) did not plan full ` +
-          `(${nonFullComparators.map((r) => r.case).join(", ")}) — the first-frame contract was violated.`,
+          `(${nonFullComparators.map((r) => r.case).join(", ")}) — the debugForceFull seam was violated.`,
       );
       lines.push("");
     } else {
       lines.push(
         `- comparator verification: all ${partialRows.length} forced-full cases planned mode=full.`,
+      );
+      lines.push("");
+    }
+    const calibrationRows = partialRows.filter((r) => r.calibration !== null);
+    if (calibrationRows.length > 0) {
+      const worst = Math.max(
+        ...calibrationRows.map((r) => Math.abs(r.calibration - 1)),
+      );
+      lines.push(
+        `- full/full calibration: normal-planner-full vs forced-full GPU medians agree within ` +
+          `${(worst * 100).toFixed(1)}% across ${calibrationRows.length} case(s) ` +
+          `(0.9-1.1 would be acceptable; a systematic gap would invalidate the comparator).`,
       );
       lines.push("");
     }
@@ -700,7 +731,7 @@ function markdownReport(docs) {
     lines.push("## Follow-up optimization candidates");
     lines.push("");
     for (const [index, candidate] of candidates.entries()) {
-      lines.push(`${index + 1}. **${candidate.title}**  E${candidate.evidence}. Candidate: ${candidate.issue}.`);
+      lines.push(`${index + 1}. **${candidate.title}** - ${candidate.evidence}. Candidate: ${candidate.issue}.`);
     }
     lines.push("");
   }
@@ -713,6 +744,12 @@ function markdownReport(docs) {
   lines.push("");
   return lines.join("\n");
 }
+
+/**
+ * #46 cross-document provenance validation (see lib/provenance.mjs):
+ * rejects reports that would silently merge incomparable results.
+ */
+import { crossDocumentProvenanceProblem } from "./bench/lib/provenance.mjs";
 
 async function main() {
   const paths = resultsArg.split(",").map((p) => p.trim()).filter(Boolean);
@@ -732,6 +769,14 @@ async function main() {
       process.exit(1);
     }
     docs.push(doc);
+  }
+  // #46 cross-document provenance: mixing results generated by DIFFERENT
+  // runner commits, or any dirty-tree document, would silently merge
+  // incomparable numbers — reject the report instead.
+  const provenanceProblem = crossDocumentProvenanceProblem(docs);
+  if (provenanceProblem !== null) {
+    console.error(`bench-report.mjs: ${provenanceProblem}`);
+    process.exit(1);
   }
   const report = markdownReport(docs);
   await writeFile(outPath, report, "utf8");
