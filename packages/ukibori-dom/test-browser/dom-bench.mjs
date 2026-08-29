@@ -374,7 +374,9 @@ async function main() {
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
         browser: /Chrome\//.test(navigator.userAgent) ? "chrome" : "unknown",
-        headless: navigator.webdriver === true,
+        // explicit UA information (not a guess): HeadlessChrome appears in
+        // the UA of headless Chrome regardless of the webdriver flag
+        headless: navigator.webdriver === true || /HeadlessChrome\//.test(navigator.userAgent),
         devicePixelRatio: window.devicePixelRatio,
         backend: "webgpu",
       },
