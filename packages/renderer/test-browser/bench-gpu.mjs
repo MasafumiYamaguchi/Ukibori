@@ -7,17 +7,17 @@
 //   2. runs every selected suite on deterministic scenes from
 //      scripts/bench/lib/scenes.mjs (never inline fixtures)
 //   3. reports host encode time (`hostMs`), real GPU timestamps
-//      (`gpuTimestampMs`, only when timestamp-query works  Ean unsupported
+//      (`gpuTimestampMs`, only when timestamp-query works  Ean unsupported
 //      feature stays report-only, never a fabricated zero), queue-completion
 //      wall time (`wallMs`) SEPARATELY, plus submissions / dispatches /
 //      workgroups / uploaded bytes / allocations per case
 //   4. writes ONE unambiguous marker as the first line of the result block
 //      (UKIBORI_BENCH_GPU_PASS / FAIL / SKIP) followed by
-//      `SUMMARY <json>`  Ea versioned benchmark result document
+//      `SUMMARY <json>`  Ea versioned benchmark result document
 //      (scripts/bench/lib/schema.mjs) that scripts/bench-gpu.mjs saves to
 //      benchmark-results.json
 //
-// Timing honesty (#46 §23): the three mechanisms are NEVER merged into one
+// Timing honesty (#46 #23): the three mechanisms are NEVER merged into one
 // total; every metric key follows the schema's canonical labels.
 //
 // Configuration comes from URL query parameters (the runner passes them
@@ -98,6 +98,64 @@ async function acquireDevice() {
 
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
+}
+
+// ---------------------------------------------------------------------------
+// standalone GPU timestamp helper (benchmark-only; the raw P0-P3 render
+// pipelines have no other timing seam). Owns one query pair per submission
+// and resolves it through a readback buffer  Eno production code involved.
+// ---------------------------------------------------------------------------
+
+async function submitWithGpuTimestamp(submit) {
+  const t0 = performance.now();
+  if (device.features.has("timestamp-query") !== true) {
+    const h0 = performance.now();
+    submit();
+    const hostMs = performance.now() - h0;
+    await device.queue.onSubmittedWorkDone();
+    return { wallMs: performance.now() - t0, hostMs, gpuTimestampMs: null };
+  }
+  const querySet = device.createQuerySet({
+    type: "timestamp",
+    count: 2,
+    label: "ukibori-bench-presentation-timestamps",
+  });
+  const resolveBuffer = device.createBuffer({
+    size: 256,
+    usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
+    label: "ukibori-bench-presentation-resolve",
+  });
+  const readbackBuffer = device.createBuffer({
+    size: 256,
+    usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+    label: "ukibori-bench-presentation-readback",
+  });
+  try {
+    // the closure wraps the RAW descriptor into `{ timestampWrites }`
+    const h0 = performance.now();
+    submit({ querySet, beginningOfPassWriteIndex: 0, endOfPassWriteIndex: 1 });
+    const hostMs = performance.now() - h0;
+    await device.queue.onSubmittedWorkDone();
+    const wallMs = performance.now() - t0;
+    const encoder = device.createCommandEncoder({ label: "ukibori-bench-presentation-resolve" });
+    encoder.resolveQuerySet(querySet, 0, 2, resolveBuffer, 0);
+    encoder.copyBufferToBuffer(resolveBuffer, 0, readbackBuffer, 0, 16);
+    device.queue.submit([encoder.finish()]);
+    await readbackBuffer.mapAsync(GPUMapMode.READ, 0, 16);
+    const view = new DataView(readbackBuffer.getMappedRange(0, 16));
+    const begin = view.getBigUint64(0, true);
+    const end = view.getBigUint64(8, true);
+    readbackBuffer.unmap();
+    const gpuTimestampMs = end >= begin ? Number(end - begin) / 1_000_000 : null;
+    return { wallMs, hostMs, gpuTimestampMs };
+  } catch (error) {
+    notes.push(`submitWithGpuTimestamp failed: ${String(error?.stack ?? error)}`);
+    return { wallMs: performance.now() - t0, gpuTimestampMs: null };
+  } finally {
+    readbackBuffer.destroy();
+    resolveBuffer.destroy();
+    querySet.destroy();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -215,7 +273,7 @@ function sceneFor(builder) {
 }
 
 // ---------------------------------------------------------------------------
-// §A  Estage benchmark: one full soft-shadow frame, per-stage timings
+// #A  Estage benchmark: one full soft-shadow frame, per-stage timings
 // ---------------------------------------------------------------------------
 
 async function suiteStage() {
@@ -250,7 +308,7 @@ async function suiteStage() {
     }
     pushCase(
       "stage/frame-total",
-      { suite: "stage", resolution: `${WIDTH}x${HEIGHT}` },
+      { suite: "stage", resolution: `${WIDTH}x${HEIGHT}`, warmups: WARMUP, samples: SAMPLES },
       {
         wallMs: summarizeSeries(series.map((r) => r.wallMs)),
         hostMs: summarizeSeries(series.map((r) => r.stats.frame.hostMs)),
@@ -268,7 +326,7 @@ async function suiteStage() {
 }
 
 // ---------------------------------------------------------------------------
-// §B  Eend-to-end frame cases: cold / warm / retained / repaint / light /
+// #B  Eend-to-end frame cases: cold / warm / retained / repaint / light /
 // material / geometry / partial / forced-full
 // ---------------------------------------------------------------------------
 
@@ -316,7 +374,7 @@ async function suiteE2E() {
         const result = await timedRender(freshPipeline, { scene: base, dpr: 1 });
         pushCase(
           "e2e/cold-first",
-          { suite: "e2e", case: "cold-first", resolution: `${WIDTH}x${HEIGHT}` },
+          { suite: "e2e", case: "cold-first", resolution: `${WIDTH}x${HEIGHT}`, warmups: WARMUP, samples: SAMPLES },
           {
             wallMs: summarizeSeries([result.wallMs]),
             hostMs: summarizeSeries([result.stats.frame.hostMs]),
@@ -365,7 +423,7 @@ async function suiteE2E() {
         const last = series[series.length - 1];
         pushCase(
             `e2e/${scenario.id}`,
-            { suite: "e2e", case: scenario.id, resolution: `${WIDTH}x${HEIGHT}` },
+            { suite: "e2e", case: scenario.id, resolution: `${WIDTH}x${HEIGHT}`, warmups: WARMUP, samples: SAMPLES },
             {
               wallMs: summarizeSeries(series.map((r) => r.wallMs)),
               hostMs: summarizeSeries(series.map((r) => r.stats.frame.hostMs)),
@@ -381,7 +439,7 @@ async function suiteE2E() {
       }
       // Update-frame measurement: between every timed sample the pipeline is
       // reset to a primer scene, so each sample measures the REAL update
-      // frame (not a retained repeat  Eretained costs are suiteRetained's
+      // frame (not a retained repeat  Eretained costs are suiteRetained's
       // job). The warmup renders are untimed. `warmed-full` primes with a
       // different scene so the measured frame is a genuine full frame.
       const primer = scenario.id === "warmed-full"
@@ -399,7 +457,7 @@ async function suiteE2E() {
       const last = series[series.length - 1];
       pushCase(
         `e2e/${scenario.id}`,
-        { suite: "e2e", case: scenario.id, resolution: `${WIDTH}x${HEIGHT}` },
+        { suite: "e2e", case: scenario.id, resolution: `${WIDTH}x${HEIGHT}`, warmups: WARMUP, samples: SAMPLES },
         {
           wallMs: summarizeSeries(series.map((r) => r.wallMs)),
           hostMs: summarizeSeries(series.map((r) => r.stats.frame.hostMs)),
@@ -419,7 +477,7 @@ async function suiteE2E() {
 }
 
 // ---------------------------------------------------------------------------
-// §2  Eresolution scaling
+// #2  Eresolution scaling
 // ---------------------------------------------------------------------------
 
 async function suiteResolution() {
@@ -452,7 +510,7 @@ async function suiteResolution() {
       }
       pushCase(
         `resolution/${w}x${h}`,
-        { suite: "resolution", width: w, height: h, scene: SCENE_FAMILIES.simpleRoundedRect },
+        { suite: "resolution", width: w, height: h, scene: SCENE_FAMILIES.simpleRoundedRect, warmups: WARMUP, samples: SAMPLES },
         {
           wallMs: summarizeSeries(series.map((r) => r.wallMs)),
           hostMs: summarizeSeries(series.map((r) => r.stats.frame.hostMs)),
@@ -471,7 +529,7 @@ async function suiteResolution() {
 }
 
 // ---------------------------------------------------------------------------
-// §4  Esurface-count scaling
+// #4  Esurface-count scaling
 // ---------------------------------------------------------------------------
 
 async function suiteSurface() {
@@ -492,7 +550,7 @@ async function suiteSurface() {
       const snap = pipeline.getSnapshot();
       pushCase(
         `surface-scale/${count}`,
-        { suite: "surface", surfaceCount: count, resolution: `${WIDTH}x${HEIGHT}`, scene: SCENE_FAMILIES.surfaceGrid },
+        { suite: "surface", surfaceCount: count, resolution: `${WIDTH}x${HEIGHT}`, scene: SCENE_FAMILIES.surfaceGrid, warmups: WARMUP, samples: SAMPLES },
         {
           wallMs: summarizeSeries(series.map((r) => r.wallMs)),
           hostMs: summarizeSeries(series.map((r) => r.stats.frame.hostMs)),
@@ -515,7 +573,7 @@ async function suiteSurface() {
 }
 
 // ---------------------------------------------------------------------------
-// §6  Emask / glyph scaling
+// #6  Emask / glyph scaling
 // ---------------------------------------------------------------------------
 
 async function suiteMask() {
@@ -535,7 +593,7 @@ async function suiteMask() {
       const snap = pipeline.getSnapshot();
       pushCase(
         `mask-count/${maskCount}`,
-        { suite: "mask", maskCount, maskResolution: 32, resolution: `${WIDTH}x${HEIGHT}`, scene: SCENE_FAMILIES.maskHeavy },
+        { suite: "mask", maskCount, maskResolution: 32, resolution: `${WIDTH}x${HEIGHT}`, scene: SCENE_FAMILIES.maskHeavy, warmups: WARMUP, samples: SAMPLES },
         {
           wallMs: summarizeSeries(series.map((r) => r.wallMs)),
           gpuTimestampMs: totalGpuSummary(series),
@@ -556,16 +614,20 @@ async function suiteMask() {
     const { canvas, context, canvasFormat } = makeCanvas();
     const pipeline = new api.GpuScenePipeline(device, context, canvasFormat);
     const scene = sceneFor(() => maskHeavyScene({ width: WIDTH, height: HEIGHT, maskCount: 16, maskResolution }));
+    // the 128/256 mask cases cost up to ~800ms per frame: cap the sample
+    // count and record the ACTUAL samples in the case parameters
+    const actualSamples = Math.min(SAMPLES, 5);
     try {
       const series = await benchUpdateFrame(
         pipeline,
         { scene: primerScene, dpr: 1 },
         { scene, dpr: 1 },
+        { warmups: WARMUP, sampleCount: actualSamples },
       );
       const snap = pipeline.getSnapshot();
       pushCase(
         `mask-resolution/${maskResolution}`,
-        { suite: "mask", maskCount: 16, maskResolution, resolution: `${WIDTH}x${HEIGHT}`, scene: SCENE_FAMILIES.maskHeavy },
+        { suite: "mask", maskCount: 16, maskResolution, resolution: `${WIDTH}x${HEIGHT}`, scene: SCENE_FAMILIES.maskHeavy, warmups: WARMUP, samples: actualSamples },
         {
           wallMs: summarizeSeries(series.map((r) => r.wallMs)),
           gpuTimestampMs: totalGpuSummary(series),
@@ -579,33 +641,135 @@ async function suiteMask() {
       canvas.remove();
     }
   }
-  // §6: unchanged mask + other geometry changed  Edoes the mask SDF re-run?
+  // #6: unchanged mask + other geometry changed  Edoes the mask SDF re-run?
+  // Every timed sample is a REAL base -> moved transition (the
+  // benchUpdateFrame contract): the measured frame's own stats, planning,
+  // timestamp data and dispatch stats are captured from THAT frame, never
+  // inferred from a stale lastDispatch. The maskSDF/compose GPU split comes
+  // from a standalone HeightPass with the benchmark-only substage seam on
+  // the SAME encoded scene (the SDF pass always runs full; the compose
+  // timing is the full-frame cost, noted in the parameters).
   {
     const { canvas, context, canvasFormat } = makeCanvas();
     const pipeline = new api.GpuScenePipeline(device, context, canvasFormat);
     const base = sceneFor(() => maskHeavyScene({ width: WIDTH, height: HEIGHT, maskCount: 16, maskResolution: 32 }));
-    const moved = {
+    const moved = sceneFor(() => ({
       ...base,
       surfaces: base.surfaces.map((s, i) =>
         i === base.surfaces.length - 1 ? { ...s, position: { x: s.position.x + 10, y: s.position.y + 5 } } : s,
       ),
-    };
+    }));
+    const uploader = new api.SceneUploader(device);
+    const heightPass = new api.HeightPass(device);
     try {
-      await timedRender(pipeline, { scene: base, dpr: 1 });
-      const series = await benchSeries(() => timedRender(pipeline, { scene: moved, dpr: 1 }));
-      const snap = pipeline.getSnapshot();
+      const series = await benchUpdateFrame(
+        pipeline,
+        { scene: base, dpr: 1 },
+        { scene: moved, dpr: 1 },
+      );
       const first = series[0];
+      const snap = pipeline.getSnapshot();
+      // THIS frame's dispatch stats (the snapshot reflects the last
+      // dispatch, which IS the measured moved frame)
+      const thisFrameDispatch = {
+        maskSdfPasses: snap.heightPass.lastDispatch.maskSdfPasses,
+        composePasses: snap.heightPass.lastDispatch.composePasses,
+        totalMaskCells: snap.heightPass.lastDispatch.totalMaskCells,
+        workgroupCountX: snap.heightPass.lastDispatch.workgroupCountX,
+      };
+      // substage GPU split via the benchmark-only HeightPass seam. Unlike the
+      // main frame (20 samples), the substage run takes its OWN
+      // warmup + sample count so the reported summary is a real
+      // distribution, not a single-shot diagnostic.
+      const SUBSTAGE_WARMUP = 3;
+      const SUBSTAGE_SAMPLES = 10;
+      const maskSdfGpuSamples = [];
+      const composeGpuSamples = [];
+      if (device.features.has("timestamp-query") === true) {
+        const encoded = api.encodeScene(moved, 1);
+        uploader.upload(encoded);
+        // warm the pass pipelines BEFORE the timed dispatches (the first
+        // dispatch on a fresh pass compiles shaders, which is not GPU work)
+        for (let i = 0; i < SUBSTAGE_WARMUP; i++) {
+          heightPass.dispatch(encoded, uploader.getBindings(), {
+            substageTimestamps: {
+              querySet: device.createQuerySet({ type: "timestamp", count: 4, label: "ukibori-bench-height-warmup" }),
+              sdfBeginIndex: 0,
+              composeBeginIndex: 2,
+            },
+          });
+        }
+        await device.queue.onSubmittedWorkDone();
+        for (let i = 0; i < SUBSTAGE_SAMPLES; i++) {
+          const querySet = device.createQuerySet({ type: "timestamp", count: 4, label: "ukibori-bench-height-substage" });
+          const resolveBuffer = device.createBuffer({
+            size: 256,
+            usage: GPUBufferUsage.QUERY_RESOLVE | GPUBufferUsage.COPY_SRC,
+          });
+          const readbackBuffer = device.createBuffer({
+            size: 256,
+            usage: GPUBufferUsage.MAP_READ | GPUBufferUsage.COPY_DST,
+          });
+          try {
+            heightPass.dispatch(encoded, uploader.getBindings(), {
+              substageTimestamps: { querySet, sdfBeginIndex: 0, composeBeginIndex: 2 },
+            });
+            await device.queue.onSubmittedWorkDone();
+            const encoder = device.createCommandEncoder();
+            encoder.resolveQuerySet(querySet, 0, 4, resolveBuffer, 0);
+            encoder.copyBufferToBuffer(resolveBuffer, 0, readbackBuffer, 0, 32);
+            device.queue.submit([encoder.finish()]);
+            await readbackBuffer.mapAsync(GPUMapMode.READ, 0, 32);
+            const view = new DataView(readbackBuffer.getMappedRange(0, 32));
+            const sdfBegin = view.getBigUint64(0, true);
+            const sdfEnd = view.getBigUint64(8, true);
+            const composeBegin = view.getBigUint64(16, true);
+            const composeEnd = view.getBigUint64(24, true);
+            readbackBuffer.unmap();
+            if (sdfEnd >= sdfBegin) {
+              maskSdfGpuSamples.push(Number(sdfEnd - sdfBegin) / 1_000_000);
+            }
+            if (composeEnd >= composeBegin) {
+              composeGpuSamples.push(Number(composeEnd - composeBegin) / 1_000_000);
+            }
+          } finally {
+            readbackBuffer.destroy();
+            resolveBuffer.destroy();
+            querySet.destroy();
+          }
+        }
+      }
       pushCase(
         "mask/unrelated-geometry-after-mask",
-        { suite: "mask", case: "unrelated-geometry-after-mask", maskCount: 16, maskResolution: 32 },
         {
-          wallMs: summarizeSeries([first.wallMs]),
-          maskSdfPasses: snap.heightPass.lastDispatch.maskSdfPasses,
+          suite: "mask",
+          case: "unrelated-geometry-after-mask",
+          maskCount: 16,
+          maskResolution: 32,
+          warmups: WARMUP,
+          samples: SAMPLES,
+          note: "maskSdfGpuTimestampMs/composeGpuTimestampMs measured on a standalone full-frame HeightPass with the benchmark-only substage seam (SDF always runs full; compose is the full-frame cost)",
+          substageWarmups: SUBSTAGE_WARMUP,
+          substageSamples: SUBSTAGE_SAMPLES,
+        },
+        {
+          wallMs: summarizeSeries(series.map((r) => r.wallMs)),
+          heightGpuTimestampMs: summarizeSeries(gpuSeriesOf(series, (r) => r.gpuTiming?.passGpuMs?.height)),
+          gpuTimestampMs: totalGpuSummary(series),
+          maskSdfGpuTimestampMs: maskSdfGpuSamples.length > 0 ? summarizeSeries(maskSdfGpuSamples) : null,
+          composeGpuTimestampMs: composeGpuSamples.length > 0 ? summarizeSeries(composeGpuSamples) : null,
+          maskSdfPassesThisFrame: thisFrameDispatch.maskSdfPasses,
+          composePassesThisFrame: thisFrameDispatch.composePasses,
+          totalMaskCells: thisFrameDispatch.totalMaskCells,
+          heightWorkgroups: thisFrameDispatch.workgroupCountX,
           executed: first.stats.invalidation.executed.join(","),
           planningMode: first.stats.planning.mode,
+          planningReason: first.stats.planning.reason,
         },
       );
     } finally {
+      heightPass.dispose();
+      uploader.dispose();
       pipeline.dispose();
       canvas.remove();
     }
@@ -613,7 +777,7 @@ async function suiteMask() {
 }
 
 // ---------------------------------------------------------------------------
-// §7  Eshadow sample / angular radius / travel distance
+// #7  Eshadow sample / angular radius / travel distance
 // ---------------------------------------------------------------------------
 
 async function suiteShadow() {
@@ -638,11 +802,13 @@ async function suiteShadow() {
           `shadow/samples-${samples}/radius-${angularRadius}`,
           {
             suite: "shadow",
-            samples,
+            shadowSamples: samples,
             angularRadius,
             travel: "medium",
             resolution: `${WIDTH}x${HEIGHT}`,
             scene: SCENE_FAMILIES.softShadow,
+            warmups: WARMUP,
+            samples: SAMPLES,
           },
           {
             wallMs: summarizeSeries(series.map((r) => r.wallMs)),
@@ -663,7 +829,14 @@ async function suiteShadow() {
       }
     }
   }
-  // travel distance at the representative 8 samples / default radius
+  // travel distance: the short/medium/long axis is the EXPLICIT maxDistance
+// (the ray-march budget), so the cases are genuinely different workloads:
+//   short  = 40 scene units
+//   medium = 120
+//   long   = 300
+// (within the renderer's sanitized maxDistance range)
+  const TRAVEL_MAX_DISTANCE = { short: 40, medium: 120, long: 300 };
+  const TRAVEL_STEP_SIZE = 0.5;
   for (const travel of ["short", "medium", "long"]) {
     const { canvas, context, canvasFormat } = makeCanvas();
     const pipeline = new api.GpuScenePipeline(device, context, canvasFormat);
@@ -671,16 +844,34 @@ async function suiteShadow() {
     const primer = sceneFor(() =>
       shadowScene({ width: WIDTH, height: HEIGHT, travel: travel === "short" ? "long" : "short", angularRadius: 0.15 }),
     );
+    const maxDistance = TRAVEL_MAX_DISTANCE[travel];
+    const primerMaxDistance = TRAVEL_MAX_DISTANCE[travel === "short" ? "long" : "short"];
+    const theoreticalMaxSteps = Math.ceil(maxDistance / TRAVEL_STEP_SIZE);
     try {
       const series = await benchUpdateFrame(
         pipeline,
-        { scene: primer, dpr: 1, shadowOptions: { samples: 8, maxDistance: 200 } },
-        { scene, dpr: 1, shadowOptions: { samples: 8, maxDistance: 200 } },
+        {
+          scene: primer,
+          dpr: 1,
+          shadowOptions: { samples: 8, maxDistance: primerMaxDistance, stepSize: TRAVEL_STEP_SIZE },
+        },
+        { scene, dpr: 1, shadowOptions: { samples: 8, maxDistance, stepSize: TRAVEL_STEP_SIZE } },
       );
       const snap = pipeline.getSnapshot();
       pushCase(
         `shadow/travel-${travel}`,
-        { suite: "shadow", travel, samples: 8, angularRadius: 0.15, resolution: `${WIDTH}x${HEIGHT}` },
+        {
+          suite: "shadow",
+          travel,
+          maxDistance,
+          stepSize: TRAVEL_STEP_SIZE,
+          theoreticalMaxSteps,
+          samples: 8,
+          angularRadius: 0.15,
+          resolution: `${WIDTH}x${HEIGHT}`,
+          warmups: WARMUP,
+          samples: SAMPLES,
+        },
         {
           wallMs: summarizeSeries(series.map((r) => r.wallMs)),
           shadowHostMs: summarizeSeries(series.map((r) => r.stats.frame.passDurations.shadow)),
@@ -696,12 +887,12 @@ async function suiteShadow() {
 }
 
 // ---------------------------------------------------------------------------
-// §8  Ereconstruction radius ÁEDPR
+// #8  Ereconstruction radius xDPR
 // ---------------------------------------------------------------------------
 
 async function suiteReconstruction() {
   const radii = [0, 1, 2, 4]; // 0 = bypass (radiusTexels 0)
-  const dprs = [1, 2, 3, 4];
+  const dprs = [1, 1.5, 2, 3, 4];
   const baseScene = sceneFor(() => reconstructionHeavyScene({ width: WIDTH, height: HEIGHT }));
   for (const dpr of dprs) {
     for (const radius of radii) {
@@ -729,7 +920,7 @@ async function suiteReconstruction() {
           pipeline,
           { scene: baseScene, dpr, shadowOptions: primerOptions },
           { scene: baseScene, dpr, shadowOptions: caseOptions },
-          { warmups: 2, sampleCount: Math.min(3, SAMPLES) },
+          { warmups: WARMUP, sampleCount: SAMPLES },
         );
         const first = series[0];
         const snap = pipeline.getSnapshot();
@@ -740,7 +931,7 @@ async function suiteReconstruction() {
         const reconValues = gpuSeriesOf(series, (r) => r.gpuTiming?.passGpuMs?.reconstruction);
         pushCase(
           `reconstruction/dpr-${dpr}/radius-${radius}`,
-          { suite: "reconstruction", dpr, radius, resolution: `${WIDTH}x${HEIGHT}`, scene: SCENE_FAMILIES.reconstructionHeavy },
+          { suite: "reconstruction", dpr, radius, resolution: `${WIDTH}x${HEIGHT}`, scene: SCENE_FAMILIES.reconstructionHeavy, warmups: WARMUP, samples: SAMPLES },
           {
             wallMs: summarizeSeries(series.map((r) => r.wallMs)),
             reconstructionHostMs: summarizeSeries(series.map((r) => r.stats.frame.passDurations.reconstruction)),
@@ -768,76 +959,17 @@ async function suiteReconstruction() {
 }
 
 // ---------------------------------------------------------------------------
-// §9  Epresentation microbenchmark: P0 attachment-only, P1 color field,
+// #9  Epresentation microbenchmark: P0 attachment-only, P1 color field,
 // P2 color+owner, P3 full inputs, P4 production PresentationPass
 // ---------------------------------------------------------------------------
 
-const PRESENT_VS = `
-  @vertex fn vs(@builtin(vertex_index) i: u32) -> @builtin(position) vec4<f32> {
-    var pos = array<vec2<f32>, 3>(
-      vec2<f32>(-1.0, -3.0), vec2<f32>(3.0, 1.0), vec2<f32>(-1.0, 1.0));
-    return vec4<f32>(pos[i], 0.0, 1.0);
-  }
-`;
-
-const PRESENT_FS_CONSTANT = `
-  @fragment fn fs() -> @location(0) vec4<f32> {
-    return vec4<f32>(0.2, 0.4, 0.6, 1.0);
-  }
-`;
-
-const PRESENT_FS_COLOR = `
-  struct ColorField { data: array<vec4<f32>> }
-  @group(0) @binding(0) var<storage, read> color: ColorField;
-  @fragment fn fs(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let i = u32(pos.y) * 640u + u32(pos.x);
-    return color.data[i];
-  }
-`;
-
-const PRESENT_FS_COLOR_OWNER = `
-  struct ColorField { data: array<vec4<f32>> }
-  struct OwnerField { data: array<u32> }
-  @group(0) @binding(0) var<storage, read> color: ColorField;
-  @group(0) @binding(1) var<storage, read> owner: OwnerField;
-  @fragment fn fs(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let i = u32(pos.y) * 640u + u32(pos.x);
-    let o = owner.data[i];
-    var c = color.data[i];
-    if (o == 0xffffffffu) { c = vec4<f32>(0.0, 0.0, 0.0, 0.0); }
-    return c;
-  }
-`;
-
-const PRESENT_FS_FULL = `
-  struct ColorField { data: array<vec4<f32>> }
-  struct OwnerField { data: array<u32> }
-  struct VisField { data: array<f32> }
-  @group(0) @binding(0) var<storage, read> color: ColorField;
-  @group(0) @binding(1) var<storage, read> owner: OwnerField;
-  @group(0) @binding(2) var<storage, read> vis: VisField;
-  @fragment fn fs(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
-    let i = u32(pos.y) * 640u + u32(pos.x);
-    let o = owner.data[i];
-    let v = vis.data[i];
-    var c = color.data[i];
-    if (o == 0xffffffffu) { c = vec4<f32>(0.0, 0.0, 0.0, v); }
-    return c;
-  }
-`;
-
+import { PRESENT_VS, PRESENT_FS_CONSTANT, presentFs } from "./lib/presentation-shader.mjs";
 async function runPresentationMicrobench(device, context, canvasFormat, stage) {
   const format = canvasFormat;
   const module = device.createShaderModule({
     code:
       PRESENT_VS +
-      (stage === 0
-        ? PRESENT_FS_CONSTANT
-        : stage === 1
-          ? PRESENT_FS_COLOR
-          : stage === 2
-            ? PRESENT_FS_COLOR_OWNER
-            : PRESENT_FS_FULL),
+      (stage === 0 ? PRESENT_FS_CONSTANT : presentFs(WIDTH, stage)),
     label: `bench-presentation-p${stage}`,
   });
   const pipeline = device.createRenderPipeline({
@@ -847,7 +979,8 @@ async function runPresentationMicrobench(device, context, canvasFormat, stage) {
     label: `bench-presentation-p${stage}`,
   });
   const texels = WIDTH * HEIGHT;
-  const buffer = (usage, bytes) => device.createBuffer({ size: Math.max(bytes, 16), usage });
+  const buffer = (usage, bytes) =>
+    device.createBuffer({ size: Math.max(bytes, 16), usage: usage | GPUBufferUsage.COPY_DST });
   const bindGroupEntries = [];
   if (stage >= 1) {
     const colorBuf = buffer(GPUBufferUsage.STORAGE, texels * 16);
@@ -868,7 +1001,10 @@ async function runPresentationMicrobench(device, context, canvasFormat, stage) {
     layout: pipeline.getBindGroupLayout(0),
     entries: bindGroupEntries,
   });
-  return () => {
+  // The submit accepts an optional timestampWrites descriptor (benchmark
+  // seam from submitWithGpuTimestamp); without it the pass is exactly the
+  // historical P0-P3 microbenchmark submission.
+  return (timestampWrites) => {
     const encoder = device.createCommandEncoder({ label: `bench-presentation-p${stage}` });
     const pass = encoder.beginRenderPass({
       colorAttachments: [
@@ -879,6 +1015,7 @@ async function runPresentationMicrobench(device, context, canvasFormat, stage) {
           storeOp: "store",
         },
       ],
+      ...(timestampWrites === undefined ? {} : { timestampWrites }),
     });
     pass.setPipeline(pipeline);
     if (bindGroupEntries.length > 0) {
@@ -891,29 +1028,53 @@ async function runPresentationMicrobench(device, context, canvasFormat, stage) {
 }
 
 async function suitePresentation() {
-  const { canvas, context, canvasFormat } = makeCanvas();
+  // P0-P3 use their OWN canvas, explicitly configured (canvas.width writes
+  // reset a WebGPU context, and the P4 pipeline resizes its canvas on every
+  // present - the two must never share a context)
+  const micro = makeCanvas();
+  micro.canvas.width = WIDTH;
+  micro.canvas.height = HEIGHT;
+  micro.context.configure({
+    device,
+    format: micro.canvasFormat,
+    alphaMode: "premultiplied",
+  });
   const submits = [];
   for (let stage = 0; stage <= 3; stage++) {
-    submits.push(await runPresentationMicrobench(device, context, canvasFormat, stage));
+    submits.push(await runPresentationMicrobench(device, micro.context, micro.canvasFormat, stage));
   }
-  // P4: the production PresentationPass through pipeline.present()
+  // P4: the PRODUCTION PresentationPass. Two mechanisms, reported
+  // separately:
+  //   - wallMs: pipeline.present() + queue completion (the #29 seam)
+  //   - gpuTimestampMs: a repaint render (production path) whose existing
+  //     timestamp seam records ONLY the presentation stage
+  const { canvas, context, canvasFormat } = makeCanvas();
   const pipeline = new api.GpuScenePipeline(device, context, canvasFormat);
   const scene = sceneFor(() => simpleRoundedRectScene({ width: WIDTH, height: HEIGHT }));
   try {
     await pipeline.render({ scene, dpr: 1, debugReadback: true });
     await device.queue.onSubmittedWorkDone();
-    const p4Submit = async () => {
+    const p4Wall = async () => {
+      const h0 = performance.now();
       const t0 = performance.now();
       pipeline.present();
+      const hostMs = performance.now() - h0;
       await device.queue.onSubmittedWorkDone();
-      return performance.now() - t0;
+      return { wallMs: performance.now() - t0, hostMs };
     };
-    const p4Series = await benchSeries(p4Submit);
+    const p4WallSeries = await benchSeries(p4Wall);
+    const p4Gpu = async () => {
+      const result = await timedRender(pipeline, { scene, dpr: 1, debugReadback: true, repaint: true });
+      return result.gpuTiming?.passGpuMs?.presentation;
+    };
+    const p4GpuSeries = await benchSeries(p4Gpu);
     pushCase(
       "presentation/p4-production",
-      { suite: "presentation", stage: "P4", resolution: `${WIDTH}x${HEIGHT}` },
+      { suite: "presentation", stage: "P4", resolution: `${WIDTH}x${HEIGHT}`, warmups: WARMUP, samples: SAMPLES },
       {
-        wallMs: summarizeSeries(p4Series),
+        wallMs: summarizeSeries(p4WallSeries.map((r) => r.wallMs)),
+        gpuTimestampMs: summarizeSeries(gpuSeriesOf(p4GpuSeries, (v) => v)),
+        hostMs: summarizeSeries(p4WallSeries.map((r) => r.hostMs)),
         canvasFormat,
         alphaMode: pipeline.getSnapshot().presentationPass.alphaMode,
         renderExtent: `${WIDTH}x${HEIGHT}`,
@@ -922,18 +1083,28 @@ async function suitePresentation() {
     for (let stage = 0; stage <= 3; stage++) {
       const submit = submits[stage];
       const timed = async () => {
+        const h0 = performance.now();
         const t0 = performance.now();
-        submit();
+        submit(undefined);
+        const hostMs = performance.now() - h0;
         await device.queue.onSubmittedWorkDone();
-        return performance.now() - t0;
+        return { wallMs: performance.now() - t0, hostMs };
       };
-      const series = await benchSeries(timed);
+      const wallSeries = await benchSeries(timed);
+      const gpuSeries = [];
+      const gpuHostSeries = [];
+      for (let i = 0; i < SAMPLES; i++) {
+        const result = await submitWithGpuTimestamp(submit);
+        gpuSeries.push(result.gpuTimestampMs);
+        gpuHostSeries.push(result.hostMs);
+      }
       pushCase(
         `presentation/p${stage}`,
-        { suite: "presentation", stage: `P${stage}`, resolution: `${WIDTH}x${HEIGHT}` },
+        { suite: "presentation", stage: `P${stage}`, resolution: `${WIDTH}x${HEIGHT}`, warmups: WARMUP, samples: SAMPLES },
         {
-          wallMs: summarizeSeries(series),
-          gpuTimestampMs: null,
+          wallMs: summarizeSeries(wallSeries.map((r) => r.wallMs)),
+          gpuTimestampMs: summarizeSeries(gpuSeriesOf(gpuSeries, (v) => v)),
+          hostMs: summarizeSeries(gpuHostSeries),
           canvasFormat,
           renderExtent: `${WIDTH}x${HEIGHT}`,
         },
@@ -942,11 +1113,12 @@ async function suitePresentation() {
   } finally {
     pipeline.dispose();
     canvas.remove();
+    micro.canvas.remove();
   }
 }
 
 // ---------------------------------------------------------------------------
-// §10  Esubmission-count overhead: N empty submissions
+// #10  Esubmission-count overhead: N empty submissions
 // ---------------------------------------------------------------------------
 
 async function suiteSubmission() {
@@ -963,7 +1135,7 @@ async function suiteSubmission() {
     const series = await benchSeries(timed);
     pushCase(
       `submission/n-${count}`,
-      { suite: "submission", submissions: count },
+      { suite: "submission", submissions: count, warmups: WARMUP, samples: SAMPLES },
       {
         wallMs: summarizeSeries(series),
         submissions: count,
@@ -973,109 +1145,294 @@ async function suiteSubmission() {
 }
 
 // ---------------------------------------------------------------------------
-// §11  Eupload benchmark: which sections transfer per update type
+// #11  Eupload benchmark: which sections transfer per update type. Every
+// timed sample re-creates the transition: a FRESH uploader uploads the
+// `before` scene (untimed), then the timed upload of the `after` scene is
+// measured (host ms + write calls + bytes + allocations of the TARGET
+// frame). "first" has no before state (cold allocation is the point);
+// "identical" uploads the same scene twice (allocation reuse is the point).
 // ---------------------------------------------------------------------------
 
 async function suiteUpload() {
   const gridScene = sceneFor(() => surfaceGridScene({ width: WIDTH, height: HEIGHT, count: 64 }));
   const glyphScene = sceneFor(() => glyphGridScene({ width: WIDTH, height: HEIGHT, count: 8 }));
-  const encoded = api.encodeScene(gridScene, 1);
-  const uploader = new api.SceneUploader(device);
-  const runUpload = async (bytes) => {
-    const t0 = performance.now();
-    const stats = uploader.upload(bytes);
-    await device.queue.onSubmittedWorkDone();
-    return { hostMs: performance.now() - t0, stats, bytes: bytes.bytes.byteLength, bindings: uploader.getBindings() };
-  };
+  const gridBytes = api.encodeScene(gridScene, 1);
+  const glyphBytes = api.encodeScene(glyphScene, 1);
+  const lightScene = sceneFor(() => ({ ...gridScene, light: { ...gridScene.light, intensity: 0.5 } }));
+  const materialScene = sceneFor(() => ({
+    ...gridScene,
+    materials: {
+      silicone: { baseColor: { r: 0.9, g: 0.3, b: 0.2 }, roughness: 0.5, metallic: 0, ior: 1.5 },
+    },
+  }));
+  const geometryScene = sceneFor(() => ({
+    ...gridScene,
+    surfaces: gridScene.surfaces.map((s, i) =>
+      i === 3 ? { ...s, position: { x: s.position.x + 4, y: s.position.y + 4 } } : s,
+    ),
+  }));
+  const maskChangedScene = sceneFor(() => ({
+    ...glyphScene,
+    surfaces: glyphScene.surfaces.map((s, i) =>
+      i === 3
+        ? { ...s, shape: { kind: "mask", mask: { width: 8, height: 8, alpha: new Uint8Array(64).fill(128) } } }
+        : s,
+    ),
+  }));
   const casesSpec = [
-    { id: "first", bytes: encoded },
-    { id: "identical", bytes: encoded },
-    { id: "light-only", bytes: api.encodeScene({ ...gridScene, light: { ...gridScene.light, intensity: 0.5 } }, 1) },
-    {
-      id: "material-values-only",
-      bytes: api.encodeScene({
-        ...gridScene,
-        materials: {
-          silicone: { baseColor: { r: 0.9, g: 0.3, b: 0.2 }, roughness: 0.5, metallic: 0, ior: 1.5 },
-        },
-      }, 1),
-    },
-    {
-      id: "single-surface-geometry",
-      bytes: api.encodeScene({
-        ...gridScene,
-        surfaces: gridScene.surfaces.map((s, i) =>
-          i === 3 ? { ...s, position: { x: s.position.x + 4, y: s.position.y + 4 } } : s,
-        ),
-      }, 1),
-    },
-    {
-      id: "mask-change",
-      bytes: api.encodeScene({
-        ...glyphScene,
-        surfaces: glyphScene.surfaces.map((s, i) =>
-          i === 3
-            ? { ...s, shape: { kind: "mask", mask: { width: 8, height: 8, alpha: new Uint8Array(64).fill(128) } } }
-            : s,
-        ),
-      }, 1),
-    },
+    { id: "first", before: null, after: gridBytes },
+    { id: "identical", before: gridBytes, after: gridBytes },
+    { id: "light-only", before: gridBytes, after: api.encodeScene(lightScene, 1) },
+    { id: "material-values-only", before: gridBytes, after: api.encodeScene(materialScene, 1) },
+    { id: "single-surface-geometry", before: gridBytes, after: api.encodeScene(geometryScene, 1) },
+    { id: "mask-change", before: glyphBytes, after: api.encodeScene(maskChangedScene, 1) },
   ];
-  try {
-    for (const spec of casesSpec) {
-      const series = await benchSeries(() => runUpload(spec.bytes));
-      // the FIRST upload of each update type is the interesting one (it
-      // decides allocations); later identical uploads reuse everything
-      const first = series[0];
-      pushCase(
-        `upload/${spec.id}`,
-        { suite: "upload", updateType: spec.id, resolution: `${WIDTH}x${HEIGHT}` },
-        {
-          hostMs: summarizeSeries(series.map((r) => r.hostMs)),
-          encodedBytes: first.bytes,
-          headerBytes: first.bindings.header.byteLength,
-          surfaceBytes: first.bindings.surfaces.byteLength,
-          maskRecordBytes: first.bindings.masks.byteLength,
-          maskPixelBytes: first.bindings.maskPixels.byteLength,
-          materialBytes: first.bindings.materials.byteLength,
-          writeCalls: first.stats.writeCalls,
-          bytesUploaded: first.stats.bytesUploaded,
-          newAllocations: first.stats.newAllocations,
-        },
-      );
+  for (const spec of casesSpec) {
+    const series = [];
+    for (let i = 0; i < WARMUP + SAMPLES; i++) {
+      const uploader = new api.SceneUploader(device);
+      try {
+        if (spec.before !== null) {
+          uploader.upload(spec.before); // before state (untimed)
+        }
+        const wallStart = performance.now();
+        const hostStart = performance.now();
+        const stats = uploader.upload(spec.after);
+        const hostMs = performance.now() - hostStart;
+        await device.queue.onSubmittedWorkDone();
+        const wallMs = performance.now() - wallStart;
+        if (i >= WARMUP) {
+          const bindings = uploader.getBindings();
+          series.push({
+            hostMs,
+            wallMs,
+            stats,
+            bytes: spec.after.bytes.byteLength,
+            bindings,
+          });
+        }
+      } finally {
+        uploader.dispose();
+      }
     }
-  } finally {
-    uploader.dispose();
+    const last = series[series.length - 1];
+    // #14 which sections did the TARGET scene actually transfer (the
+    // uploader writes every non-empty section), and which sections'
+    // bytes CHANGED between the before and after scenes
+    const writtenSections = [];
+    for (const [name, binding] of [
+      ["header", last.bindings.header],
+      ["surfaces", last.bindings.surfaces],
+      ["masks", last.bindings.masks],
+      ["maskPixels", last.bindings.maskPixels],
+      ["materials", last.bindings.materials],
+    ]) {
+      if (binding.byteLength > 0) {
+        writtenSections.push(name);
+      }
+    }
+    const changedSections = sectionDeltas(spec.before, spec.after);
+    pushCase(
+      `upload/${spec.id}`,
+      {
+        suite: "upload",
+        updateType: spec.id,
+        resolution: `${WIDTH}x${HEIGHT}`,
+        warmups: WARMUP,
+        samples: SAMPLES,
+      },
+      {
+        hostMs: summarizeSeries(series.map((r) => r.hostMs)),
+        wallMs: summarizeSeries(series.map((r) => r.wallMs)),
+        encodedBytes: last.bytes,
+        headerBytes: last.bindings.header.byteLength,
+        surfaceBytes: last.bindings.surfaces.byteLength,
+        maskRecordBytes: last.bindings.masks.byteLength,
+        maskPixelBytes: last.bindings.maskPixels.byteLength,
+        materialBytes: last.bindings.materials.byteLength,
+        writeCalls: last.stats.writeCalls,
+        bytesUploaded: last.stats.bytesUploaded,
+        newAllocations: last.stats.newAllocations,
+        writtenSections,
+        changedSections,
+      },
+    );
   }
 }
 
+/**
+ * #14 section-level byte comparison between two encoded scenes: which
+ * sections' bytes actually differ (the answer to "which update transfers
+ * which section"). The uploader itself always rewrites every non-empty
+ * section; the DELTA is what distinguishes update types.
+ */
+function sectionDeltas(before, after) {
+  if (before === null) {
+    return ["first-upload-all-sections"];
+  }
+  const sections = ["header", "surfaces", "masks", "materials", "maskPixels"];
+  const equalSection = (name) => {
+    const a = api.sceneSectionLayout(api.parseHeader(before.bytes));
+    const b = api.sceneSectionLayout(api.parseHeader(after.bytes));
+    const offsets = {
+      header: 0,
+      surfaces: a.surfacesOffset,
+      masks: a.masksOffset,
+      materials: a.materialsOffset,
+      maskPixels: a.maskPixelsOffset,
+    };
+    const lengths = {
+      header: a.headerByteLength,
+      surfaces: a.surfacesByteLength,
+      masks: a.masksByteLength,
+      materials: a.materialsByteLength,
+      maskPixels: a.maskPixelsByteLength,
+    };
+    if (lengths[name] !== 0 && lengths[name] !== {
+      header: b.headerByteLength,
+      surfaces: b.surfacesByteLength,
+      masks: b.masksByteLength,
+      materials: b.materialsByteLength,
+      maskPixels: b.maskPixelsByteLength,
+    }[name]) {
+      return false;
+    }
+    const start = offsets[name];
+    const end = start + lengths[name];
+    if (end > before.bytes.byteLength || end > after.bytes.byteLength) {
+      return false;
+    }
+    const prev = before.bytes.subarray(start, end);
+    const next = after.bytes.subarray(start, end);
+    if (prev.length !== next.length) return false;
+    for (let i = 0; i < prev.length; i++) {
+      if (prev[i] !== next[i]) return false;
+    }
+    return true;
+  };
+  const changed = [];
+  for (const name of sections) {
+    if (!equalSection(name)) {
+      changed.push(name);
+    }
+  }
+  return changed;
+}
+
 // ---------------------------------------------------------------------------
-// §12  Epartial vs full recompute at dirty ratios
+// #12  Epartial vs forced-full recompute, labeled by the PLANNER's actual
+// dirty ratio (never by the input knob alone). Every case is measured as a
+// PAIR: the retained-pipeline partial render of the target scene AND the
+// SAME target scene rendered full on a fresh warmed pipeline.
 // ---------------------------------------------------------------------------
 
+const PARTIAL_MOVE_EDITS = [0.02, 0.05, 0.1, 0.2, 0.35, 0.55, 0.8, 1];
+const PARTIAL_GROW_EDITS = [1, 2, 4, 7];
+
 async function suitePartial() {
-  const ratios = [0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1];
   const base = sceneFor(() => partialEditScene({ width: WIDTH, height: HEIGHT }));
   const shadowOptions = { maxDistance: 40, stepSize: 0.5, bias: 0.5 };
-  for (const ratio of ratios) {
+  const primerScene = sceneFor(() => simpleRoundedRectScene({ width: WIDTH, height: HEIGHT }));
+  const casesSpec = [
+    ...PARTIAL_MOVE_EDITS.map((edit) => ({ id: `move-${edit}`, edit, grow: 0 })),
+    ...PARTIAL_GROW_EDITS.map((grow) => ({ id: `grow-${grow}`, edit: 0, grow })),
+  ];
+  for (const spec of casesSpec) {
     const { canvas, context, canvasFormat } = makeCanvas();
     const pipeline = new api.GpuScenePipeline(device, context, canvasFormat);
-    const edit = sceneFor(() => partialEditScene({ width: WIDTH, height: HEIGHT, edit: ratio }));
+    const edit = sceneFor(() =>
+      partialEditScene({ width: WIDTH, height: HEIGHT, edit: spec.edit, grow: spec.grow }),
+    );
     try {
+      // A. the retained pipeline's partial (or planned-full) render of the
+      // target scene; every sample is a real base -> edit transition
       const series = await benchUpdateFrame(
         pipeline,
         { scene: base, dpr: 1, shadowOptions, tileSize: 64 },
         { scene: edit, dpr: 1, shadowOptions, tileSize: 64 },
       );
       const first = series[0];
+      const plan = first.stats.planning;
+      const totalTexels = plan.totalTexels ?? WIDTH * HEIGHT;
+      const dirtyTexels = plan.dirtyTexels ?? null;
+      const actualDirtyRatio = dirtyTexels !== null ? dirtyTexels / totalTexels : null;
+      const partialGpu = totalGpuSummary(series)?.median;
+      // B. TRUE forced-full comparator: the SAME target scene rendered as
+      // the FIRST frame on a fresh pipeline (the first-frame contract is
+      // always planning.mode === "full" / reason "first-frame"). Shader/
+      // pipeline caches are warmed by a separate untimed warmup pipeline;
+      // each timed sample then uses a FRESH pipeline whose first render is
+      // the target — no primer scene, no second-render update that the
+      // planner could decide to run partial.
+      const fullGpuSamples = [];
+      const fullWallSamples = [];
+      const fullPlans = [];
+      const fullExecuted = [];
+      // warm the device-level shader/pipeline caches (untimed, separate
+      // pipeline so the timed samples never compile anything)
+      {
+        const warm = makeCanvas();
+        const warmPipeline = new api.GpuScenePipeline(device, warm.context, warm.canvasFormat);
+        try {
+          await timedRender(warmPipeline, { scene: edit, dpr: 1, shadowOptions, tileSize: 64 });
+        } finally {
+          warmPipeline.dispose();
+          warm.canvas.remove();
+        }
+      }
+      for (let i = 0; i < WARMUP + SAMPLES; i++) {
+        const fresh = makeCanvas();
+        const freshPipeline = new api.GpuScenePipeline(device, fresh.context, fresh.canvasFormat);
+        try {
+          const full = await timedRender(freshPipeline, {
+            scene: edit,
+            dpr: 1,
+            shadowOptions,
+            tileSize: 64,
+          });
+          if (i >= WARMUP) {
+            const plan = full.stats.planning;
+            if (plan.mode !== "full") {
+              notes.push(
+                `partial/${spec.id}: forced-full comparator planned ${plan.mode} (${plan.reason}) ` +
+                  "— the first-frame contract was violated",
+              );
+            }
+            const executed = full.stats.invalidation.executed.join(",");
+            if (executed !== "upload,height,normal,shadow,reconstruction,lighting,presentation") {
+              notes.push(
+                `partial/${spec.id}: forced-full comparator executed [${executed}] ` +
+                  "(expected the full seven-stage chain)",
+              );
+            }
+            fullPlans.push({ mode: plan.mode, reason: plan.reason });
+            fullExecuted.push(executed);
+            fullGpuSamples.push(full.gpuTiming?.totalGpuMs);
+            fullWallSamples.push(full.wallMs);
+          }
+        } finally {
+          freshPipeline.dispose();
+          fresh.canvas.remove();
+        }
+      }
+      const fullGpuMedian = summarizeSeries(gpuSeriesOf(fullGpuSamples, (v) => v));
+      const fullWall = summarizeSeries(fullWallSamples);
+      const partialToFullRatio =
+        fullGpuMedian?.median !== null && fullGpuMedian?.median !== undefined && fullGpuMedian.median > 0
+          ? partialGpu / fullGpuMedian.median
+          : null;
+      const fullPlan = fullPlans[fullPlans.length - 1] ?? { mode: "unknown", reason: "unknown" };
       pushCase(
-        `partial/ratio-${Math.round(ratio * 100)}`,
+        `partial/${spec.id}`,
         {
           suite: "partial",
-          dirtyRatio: Math.round(ratio * 100),
+          inputEdit: spec.edit,
+          inputGrow: spec.grow,
           resolution: `${WIDTH}x${HEIGHT}`,
           scene: SCENE_FAMILIES.partialEdit,
           tileSize: 64,
+          warmups: WARMUP,
+          samples: SAMPLES,
         },
         {
           wallMs: summarizeSeries(series.map((r) => r.wallMs)),
@@ -1083,15 +1440,22 @@ async function suitePartial() {
           gpuTimestampMs: totalGpuSummary(series),
           heightGpuTimestampMs: summarizeSeries(gpuSeriesOf(series, (r) => r.gpuTiming?.passGpuMs?.height)),
           shadowGpuTimestampMs: summarizeSeries(gpuSeriesOf(series, (r) => r.gpuTiming?.passGpuMs?.shadow)),
-          planningMode: first.stats.planning.mode,
-          planningReason: first.stats.planning.reason,
-          dirtyTileCount: first.stats.planning.dirtyTileCount ?? null,
-          dirtyTexels: first.stats.planning.dirtyTexels ?? null,
-          totalTileCount: first.stats.planning.totalTileCount ?? null,
-          dispatchTexels: first.stats.planning.dispatchTexels ?? null,
-          totalTexels: first.stats.planning.totalTexels ?? null,
-          candidateSurfaceCount: first.stats.planning.candidateSurfaceCount ?? null,
-          culledSurfaceCount: first.stats.planning.culledSurfaceCount ?? null,
+          fullGpuTimestampMs: fullGpuMedian,
+          fullWallMs: fullWall,
+          fullPlanningMode: fullPlan.mode,
+          fullPlanningReason: fullPlan.reason,
+          fullExecuted: fullExecuted[fullExecuted.length - 1] ?? "",
+          partialToFullRatio,
+          partialPlanningMode: plan.mode,
+          partialPlanningReason: plan.reason,
+          actualDirtyRatio,
+          dirtyTileCount: plan.dirtyTileCount ?? null,
+          dirtyTexels,
+          totalTileCount: plan.totalTileCount ?? null,
+          dispatchTexels: plan.dispatchTexels ?? null,
+          totalTexels,
+          candidateSurfaceCount: plan.candidateSurfaceCount ?? null,
+          culledSurfaceCount: plan.culledSurfaceCount ?? null,
         },
       );
     } finally {
@@ -1102,7 +1466,12 @@ async function suitePartial() {
 }
 
 // ---------------------------------------------------------------------------
-// §13  Eretained scheduling over repeated frames
+// #13  Eretained scheduling: TWO separate measurements per variant, never
+// mixed into one average:
+//   A. transitionFrame: the real base -> variant update frame (every sample
+//      is a fresh transition via benchUpdateFrame)
+//   B. repeatedRetained: identical variant -> variant frames after the
+//      transition (the retained skip cost)
 // ---------------------------------------------------------------------------
 
 async function suiteRetained() {
@@ -1110,8 +1479,8 @@ async function suiteRetained() {
   const pipeline = new api.GpuScenePipeline(device, context, canvasFormat);
   const base = sceneFor(() => simpleRoundedRectScene({ width: WIDTH, height: HEIGHT }));
   const variants = [
-    { id: "no-change", input: { scene: base, dpr: 1 } },
-    { id: "repaint-only", input: { scene: base, dpr: 1, repaint: true } },
+    { id: "no-change", input: { scene: base, dpr: 1 }, transition: false },
+    { id: "repaint-only", input: { scene: base, dpr: 1, repaint: true }, transition: false },
     { id: "light-intensity", input: {
       scene: sceneFor(() => ({ ...base, light: { ...base.light, intensity: 0.5 } })), dpr: 1,
     } },
@@ -1133,42 +1502,60 @@ async function suiteRetained() {
       scene: sceneFor(() => simpleRoundedRectScene({ width: WIDTH, height: HEIGHT, slabSize: 120 })), dpr: 1,
     } },
   ];
+  const expectedExecuted = {
+    "no-change": "",
+    "repaint-only": "presentation",
+    "light-intensity": "upload,lighting,presentation",
+    "light-direction": "upload,shadow,reconstruction,lighting,presentation",
+    "material-values": "upload,lighting,presentation",
+    geometry: "upload,height,normal,shadow,reconstruction,lighting,presentation",
+  };
   try {
-    await timedRender(pipeline, { scene: base, dpr: 1 });
     for (const variant of variants) {
-      const wall = [];
-      const executed = new Set();
-      const planningModes = new Set();
-      let submissions = 0;
-      let dispatches = 0;
-      let bytesUploaded = 0;
+      // A. transition frame cost (real base -> variant per sample)
+      const transitionSeries = variant.transition === false
+        ? null
+        : await benchUpdateFrame(pipeline, { scene: base, dpr: 1 }, variant.input);
+      // B. repeated retained frames (variant -> variant)
+      const repeated = [];
+      await timedRender(pipeline, variant.input);
       for (let i = 0; i < RETAINED_FRAMES; i++) {
-        const { wallMs, stats } = await timedRender(pipeline, variant.input);
-        wall.push(wallMs);
-        executed.add(stats.invalidation.executed.join(","));
-        planningModes.add(stats.planning.mode);
-        submissions += stats.frame.submissions;
-        dispatches += stats.frame.dispatchCount;
-        bytesUploaded += stats.frame.bytesUploaded;
+        repeated.push(await timedRender(pipeline, variant.input));
       }
-      const expectedExecuted =
-        variant.id === "no-change" ? ""
-        : variant.id === "repaint-only" ? "presentation"
-        : variant.id === "light-intensity" ? "upload,lighting,presentation"
-        : variant.id === "geometry"
-          ? "upload,height,normal,shadow,reconstruction,lighting,presentation"
-          : "upload,shadow,reconstruction,lighting,presentation";
       pushCase(
         `retained/${variant.id}`,
-        { suite: "retained", case: variant.id, frames: RETAINED_FRAMES, resolution: `${WIDTH}x${HEIGHT}` },
         {
-          wallMs: summarizeSeries(wall),
-          submissionsPerFrame: submissions / RETAINED_FRAMES,
-          dispatchesPerFrame: dispatches / RETAINED_FRAMES,
-          bytesUploadedPerFrame: bytesUploaded / RETAINED_FRAMES,
-          executed: [...executed].join("|"),
-          expectedExecuted,
-          planningModes: [...planningModes].join(","),
+          suite: "retained",
+          case: variant.id,
+          frames: RETAINED_FRAMES,
+          resolution: `${WIDTH}x${HEIGHT}`,
+          warmups: WARMUP,
+          samples: SAMPLES,
+        },
+        {
+          transitionWallMs:
+            transitionSeries !== null
+              ? summarizeSeries(transitionSeries.map((r) => r.wallMs))
+              : null,
+          transitionGpuTimestampMs:
+            transitionSeries !== null ? totalGpuSummary(transitionSeries) : null,
+          transitionExecuted:
+            transitionSeries !== null
+              ? transitionSeries[transitionSeries.length - 1].stats.invalidation.executed.join(",")
+              : "",
+          transitionSubmissions:
+            transitionSeries !== null
+              ? transitionSeries[transitionSeries.length - 1].stats.frame.submissions
+              : null,
+          repeatedWallMs: summarizeSeries(repeated.map((r) => r.wallMs)),
+          repeatedSubmissionsPerFrame:
+            repeated.reduce((a, r) => a + r.stats.frame.submissions, 0) / repeated.length,
+          repeatedDispatchesPerFrame:
+            repeated.reduce((a, r) => a + r.stats.frame.dispatchCount, 0) / repeated.length,
+          repeatedBytesUploadedPerFrame:
+            repeated.reduce((a, r) => a + r.stats.frame.bytesUploaded, 0) / repeated.length,
+          repeatedExecuted: repeated[repeated.length - 1].stats.invalidation.executed.join(","),
+          expectedExecuted: expectedExecuted[variant.id],
         },
       );
     }
@@ -1246,6 +1633,9 @@ async function main() {
     }
     const environment = collectBrowserEnvironment({ adapter, device });
     const doc = createResultDocument({ environment, cases });
+    if (notes.length > 0) {
+      doc.notes = [...notes];
+    }
     const problems = validateResultDocument(doc);
     if (problems.length > 0) {
       publish(MARKER_FAIL, `result document invalid: ${problems.join("; ")}`, doc);

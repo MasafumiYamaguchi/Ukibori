@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// #46 benchmark report generator (§18/§19/§20): turns one or more versioned
+// #46 benchmark report generator (#18/#19/#20): turns one or more versioned
 // benchmark result documents into a Markdown report with:
 //   - per-suite tables (median, p95, min, max)
 //   - a bottleneck matrix (which stage dominates each workload, and its
@@ -119,7 +119,7 @@ function bottleneckMatrix(docs) {
       workload: "many surfaces",
       main: "height",
       secondary: null,
-      scalingFactor: "pixels × surfaces",
+      scalingFactor: "pixels x surfaces",
       evidence: `${fmt(height?.median)}ms height / ${fmt(total?.median)}ms frame (${largest.parameters.surfaceCount} surfaces)`,
     });
   }
@@ -140,8 +140,8 @@ function bottleneckMatrix(docs) {
   const shadowCases = caseById(all, "shadow/samples-");
   if (shadowCases.length > 0) {
     const defaultRadius = shadowCases.filter((c) => c.parameters.angularRadius === 0.15);
-    const s16 = defaultRadius.find((c) => c.parameters.samples === 16);
-    const s1 = defaultRadius.find((c) => c.parameters.samples === 1);
+    const s16 = defaultRadius.find((c) => c.parameters.shadowSamples === 16);
+    const s1 = defaultRadius.find((c) => c.parameters.shadowSamples === 1);
     const g16 = summaryOf(s16?.metrics, "shadowGpuTimestampMs");
     const g1 = summaryOf(s1?.metrics, "shadowGpuTimestampMs");
     const ratio = g1?.median !== null && g1?.median > 0 ? g16?.median / g1?.median : null;
@@ -149,7 +149,7 @@ function bottleneckMatrix(docs) {
       workload: "soft shadow",
       main: "shadow",
       secondary: null,
-      scalingFactor: "pixels × samples × march",
+      scalingFactor: "pixels x samples x march",
       evidence: `${fmt(g16?.median)}ms shadow at 16 samples (${fmt(ratio, 1)}x vs 1 sample)`,
     });
   }
@@ -163,7 +163,7 @@ function bottleneckMatrix(docs) {
       workload: "high DPR + reconstruction",
       main: "reconstruction",
       secondary: null,
-      scalingFactor: "DPR² + radiusTexels²",
+      scalingFactor: "DPR^2 + radiusTexels^2",
       evidence: `${fmt(recon?.median)}ms recon / ${fmt(total?.median)}ms frame at DPR 4 radius 4`,
     });
   }
@@ -208,33 +208,62 @@ function followUpCandidates(docs) {
       issue: "mask SDF algorithm / caching (unchanged masks recomputed on geometry updates)",
     });
   }
+  // 2b. unchanged masks re-running on unrelated geometry updates (only when
+  // the THIS-FRAME measurement says the SDF pass actually ran)
+  const maskUnrelated = all.find((c) => c.id === "mask/unrelated-geometry-after-mask");
+  if (
+    maskUnrelated !== undefined &&
+    maskUnrelated.metrics.maskSdfPassesThisFrame > 0 &&
+    String(maskUnrelated.metrics.executed).includes("height")
+  ) {
+    candidates.push({
+      title: "Unchanged masks re-run the mask-SDF pass on an unrelated geometry update",
+      evidence: `executed=[${maskUnrelated.metrics.executed}] maskSdfPasses=${maskUnrelated.metrics.maskSdfPassesThisFrame} ` +
+        `height GPU=${fmt(summaryOf(maskUnrelated.metrics, "heightGpuTimestampMs")?.median)}ms`,
+      issue: "GPU mask-SDF cache keyed by mask contents (benchmark-flagged; separate optimization issue)",
+    });
+  }
   // 3. shadow cost at 16 samples vs 1
   const shadowCases = caseById(all, "shadow/samples-");
-  const s16 = shadowCases.find((c) => c.parameters.samples === 16 && c.parameters.angularRadius === 0.15);
-  const s1 = shadowCases.find((c) => c.parameters.samples === 1 && c.parameters.angularRadius === 0.15);
+  const s16 = shadowCases.find((c) => c.parameters.shadowSamples === 16 && c.parameters.angularRadius === 0.15);
+  const s1 = shadowCases.find((c) => c.parameters.shadowSamples === 1 && c.parameters.angularRadius === 0.15);
   if (s16 !== undefined && s1 !== undefined) {
     const g16 = summaryOf(s16.metrics, "shadowGpuTimestampMs")?.median;
     const g1 = summaryOf(s1.metrics, "shadowGpuTimestampMs")?.median;
     if (g1 > 0 && g16 / g1 > 8) {
       candidates.push({
         title: `Soft shadow at 16 samples costs ${fmt(g16 / g1, 1)}x the 1-sample hard path (${fmt(g16)}ms)`,
-        evidence: `samples {1,4,8,16} → ${fmt(g1)}/${fmt(g16)}ms shadow`,
+        evidence: `samples {1,4,8,16} ->${fmt(g1)}/${fmt(g16)}ms shadow`,
         issue: "shadow marcher acceleration / hierarchical ray skipping",
       });
     }
   }
-  // 4. presentation shader vs queue cost
+  // 4. presentation: compare GPU timestamps (shader cost) and wall costs
+  // SEPARATELY - wall must never be read as shader cost
   const presCases = caseById(all, "presentation/p");
   const p4 = presCases.find((c) => c.id === "presentation/p4-production");
   const p0 = presCases.find((c) => c.id === "presentation/p0");
   if (p4 !== undefined && p0 !== undefined) {
+    const gpu4 = summaryOf(p4.metrics, "gpuTimestampMs")?.median;
+    const gpu0 = summaryOf(p0.metrics, "gpuTimestampMs")?.median;
     const wall4 = summaryOf(p4.metrics, "wallMs")?.median;
     const wall0 = summaryOf(p0.metrics, "wallMs")?.median;
-    if (wall0 !== null && wall4 !== null && wall0 > 0.5 && wall4 - wall0 > 1) {
+    if (
+      gpu4 !== null && gpu0 !== null &&
+      gpu4 - gpu0 > 0.01
+    ) {
       candidates.push({
-        title: `Production PresentationPass adds ${fmt(wall4 - wall0)}ms over the attachment-only floor (${fmt(wall0)}ms)`,
-        evidence: "P0..P4 presentation microbenchmark",
+        title: `Production PresentationPass shader cost is ${fmt(gpu4)}ms vs ${fmt(gpu0)}ms for the attachment-only floor (GPU timestamps)`,
+        evidence: "P0..P4 presentation microbenchmark, gpuTimestampMs",
         issue: "presentation shader / composite cost",
+      });
+    } else if (wall0 !== null && wall4 !== null && wall4 - wall0 > 1) {
+      // the shader is NOT the difference: the wall gap is queue/swapchain/
+      // compositor fixed cost, explicitly NOT a shader-cost claim
+      candidates.push({
+        title: `Production present adds ${fmt(wall4 - wall0)}ms WALL over the attachment-only floor, but GPU shader time is flat (${fmt(gpu4)} vs ${fmt(gpu0)}ms)`,
+        evidence: "P0..P4 presentation microbenchmark; the gap is queue/swapchain/compositor fixed cost, not shader work",
+        issue: "queue submission / swapchain acquisition / presentation fixed cost",
       });
     }
   }
@@ -257,6 +286,7 @@ function markdownReport(docs) {
   const first = docs[0];
   lines.push(`- schemaVersion: ${first.schemaVersion}`);
   lines.push(`- commit: ${first.commit}`);
+  lines.push(`- workingTreeDirty: ${first.workingTreeDirty ?? "unknown"}`);
   lines.push(`- generatedAt: ${first.generatedAt}`);
   for (const doc of docs) {
     const env = doc.environment ?? {};
@@ -266,7 +296,7 @@ function markdownReport(docs) {
 
   const all = docs.flatMap((d) => d.cases);
 
-  // §18 stage summary
+  // #18 stage summary
   const stageRows = stageTable(all);
   if (stageRows.length > 0) {
     lines.push("## Stage summary (median GPU ms, stage suite)");
@@ -348,9 +378,17 @@ function markdownReport(docs) {
   }
   const maskUnrelated = all.find((c) => c.id === "mask/unrelated-geometry-after-mask");
   if (maskUnrelated !== undefined) {
+    const m = maskUnrelated.metrics;
     lines.push(
-      `- mask SDF re-run on unrelated geometry update: passes=${maskUnrelated.metrics.maskSdfPasses}, ` +
-        `executed=[${maskUnrelated.metrics.executed}]`,
+      `- unchanged mask + unrelated geometry update (this frame): executed=[${m.executed}], ` +
+        `planning=${m.planningMode} (${m.planningReason}), ` +
+        `maskSdfPasses=${m.maskSdfPassesThisFrame}, composePasses=${m.composePassesThisFrame}, ` +
+        `totalMaskCells=${m.totalMaskCells}, ` +
+        `height GPU=${fmt(summaryOf(m, "heightGpuTimestampMs")?.median)}ms, ` +
+        `maskSDF GPU=${fmt(summaryOf(m, "maskSdfGpuTimestampMs")?.median)}ms, ` +
+        `compose GPU=${fmt(summaryOf(m, "composeGpuTimestampMs")?.median)}ms, ` +
+        `wall=${fmt(summaryOf(m, "wallMs")?.median)}ms ` +
+        `(samples=${m.executed === "" ? "n/a" : summaryOf(m, "wallMs")?.samples})`,
     );
     lines.push("");
   }
@@ -359,7 +397,7 @@ function markdownReport(docs) {
   const shadowRows = scalingTable(
     all,
     "shadow/samples-",
-    "samples",
+    "shadowSamples",
     (c) => summaryOf(c.metrics, "shadowGpuTimestampMs")?.median,
     [
       ["angularRadius", (c) => c.parameters.angularRadius],
@@ -374,6 +412,38 @@ function markdownReport(docs) {
     lines.push("|---|---|---|---|---|");
     for (const r of shadowRows) {
       lines.push(`| ${r.label} | ${r.angularRadius} | ${r.soft} | ${fmt(r.value)} | ${r.steps} |`);
+    }
+    lines.push("");
+  }
+
+  // shadow travel distance (explicit maxDistance per case = real workload)
+  const travelRows = scalingTable(
+    all,
+    "shadow/travel-",
+    "travel",
+    (c) => summaryOf(c.metrics, "shadowGpuTimestampMs")?.median,
+    [
+      ["maxDistance", (c) => c.parameters.maxDistance],
+      ["stepSize", (c) => c.parameters.stepSize],
+      ["theoreticalMaxSteps", (c) => c.parameters.theoreticalMaxSteps],
+      ["steps", (c) => c.metrics.shadowSteps],
+    ],
+  );
+  if (travelRows.length > 0) {
+    lines.push("## Shadow travel distance (median ShadowPass GPU ms)");
+    lines.push("");
+    lines.push(
+      "The travel axis is the EXPLICIT maxDistance (the ray-march budget): " +
+        "short 40 / medium 120 / long 300 scene units at stepSize 0.5, so the " +
+        "cases are genuinely different workloads.",
+    );
+    lines.push("");
+    lines.push("| Travel | maxDistance | stepSize | Theoretical max steps | Shadow GPU ms | Dispatch step count |");
+    lines.push("|---|---|---|---|---|---|");
+    for (const r of travelRows) {
+      lines.push(
+        `| ${r.label} | ${r.maxDistance} | ${r.stepSize} | ${r.theoreticalMaxSteps} | ${fmt(r.value)} | ${r.steps} |`,
+      );
     }
     lines.push("");
   }
@@ -393,7 +463,7 @@ function markdownReport(docs) {
     ],
   );
   if (reconRows.length > 0) {
-    lines.push("## Reconstruction radius × DPR (median GPU ms)");
+    lines.push("## Reconstruction radius x DPR (median GPU ms)");
     lines.push("");
     lines.push("| Radius | DPR | Active | Taps/texel | Recon GPU ms | Frame GPU ms | Recon share |");
     lines.push("|---|---|---|---|---|---|---|");
@@ -407,15 +477,24 @@ function markdownReport(docs) {
 
   // presentation
   const presRows = scalingTable(all, "presentation/p", "stage", (c) => summaryOf(c.metrics, "wallMs")?.median, [
+    ["hostMs", (c) => summaryOf(c.metrics, "hostMs")?.median],
+    ["gpuTs", (c) => summaryOf(c.metrics, "gpuTimestampMs")?.median],
     ["format", (c) => c.metrics.canvasFormat],
   ]);
   if (presRows.length > 0) {
-    lines.push("## Presentation microbenchmark (median wall ms)");
+    lines.push("## Presentation microbenchmark");
     lines.push("");
-    lines.push("| Stage | Wall ms | Canvas format |");
-    lines.push("|---|---|---|");
+    lines.push(
+      "P0-P3 wall = submission + queue completion; GPU timestamp = the render pass itself " +
+        "(null on adapters without timestamp-query). P4 wall = production pipeline.present(); " +
+        "P4 GPU timestamp = the presentation stage of a production repaint render. " +
+        "Wall cost alone must never be read as shader cost.",
+    );
+    lines.push("");
+    lines.push("| Stage | Host ms | GPU timestamp ms | Wall ms | Canvas format |");
+    lines.push("|---|---|---|---|---|");
     for (const r of presRows) {
-      lines.push(`| ${r.label} | ${fmt(r.value)} | ${r.format} |`);
+      lines.push(`| ${r.label} | ${fmt(r.hostMs)} | ${fmt(r.gpuTs)} | ${fmt(r.value)} | ${r.format} |`);
     }
     lines.push("");
   }
@@ -440,18 +519,31 @@ function markdownReport(docs) {
     "updateType",
     (c) => summaryOf(c.metrics, "hostMs")?.median,
     [
+      ["wallMs", (c) => summaryOf(c.metrics, "wallMs")?.median],
       ["encodedBytes", (c) => c.metrics.encodedBytes],
       ["bytesUploaded", (c) => c.metrics.bytesUploaded],
       ["writeCalls", (c) => c.metrics.writeCalls],
+      ["newAllocations", (c) => c.metrics.newAllocations],
+      ["writtenSections", (c) => Array.isArray(c.metrics.writtenSections) ? c.metrics.writtenSections.join("+") : ""],
+      ["changedSections", (c) => Array.isArray(c.metrics.changedSections) ? c.metrics.changedSections.join("+") : ""],
     ],
   );
   if (uploadRows.length > 0) {
-    lines.push("## Upload benchmark (median host ms, 64-surface grid)");
+    lines.push("## Upload benchmark (transition per sample, fresh uploader)");
     lines.push("");
-    lines.push("| Update type | Host ms | Encoded bytes | Uploaded bytes | writeBuffer calls |");
-    lines.push("|---|---|---|---|---|");
+    lines.push(
+      "hostMs = the uploader.upload() call itself; wallMs = upload + queue completion. " +
+        "writtenSections = sections the uploader transferred (every non-empty section); " +
+        "changedSections = sections whose BYTES differ between the before and after scenes.",
+    );
+    lines.push("");
+    lines.push("| Update type | Host ms | Wall ms | Encoded bytes | Uploaded bytes | writeBuffer calls | New allocations | Written sections | Changed sections |");
+    lines.push("|---|---|---|---|---|---|---|---|---|");
     for (const r of uploadRows) {
-      lines.push(`| ${r.label} | ${fmt(r.value)} | ${r.encodedBytes} | ${r.bytesUploaded} | ${r.writeCalls} |`);
+      lines.push(
+        `| ${r.label} | ${fmt(r.value)} | ${fmt(r.wallMs)} | ${r.encodedBytes} | ${r.bytesUploaded} | ` +
+          `${r.writeCalls} | ${r.newAllocations} | ${r.writtenSections} | ${r.changedSections} |`,
+      );
     }
     lines.push("");
   }
@@ -459,40 +551,81 @@ function markdownReport(docs) {
   // partial
   const partialRows = scalingTable(
     all,
-    "partial/ratio-",
-    "dirtyRatio",
+    "partial/",
+    "inputEdit",
     (c) => summaryOf(c.metrics, "gpuTimestampMs")?.median,
     [
-      ["mode", (c) => c.metrics.planningMode],
+      ["case", (c) => c.id.replace("partial/", "")],
+      ["actualRatio", (c) => c.metrics.actualDirtyRatio],
+      ["partialMode", (c) => c.metrics.partialPlanningMode],
+      ["fullMode", (c) => c.metrics.fullPlanningMode],
       ["dirtyTexels", (c) => c.metrics.dirtyTexels],
       ["dispatchTexels", (c) => c.metrics.dispatchTexels],
-      ["planningHostMs", (c) => summaryOf(c.metrics, "planningHostMs")?.median],
+      ["fullGpu", (c) => summaryOf(c.metrics, "fullGpuTimestampMs")?.median],
+      ["ratio", (c) => c.metrics.partialToFullRatio],
     ],
   );
   if (partialRows.length > 0) {
-    lines.push("## Partial recompute (median GPU ms)");
+    lines.push("## Partial vs forced-full recompute (median GPU ms)");
     lines.push("");
-    lines.push("| Dirty ratio | Mode | Frame GPU ms | Dirty texels | Dispatch texels | Planning host ms |");
-    lines.push("|---|---|---|---|---|---|");
+    lines.push(
+      "actualDirtyRatio = planner dirtyTexels / totalTexels (never the input knob). " +
+        "The full comparator is the SAME target scene rendered as the FIRST frame on a fresh " +
+        "pipeline (first-frame contract: fullPlanningMode must be 'full'); " +
+        "partialToFullRatio = partial GPU / forced-full GPU (< 1 = partial wins).",
+    );
+    lines.push("");
+    lines.push("| Case | Actual dirty ratio | Partial mode | Full mode | Partial GPU ms | Full GPU ms | P/F ratio | Dirty texels | Dispatch texels |");
+    lines.push("|---|---|---|---|---|---|---|---|---|");
     for (const r of partialRows) {
-      lines.push(`| ${r.label}% | ${r.mode} | ${fmt(r.value)} | ${r.dirtyTexels} | ${r.dispatchTexels} | ${fmt(r.planningHostMs, 4)} |`);
+      lines.push(
+        `| ${r.case} | ${r.actualRatio !== null ? (r.actualRatio * 100).toFixed(1) + "%" : "n/a"} | ${r.partialMode} | ${r.fullMode} | ` +
+          `${fmt(r.value)} | ${fmt(r.fullGpu)} | ${r.ratio !== null ? r.ratio.toFixed(3) : "n/a"} | ${r.dirtyTexels} | ${r.dispatchTexels} |`,
+      );
     }
     lines.push("");
+    const nonFullComparators = partialRows.filter((r) => r.fullMode !== "full");
+    if (nonFullComparators.length > 0) {
+      lines.push(
+        `- VERIFICATION FAILURE: ${nonFullComparators.length} comparator case(s) did not plan full ` +
+          `(${nonFullComparators.map((r) => r.case).join(", ")}) — the first-frame contract was violated.`,
+      );
+      lines.push("");
+    } else {
+      lines.push(
+        `- comparator verification: all ${partialRows.length} forced-full cases planned mode=full.`,
+      );
+      lines.push("");
+    }
   }
 
   // retained
-  const retainedRows = scalingTable(all, "retained/", "case", (c) => summaryOf(c.metrics, "wallMs")?.median, [
-    ["executed", (c) => c.metrics.executed],
+  const retainedRows = scalingTable(all, "retained/", "case", (c) => summaryOf(c.metrics, "transitionWallMs")?.median, [
+    ["frames", (c) => c.parameters.frames],
+    ["repeatWall", (c) => summaryOf(c.metrics, "repeatedWallMs")?.median],
+    ["subPerFrame", (c) => c.metrics.repeatedSubmissionsPerFrame],
+    ["dispPerFrame", (c) => c.metrics.repeatedDispatchesPerFrame],
+    ["bytesPerFrame", (c) => c.metrics.repeatedBytesUploadedPerFrame],
+    ["transitionGpu", (c) => summaryOf(c.metrics, "transitionGpuTimestampMs")?.median],
+    ["transitionExecuted", (c) => c.metrics.transitionExecuted],
     ["expected", (c) => c.metrics.expectedExecuted],
-    ["subPerFrame", (c) => c.metrics.submissionsPerFrame],
   ]);
   if (retainedRows.length > 0) {
-    lines.push("## Retained scheduling (median wall ms per frame)");
+    lines.push("## Retained scheduling: transition vs repeated (median wall ms)");
     lines.push("");
-    lines.push("| Case | Wall ms | Submissions/frame | Executed | Expected |");
-    lines.push("|---|---|---|---|---|");
+    lines.push(
+      "transitionWallMs = the real base -> variant update frame; repeatedWallMs = identical " +
+        "variant -> variant retained frames after the transition. Never averaged together. " +
+        "Repeated cost is over the recorded frames count.",
+    );
+    lines.push("");
+    lines.push("| Case | Frames | Transition wall ms | Transition GPU ms | Repeated wall ms | Submissions/frame | Dispatches/frame | Bytes/frame | Transition executed | Expected |");
+    lines.push("|---|---|---|---|---|---|---|---|---|---|");
     for (const r of retainedRows) {
-      lines.push(`| ${r.label} | ${fmt(r.value)} | ${fmt(r.subPerFrame, 2)} | ${r.executed} | ${r.expected} |`);
+      lines.push(
+        `| ${r.label} | ${r.frames} | ${fmt(r.value)} | ${fmt(r.transitionGpu)} | ${fmt(r.repeatWall)} | ` +
+          `${fmt(r.subPerFrame, 2)} | ${fmt(r.dispPerFrame, 2)} | ${fmt(r.bytesPerFrame, 0)} | ${r.transitionExecuted} | ${r.expected} |`,
+      );
     }
     lines.push("");
   }
@@ -516,25 +649,42 @@ function markdownReport(docs) {
   // DOM
   const domRows = scalingTable(all, "dom/", "scenario", (c) => summaryOf(c.metrics, "wallMs")?.median, [
     ["surfaces", (c) => c.parameters.surfaceCount],
+    ["samples", (c) => summaryOf(c.metrics, "wallMs")?.samples],
     ["rects", (c) => summaryOf(c.metrics, "rectCallsPerFrame")?.median],
+    ["styles", (c) => summaryOf(c.metrics, "computedStyleCallsPerFrame")?.median],
+    ["measureMs", (c) => summaryOf(c.metrics, "measureHostMsPerFrame")?.median],
+    ["sceneMs", (c) => summaryOf(c.metrics, "sceneBuildHostMsPerFrame")?.median],
+    ["measured", (c) => summaryOf(c.metrics, "measuredEntriesPerFrame")?.median],
+    ["callbackMs", (c) => summaryOf(c.metrics, "callbackHostMsPerFrame")?.median],
+    ["settleMs", (c) => summaryOf(c.metrics, "settleWallMsPerFrame")?.median],
     ["invocations", (c) => summaryOf(c.metrics, "rendererInvocationsPerFrame")?.median],
     ["skipped", (c) => summaryOf(c.metrics, "skippedRenderPerFrame")?.median],
-    ["executed", (c) => c.metrics.executed],
   ]);
   if (domRows.length > 0) {
-    lines.push("## DOM integration (median wall ms)");
+    lines.push("## DOM integration (median per-frame timings)");
     lines.push("");
-    lines.push("| Scenario | Surfaces | Wall ms | Rect calls | Renderer invocations | Skipped render | Executed |");
-    lines.push("|---|---|---|---|---|---|---|");
+    lines.push(
+      "Every scenario runs warmup + samples frames (never single-shot). " +
+        "callbackHostMs = the Ukibori renderer callbacks inside the harness flush; " +
+        "settleWallMs = the harness observer-delivery wait floor (setTimeout turns, NOT " +
+        "Ukibori work). measurement/scene-build are FRAME-LOCAL: a frame whose serial " +
+        "did not advance reports 0, never a stale previous-frame value. The scroll " +
+        "scenario drives a real window.scrollTo + document scroll listener.",
+    );
+    lines.push("");
+    lines.push("| Scenario | Surfaces | Samples | Wall ms | Callback ms | Settle ms | Meas. ms | Scene-build ms | Rect calls | Style calls | Invocations | Skipped |");
+    lines.push("|---|---|---|---|---|---|---|---|---|---|---|---|");
     for (const r of domRows) {
       lines.push(
-        `| ${r.label} | ${r.surfaces} | ${fmt(r.value)} | ${fmt(r.rects, 0)} | ${fmt(r.invocations, 2)} | ${fmt(r.skipped, 2)} | ${r.executed} |`,
+        `| ${r.label} | ${r.surfaces} | ${r.samples ?? ""} | ${fmt(r.value)} | ` +
+          `${fmt(r.callbackMs, 3)} | ${fmt(r.settleMs, 3)} | ${fmt(r.measureMs, 3)} | ${fmt(r.sceneMs, 3)} | ` +
+          `${fmt(r.rects, 0)} | ${fmt(r.styles, 0)} | ${fmt(r.invocations, 2)} | ${fmt(r.skipped, 2)} |`,
       );
     }
     lines.push("");
   }
 
-  // §19 bottleneck matrix
+  // #19 bottleneck matrix
   lines.push("## Bottleneck matrix");
   lines.push("");
   lines.push("| Workload | Main bottleneck | Secondary | Scaling factor | Evidence |");
@@ -550,7 +700,7 @@ function markdownReport(docs) {
     lines.push("## Follow-up optimization candidates");
     lines.push("");
     for (const [index, candidate] of candidates.entries()) {
-      lines.push(`${index + 1}. **${candidate.title}** — ${candidate.evidence}. Candidate: ${candidate.issue}.`);
+      lines.push(`${index + 1}. **${candidate.title}**  E${candidate.evidence}. Candidate: ${candidate.issue}.`);
     }
     lines.push("");
   }

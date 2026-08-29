@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { gitCommitSync } from "../../renderer/scripts/bench/lib/env-node.mjs";
+import { gitCommitSync, gitStatusPorcelain, isWorkingTreeDirty } from "../../renderer/scripts/bench/lib/env-node.mjs";
 
 const MARKER_PASS = "UKIBORI_DOM_BENCH_PASS";
 const MARKER_FAIL = "UKIBORI_DOM_BENCH_FAIL";
@@ -37,6 +37,7 @@ function flag(name, fallback) {
 }
 const surfacesArg = flag("--surfaces", process.env.BENCH_DOM_SURFACES ?? "1,10,50,100,250,500,1000");
 const samplesArg = flag("--samples", process.env.BENCH_SAMPLES ?? "5");
+const allowDirty = args.includes("--allow-dirty") || process.env.BENCH_ALLOW_DIRTY === "1";
 const jsonPath = flag("--json", join(pkgRoot, "benchmark-results-dom.json"));
 
 function findChrome() {
@@ -181,7 +182,7 @@ async function main() {
   const rendererBundle = join(repoRoot, "packages", "renderer", "dist", "index.js");
   if (!existsSync(rendererBundle)) {
     console.error(
-      `${MARKER_FAIL} renderer bundle not found at ${rendererBundle} — run ` +
+      `${MARKER_FAIL} renderer bundle not found at ${rendererBundle} 窶・run ` +
         "`npm run build -w ukibori-renderer` first",
     );
     process.exit(1);
@@ -309,16 +310,28 @@ async function main() {
         process.exitCode = 1;
         return;
       }
-      payload.commit = gitCommitSync();
+      const commit = gitCommitSync();
+      const dirty = isWorkingTreeDirty({ porcelain: gitStatusPorcelain() });
+      if (dirty && !allowDirty) {
+        console.error(
+          `${MARKER_FAIL} working tree is DIRTY: a baseline must be generated on a clean tree ` +
+            `(pass --allow-dirty for dev runs)`,
+        );
+        console.error(gitStatusPorcelain().split("\n").slice(0, 10).join("\n"));
+        process.exitCode = 1;
+        return;
+      }
+      payload.commit = commit;
+      payload.workingTreeDirty = dirty;
       await mkdir(dirname(jsonPath), { recursive: true });
       await writeFile(jsonPath, JSON.stringify(payload, null, 2), "utf8");
       console.log(
-        `bench:dom: wrote ${jsonPath} — ${payload.cases.length} cases, schema v${payload.schemaVersion}, ` +
-          `commit ${payload.commit}`,
+        `bench:dom: wrote ${jsonPath} 窶・${payload.cases.length} cases, schema v${payload.schemaVersion}, ` +
+          `commit ${payload.commit}, workingTreeDirty=${payload.workingTreeDirty}`, 
       );
       process.exitCode = 0;
     } else if (marker === MARKER_SKIP) {
-      console.error("bench:dom: SKIP — only a real-adapter PASS counts");
+      console.error("bench:dom: SKIP 窶・only a real-adapter PASS counts");
       process.exitCode = 1;
     } else {
       console.error("bench:dom: FAIL");

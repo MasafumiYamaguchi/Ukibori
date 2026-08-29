@@ -44,7 +44,7 @@ import { computeMaskWorkspaceLayout } from "./height-pass";
 // checked before any device call)
 // ---------------------------------------------------------------------------
 
-describe("computeMaskWorkspaceLayout — u32-bounded derived metadata", () => {
+describe("computeMaskWorkspaceLayout  Eu32-bounded derived metadata", () => {
   it("computes cumulative workspace byte offsets for valid cell counts", () => {
     // 4x4 padded cells (16 cells) then 5x5 padded cells (25 cells)
     const layout = computeMaskWorkspaceLayout([16, 25]);
@@ -122,10 +122,12 @@ class MockComputePass implements GpuComputePassEncoderLike {
 
 class MockEncoder implements GpuCommandEncoderLike {
   readonly passes: MockComputePass[] = [];
+  readonly passDescriptors: Array<{ timestampWrites?: unknown }> = [];
   finished = false;
-  beginComputePass(): GpuComputePassEncoderLike {
+  beginComputePass(desc?: { readonly timestampWrites?: unknown }): GpuComputePassEncoderLike {
     const pass = new MockComputePass();
     this.passes.push(pass);
+    this.passDescriptors.push({ timestampWrites: desc?.timestampWrites });
     return pass;
   }
   finish(): GpuCommandBufferLike {
@@ -345,7 +347,7 @@ const COMPOSE_MODULES = [
 
 // ---------------------------------------------------------------------------
 
-describe("HeightPass — pipeline caching and explicit layouts", () => {
+describe("HeightPass  Epipeline caching and explicit layouts", () => {
   it("creates shader modules, layouts and pipelines once and reuses them", () => {
     const { mock, uploader, pass } = setup();
     uploadAndDispatch(mock, uploader, pass, simpleScene());
@@ -427,7 +429,7 @@ describe("HeightPass — pipeline caching and explicit layouts", () => {
   });
 });
 
-describe("HeightPass — complete bind groups", () => {
+describe("HeightPass  Ecomplete bind groups", () => {
   it("consumes the exact SceneUploader binding buffers in the scene bind group", () => {
     const { mock, uploader, pass } = setup();
     const { bindings } = uploadAndDispatch(mock, uploader, pass, maskScene());
@@ -492,7 +494,7 @@ describe("HeightPass — complete bind groups", () => {
   });
 });
 
-describe("HeightPass — command ordering and dispatch dims", () => {
+describe("HeightPass  Ecommand ordering and dispatch dims", () => {
   it("records pipeline, bind groups, ceil-division dispatch and end in order, then submits", () => {
     const { mock, uploader, pass } = setup();
     uploadAndDispatch(mock, uploader, pass, maskScene()); // 20x20=400 texels, 2x2 mask -> 16 cells
@@ -539,7 +541,7 @@ describe("HeightPass — command ordering and dispatch dims", () => {
   });
 });
 
-describe("HeightPass — allocation reuse and growth", () => {
+describe("HeightPass  Eallocation reuse and growth", () => {
   it("allocates all eight pass buffers on the first dispatch and reuses them", () => {
     const { mock, uploader, pass } = setup();
     const { stats } = uploadAndDispatch(mock, uploader, pass, simpleScene());
@@ -596,7 +598,7 @@ describe("HeightPass — allocation reuse and growth", () => {
   });
 });
 
-describe("HeightPass — usage flags audit", () => {
+describe("HeightPass  Eusage flags audit", () => {
   it("uses documented usage flags per allocation", () => {
     const { mock, uploader, pass } = setup();
     uploadAndDispatch(mock, uploader, pass, maskScene());
@@ -635,7 +637,7 @@ describe("HeightPass — usage flags audit", () => {
   });
 });
 
-describe("HeightPass — validation and rejection", () => {
+describe("HeightPass  Evalidation and rejection", () => {
   function corrupt(bytes: Uint8Array, offset: number, fn: (view: DataView) => void): Uint8Array {
     const copy = bytes.slice();
     fn(new DataView(copy.buffer));
@@ -763,7 +765,7 @@ describe("HeightPass — validation and rejection", () => {
     const mock = new MockDevice({ maxComputeWorkgroupsPerDimension: 32 });
     const uploader = new SceneUploader(mock);
     const pass = new HeightPass(mock);
-    // 4000 x 1 texels: ceil(4000 / 64) = 63 workgroups in ONE row — no band
+    // 4000 x 1 texels: ceil(4000 / 64) = 63 workgroups in ONE row  Eno band
     // split can help, so the dispatch is rejected before any allocation.
     const wide = createScene({
       width: 4000,
@@ -847,7 +849,7 @@ describe("HeightPass — validation and rejection", () => {
   });
 });
 
-describe("HeightPass — output snapshot", () => {
+describe("HeightPass  Eoutput snapshot", () => {
   it("throws before the first dispatch and after dispose", () => {
     const { mock, uploader, pass } = setup();
     expect(() => pass.getSnapshot()).toThrow(/no dispatch/);
@@ -1040,7 +1042,7 @@ describe("HeightPass — output snapshot", () => {
   });
 });
 
-describe("HeightPass — disposal", () => {
+describe("HeightPass  Edisposal", () => {
   it("destroys every owned allocation, keeps foreign buffers, and is idempotent", () => {
     const { mock, uploader, pass } = setup();
     uploadAndDispatch(mock, uploader, pass, simpleScene());
@@ -1060,11 +1062,11 @@ describe("HeightPass — disposal", () => {
 // ---------------------------------------------------------------------------
 // Shader/layout contract assertions. These PIN the WGSL against the host
 // layout and the CPU semantics (sampling, coverage, tie rules, mask
-// thresholds). They are string-level checks only — numeric parity is the
+// thresholds). They are string-level checks only  Enumeric parity is the
 // real-GPU browser test, never a mock claim.
 // ---------------------------------------------------------------------------
 
-describe("HeightPass shaders — binding contract", () => {
+describe("HeightPass shaders  Ebinding contract", () => {
   it("declares the full frozen ABI group-0 bindings 0-4 in EVERY module", () => {
     const all = [MASK_SDF_WGSL, ...COMPOSE_MODULES];
     for (const wgsl of all) {
@@ -1162,7 +1164,7 @@ describe("HeightPass shaders — binding contract", () => {
   });
 });
 
-describe("HeightPass shaders — CPU semantics pinned in WGSL", () => {
+describe("HeightPass shaders  ECPU semantics pinned in WGSL", () => {
   it("samples render texels at ((tx + 0.5) / dpr, (ty + 0.5) / dpr) from the header", () => {
     for (const wgsl of COMPOSE_MODULES) {
       expect(wgsl).toContain("let sx = (f32(tx) + 0.5) / sceneHeader.dpr;");
@@ -1238,7 +1240,7 @@ describe("HeightPass shaders — CPU semantics pinned in WGSL", () => {
   });
 });
 
-describe("HeightPass shaders — caster-only composition (#27)", () => {
+describe("HeightPass shaders  Ecaster-only composition (#27)", () => {
   it("searches ONLY FLAG_CASTS_SHADOW surfaces with an independent owner scan", () => {
     // the caster pass must not filter the already selected full owner: the
     // WGSL must contain the FLAG_CASTS_SHADOW gate INSIDE its own surface
@@ -1276,5 +1278,116 @@ describe("HeightPass shaders — caster-only composition (#27)", () => {
     // same DPR-aware texel sampling and bounds guard as every compose pass
     expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("let sx = (f32(tx) + 0.5) / sceneHeader.dpr;");
     expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("if (g >= texelCount) {");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// #46 benchmark-only substage timestamp seam: the SDF pass writes the sdf
+// query pair and the first/last compose pass write the compose pair of a
+// caller-owned query set; mutually exclusive with the stage timestampWrites.
+// ---------------------------------------------------------------------------
+
+describe("HeightPass substage timestamps", () => {
+  it("writes the sdf pair on the SDF pass and the compose pair across compose passes", () => {
+    const mock = new MockDevice();
+    const uploader = new SceneUploader(mock);
+    const pass = new HeightPass(mock);
+    const encoded = encodeScene(maskScene(), 1);
+    uploader.upload(encoded);
+    const bindings = uploader.getBindings();
+    const querySet = { destroy: () => {} };
+    pass.dispatch(encoded, bindings, {
+      substageTimestamps: {
+        querySet,
+        sdfBeginIndex: 0,
+        composeBeginIndex: 2,
+      },
+    });
+    const encoder = mock.encoders[mock.encoders.length - 1];
+    const descriptors = encoder.passDescriptors;
+    // pass 0: the mask-SDF pass -> sdf pair (0, 1)
+    expect(descriptors[0].timestampWrites).toEqual({
+      querySet,
+      beginningOfPassWriteIndex: 0,
+      endOfPassWriteIndex: 1,
+    });
+// pass 1..4: compose -> beginning on the first compose pass, end on the last
+    expect(descriptors[1].timestampWrites).toEqual({
+      querySet,
+      beginningOfPassWriteIndex: 2,
+    });
+    expect(descriptors[5].timestampWrites).toEqual({
+      querySet,
+      endOfPassWriteIndex: 3,
+    });
+    // middle compose passes carry no timestamp writes
+    expect(descriptors[2].timestampWrites).toBeUndefined();
+    expect(descriptors[3].timestampWrites).toBeUndefined();
+    expect(descriptors[4].timestampWrites).toBeUndefined();
+  });
+
+  it("mask-free scenes write only the compose pair", () => {
+    const mock = new MockDevice();
+    const uploader = new SceneUploader(mock);
+    const pass = new HeightPass(mock);
+    const encoded = encodeScene(simpleScene(), 1);
+    uploader.upload(encoded);
+    const bindings = uploader.getBindings();
+    const querySet = { destroy: () => {} };
+    pass.dispatch(encoded, bindings, {
+      substageTimestamps: {
+        querySet,
+        sdfBeginIndex: 0,
+        composeBeginIndex: 2,
+      },
+    });
+    const encoder = mock.encoders[mock.encoders.length - 1];
+    const descriptors = encoder.passDescriptors;
+    // no SDF pass; the compose stage spans passes 0..4
+    expect(descriptors[0].timestampWrites).toEqual({
+      querySet,
+      beginningOfPassWriteIndex: 2,
+    });
+    expect(descriptors[4].timestampWrites).toEqual({
+      querySet,
+      endOfPassWriteIndex: 3,
+    });
+  });
+
+  it("rejects substageTimestamps combined with stage timestampWrites", () => {
+    const mock = new MockDevice();
+    const uploader = new SceneUploader(mock);
+    const pass = new HeightPass(mock);
+    const encoded = encodeScene(simpleScene(), 1);
+    uploader.upload(encoded);
+    const bindings = uploader.getBindings();
+    expect(() =>
+      pass.dispatch(encoded, bindings, {
+        timestampWrites: {
+          querySet: { destroy: () => {} },
+          beginningOfPassWriteIndex: 0,
+          endOfPassWriteIndex: 1,
+        },
+        substageTimestamps: {
+          querySet: { destroy: () => {} },
+          sdfBeginIndex: 0,
+          composeBeginIndex: 2,
+        },
+      }),
+    ).toThrow(/mutually exclusive/);
+  });
+
+  it("leaves the historical pass descriptors untouched without the seam", () => {
+    const mock = new MockDevice();
+    const uploader = new SceneUploader(mock);
+    const pass = new HeightPass(mock);
+    const encoded = encodeScene(simpleScene(), 1);
+    uploader.upload(encoded);
+    const bindings = uploader.getBindings();
+    pass.dispatch(encoded, bindings);
+    const encoder = mock.encoders[mock.encoders.length - 1];
+    for (const descriptor of encoder.passDescriptors) {
+      expect(descriptor.timestampWrites).toBeUndefined();
+    }
   });
 });

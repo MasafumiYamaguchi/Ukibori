@@ -26,7 +26,7 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { gitCommitSync } from "./bench/lib/env-node.mjs";
+import { gitCommitSync, gitStatusPorcelain, isWorkingTreeDirty } from "./bench/lib/env-node.mjs";
 
 const MARKER_PASS = "UKIBORI_BENCH_GPU_PASS";
 const MARKER_FAIL = "UKIBORI_BENCH_GPU_FAIL";
@@ -42,6 +42,7 @@ function flag(name, fallback) {
   return index === -1 ? fallback : args[index + 1];
 }
 const suiteArg = flag("--suite", process.env.BENCH_SUITE ?? "all");
+const allowDirty = args.includes("--allow-dirty") || process.env.BENCH_ALLOW_DIRTY === "1";
 const samplesArg = flag("--samples", process.env.BENCH_SAMPLES ?? "5");
 const warmupArg = flag("--warmup", process.env.BENCH_WARMUP ?? "3");
 const widthArg = flag("--width", process.env.BENCH_WIDTH ?? "640");
@@ -171,7 +172,7 @@ async function main() {
   const bundle = join(pkgRoot, "dist", "index.js");
   if (!existsSync(bundle)) {
     console.error(
-      `${MARKER_FAIL} bundle not found at ${bundle} — run ` +
+      `${MARKER_FAIL} bundle not found at ${bundle} - run ` +
         "`npm run build -w ukibori-renderer` first",
     );
     process.exit(1);
@@ -194,6 +195,7 @@ async function main() {
       "lib/stats.mjs",
       "lib/schema.mjs",
       "lib/env-browser.mjs",
+      "lib/presentation-shader.mjs",
     ]) {
       const source = join(pkgRoot, file.startsWith("lib/") ? "scripts/bench" : "test-browser", file);
       const bytes = await readFile(source);
@@ -318,27 +320,40 @@ async function main() {
     console.log(firstLine);
     const marker = firstLine.split(" ", 1)[0];
 
-    if (marker === MARKER_PASS) {
+if (marker === MARKER_PASS) {
       const payload = parseSummaryLine(result);
       if (payload === null || !Array.isArray(payload.cases)) {
         console.error(`${MARKER_FAIL} harness PASSed but produced no parseable result document`);
         process.exitCode = 1;
         return;
       }
-      // merge the node-side commit into the browser-side document so the
-      // saved JSON always carries the exact tested commit
+      // merge the node-side commit + dirty-tree provenance into the
+      // browser-side document so the saved JSON always carries the exact
+      // tested commit and the cleanliness of the generating tree
+      const commit = gitCommitSync();
+      const dirty = isWorkingTreeDirty({ porcelain: gitStatusPorcelain() });
+      if (dirty && !allowDirty) {
+        console.error(
+          `${MARKER_FAIL} working tree is DIRTY: a baseline must be generated on a clean tree ` +
+            `so git checkout <commit> reproduces the runner (pass --allow-dirty for dev runs)`,
+        );
+        console.error(gitStatusPorcelain().split("\n").slice(0, 10).join("\n"));
+        process.exitCode = 1;
+        return;
+      }
       const doc = payload;
-      doc.commit = gitCommitSync();
+      doc.commit = commit;
+      doc.workingTreeDirty = dirty;
       await mkdir(dirname(jsonPath), { recursive: true });
       await writeFile(jsonPath, JSON.stringify(doc, null, 2), "utf8");
       console.log(
         `bench:gpu: wrote ${jsonPath} — ${doc.cases.length} cases, schema v${doc.schemaVersion}, ` +
-          `commit ${doc.commit}`,
+          `commit ${doc.commit}, workingTreeDirty=${doc.workingTreeDirty}`,
       );
       console.log(`bench:gpu: adapter=${doc.environment?.adapterName ?? "unknown"} backend=${doc.environment?.adapterBackend ?? "unknown"} timestamp-query=${doc.environment?.timestampQuerySupported ?? false}`);
       process.exitCode = 0;
     } else if (marker === MARKER_SKIP) {
-      console.error("bench:gpu: SKIP — only a real-adapter PASS counts");
+      console.error("bench:gpu: SKIP - only a real-adapter PASS counts");
       console.error(result.split("\n").slice(1).join("\n"));
       process.exitCode = 1;
     } else {

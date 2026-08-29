@@ -17,7 +17,7 @@ import type { HeightInputRange } from "./height-inputs";
 import { heightInputRanges, registerHeightInputProvenance } from "./height-inputs";
 import type { BandRegion } from "./tiles";
 import { assertBandRegion, planDispatchChunks } from "./tiles";
-import type { GpuTimestampWritesLike } from "./timestamp-profiler";
+import type { GpuTimestampQuerySetLike, GpuTimestampWritesLike } from "./timestamp-profiler";
 import { validateEncodedScene } from "./validate";
 import {
   COMPOSE_CASTER_HEIGHT_WGSL,
@@ -367,6 +367,23 @@ export interface MaskWorkspaceLayout {
 }
 
 /**
+ * #46 benchmark-only substage timing seam for HeightPass: the caller owns
+ * a timestamp query set with FOUR consecutive queries
+ * `[sdfBegin, sdfEnd, composeBegin, composeEnd]`; the SDF pass writes the
+ * sdf pair and the first/last compose pass write the compose pair, so the
+ * benchmark can separate mask-SDF GPU time from total compose GPU time
+ * without touching the pipeline's stage-level profiling. Production frames
+ * never set this.
+ */
+export interface HeightPassSubstageTimestamps {
+  readonly querySet: GpuTimestampQuerySetLike;
+  /** query index of the SDF pass's beginning (end at +1) */
+  readonly sdfBeginIndex: number;
+  /** query index of the compose stage's beginning (end at +1) */
+  readonly composeBeginIndex: number;
+}
+
+/**
  * Genuinely derived per-mask workspace layout. Every value that will be
  * packed into a WGSL u32 or used by in-shader u32 arithmetic is
  * bounds-checked HERE, before any device call: each per-mask padded cell
@@ -488,6 +505,16 @@ export class HeightPass {
       readonly region?: BandRegion;
       readonly candidates?: readonly number[];
       readonly timestampWrites?: GpuTimestampWritesLike;
+      /**
+       * #46 benchmark-only substage timing seam: separates the mask-SDF
+       * pass time from the total compose time with TWO query pairs in a
+       * caller-owned query set (4 queries: sdfBegin, sdfEnd,
+       * composeBegin, composeEnd at the given base indices). Mutually
+       * exclusive with `timestampWrites` (WebGPU allows at most one
+       * timestampWrites per pass). Production frames never set this; the
+       * pipeline's stage-level profiling is untouched.
+       */
+      readonly substageTimestamps?: HeightPassSubstageTimestamps;
     },
   ): HeightPassDispatchStats {
     const validation = validateEncodedScene(scene.bytes);
@@ -512,6 +539,12 @@ export class HeightPass {
       throw new Error(
         "candidate surface indices require a partial dispatch region: full frames " +
           "use the maskMeta sentinel and iterate every original index",
+      );
+    }
+    if (options?.substageTimestamps !== undefined && options.timestampWrites !== undefined) {
+      throw new Error(
+        "substageTimestamps and timestampWrites are mutually exclusive: " +
+          "a WebGPU pass carries at most one timestampWrites descriptor",
       );
     }
     const { offsets: maskOffsets, workspaceBytes } = this.readMaskWorkspaceOffsets(
@@ -567,13 +600,16 @@ export class HeightPass {
 
     let maskSdfPasses = 0;
     let submissions = 0;
+    const substage = options?.substageTimestamps;
     if (composeChunks === null) {
       // Historical frame: the SDF pass and all five compose passes share
       // exactly one encoder and one queue submission.
       const encoder = this.device.createCommandEncoder({ label: "ukibori-height-pass" });
       if (totalMaskCells > 0) {
         const pass = encoder.beginComputePass(
-          timestampDescriptor(options?.timestampWrites, true, false),
+          substage !== undefined
+            ? substageTimestampDescriptor(substage, substage.sdfBeginIndex, true, true)
+            : timestampDescriptor(options?.timestampWrites, true, false),
         );
         pass.setPipeline(cached.sdfPipeline);
         pass.setBindGroup(0, sceneGroup);
@@ -584,11 +620,18 @@ export class HeightPass {
       }
       for (let i = 0; i < COMPOSE_PASSES.length; i++) {
         const pass = encoder.beginComputePass(
-          timestampDescriptor(
-            options?.timestampWrites,
-            totalMaskCells === 0 && i === 0,
-            i === COMPOSE_PASSES.length - 1,
-          ),
+          substage !== undefined
+            ? substageTimestampDescriptor(
+                substage,
+                substage.composeBeginIndex,
+                i === 0,
+                i === COMPOSE_PASSES.length - 1,
+              )
+            : timestampDescriptor(
+                options?.timestampWrites,
+                totalMaskCells === 0 && i === 0,
+                i === COMPOSE_PASSES.length - 1,
+              ),
         );
         pass.setPipeline(cached.composePipelines[i]);
         pass.setBindGroup(0, sceneGroup);
@@ -616,7 +659,9 @@ export class HeightPass {
       if (totalMaskCells > 0) {
         const encoder = this.device.createCommandEncoder({ label: "ukibori-height-pass" });
         const pass = encoder.beginComputePass(
-          timestampDescriptor(options?.timestampWrites, true, false),
+          substage !== undefined
+            ? substageTimestampDescriptor(substage, substage.sdfBeginIndex, true, true)
+            : timestampDescriptor(options?.timestampWrites, true, false),
         );
         pass.setPipeline(cached.sdfPipeline);
         pass.setBindGroup(0, sceneGroup);
@@ -636,11 +681,18 @@ export class HeightPass {
         const encoder = this.device.createCommandEncoder({ label: "ukibori-height-pass" });
         for (let i = 0; i < COMPOSE_PASSES.length; i++) {
           const pass = encoder.beginComputePass(
-            timestampDescriptor(
-              options?.timestampWrites,
-              totalMaskCells === 0 && chunkIndex === 0 && i === 0,
-              isLastChunk && i === COMPOSE_PASSES.length - 1,
-            ),
+            substage !== undefined
+              ? substageTimestampDescriptor(
+                  substage,
+                  substage.composeBeginIndex,
+                  chunkIndex === 0 && i === 0,
+                  isLastChunk && i === COMPOSE_PASSES.length - 1,
+                )
+              : timestampDescriptor(
+                  options?.timestampWrites,
+                  totalMaskCells === 0 && chunkIndex === 0 && i === 0,
+                  isLastChunk && i === COMPOSE_PASSES.length - 1,
+                ),
           );
           pass.setPipeline(cached.composePipelines[i]);
           pass.setBindGroup(0, sceneGroup);
@@ -1167,6 +1219,28 @@ function timestampDescriptor(
       ...(end && writes.endOfPassWriteIndex !== undefined
         ? { endOfPassWriteIndex: writes.endOfPassWriteIndex }
         : {}),
+    },
+  };
+}
+
+/**
+ * #46 benchmark-only substage timestamp descriptor: a caller-owned
+ * `substageTimestamps` object writes the SDF pair on the SDF pass and the
+ * compose pair on the first/last compose pass. `undefined` when the pass
+ * contributes neither boundary (mirrors `timestampDescriptor`).
+ */
+function substageTimestampDescriptor(
+  substage: HeightPassSubstageTimestamps,
+  beginIndex: number,
+  beginning: boolean,
+  end: boolean,
+): { readonly timestampWrites: GpuTimestampWritesLike } | undefined {
+  if (!beginning && !end) return undefined;
+  return {
+    timestampWrites: {
+      querySet: substage.querySet,
+      ...(beginning ? { beginningOfPassWriteIndex: beginIndex } : {}),
+      ...(end ? { endOfPassWriteIndex: beginIndex + 1 } : {}),
     },
   };
 }

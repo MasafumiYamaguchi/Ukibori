@@ -224,6 +224,21 @@ export class UkiboriDom {
   private lastDpr = 1;
   private lastRenderSize: { width: number; height: number } | null = null;
   private lastRenderMs = 0;
+  /** #46 debug seam: wall-clock ms of the last render's DOM measurement loop */
+  private lastMeasureMs = 0;
+  /** #46 debug seam: wall-clock ms of the last render's scene build */
+  private lastSceneBuildMs = 0;
+  /** #46 debug seam: entries measured by the last render's measurement loop */
+  private lastMeasuredEntries = 0;
+  /**
+   * #46 frame-local provenance: monotonically increasing serials so a
+   * consumer can tell whether THIS render attempt actually ran the
+   * measurement loop / scene build (a skipped or retained render must not
+   * inherit stale previous-frame timings).
+   */
+  private renderSerial = 0;
+  private measureSerial = 0;
+  private sceneBuildSerial = 0;
   private lastBuffers: LightingBuffers | null = null;
   private lastObjectId: HostBuffer | null = null;
 
@@ -754,6 +769,9 @@ export class UkiboriDom {
     const startedAt = performance.now();
 
     let geometryChanged = false;
+    this.renderSerial += 1;
+    const measureStartedAt = performance.now();
+    let measuredEntries = 0;
     for (const entry of this.registry.entries()) {
       if (entry.dirty || entry.geometry === null) {
         entry.dirty = false;
@@ -764,11 +782,17 @@ export class UkiboriDom {
           this.onError(error);
           continue;
         }
+        measuredEntries += 1;
         if (!geometriesEqual(geometry, entry.geometry)) {
           entry.geometry = geometry;
           geometryChanged = true;
         }
       }
+    }
+    this.lastMeasureMs = performance.now() - measureStartedAt;
+    this.lastMeasuredEntries = measuredEntries;
+    if (measuredEntries > 0) {
+      this.measureSerial += 1;
     }
 
     if (
@@ -799,6 +823,7 @@ export class UkiboriDom {
     }
 
     const dpr = this.currentDpr();
+    const sceneBuildStartedAt = performance.now();
     let scene: ReturnType<typeof buildScene>;
     try {
       scene = buildScene({
@@ -815,6 +840,8 @@ export class UkiboriDom {
       this.lastRenderMs = performance.now() - startedAt;
       return;
     }
+    this.lastSceneBuildMs = performance.now() - sceneBuildStartedAt;
+    this.sceneBuildSerial += 1;
 
     const painted =
       this.gpuPipeline !== null
@@ -1018,6 +1045,12 @@ export class UkiboriDom {
       region: this.lastRegion === null ? null : { ...this.lastRegion },
       dpr: this.lastDpr,
       lastRenderMs: this.lastRenderMs,
+      lastMeasureMs: this.lastMeasureMs,
+      lastSceneBuildMs: this.lastSceneBuildMs,
+      lastMeasuredEntries: this.lastMeasuredEntries,
+      renderSerial: this.renderSerial,
+      measureSerial: this.measureSerial,
+      sceneBuildSerial: this.sceneBuildSerial,
       renderSize: this.lastRenderSize === null ? null : { ...this.lastRenderSize },
       backend: this.gpuPipeline !== null ? "webgpu" : "cpu",
       gpuFallbackReason: this.gpuFallbackReason,

@@ -1,7 +1,7 @@
-// #46 deterministic reusable benchmark scene fixtures (§22). Every suite
-// (CPU/GPU/DOM) imports scenes from this single module — a benchmark script
+// #46 deterministic reusable benchmark scene fixtures (#22). Every suite
+// (CPU/GPU/DOM) imports scenes from this single module - a benchmark script
 // never inlines its own scene definition. All placement is deterministic
-// (no Math.random anywhere).
+// (no random number generation anywhere).
 //
 // Scene families:
 //   simple-rounded-rect     one raised slab on a full panel
@@ -234,9 +234,10 @@ export function maskHeavyScene({ width, height, maskCount, maskResolution, dpr =
 }
 
 export function shadowScene({ width, height, travel, angularRadius, dpr = 1 }) {
-  // travel: "short" | "medium" | "long" — scales the shadow maxDistance the
-  // scheduler derives from the scene diagonal/light direction.
-  const travelScale = travel === "short" ? 0.1 : travel === "medium" ? 0.3 : 0.8;
+  // travel: "short" | "medium" | "long" - the benchmark suite maps these to
+  // EXPLICIT maxDistance values (short 40 / medium 120 / long 300 scene
+  // units) so the ray-march workload really differs between the cases; the
+  // scene itself carries no benchmark-only metadata.
   return {
     width,
     height,
@@ -272,7 +273,6 @@ export function shadowScene({ width, height, travel, angularRadius, dpr = 1 }) {
       angularRadius: Math.fround(angularRadius),
     },
     // exported hint consumed by the benchmark to set a bounded maxDistance
-    travelScale,
   };
 }
 
@@ -326,7 +326,7 @@ export function reconstructionHeavyScene({ width, height, dpr = 1 }) {
   };
 }
 
-export function partialEditScene({ width, height, edit = null, dpr = 1 }) {
+export function partialEditScene({ width, height, edit = null, grow = 0, dpr = 1 }) {
   const base = {
     width,
     height,
@@ -348,8 +348,21 @@ export function partialEditScene({ width, height, edit = null, dpr = 1 }) {
         receivesShadow: true,
       },
       {
+        id: "slab",
+        position: { x: 16, y: 16 },
+        size: { x: 60, y: 40 },
+        elevation: 0,
+        thickness: 16,
+        bevelWidth: 4,
+        shape: { kind: "roundedRect", radius: 10 },
+        profile: { kind: "bevel" },
+        material: "silicone",
+        castsShadow: true,
+        receivesShadow: true,
+      },
+      {
         id: "btn-a",
-        position: { x: Math.floor(width * 0.2), y: Math.floor(height * 0.25) },
+        position: { x: Math.floor(width * 0.2), y: Math.floor(height * 0.55) },
         size: { x: 80, y: 44 },
         elevation: 2,
         thickness: 3,
@@ -362,7 +375,7 @@ export function partialEditScene({ width, height, edit = null, dpr = 1 }) {
       },
       {
         id: "btn-b",
-        position: { x: Math.floor(width * 0.55), y: Math.floor(height * 0.5) },
+        position: { x: Math.floor(width * 0.6), y: Math.floor(height * 0.8) },
         size: { x: 60, y: 40 },
         elevation: 1,
         thickness: 2,
@@ -372,28 +385,32 @@ export function partialEditScene({ width, height, edit = null, dpr = 1 }) {
         castsShadow: true,
         receivesShadow: true,
       },
-      {
-        id: "badge",
-        position: { x: Math.floor(width * 0.1), y: Math.floor(height * 0.65) },
-        size: { x: 24, y: 24 },
-        elevation: 4,
-        thickness: 2,
-        shape: { kind: "roundedRect", radius: 6 },
-        profile: { kind: "flat" },
-        material: "silicone",
-        castsShadow: true,
-        receivesShadow: true,
-      },
     ],
   };
-  if (edit === null) return base;
-  // dirty ratio 1%..100% by shifting btn-a across the scene width; the rest
-  // of the scene is untouched, so the diff is exactly the moved surface.
+  if (edit === null && grow === 0) return base;
+  // #46 review: the `edit` knob moves the slab HORIZONTALLY across the
+  // scene (its y stays fixed), so the planner's actual dirty region - the
+  // union of the old and new footprints plus the shadow halo - grows
+  // monotonically with `edit` while the dispatch band stays a narrow row
+  // band (partial mode preserved across the whole knob range). The `grow`
+  // knob stretches the slab's HEIGHT instead, which widens the dirty band
+  // and drives the planner toward its full fallback (coverage > 0.5).
+  // Both knobs are only input knobs: the report's canonical dirty ratio
+  // ALWAYS comes from the planner's dirtyTexels/totalTexels.
+  const maxDx = Math.max(0, width - 60 - 32);
+  const slabHeight = Math.min(height - 96, Math.round(40 * (1 + grow)));
   return {
     ...base,
     surfaces: base.surfaces.map((s) =>
-      s.id === "btn-a"
-        ? { ...s, position: { x: Math.floor(width * edit), y: Math.floor(height * 0.25) } }
+      s.id === "slab"
+        ? {
+            ...s,
+            position: {
+              x: 16 + Math.round(maxDx * edit),
+              y: 16,
+            },
+            size: { x: 60, y: slabHeight },
+          }
         : s,
     ),
   };

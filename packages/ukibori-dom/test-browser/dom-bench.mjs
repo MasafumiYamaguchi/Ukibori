@@ -1,10 +1,12 @@
-// #46 DOM integration benchmark (§D/§14): ukibori-dom browser benchmark.
+// #46 DOM integration benchmark (#D/#14): ukibori-dom browser benchmark.
 //
 // Measures the DOM layer SEPARATELY from GPU work, with the REAL
 // MutationObserver / ResizeObserver paths (observe: true) and the real
 // WebGPU renderer:
-//   - registered surface re-measurement (getBoundingClientRect count)
+//   - registered surface re-measurement (getBoundingClientRect count + ms)
+//   - getComputedStyle() count + ms (benchmark-only instrumentation)
 //   - dirty entries, scene rebuild, renderer invocation, skipped render
+//   - measurement time / scene-build time (debugState seams)
 //   - the complete DOM -> presented frame wall time per scenario
 //
 // Scenarios (per registered-surface count):
@@ -13,6 +15,11 @@
 //   unrelated-mutation one unrelated DOM mutation (document MutationObserver)
 //   frequent-mutations one unrelated mutation per frame
 //   scroll             document-relative geometry unchanged
+//
+// EVERY scenario runs `warmup` untimed frames then `samples` timed frames
+// (query parameters; defaults keep a full run manageable). The mount-time
+// observer/scheduled-renderer work is fully drained (bounded settle loop)
+// before any measurement.
 //
 // Marker contract identical to the renderer harness: first line
 // UKIBORI_DOM_BENCH_PASS/FAIL/SKIP + `SUMMARY <json>` (the versioned result
@@ -24,6 +31,7 @@ import {
   createResultDocument,
   validateResultDocument,
 } from "@ukibori-bench/schema";
+import { drainLoop, installCounter } from "./dom-bench-helpers.mjs";
 
 const RESULT_EL = document.getElementById("result");
 const MARKER_PASS = "UKIBORI_DOM_BENCH_PASS";
@@ -31,8 +39,8 @@ const MARKER_FAIL = "UKIBORI_DOM_BENCH_FAIL";
 const MARKER_SKIP = "UKIBORI_DOM_BENCH_SKIP";
 
 const query = new URLSearchParams(location.search);
-const WARMUP = Number(query.get("warmup") ?? 2);
-const SAMPLES = Number(query.get("samples") ?? 5);
+const WARMUP = Number(query.get("warmup") ?? 5);
+const SAMPLES = Number(query.get("samples") ?? 20);
 const SURFACE_QUERY = query.get("surfaces") ?? "1,10,50,100,250,500,1000";
 
 const cases = [];
@@ -49,28 +57,67 @@ function flush() {
     cb();
   }
 }
-/** Let MutationObserver / ResizeObserver callbacks deliver, then flush. */
-async function settle() {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  flush();
+
+/**
+ * Bounded observer drain with frame-local timing decomposition: the caller
+ * times the flush callbacks (`callbackHostMs`) and the wait turns
+ * (`settleWallMs`) separately. `skipIdleWait` lets event-less scenarios
+ * (stable-page) skip the setTimeout(0) scheduler floor entirely so it is
+ * never billed as Ukibori work.
+ */
+async function drain({ skipIdleWait = false, callbackTimer = null, settleTimer = null } = {}) {
+  const outcome = await drainLoop({
+    wait: () => {
+      const t0 = performance.now();
+      return new Promise((resolve) =>
+        setTimeout(() => {
+          if (settleTimer !== null) {
+            settleTimer.ms += performance.now() - t0;
+          }
+          resolve();
+        }, 0),
+      );
+    },
+    hasPending: () => pending.length > 0,
+    flush: () => {
+      const t0 = performance.now();
+      flushPending();
+      if (callbackTimer !== null) {
+        callbackTimer.ms += performance.now() - t0;
+      }
+    },
+    skipIdleWait,
+  });
+  if (!outcome.drained) {
+    notes.push(`observer drain hit the ${outcome.passes}-pass cap (work may still be pending)`);
+  }
+  return outcome;
 }
 
-let rectCalls = 0;
-function instrument() {
-  const proto = Element.prototype;
-  const desc = Object.getOwnPropertyDescriptor(proto, "getBoundingClientRect");
-  if (desc !== undefined && desc.value !== undefined && !desc.value.__benchmarked) {
-    const original = desc.value;
-    const wrapped = function (...args) {
-      rectCalls += 1;
-      return original.apply(this, args);
-    };
-    wrapped.__benchmarked = true;
-    Object.defineProperty(proto, "getBoundingClientRect", {
-      ...desc,
-      value: wrapped,
-    });
+function flushPending() {
+  const copy = [...pending];
+  pending.length = 0;
+  for (const cb of copy) {
+    cb();
   }
+}
+
+const rectCounter = { calls: 0, ms: 0 };
+const styleCounter = { calls: 0, ms: 0 };
+const restoreInstrumentation = [];
+function instrument() {
+  restoreInstrumentation.push(
+    installCounter(Element.prototype, "getBoundingClientRect", rectCounter),
+  );
+  restoreInstrumentation.push(
+    installCounter(window, "getComputedStyle", styleCounter),
+  );
+}
+function resetCounters() {
+  rectCounter.calls = 0;
+  rectCounter.ms = 0;
+  styleCounter.calls = 0;
+  styleCounter.ms = 0;
 }
 
 /** Deterministic document-relative geometry: left/top fixed per surface index. */
@@ -87,6 +134,13 @@ function mountStage(surfaceCount) {
   stage.style.width = "800px";
   stage.style.height = "1200px";
   document.body.appendChild(stage);
+  // a tall spacer makes the document scrollable so the scroll scenario can
+  // produce REAL scroll events (window.scrollTo) instead of faking them
+  const spacer = document.createElement("div");
+  spacer.id = "bench-spacer";
+  spacer.style.height = "2400px";
+  spacer.style.width = "1px";
+  document.body.appendChild(spacer);
   const buttons = [];
   for (let i = 0; i < surfaceCount; i++) {
     const button = document.createElement("button");
@@ -113,7 +167,7 @@ function mountStage(surfaceCount) {
   // as the layer's own output (isManagedMutation), so an unrelated mutation
   // must live on a sibling to exercise the document MutationObserver path.
   document.body.appendChild(unrelated);
-  return { stage, buttons, unrelated };
+  return { stage, buttons, unrelated, spacer };
 }
 
 const BUTTON_OPTIONS = (i) => ({
@@ -124,9 +178,8 @@ const BUTTON_OPTIONS = (i) => ({
   material: "silicone",
 });
 
-async function measureScenario(scenario, surfaceCount, { frames = 1 }) {
-  const { stage, buttons, unrelated } = mountStage(surfaceCount);
-  instrument();
+async function measureScenario(scenario, surfaceCount, { frames }) {
+  const { stage, buttons, unrelated, spacer } = mountStage(surfaceCount);
   const layer = await UkiboriDom.create({
     backend: "webgpu",
     observe: true,
@@ -146,50 +199,95 @@ async function measureScenario(scenario, surfaceCount, { frames = 1 }) {
     for (let i = 0; i < buttons.length; i++) {
       layer.register(buttons[i].button, BUTTON_OPTIONS(i));
     }
-    await settle(); // mount render (untimed)
-    rectCalls = 0;
+    // FULL mount drain before any measurement (mount observers/renderer
+    // callbacks must be quiescent, or the first measured frame inherits
+    // stray mount work)
+    await drain();
+    await drain();
+    resetCounters();
     const perFrame = [];
     for (let frame = 0; frame < frames; frame++) {
-      const beforeRects = rectCalls;
+      const beforeRects = rectCounter.calls;
+      const beforeStyles = styleCounter.calls;
       const beforePipelines = pipelineInvocations;
       const beforeFrame = layer.debugState().gpuFrame;
+      // frame-local provenance serials: only a frame whose serial advanced
+      // may attribute the timing values (stale previous-frame values are
+      // forbidden for measurement/scene-build)
+      const beforeSerials = {
+        render: layer.debugState().renderSerial,
+        measure: layer.debugState().measureSerial,
+        scene: layer.debugState().sceneBuildSerial,
+      };
+      const callbackTimer = { ms: 0 };
+      const settleTimer = { ms: 0 };
       const t0 = performance.now();
+      let triggerHostMs = 0;
       switch (scenario) {
         case "stable-page":
           break; // no DOM change at all
         case "one-surface-resize": {
           const target = buttons[0].button;
           const rect = surfaceRect(0);
+          const t1 = performance.now();
           target.style.left = `${rect.left + frame + 1}px`;
           target.style.top = `${rect.top + frame + 1}px`;
+          triggerHostMs = performance.now() - t1;
           break;
         }
         case "unrelated-mutation":
-        case "frequent-mutations":
+        case "frequent-mutations": {
+          const t1 = performance.now();
           unrelated.style.width = `${10 + frame + 1}px`;
+          triggerHostMs = performance.now() - t1;
           break;
-        case "scroll":
-          break; // geometry document-relative and unchanged
+        }
+        case "scroll": {
+          // REAL scroll path: move the viewport and let the layer's
+          // document scroll listener invalidate (capture phase). Geometry
+          // is document-relative, so the renderer is expected to skip.
+          const t1 = performance.now();
+          window.scrollTo(0, 10 + (frame % 200));
+          triggerHostMs = performance.now() - t1;
+          break;
+        }
         default:
           throw new Error(`unknown scenario ${scenario}`);
       }
-      await settle();
+      // stable-page produces no event at all: skip the idle settle floor
+      const skipIdleWait = scenario === "stable-page";
+      await drain({ skipIdleWait, callbackTimer, settleTimer });
       const totalMs = performance.now() - t0;
       const state = layer.debugState();
       const afterFrame = state.gpuFrame;
       const rendered = afterFrame !== beforeFrame;
       const gpuFrame = rendered ? afterFrame : null;
+      const measureRanThisFrame = state.measureSerial !== beforeSerials.measure;
+      const sceneBuiltThisFrame = state.sceneBuildSerial !== beforeSerials.scene;
       perFrame.push({
         totalMs,
-        rectCallsDelta: rectCalls - beforeRects,
+        callbackHostMs: callbackTimer.ms,
+        settleWallMs: settleTimer.ms,
+        triggerHostMs,
+        rectCallsDelta: rectCounter.calls - beforeRects,
+        styleCallsDelta: styleCounter.calls - beforeStyles,
         pipelineInvocationsDelta: pipelineInvocations - beforePipelines,
         rendered,
         dirtyCount: state.dirtyCount,
         lastRenderMs: state.lastRenderMs,
+        measureHostMs: measureRanThisFrame ? state.lastMeasureMs : 0,
+        measuredEntries: measureRanThisFrame ? state.lastMeasuredEntries : 0,
+        sceneBuildHostMs: sceneBuiltThisFrame ? state.lastSceneBuildMs : 0,
         executed: gpuFrame !== null ? gpuFrame.frame.invalidation.executed.join(",") : "",
         retained: gpuFrame !== null ? gpuFrame.frame.invalidation.retained === true : null,
         renderSize: state.renderSize !== null ? `${state.renderSize.width}x${state.renderSize.height}` : null,
       });
+    }
+    // time every frame (cheap), but only the last SAMPLES frames count:
+    // the first WARMUP frames are warmup and must never enter the summary
+    const timed = perFrame.slice(WARMUP);
+    if (timed.length !== SAMPLES) {
+      notes.push(`dom ${scenario} surfaces-${surfaceCount}: expected ${SAMPLES} timed frames, got ${timed.length}`);
     }
     pushCase(
       `dom/${scenario}/${surfaceCount}`,
@@ -202,21 +300,31 @@ async function measureScenario(scenario, surfaceCount, { frames = 1 }) {
         samples: SAMPLES,
       },
       {
-        wallMs: summarizeSeries(perFrame.map((f) => f.totalMs)),
-        rectCallsPerFrame: summarizeSeries(perFrame.map((f) => f.rectCallsDelta)),
-        rendererInvocationsPerFrame: summarizeSeries(perFrame.map((f) => f.pipelineInvocationsDelta)),
-        skippedRenderPerFrame: summarizeSeries(perFrame.map((f) => (f.rendered ? 0 : 1))),
-        dirtyCountPerFrame: summarizeSeries(perFrame.map((f) => f.dirtyCount)),
-        lastRenderMsPerFrame: summarizeSeries(perFrame.map((f) => f.lastRenderMs)),
-        executed: perFrame.map((f) => f.executed).filter((v, i, a) => a.indexOf(v) === i).join("|"),
-        retained: perFrame.map((f) => (f.retained === true ? 1 : 0)).reduce((a, b) => a + b, 0) / perFrame.length,
-        renderSize: perFrame[perFrame.length - 1].renderSize,
+        wallMs: summarizeSeries(timed.map((f) => f.totalMs)),
+        callbackHostMsPerFrame: summarizeSeries(timed.map((f) => f.callbackHostMs)),
+        settleWallMsPerFrame: summarizeSeries(timed.map((f) => f.settleWallMs)),
+        triggerHostMsPerFrame: summarizeSeries(timed.map((f) => f.triggerHostMs)),
+        rectCallsPerFrame: summarizeSeries(timed.map((f) => f.rectCallsDelta)),
+        computedStyleCallsPerFrame: summarizeSeries(timed.map((f) => f.styleCallsDelta)),
+        rendererInvocationsPerFrame: summarizeSeries(timed.map((f) => f.pipelineInvocationsDelta)),
+        skippedRenderPerFrame: summarizeSeries(timed.map((f) => (f.rendered ? 0 : 1))),
+        dirtyCountPerFrame: summarizeSeries(timed.map((f) => f.dirtyCount)),
+        measureHostMsPerFrame: summarizeSeries(timed.map((f) => f.measureHostMs)),
+        measuredEntriesPerFrame: summarizeSeries(timed.map((f) => f.measuredEntries)),
+        sceneBuildHostMsPerFrame: summarizeSeries(timed.map((f) => f.sceneBuildHostMs)),
+        lastRenderMsPerFrame: summarizeSeries(timed.map((f) => f.lastRenderMs)),
+        executed: timed.map((f) => f.executed).filter((v, i, a) => a.indexOf(v) === i).join("|"),
+        retained: timed.map((f) => (f.retained === true ? 1 : 0)).reduce((a, b) => a + b, 0) / timed.length,
+        renderSize: timed[timed.length - 1].renderSize,
         backend: layer.debugState().backend,
       },
     );
   } finally {
     layer.dispose();
     stage.remove();
+    unrelated.remove();
+    spacer.remove();
+    window.scrollTo(0, 0);
   }
 }
 
@@ -251,11 +359,13 @@ async function main() {
     "scroll",
   ];
   try {
+    instrument();
     for (const surfaceCount of surfaceCounts) {
       for (const scenario of scenarios) {
         notes.push(`dom ${scenario} surfaces-${surfaceCount} start`);
-        const frames = scenario === "frequent-mutations" ? Math.max(10, SAMPLES) : 1;
-        await measureScenario(scenario, surfaceCount, { frames });
+        // warmup frames are NOT counted: every scenario runs WARMUP + SAMPLES
+        // frames and only the last SAMPLES are timed
+        await measureScenario(scenario, surfaceCount, { frames: WARMUP + SAMPLES });
         notes.push(`dom ${scenario} surfaces-${surfaceCount} done`);
       }
     }
@@ -263,6 +373,8 @@ async function main() {
       environment: {
         timestamp: new Date().toISOString(),
         userAgent: navigator.userAgent,
+        browser: /Chrome\//.test(navigator.userAgent) ? "chrome" : "unknown",
+        headless: navigator.webdriver === true,
         devicePixelRatio: window.devicePixelRatio,
         backend: "webgpu",
       },

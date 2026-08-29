@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// #46 CPU reference benchmark (§C): the CPU oracle pipeline mirroring the
+// #46 CPU reference benchmark (#C): the CPU oracle pipeline mirroring the
 // GPU stages, measured with the median over a warmed JIT.
 //
 //   node scripts/bench-cpu.mjs [--suite NAME] [--json out.json]
@@ -18,7 +18,7 @@
 //
 // The default extent is 320x180 and the default sample count is small
 // because the CPU oracle is O(texels x surfaces x samples); pass
-// --resolution 640x360 --samples 20 for the §24 representative numbers.
+// --resolution 640x360 --samples 20 for the #24 representative numbers.
 // Every result lands in the versioned JSON document (schema.mjs).
 
 import { existsSync } from "node:fs";
@@ -28,6 +28,8 @@ import { fileURLToPath } from "node:url";
 import {
   collectNodeEnvironment,
   gitCommitSync,
+  gitStatusPorcelain,
+  isWorkingTreeDirty,
 } from "./bench/lib/env-node.mjs";
 import { summarizeSeries, median } from "./bench/lib/stats.mjs";
 import {
@@ -53,7 +55,7 @@ if (!existsSync(bundlePath)) {
   console.error(
     "bench-cpu.mjs: built bundle not found at " +
       bundlePath +
-      "  Erun `npm run build -w ukibori-renderer` first",
+      "  Erun `npm run build -w ukibori-renderer` first",
   );
   process.exit(1);
 }
@@ -112,13 +114,49 @@ function reportStage(table, { label, summary, extra = {} }) {
     minMs: summary.min,
     maxMs: summary.max,
     samples: summary.samples,
+    summary,
     ...extra,
   });
 }
 
 // ---------------------------------------------------------------------------
-// CPU stage pipeline (mirrors the GPU stage chain; see §C)
+// CPU stage pipeline (mirrors the GPU stage chain; see #C)
 // ---------------------------------------------------------------------------
+
+/**
+ * The compositing stage ALONE (benchmarkable separately): final RGBA byte
+ * synthesis from the shading color + ownership + visibility fields, exactly
+ * the loop inside cpuFrameStages.
+ */
+function cpuCompositeStage(composed, visibility, color) {
+  const width = composed.height.spec.width;
+  const height = composed.height.spec.height;
+  const out = new Uint8Array(width * height * 4);
+  const objectId = composed.objectId.data;
+  const visibilityData = visibility.data;
+  const colorData = color.data;
+  const shadowByte = api.compositeShadowPremultipliedStrengthBytes(1);
+  const shadowAlpha = shadowByte[3];
+  for (let i = 0; i < objectId.length; i++) {
+    const o = objectId[i];
+    const v = visibilityData[i];
+    const p = i * 4;
+    if (o === api.NO_OWNER && v < 1) {
+      const s = Math.max(0, 1 - v);
+      const alphaByte = Math.round(shadowAlpha * s);
+      out[p] = Math.round(((shadowByte[0] * shadowAlpha) / 255) * s);
+      out[p + 1] = Math.round(((shadowByte[1] * shadowAlpha) / 255) * s);
+      out[p + 2] = Math.round(((shadowByte[2] * shadowAlpha) / 255) * s);
+      out[p + 3] = alphaByte;
+    } else if (o !== api.NO_OWNER) {
+      out[p] = colorData[p];
+      out[p + 1] = colorData[p + 1];
+      out[p + 2] = colorData[p + 2];
+      out[p + 3] = 255;
+    }
+  }
+  return out;
+}
 
 function cpuFrameStages(scene, { samples: shadowSamples = 4, reconstruction = undefined } = {}) {
   const composed = api.composeSdfHeightField(scene);
@@ -135,12 +173,18 @@ function cpuFrameStages(scene, { samples: shadowSamples = 4, reconstruction = un
           objectId: composed.objectId,
         }, reconstruction)
       : raw;
-  api.shadePreparedFields(scene, {
+  const shaded = api.shadePreparedFields(scene, {
     normal,
     objectId: composed.objectId,
     visibility,
   });
-  return { composed, caster, normal, raw, visibility };
+  // #46 compositing: the final RGBA byte synthesis the presentation stage
+  // performs — for every base-plane texel (NO_OWNER) with partial
+  // visibility, the premultiplied shadow byte replaces the transparent
+  // clear; surface texels keep their shading bytes. Mirrors the GPU
+  // presentation shader's composite op (the same oracle family).
+  const finalBytes = cpuCompositeStage(composed, visibility, shaded.color);
+  return { composed, caster, normal, raw, visibility, color: shaded.color, finalBytes };
 }
 
 function caseId(prefix, params) {
@@ -179,11 +223,17 @@ function suiteStage() {
     objectId: composed.objectId,
   }, { enabled: true, radius: 2 }), "reconstruction (radius 2)"));
   const normal = api.computeNormals(composed.height);
+  const shaded = api.shadePreparedFields(scene, {
+    normal,
+    objectId: composed.objectId,
+    visibility: raw,
+  });
   reportStage(table, benchStage(() => api.shadePreparedFields(scene, {
     normal,
     objectId: composed.objectId,
     visibility: raw,
   }), "lighting (shade + RGBA bytes)"));
+  reportStage(table, benchStage(() => cpuCompositeStage(composed, raw, shaded.color), "compositing (final RGBA synthesis)"));
   for (const row of table) {
     console.log(
       `  ${row.label.padEnd(34)} median ${row.medianMs.toFixed(3)}ms  ` +
@@ -194,7 +244,7 @@ function suiteStage() {
     cases.push({
       id: caseId("cpu/stage", { resolution, stage: row.label.replace(/\s+/g, "-") }),
       parameters: { suite: "stage", resolution, stage: row.label, warmups: warmup, samples },
-      metrics: { hostMs: row },
+      metrics: { hostMs: row.summary },
     });
   }
   return cases;
@@ -219,7 +269,7 @@ function suiteResolution() {
     );
     cases.push({
       id: caseId("cpu/resolution", { w, h }),
-      parameters: { suite: "resolution", width: w, height: h, scene: SCENE_FAMILIES.simpleRoundedRect },
+      parameters: { suite: "resolution", warmups: warmup, samples, width: w, height: h, scene: SCENE_FAMILIES.simpleRoundedRect },
       metrics: { hostMs: full.summary, texels: w * h },
     });
   }
@@ -240,7 +290,7 @@ function suiteSurface() {
     );
     cases.push({
       id: caseId("cpu/surface", { count }),
-      parameters: { suite: "surface", surfaceCount: count, resolution, scene: SCENE_FAMILIES.surfaceGrid },
+      parameters: { suite: "surface", warmups: warmup, samples, surfaceCount: count, resolution, scene: SCENE_FAMILIES.surfaceGrid },
       metrics: { hostMs: full.summary, texels: resW * resH },
     });
   }
@@ -271,7 +321,7 @@ function suiteMask() {
     );
     cases.push({
       id: caseId("cpu/mask", { maskCount, maskResolution: 32 }),
-      parameters: { suite: "mask", maskCount, maskResolution: 32, resolution, scene: SCENE_FAMILIES.maskHeavy },
+      parameters: { suite: "mask", warmups: warmup, samples, maskCount, maskResolution: 32, resolution, scene: SCENE_FAMILIES.maskHeavy },
       metrics: {
         sdfHostMs: sdfOnly.summary,
         fullHostMs: full.summary,
@@ -293,7 +343,7 @@ function suiteMask() {
     );
     cases.push({
       id: caseId("cpu/mask-resolution", { maskResolution, maskCount: 16 }),
-      parameters: { suite: "mask", maskCount: 16, maskResolution, resolution, scene: SCENE_FAMILIES.maskHeavy },
+      parameters: { suite: "mask", warmups: warmup, samples, maskCount: 16, maskResolution, resolution, scene: SCENE_FAMILIES.maskHeavy },
       metrics: { sdfHostMs: sdfOnly.summary },
     });
   }
@@ -322,7 +372,7 @@ function suiteShadow() {
       );
       cases.push({
         id: caseId("cpu/shadow", { samples: shadowSamples, angularRadius }),
-        parameters: { suite: "shadow", samples: shadowSamples, angularRadius, resolution, scene: SCENE_FAMILIES.softShadow },
+        parameters: { suite: "shadow", warmups: warmup, samples, samples: shadowSamples, angularRadius, resolution, scene: SCENE_FAMILIES.softShadow },
         metrics: { hostMs: stage.summary, texels: resW * resH },
       });
     }
@@ -352,7 +402,7 @@ function suiteReconstruction() {
     const taps = (2 * radius + 1) ** 2;
     cases.push({
       id: caseId("cpu/reconstruction", { radius }),
-      parameters: { suite: "reconstruction", radius, tapsPerTexel: taps, resolution, scene: SCENE_FAMILIES.reconstructionHeavy },
+      parameters: { suite: "reconstruction", warmups: warmup, samples, radius, tapsPerTexel: taps, resolution, scene: SCENE_FAMILIES.reconstructionHeavy },
       metrics: { hostMs: stage.summary, texels: resW * resH, totalTaps: resW * resH * taps },
     });
   }
@@ -375,7 +425,7 @@ function suitePartial() {
     );
     cases.push({
       id: caseId("cpu/partial", { ratio: Math.round(ratio * 100) }),
-      parameters: { suite: "partial", dirtyRatio: Math.round(ratio * 100), resolution, scene: SCENE_FAMILIES.partialEdit },
+      parameters: { suite: "partial", warmups: warmup, samples, dirtyRatio: Math.round(ratio * 100), resolution, scene: SCENE_FAMILIES.partialEdit },
       metrics: { hostMs: stage.summary },
     });
   }
@@ -398,7 +448,7 @@ function suiteUpload() {
   for (const row of rows) {
     cases.push({
       id: caseId("cpu/upload", { scene: row.label }),
-      parameters: { suite: "upload", scene: row.label, resolution },
+      parameters: { suite: "upload", warmups: warmup, samples, scene: row.label, resolution },
       metrics: { hostMs: row.summary, encodedBytes: row.bytes },
     });
   }
@@ -428,7 +478,7 @@ if (missing.length > 0) {
 }
 
 console.log(
-  `#46 CPU reference benchmark  E${resolution}, warmup ${warmup}, samples ${samples}, ` +
+  `#46 CPU reference benchmark  E${resolution}, warmup ${warmup}, samples ${samples}, ` +
     `node ${process.version}, ${collectNodeEnvironment().cpuModel}`,
 );
 const cases = [];
@@ -436,11 +486,22 @@ for (const name of selected) {
   cases.push(...SUITE_RUNNERS[name]());
 }
 
+const dirty = isWorkingTreeDirty({ porcelain: gitStatusPorcelain() });
+const allowDirty = args.includes("--allow-dirty") || process.env.BENCH_ALLOW_DIRTY === "1";
+if (dirty && !allowDirty && jsonPath !== null) {
+  console.error(
+    "bench-cpu.mjs: working tree is DIRTY: a baseline must be generated on a clean tree " +
+      "so git checkout <commit> reproduces the runner (pass --allow-dirty for dev runs)",
+  );
+  console.error(gitStatusPorcelain().split("\n").slice(0, 10).join("\n"));
+  process.exit(1);
+}
 const doc = createResultDocument({
   commit: gitCommitSync(),
   environment: collectNodeEnvironment(),
   cases,
 });
+doc.workingTreeDirty = dirty;
 const problems = validateResultDocument(doc);
 if (problems.length > 0) {
   console.error("bench-cpu.mjs: result document failed validation:");

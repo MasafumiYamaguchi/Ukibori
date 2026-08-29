@@ -1,8 +1,11 @@
-// #46 shared benchmark statistics: median/p95/min/max over warmed samples.
+// #46 benchmark statistics: the suite's single timing-series contract.
 //
-// Every timing series in the suite flows through `summarizeSeries`, which
-// always reports the sample count and the four required quantiles so a
-// single-shot value can never be mistaken for a distribution.
+// Every timing series flows through `summarizeSeries`, which always reports
+// the sample count and the four required quantiles so a single-shot value
+// can never be mistaken for a distribution. `median` is the ONLY median
+// definition in the suite (arithmetic mean of the two middle values on even
+// counts); `summarizeSeries` delegates to it so the contract can never
+// drift between a nearest-rank and an interpolating definition.
 
 export function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
@@ -20,7 +23,7 @@ export function summarizeSeries(values) {
   const sorted = [...values].sort((a, b) => a - b);
   return {
     samples: sorted.length,
-    median: sorted.length === 0 ? null : percentile(sorted, 0.5),
+    median: sorted.length === 0 ? null : median(sorted),
     p95: sorted.length === 0 ? null : percentile(sorted, 0.95),
     min: sorted.length === 0 ? null : sorted[0],
     max: sorted.length === 0 ? null : sorted[sorted.length - 1],

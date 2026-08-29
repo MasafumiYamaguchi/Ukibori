@@ -17,12 +17,17 @@
 //     ]
 //   }
 //
-// Timing honesty rule (#46 §1A/§23): a metric key may only be labeled
-// `hostMs`, `gpuTimestampMs` or `wallMs` — never a bare `ms` when it could
+// Timing honesty rule (#46 #1A/#23): a metric key may only be labeled
+// `hostMs`, `gpuTimestampMs` or `wallMs` - never a bare `ms` when it could
 // be confused with a GPU timestamp. `validateResultDocument` rejects any
 // metric key that ENDS in `Ms` without one of the three canonical labels as
 // its suffix (e.g. `shadowGpuTimestampMs` and `planningHostMs` are fine;
 // `shadowMs` is not).
+//
+// Recursive validation: every NUMBER anywhere under `metrics` (nested
+// summaries, arrays, arbitrary containers) must be finite; `null` is
+// explicitly allowed (unsupported timing etc.); NaN/Infinity are rejected
+// with a path so JSON.stringify cannot silently null them.
 
 import { summarizeSeries } from "./stats.mjs";
 
@@ -30,10 +35,57 @@ export const BENCHMARK_SCHEMA_VERSION = 1;
 
 const TIMING_KEY_RE = /Ms$/;
 const CANONICAL_TIMING_SUFFIXES = ["hostMs", "gpuTimestampMs", "wallMs"];
+const SUMMARY_KEYS = ["samples", "median", "p95", "min", "max"];
 
 function isCanonicalTimingKey(key) {
   const normalized = key.toLowerCase();
   return CANONICAL_TIMING_SUFFIXES.some((suffix) => normalized.endsWith(suffix.toLowerCase()));
+}
+
+/** Recursive finite-number scan with a path for error reporting. */
+function scanNumbers(value, path, problems) {
+  if (value === null || value === undefined) {
+    return;
+  }
+  if (typeof value === "number") {
+    if (!Number.isFinite(value)) {
+      problems.push(`${path} is not finite (${value})`);
+    }
+    return;
+  }
+  if (Array.isArray(value)) {
+    value.forEach((entry, index) => scanNumbers(entry, `${path}[${index}]`, problems));
+    return;
+  }
+  if (typeof value === "object") {
+    for (const [key, entry] of Object.entries(value)) {
+      scanNumbers(entry, `${path}.${key}`, problems);
+    }
+  }
+}
+
+function validateSummary(entry, path, problems) {
+  if (entry === null || entry === undefined) {
+    return; // null timing is explicit and allowed
+  }
+  if (typeof entry !== "object" || Array.isArray(entry)) {
+    problems.push(`${path} must be an object summary or null`);
+    return;
+  }
+  for (const key of SUMMARY_KEYS) {
+    if (!(key in entry)) {
+      problems.push(`${path}.${key} is missing`);
+    }
+  }
+  if ("samples" in entry && (typeof entry.samples !== "number" || !Number.isInteger(entry.samples) || entry.samples < 0)) {
+    problems.push(`${path}.samples must be a non-negative integer`);
+  }
+  for (const key of ["median", "p95", "min", "max"]) {
+    if (key in entry && entry[key] !== null && typeof entry[key] !== "number") {
+      problems.push(`${path}.${key} must be a number or null`);
+    }
+  }
+  scanNumbers(entry, path, problems);
 }
 
 export function createResultDocument({ environment, commit, cases = [], generatedAt }) {
@@ -75,16 +127,18 @@ export function validateResultDocument(doc) {
       if (entry.metrics === null || typeof entry.metrics !== "object") {
         problems.push(`cases[${index}].metrics must be an object`);
       } else {
-        for (const key of Object.keys(entry.metrics)) {
+        for (const [key, value] of Object.entries(entry.metrics)) {
+          const path = `cases[${index}].metrics.${key}`;
           if (TIMING_KEY_RE.test(key) && !isCanonicalTimingKey(key)) {
             problems.push(
-              `cases[${index}].metrics["${key}"] has no canonical timing suffix ` +
+              `${path} has no canonical timing suffix ` +
                 `(${CANONICAL_TIMING_SUFFIXES.join("/")})`,
             );
           }
-          const value = entry.metrics[key];
-          if (typeof value === "number" && !Number.isFinite(value)) {
-            problems.push(`cases[${index}].metrics["${key}"] is not finite (NaN/Infinity)`);
+          if (isCanonicalTimingKey(key)) {
+            validateSummary(value, path, problems);
+          } else {
+            scanNumbers(value, path, problems);
           }
         }
       }
