@@ -387,6 +387,33 @@ function markdownReport(docs) {
     }
     lines.push("");
   }
+
+  // mask-count scaling (NB: mask SDF is a single pass covering all masks)
+  const maskCountRows = scalingTable(
+    all,
+    "mask-count/",
+    "maskCount",
+    (c) => summaryOf(c.metrics, "gpuTimestampMs")?.median,
+    [
+      ["heightGpu", (c) => summaryOf(c.metrics, "heightGpuTimestampMs")?.median],
+      ["sdfPasses", (c) => c.metrics.maskSdfPasses],
+      ["composePasses", (c) => c.metrics.composePasses],
+      ["maskCells", (c) => c.metrics.totalMaskCells],
+      ["bytesUploaded", (c) => c.metrics.bytesUploaded],
+    ],
+  );
+  if (maskCountRows.length > 0) {
+    lines.push("## Mask-count scaling (32x32 masks, median GPU ms)");
+    lines.push("");
+    lines.push("| Masks | Frame GPU ms | Height GPU ms | Mask SDF passes | Compose passes | Padded cells | Uploaded bytes |");
+    lines.push("|---|---|---|---|---|---|---|");
+    for (const r of maskCountRows) {
+      lines.push(
+        `| ${r.label} | ${fmt(r.value)} | ${fmt(r.heightGpu)} | ${r.sdfPasses} | ${r.composePasses} | ${r.maskCells} | ${r.bytesUploaded} |`,
+      );
+    }
+    lines.push("");
+  }
   const maskUnrelated = all.find((c) => c.id === "mask/unrelated-geometry-after-mask");
   if (maskUnrelated !== undefined) {
     const m = maskUnrelated.metrics;
@@ -659,6 +686,51 @@ function markdownReport(docs) {
       );
     }
     lines.push("");
+  }
+
+  // CPU reference stage summary (from the cpu result document)
+  const cpuStageRows = scalingTable(
+    all,
+    "cpu/stage/",
+    "stage",
+    (c) => summaryOf(c.metrics, "hostMs")?.median,
+    [["samples", (c) => summaryOf(c.metrics, "hostMs")?.samples]],
+  );
+  const cpuResolutionRows = scalingTable(
+    all,
+    "cpu/resolution/",
+    "width",
+    (c) => summaryOf(c.metrics, "hostMs")?.median,
+    [
+      ["height", (c) => c.parameters.height],
+      ["texels", (c) => c.metrics.texels],
+    ],
+  );
+  if (cpuStageRows.length > 0) {
+    lines.push("## CPU reference stage summary (median host ms)");
+    lines.push("");
+    lines.push(
+      "The CPU oracle chain (composition, mask SDF inside compose, normal, shadow, " +
+        "reconstruction, lighting, compositing) at the benchmark resolution. " +
+        "hostMs only - the CPU backend has no GPU timestamps.",
+    );
+    lines.push("");
+    lines.push("| Stage | Median host ms | Samples |");
+    lines.push("|---|---|---|");
+    for (const r of cpuStageRows) {
+      lines.push(`| ${r.label} | ${fmt(r.value)} | ${r.samples ?? ""} |`);
+    }
+    lines.push("");
+    if (cpuResolutionRows.length > 0) {
+      lines.push("### CPU resolution scaling (full chain, median host ms)");
+      lines.push("");
+      lines.push("| Resolution | Median host ms | Texels |");
+      lines.push("|---|---|---|");
+      for (const r of cpuResolutionRows) {
+        lines.push(`| ${r.label}x${r.height} | ${fmt(r.value)} | ${r.texels} |`);
+      }
+      lines.push("");
+    }
   }
 
   // e2e

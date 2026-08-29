@@ -47,7 +47,7 @@ import {
 } from "../shadow-reconstruct";
 import type { ShadowReconstructionOptions } from "../shadow-reconstruct";
 import { computeFrameKey, reportInvalidations, ALL_STAGES } from "./dirty";
-import type { FrameKey, InvalidationReason, InvalidationReport, PipelineStage } from "./dirty";
+import type { FrameKey, InvalidationReport, PipelineStage } from "./dirty";
 import { GpuPipelineProfiler } from "./profiler";
 import type { CumulativeProfile, FrameProfile, ProfilerStageRecord } from "./profiler";
 import { GpuTimestampProfiler } from "./timestamp-profiler";
@@ -232,6 +232,12 @@ export interface GpuScenePipelineFrameStats {
   readonly dpr: number;
   /** the #31 scheduler report: reasons + executed/skipped stages */
   readonly invalidation: InvalidationReport;
+  /**
+   * #46 benchmark-only seam marker: true ONLY when this frame's execution
+   * was elevated to the full stage chain via `debugForceFull` (the
+   * invalidation reasons list is never extended with a fake reason).
+   */
+  readonly executionForcedFull: boolean;
   /**
    * #32 deterministic partial/full planning report: tile size/count, dirty
    * tile/texel counts, ACTUAL height-stage candidate/culled surface counts
@@ -462,10 +468,6 @@ export class GpuScenePipeline {
       key = computeFrameKey(encoded, input);
       report = reportInvalidations(key, null, encoded.bytes, null, input.repaint === true);
     }
-    const executed = new Set(report.executed);
-    const records: ProfilerStageRecord[] = [];
-    const timestampFrame = this.timestampProfiler.beginFrame(report.executed);
-    this.activeTimestampFrame = timestampFrame;
 
     // #32 deterministic partial/full planning. The planner is pure host
     // work: its wall-clock time is reported separately (planningHostMs,
@@ -473,12 +475,17 @@ export class GpuScenePipeline {
     const planningStart = performance.now();
     const realPlan = this.planFrame(encoded, report, input);
     const planningHostMs = performance.now() - planningStart;
-    // #46 benchmark-only forced-full seam: elevate the EXECUTION to the
-    // full stage chain. The `planning` report keeps the REAL scheduler
-    // decision (so diagnostics can compare what the planner chose against
-    // what the forced execution did); only the executed stage set and the
-    // dispatch region are promoted. Reconstruction stays gated by its own
-    // soft-shadow activity check inside the stage loop.
+    // #46 benchmark-only forced-full seam: the EXECUTION plan is elevated
+    // to the full stage chain BEFORE the executed set and the timestamp
+    // frame are derived, so
+    //   returned report.executed == actual executed Set
+    //                             == timestamp-profiled stages
+    // always holds. The REAL planner decision stays available in the
+    // planning report only as diagnostics on the NORMAL side; the forced
+    // side reports mode=full / reason="debugForceFull" (its execution plan
+    // IS full). `invalidation.reasons` keeps the ORIGINAL semantic reasons
+    // (never a fake cast into the InvalidationReason union) and the frame
+    // stats carry the explicit `executionForcedFull` flag.
     const forceFull = input.debugForceFull === true;
     const plan: PartialPlan = forceFull
       ? {
@@ -499,20 +506,23 @@ export class GpuScenePipeline {
         }
       : realPlan;
     if (forceFull) {
-      // the benchmark seam appends its own reason marker so diagnostics can
-      // see the elevation; production call paths never produce it. The full
-      // chain follows the pipeline's own "first-frame"/"scene" report
-      // convention (ALL_STAGES incl. reconstruction; the stage loop's soft-
-      // shadow activity gate decides whether the reconstruction pass really
-      // dispatches, exactly like a first frame on a hard-shadow scene).
+      // The full chain follows the pipeline's own "first-frame"/"scene"
+      // report convention (ALL_STAGES incl. reconstruction; the stage loop's
+      // soft-shadow activity gate decides whether the reconstruction pass
+      // really dispatches, exactly like a first frame on a hard-shadow
+      // scene). The reasons list is NOT extended with a fake reason: the
+      // elevation is expressed by planning.reason and executionForcedFull.
       report = {
         ...report,
         executed: [...ALL_STAGES],
         skipped: [],
         retained: false,
-        reasons: [...report.reasons, "debugForceFull" as InvalidationReason],
       };
     }
+    const executed = new Set(report.executed);
+    const records: ProfilerStageRecord[] = [];
+    const timestampFrame = this.timestampProfiler.beginFrame(report.executed);
+    this.activeTimestampFrame = timestampFrame;
     const region: BandRegion | undefined =
       plan.mode === "partial" && plan.band !== null ? plan.band : undefined;
     // #32 ACTUAL height-stage culling: on a partial frame the HeightPass
@@ -802,6 +812,13 @@ export class GpuScenePipeline {
       dpr: heightSnapshot.dpr,
       invalidation: report,
       planning: { ...plan, planningHostMs },
+      /**
+       * #46 benchmark-only seam marker: true ONLY when this frame's
+       * execution was elevated to the full chain via debugForceFull. The
+       * invalidation reasons list itself is never extended with a fake
+       * reason (the InvalidationReason union is production semantics).
+       */
+      executionForcedFull: forceFull,
       upload,
       height,
       normal,

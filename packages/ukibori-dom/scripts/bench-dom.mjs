@@ -37,6 +37,7 @@ function flag(name, fallback) {
 }
 const surfacesArg = flag("--surfaces", process.env.BENCH_DOM_SURFACES ?? "1,10,50,100,250,500,1000");
 const samplesArg = flag("--samples", process.env.BENCH_SAMPLES ?? "5");
+const warmupArg = flag("--warmup", process.env.BENCH_WARMUP ?? "5");
 const allowDirty = args.includes("--allow-dirty") || process.env.BENCH_ALLOW_DIRTY === "1";
 const jsonPath = flag("--json", join(pkgRoot, "benchmark-results-dom.json"));
 
@@ -223,7 +224,7 @@ async function main() {
     console.log(`bench:dom: serving on 127.0.0.1:${port}`);
 
     const cdpPort = await freePort();
-    const query = new URLSearchParams({ surfaces: surfacesArg, samples: samplesArg });
+    const query = new URLSearchParams({ surfaces: surfacesArg, samples: samplesArg, warmup: warmupArg });
     const url = `http://127.0.0.1:${port}/dom-bench.html?${query}`;
     chrome = spawn(
       CHROME,

@@ -439,7 +439,7 @@ async function suiteE2E() {
       }
       // Update-frame measurement: between every timed sample the pipeline is
       // reset to a primer scene, so each sample measures the REAL update
-      // frame (not a retained repeat  Eretained costs are suiteRetained's
+      // frame (not a retained repeat - retained costs are suiteRetained's
       // job). The warmup renders are untimed. `warmed-full` primes with a
       // different scene so the measured frame is a genuine full frame.
       const primer = scenario.id === "warmed-full"
@@ -477,7 +477,7 @@ async function suiteE2E() {
 }
 
 // ---------------------------------------------------------------------------
-// #2  Eresolution scaling
+// #2: resolution scaling
 // ---------------------------------------------------------------------------
 
 async function suiteResolution() {
@@ -573,7 +573,7 @@ async function suiteSurface() {
 }
 
 // ---------------------------------------------------------------------------
-// #6  Emask / glyph scaling
+// #6: mask / glyph scaling
 // ---------------------------------------------------------------------------
 
 async function suiteMask() {
@@ -641,7 +641,7 @@ async function suiteMask() {
       canvas.remove();
     }
   }
-  // #6: unchanged mask + other geometry changed  Edoes the mask SDF re-run?
+  // #6: unchanged mask + other geometry changed - does the mask SDF re-run?
   // Every timed sample is a REAL base -> moved transition (the
   // benchUpdateFrame contract): the measured frame's own stats, planning,
   // timestamp data and dispatch stats are captured from THAT frame, never
@@ -787,7 +787,7 @@ async function suiteMask() {
 }
 
 // ---------------------------------------------------------------------------
-// #7  Eshadow sample / angular radius / travel distance
+// #7: shadow sample / angular radius / travel distance
 // ---------------------------------------------------------------------------
 
 async function suiteShadow() {
@@ -899,7 +899,7 @@ async function suiteShadow() {
 }
 
 // ---------------------------------------------------------------------------
-// #8  Ereconstruction radius xDPR
+// #8: reconstruction radius xDPR
 // ---------------------------------------------------------------------------
 
 async function suiteReconstruction() {
@@ -1467,7 +1467,7 @@ async function suitePartial() {
 }
 
 // ---------------------------------------------------------------------------
-// #13  Eretained scheduling: TWO separate measurements per variant, never
+// #13: retained scheduling: TWO separate measurements per variant, never
 // mixed into one average:
 //   A. transitionFrame: the real base -> variant update frame (every sample
 //      is a fresh transition via benchUpdateFrame)

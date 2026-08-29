@@ -1,4 +1,4 @@
-﻿import { describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createScene } from "../scene";
 import type { Scene } from "../scene";
 import type {
@@ -228,6 +228,33 @@ function sceneA(): Scene {
       },
     ],
     light: { direction: { x: -0.70710678, y: 0, z: 0.70710678 }, intensity: 1 },
+  });
+}
+
+/** A soft-shadow variant of sceneA (positive angular radius). */
+function softShadowScene(): Scene {
+  return createScene({
+    width: 100,
+    height: 80,
+    surfaces: [
+      {
+        id: "a",
+        position: { x: 10, y: 10 },
+        size: { x: 40, y: 30 },
+        elevation: 2,
+        thickness: 2,
+        shape: { kind: "roundedRect", radius: 0 },
+        profile: { kind: "flat" },
+        material: "silicone",
+        castsShadow: true,
+        receivesShadow: true,
+      },
+    ],
+    light: {
+      direction: { x: -0.70710678, y: 0, z: 0.70710678 },
+      intensity: 1,
+      angularRadius: Math.fround(0.2),
+    },
   });
 }
 
@@ -997,26 +1024,29 @@ describe("GpuScenePipeline 窶・#43 reconstruction bypass and binding transitio
 });
 
 describe("debugForceFull benchmark seam (#46)", () => {
-  it("is inert by default: a normal retained transition stays partial", () => {
+  it("is inert by default: a normal retained transition stays retained", () => {
     const { pipeline } = setup();
-    const base = sceneA();
-    pipeline.render({ scene: base, dpr: 1 });
+    pipeline.render({ scene: sceneA(), dpr: 1 });
     const stats = pipeline.render({ scene: sceneA(), dpr: 1, tileSize: 32 });
     expect(stats.planning.mode).toBe("full");
     // a byte-identical frame is fully retained without the flag
     expect(stats.invalidation.retained).toBe(true);
     expect(stats.invalidation.executed).toEqual([]);
-    expect(stats.invalidation.reasons).not.toContain("debugForceFull");
+    expect(stats.invalidation.reasons).toEqual([]);
+    expect(stats.executionForcedFull).toBe(false);
+    // the timestamp profiler recorded NO stages for the retained frame
+    expect(stats.frame.dispatchCount).toBe(0);
   });
 
-it("elevates a retained byte-identical frame to the full stage chain", () => {
+  it("retained byte-identical frame + debugForceFull actually executes the full chain (frame deltas)", () => {
     const { device, pipeline } = setup();
     pipeline.render({ scene: sceneA(), dpr: 1 });
+    const encodersBefore = device.encoders.length;
+    const submitsBefore = device.submits.length;
+    const writesBefore = device.writes.length;
     const stats = pipeline.render({ scene: sceneA(), dpr: 1, debugForceFull: true });
+    // returned executed stages follow the "first-frame" report convention
     expect(stats.invalidation.retained).toBe(false);
-    // the full chain follows the pipeline's "first-frame" report convention
-    // (ALL_STAGES incl. reconstruction; the reconstruction PASS dispatch is
-    // gated by the soft-shadow activity check, like any first frame)
     expect(stats.invalidation.executed).toEqual([
       "upload",
       "height",
@@ -1026,44 +1056,82 @@ it("elevates a retained byte-identical frame to the full stage chain", () => {
       "lighting",
       "presentation",
     ]);
-    expect(stats.invalidation.reasons).toContain("debugForceFull");
+    expect(stats.executionForcedFull).toBe(true);
+    // the invalidation REASONS are the REAL semantic reasons (never a fake
+    // benchmark reason cast into the union); the elevation is expressed by
+    // planning.reason and executionForcedFull
+    expect(stats.invalidation.reasons).toEqual([]);
     expect(stats.planning.mode).toBe("full");
     expect(stats.planning.reason).toBe("debugForceFull");
-    // every stage really executed: 5 stage encoders again
-    expect(device.encoders.length).toBeGreaterThanOrEqual(5);
+    // ACTUAL execution: every stage really ran this frame (deltas)
+    expect(device.encoders.length).toBeGreaterThan(encodersBefore);
+    expect(device.submits.length).toBeGreaterThan(submitsBefore);
+    expect(device.writes.length).toBeGreaterThan(writesBefore);
+    expect(stats.upload.bytesUploaded).toBeGreaterThan(0);
+    expect(stats.height.composePasses).toBe(5);
+    expect(stats.normal.workgroupCountX).toBeGreaterThan(0);
+    expect(stats.shadow.workgroupCountX).toBeGreaterThan(0);
+    expect(stats.lighting.workgroupCountX).toBeGreaterThan(0);
+    expect(stats.presentation.workSubmitted).toBeGreaterThan(0);
+    expect(stats.frame.dispatchCount).toBeGreaterThan(0);
   });
 
   it("same base->target scene: forced-full executes the same stages as a normal full frame", () => {
     const { pipeline } = setup();
     const base = sceneA();
     const target = sceneB();
-    // normal planner full: fresh pipeline first render of the target
     const fresh = setup();
     const normalFull = fresh.pipeline.render({ scene: target, dpr: 1 });
     expect(normalFull.planning.mode).toBe("full");
     expect(normalFull.planning.reason).toBe("first-frame");
-    // forced full on a retained pipeline after the base frame
     pipeline.render({ scene: base, dpr: 1 });
     const forcedFull = pipeline.render({ scene: target, dpr: 1, debugForceFull: true });
     expect(forcedFull.invalidation.executed).toEqual(normalFull.invalidation.executed);
     expect(forcedFull.planning.mode).toBe("full");
+    expect(forcedFull.executionForcedFull).toBe(true);
   });
 
-  it("keeps the REAL planner decision in the planning report for diagnostics", () => {
-    const { pipeline } = setup();
-    const base = sceneA();
-    pipeline.render({ scene: base, dpr: 1 });
-    // a small edit would be planned by the scheduler; the forced seam still
-    // reports its own full elevation while realPlan is preserved for the
-    // harness comparison via planPartialScene on the encoded bytes
-    const stats = pipeline.render({
-      scene: sceneB(),
+  it("soft-shadow scene: debugForceFull also ACTUALLY dispatches the reconstruction pass", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({
+      scene: softShadowScene(),
       dpr: 1,
-      debugForceFull: true,
-      shadowOptions: { maxDistance: 40 },
+      shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 2 } },
     });
-expect(stats.planning.mode).toBe("full");
-    expect(stats.planning.reason).toBe("debugForceFull");
-    expect(stats.invalidation.executed).toHaveLength(7);
+    const encodersBefore = device.encoders.length;
+    const stats = pipeline.render({
+      scene: softShadowScene(),
+      dpr: 1,
+      shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 2 } },
+      debugForceFull: true,
+    });
+    expect(stats.reconstructionActive).toBe(true);
+    expect(stats.reconstruction.workgroupCountX).toBeGreaterThan(0);
+    expect(device.encoders.length).toBeGreaterThan(encodersBefore);
+    expect(stats.invalidation.executed).toEqual([
+      "upload",
+      "height",
+      "normal",
+      "shadow",
+      "reconstruction",
+      "lighting",
+      "presentation",
+    ]);
+  });
+
+  it("timestamp profiler receives the forced (full) stage set", () => {
+    const { pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const forced = pipeline.render({ scene: sceneA(), dpr: 1, debugForceFull: true });
+    // the gpuTiming promise covers the forced stage set: the profiler was
+    // begun AFTER the force-full elevation, so the retained frame records
+    // real per-stage timing entries instead of an empty no-work result
+    expect(forced.gpuTiming).not.toBeNull();
+    void forced.gpuTiming.then((result) => {
+      expect(["ok", "unsupported", "failed"]).toContain(result.status);
+      if (result.status === "ok") {
+        expect(Object.keys(result.passGpuMs).length).toBeGreaterThan(0);
+      }
+    });
   });
 });
