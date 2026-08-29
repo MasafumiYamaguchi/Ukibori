@@ -154,6 +154,7 @@ export type {
   HeightPassOutputs,
   HeightPassProvenance,
   HeightPassSnapshot,
+  HeightPassSubstageTimestamps,
 } from "./gpu/height-pass";
 export {
   NORMAL_OUTPUT_BYTES_PER_TEXEL,

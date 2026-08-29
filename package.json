@@ -16,6 +16,11 @@
     "dev": "npm run dev -w demo",
     "preview": "npm run preview -w demo",
     "dev:loop": "node tools/dev-loop/cli.mjs",
-    "dev:loop:check": "node --test tools/dev-loop/*.test.mjs"
+    "dev:loop:check": "node --test tools/dev-loop/*.test.mjs",
+    "bench:cpu": "npm run bench:cpu -w ukibori-renderer",
+    "bench:gpu": "npm run bench:gpu -w ukibori-renderer",
+    "bench:dom": "npm run bench:dom -w ukibori-dom",
+    "bench:report": "npm run bench:report -w ukibori-renderer",
+    "bench:baseline": "node packages/renderer/scripts/bench-baseline.mjs"
   }
 }

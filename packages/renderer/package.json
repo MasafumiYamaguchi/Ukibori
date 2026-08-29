@@ -24,6 +24,10 @@
     "test:wasm-browser": "node scripts/test-wasm-browser.mjs",
     "test:golden": "node scripts/golden-cpu.mjs --verify",
     "goldens:update": "node scripts/golden-cpu.mjs --update",
+    "bench": "node scripts/bench-cpu.mjs",
+    "bench:gpu": "node scripts/bench-gpu.mjs",
+    "bench:cpu": "node scripts/bench-cpu.mjs",
+    "bench:report": "node scripts/bench-report.mjs",
     "clean": "rimraf dist"
   },
   "devDependencies": {

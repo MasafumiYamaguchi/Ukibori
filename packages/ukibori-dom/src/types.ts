@@ -254,6 +254,29 @@ export interface DomDebugState {
   dpr: number;
   /** milliseconds of the last render pass (0 before the first render) */
   lastRenderMs: number;
+  /** #46 debug seam: wall-clock ms of the last render's DOM measurement loop */
+  lastMeasureMs: number;
+  /** #46 debug seam: wall-clock ms of the last render's scene build */
+  lastSceneBuildMs: number;
+  /** #46 debug seam: entries measured by the last render's measurement loop */
+  lastMeasuredEntries: number;
+  /**
+   * #46 frame-local provenance serials: a consumer compares these before/
+   * after a render attempt to learn whether THIS frame ran the measurement
+   * loop (`measureSerial`), the scene build (`sceneBuildSerial`) or any
+   * render attempt at all (`renderSerial`). Stale previous-frame timings
+   * must never be attributed to a frame that did not run the work.
+   */
+  renderSerial: number;
+  measureSerial: number;
+  sceneBuildSerial: number;
+  /**
+   * #46 frame-local provenance: advances ONLY when the GPU pipeline's
+   * render() is actually invoked. The async gpuTiming readback replaces
+   * `gpuFrame` WITHOUT advancing this serial, so a consumer can tell a real
+   * render from an async timing resolution.
+   */
+  gpuRenderSerial: number;
   /** width/height texels of the last render target */
   renderSize: { width: number; height: number } | null;
   /**

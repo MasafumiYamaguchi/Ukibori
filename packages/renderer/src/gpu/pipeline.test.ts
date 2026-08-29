@@ -231,6 +231,33 @@ function sceneA(): Scene {
   });
 }
 
+/** A soft-shadow variant of sceneA (positive angular radius). */
+function softShadowScene(): Scene {
+  return createScene({
+    width: 100,
+    height: 80,
+    surfaces: [
+      {
+        id: "a",
+        position: { x: 10, y: 10 },
+        size: { x: 40, y: 30 },
+        elevation: 2,
+        thickness: 2,
+        shape: { kind: "roundedRect", radius: 0 },
+        profile: { kind: "flat" },
+        material: "silicone",
+        castsShadow: true,
+        receivesShadow: true,
+      },
+    ],
+    light: {
+      direction: { x: -0.70710678, y: 0, z: 0.70710678 },
+      intensity: 1,
+      angularRadius: Math.fround(0.2),
+    },
+  });
+}
+
 function sceneB(): Scene {
   return createScene({
     width: 64,
@@ -266,7 +293,7 @@ function setup() {
 
 // ---------------------------------------------------------------------------
 
-describe("GpuScenePipeline — full-chain orchestrator", () => {
+describe("GpuScenePipeline 窶・full-chain orchestrator", () => {
   it("runs encode -> upload -> height -> normal -> shadow -> lighting -> presentation in order", () => {
     const { device, context, pipeline } = setup();
     const stats = pipeline.render({ scene: sceneA(), dpr: 1 });
@@ -321,7 +348,7 @@ describe("GpuScenePipeline — full-chain orchestrator", () => {
     expect(second.dpr).toBe(1);
     // the presentation bind group references THIS frame's lighting output
     // with THIS frame's extent (pass-level allocations may be reused across
-    // frames — the caching contract — so the per-frame identity is the
+    // frames 窶・the caching contract 窶・so the per-frame identity is the
     // provenance object and the bound byte sizes, not buffer object identity)
     const presentationGroup = device.bindGroups.at(-1)!;
     const colorEntry = presentationGroup.entries[1];
@@ -407,7 +434,7 @@ describe("GpuScenePipeline — full-chain orchestrator", () => {
   });
 });
 
-describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources", () => {
+describe("GpuScenePipeline 窶・#31 dirty-pass scheduling and retained resources", () => {
   const writePayloads = (device: MockFullDevice): number[][] =>
     device.writes.map((write) => Array.from(write.bytes));
 
@@ -616,7 +643,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
     expect(replayed.invalidation.reasons).toContain("viewport");
     expect(replayed.invalidation.executed).toHaveLength(7);
     // the replayed upload bytes are byte-identical to frame 1 (deterministic
-    // encode) — the forced recompute produces the same effective payloads
+    // encode) 窶・the forced recompute produces the same effective payloads
     const replayWrites = device.writes.slice(writesBeforeReplay).map((w) => Array.from(w.bytes));
     expect(replayWrites).toEqual(frame1Writes);
     // a fresh height dispatch produced a fresh per-dispatch provenance token
@@ -692,7 +719,7 @@ describe("GpuScenePipeline — #31 dirty-pass scheduling and retained resources"
   });
 });
 
-describe("GpuScenePipeline — semantic scene invalidation (light/env/material)", () => {
+describe("GpuScenePipeline 窶・semantic scene invalidation (light/env/material)", () => {
   /** sceneA with a different light direction (geometry identical). */
   const withLight = (direction: { x: number; y: number; z: number }, intensity = 1): Scene => {
     const base = sceneA();
@@ -742,7 +769,7 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
       dpr: 1,
     });
     // #43 review: the direction change also moved |light.xy|, which shifts
-    // the context-derived default maxDistance — the effective shadow options
+    // the context-derived default maxDistance 窶・the effective shadow options
     // changed, so shadow-options fires alongside light-direction (never
     // swallowed). The planning stays full with the semantic reason.
     expect(stats.invalidation.reasons).toEqual(["light-direction", "shadow-options"]);
@@ -843,7 +870,7 @@ describe("GpuScenePipeline — semantic scene invalidation (light/env/material)"
   });
 });
 
-describe("WebGpuBackend — capabilities.compute stays false until #30", () => {
+describe("WebGpuBackend 窶・capabilities.compute stays false until #30", () => {
   it("still reports compute: false (no public GPU selection before parity)", async () => {
     const { WebGpuBackend } = await import("../backend/webgpu");
     const backend = new WebGpuBackend({ destroy() {} } as never);
@@ -853,7 +880,7 @@ describe("WebGpuBackend — capabilities.compute stays false until #30", () => {
   });
 });
 
-describe("GpuScenePipeline — #43 reconstruction bypass and binding transitions", () => {
+describe("GpuScenePipeline 窶・#43 reconstruction bypass and binding transitions", () => {
   function softScene(angularRadius: number): Scene {
     return createScene({
       // same extent as sceneA so hard<->soft switches are light-direction/
@@ -993,5 +1020,118 @@ describe("GpuScenePipeline — #43 reconstruction bypass and binding transitions
     expect(disabled.invalidation.reasons).toEqual(["reconstruction-options"]);
     expect(disabled.reconstructionActive).toBe(false);
     expect(pipeline.getSnapshot().reconstructionPass).toBeNull();
+  });
+});
+
+describe("debugForceFull benchmark seam (#46)", () => {
+  it("is inert by default: a normal retained transition stays retained", () => {
+    const { pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const stats = pipeline.render({ scene: sceneA(), dpr: 1, tileSize: 32 });
+    expect(stats.planning.mode).toBe("full");
+    // a byte-identical frame is fully retained without the flag
+    expect(stats.invalidation.retained).toBe(true);
+    expect(stats.invalidation.executed).toEqual([]);
+    expect(stats.invalidation.reasons).toEqual([]);
+    expect(stats.executionForcedFull).toBe(false);
+    // the timestamp profiler recorded NO stages for the retained frame
+    expect(stats.frame.dispatchCount).toBe(0);
+  });
+
+  it("retained byte-identical frame + debugForceFull actually executes the full chain (frame deltas)", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const encodersBefore = device.encoders.length;
+    const submitsBefore = device.submits.length;
+    const writesBefore = device.writes.length;
+    const stats = pipeline.render({ scene: sceneA(), dpr: 1, debugForceFull: true });
+    // returned executed stages follow the "first-frame" report convention
+    expect(stats.invalidation.retained).toBe(false);
+    expect(stats.invalidation.executed).toEqual([
+      "upload",
+      "height",
+      "normal",
+      "shadow",
+      "reconstruction",
+      "lighting",
+      "presentation",
+    ]);
+    expect(stats.executionForcedFull).toBe(true);
+    // the invalidation REASONS are the REAL semantic reasons (never a fake
+    // benchmark reason cast into the union); the elevation is expressed by
+    // planning.reason and executionForcedFull
+    expect(stats.invalidation.reasons).toEqual([]);
+    expect(stats.planning.mode).toBe("full");
+    expect(stats.planning.reason).toBe("debugForceFull");
+    // ACTUAL execution: every stage really ran this frame (deltas)
+    expect(device.encoders.length).toBeGreaterThan(encodersBefore);
+    expect(device.submits.length).toBeGreaterThan(submitsBefore);
+    expect(device.writes.length).toBeGreaterThan(writesBefore);
+    expect(stats.upload.bytesUploaded).toBeGreaterThan(0);
+    expect(stats.height.composePasses).toBe(5);
+    expect(stats.normal.workgroupCountX).toBeGreaterThan(0);
+    expect(stats.shadow.workgroupCountX).toBeGreaterThan(0);
+    expect(stats.lighting.workgroupCountX).toBeGreaterThan(0);
+    expect(stats.presentation.workSubmitted).toBeGreaterThan(0);
+    expect(stats.frame.dispatchCount).toBeGreaterThan(0);
+  });
+
+  it("same base->target scene: forced-full executes the same stages as a normal full frame", () => {
+    const { pipeline } = setup();
+    const base = sceneA();
+    const target = sceneB();
+    const fresh = setup();
+    const normalFull = fresh.pipeline.render({ scene: target, dpr: 1 });
+    expect(normalFull.planning.mode).toBe("full");
+    expect(normalFull.planning.reason).toBe("first-frame");
+    pipeline.render({ scene: base, dpr: 1 });
+    const forcedFull = pipeline.render({ scene: target, dpr: 1, debugForceFull: true });
+    expect(forcedFull.invalidation.executed).toEqual(normalFull.invalidation.executed);
+    expect(forcedFull.planning.mode).toBe("full");
+    expect(forcedFull.executionForcedFull).toBe(true);
+  });
+
+  it("soft-shadow scene: debugForceFull also ACTUALLY dispatches the reconstruction pass", () => {
+    const { device, pipeline } = setup();
+    pipeline.render({
+      scene: softShadowScene(),
+      dpr: 1,
+      shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 2 } },
+    });
+    const encodersBefore = device.encoders.length;
+    const stats = pipeline.render({
+      scene: softShadowScene(),
+      dpr: 1,
+      shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 2 } },
+      debugForceFull: true,
+    });
+    expect(stats.reconstructionActive).toBe(true);
+    expect(stats.reconstruction.workgroupCountX).toBeGreaterThan(0);
+    expect(device.encoders.length).toBeGreaterThan(encodersBefore);
+    expect(stats.invalidation.executed).toEqual([
+      "upload",
+      "height",
+      "normal",
+      "shadow",
+      "reconstruction",
+      "lighting",
+      "presentation",
+    ]);
+  });
+
+  it("timestamp profiler receives the forced (full) stage set", () => {
+    const { pipeline } = setup();
+    pipeline.render({ scene: sceneA(), dpr: 1 });
+    const forced = pipeline.render({ scene: sceneA(), dpr: 1, debugForceFull: true });
+    // the gpuTiming promise covers the forced stage set: the profiler was
+    // begun AFTER the force-full elevation, so the retained frame records
+    // real per-stage timing entries instead of an empty no-work result
+    expect(forced.gpuTiming).not.toBeNull();
+    void forced.gpuTiming.then((result) => {
+      expect(["ok", "unsupported", "failed"]).toContain(result.status);
+      if (result.status === "ok") {
+        expect(Object.keys(result.passGpuMs).length).toBeGreaterThan(0);
+      }
+    });
   });
 });
