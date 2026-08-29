@@ -726,11 +726,14 @@ describe("ShadowPass — uniform packing and caster info", () => {
     // host-side f32 computation) so both backends march identical rays
     const header = parseHeader(input.scene.bytes);
     const expectedDirs = computeSoftSampleDirections(header.lightDirection, radius, 8);
+    const casterBounds = [30, 30, 50, 50];
     for (let i = 0; i < 8; i++) {
       expect(view.getFloat32(96 + i * 16, true)).toBe(expectedDirs[i * 3]);
       expect(view.getFloat32(96 + i * 16 + 4, true)).toBe(expectedDirs[i * 3 + 1]);
       expect(view.getFloat32(96 + i * 16 + 8, true)).toBe(expectedDirs[i * 3 + 2]);
-      expect(view.getFloat32(96 + i * 16 + 12, true)).toBe(0); // vec4 pad
+      expect(view.getFloat32(96 + i * 16 + 12, true)).toBe(
+        i < casterBounds.length ? casterBounds[i] : 0,
+      ); // vec4 w: caster AABB metadata in entries 0..3
     }
     // unused capacity is zero-filled
     expect(view.getFloat32(96 + 8 * 16, true)).toBe(0);
@@ -743,6 +746,10 @@ describe("ShadowPass — uniform packing and caster info", () => {
     expect(hardView.getFloat32(80, true)).toBe(0);
     expect(hardView.getUint32(84, true)).toBe(1);
     expect(hardView.getFloat32(96, true)).toBe(0);
+    expect(hardView.getFloat32(108, true)).toBe(30); // caster AABB minX
+    expect(hardView.getFloat32(124, true)).toBe(30); // caster AABB minY
+    expect(hardView.getFloat32(140, true)).toBe(50); // caster AABB maxX
+    expect(hardView.getFloat32(156, true)).toBe(50); // caster AABB maxY
   });
 
   it("reports effective options and caster counters in the snapshot", () => {
@@ -795,6 +802,11 @@ describe("ShadowPass — uniform packing and caster info", () => {
     expect(snapshot.lastDispatch.hasCasters).toBe(false);
     expect(snapshot.lastDispatch.casterSurfaceCount).toBe(0);
     expect(snapshot.lastDispatch.maxCasterHeight).toBe(0);
+    const view = new DataView(mock.writes[0].bytes.buffer);
+    expect(view.getFloat32(108, true)).toBe(0);
+    expect(view.getFloat32(124, true)).toBe(0);
+    expect(view.getFloat32(140, true)).toBe(0);
+    expect(view.getFloat32(156, true)).toBe(0);
   });
 });
 
@@ -1154,10 +1166,24 @@ describe("ShadowPass shader — binding contract", () => {
     expect(MAX_SHADOW_STEP_COUNT).toBe(1 << 24);
   });
 
-  it("keeps the documented workgroup size and in-shader bounds guard", () => {
+  it("keeps the documented workgroup size and in-shader bounds guards", () => {
     expect(SHADOW_PASS_WGSL).toContain("@workgroup_size(SHADOW_WORKGROUP_SIZE)");
     expect(SHADOW_PASS_WGSL).toContain("let texelCount = params.width * params.height;");
     expect(SHADOW_PASS_WGSL).toContain("if (g >= texelCount) {");
+    expect(SHADOW_PASS_WGSL).toContain("if (params.regionEnd != 0u && g >= params.regionEnd) {");
+  });
+
+  it("pins the #48 conservative ray bounds and caster AABB culling contract", () => {
+    expect(SHADOW_PASS_WGSL).toContain("while (lo < hi) {");
+    expect(SHADOW_PASS_WGSL).toContain("let mid = (lo + hi + 1u) >> 1u;");
+    expect(SHADOW_PASS_WGSL).toContain("let casterMinX = params.sampleDirs[0].w - casterPad;");
+    expect(SHADOW_PASS_WGSL).toContain("let casterMinY = params.sampleDirs[1].w - casterPad;");
+    expect(SHADOW_PASS_WGSL).toContain("let casterMaxX = params.sampleDirs[2].w + casterPad;");
+    expect(SHADOW_PASS_WGSL).toContain("let casterMaxY = params.sampleDirs[3].w + casterPad;");
+    // A zero caster field is skipped only when it cannot satisfy the strict
+    // comparison; descending rays still read it because zero may occlude.
+    expect(SHADOW_PASS_WGSL).toContain("threshold >= 0.0");
+    expect(SHADOW_PASS_WGSL).toContain("continue;");
   });
 });
 
@@ -1180,8 +1206,9 @@ describe("ShadowPass shader — CPU shadow semantics pinned in WGSL", () => {
     // the march bounds are the inclusive pixel-center rectangle in LOGICAL
     // scene units (render texel (tx, ty) spans [(tx + 0.5) / dpr, ...])
     expect(SHADOW_PASS_WGSL).toContain(
-      "if (sx < 0.5 / params.dpr || sx > (f32(params.width) - 0.5) / params.dpr ||",
+      "return !(sx < 0.5 / params.dpr || sx > (f32(params.width) - 0.5) / params.dpr ||",
     );
+    expect(SHADOW_PASS_WGSL).toContain("fn rayBoundsStepLimit(px: f32, py: f32, dx: f32, dy: f32) -> u32 {");
     expect(SHADOW_PASS_WGSL).toContain("let rayZ = rz0 + dz * t;");
     expect(SHADOW_PASS_WGSL).toContain(
       "traceOccluded(\n      px,\n      py,\n      rz0,\n      params.lightDirection.x,\n      params.lightDirection.y,\n      params.lightDirection.z,\n    );",
@@ -1189,7 +1216,8 @@ describe("ShadowPass shader — CPU shadow semantics pinned in WGSL", () => {
   });
 
   it("uses the strict f32 threshold, the bias, and the conservative early exit", () => {
-    expect(SHADOW_PASS_WGSL).toContain("if (sample > rayZ + params.bias) {");
+    expect(SHADOW_PASS_WGSL).toContain("let threshold = rayZ + params.bias;");
+    expect(SHADOW_PASS_WGSL).toContain("if (sample > threshold) {");
     expect(SHADOW_PASS_WGSL).toContain("if (rayZ > params.maxCasterHeight + params.bias) {");
     // the blocker comparison is strictly greater: equality is lit
     expect(SHADOW_PASS_WGSL).not.toContain("sample >= rayZ");
@@ -1199,7 +1227,7 @@ describe("ShadowPass shader — CPU shadow semantics pinned in WGSL", () => {
 
   it("terminates via the integer step index bounded by the host cap", () => {
     expect(SHADOW_PASS_WGSL).toContain("var stepIndex = 1u;");
-    expect(SHADOW_PASS_WGSL).toContain("while (stepIndex <= params.stepCount) {");
+    expect(SHADOW_PASS_WGSL).toContain("while (stepIndex <= stepLimit) {");
     expect(SHADOW_PASS_WGSL).toContain("stepIndex += 1u;");
   });
 

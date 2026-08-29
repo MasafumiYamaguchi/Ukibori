@@ -258,6 +258,43 @@ function snapshotWorkgroups(pipeline) {
   return out;
 }
 
+/**
+ * #48 benchmark metadata for the shadow marcher.  These fields are a
+ * contract/upper-bound description rather than fabricated GPU counters: the
+ * production pass still issues the same one dispatch, one upload and one
+ * submission, while the shader performs the bound search and empty-space
+ * test inside each invocation.  Keeping the metadata beside every shadow
+ * case makes before/after JSON comparisons self-describing.
+ */
+function shadowAccelerationMetadata(scene, stepCount) {
+  const casting = scene.surfaces.filter((surface) => surface.castsShadow === true);
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const surface of casting) {
+    minX = Math.min(minX, surface.position.x);
+    minY = Math.min(minY, surface.position.y);
+    maxX = Math.max(maxX, surface.position.x + surface.size.x);
+    maxY = Math.max(maxY, surface.position.y + surface.size.y);
+  }
+  const searchIterations = Number.isInteger(stepCount) && stepCount > 0
+    ? Math.ceil(Math.log2(stepCount + 1))
+    : 0;
+  return {
+    shadowMarchAlgorithm: "ray-bound-prefix-binary-search+caster-aabb-empty-space",
+    rayBoundSearch: "monotone-prefix-binary-search",
+    rayBoundSearchIterationUpperBound: searchIterations,
+    casterAabbCulling: true,
+    casterAabbPadTexels: 2,
+    casterAabb: casting.length > 0 ? { minX, minY, maxX, maxY } : null,
+    extraShadowPasses: 0,
+    extraShadowDispatches: 0,
+    extraShadowUploads: 0,
+    extraShadowStorageBytes: 0,
+  };
+}
+
 function pushCase(id, parameters, metrics) {
   cases.push({ id, parameters, metrics });
 }
@@ -303,6 +340,9 @@ async function suiteStage() {
           newAllocations: first.stats.frame.newAllocations,
           renderExtent: `${first.stats.renderWidth}x${first.stats.renderHeight}`,
           workgroups: snapshot[stage]?.workgroupCountX ?? null,
+          ...(stage === "shadow"
+            ? shadowAccelerationMetadata(scene, snapshot.shadow?.steps ?? null)
+            : {}),
         },
       );
     }
@@ -831,6 +871,7 @@ async function suiteShadow() {
             shadowSteps: snap.shadowPass.lastDispatch.stepCount,
             renderExtent: `${series[0].stats.renderWidth}x${series[0].stats.renderHeight}`,
             texels: series[0].stats.renderWidth * series[0].stats.renderHeight,
+            ...shadowAccelerationMetadata(scene, snap.shadowPass.lastDispatch.stepCount),
           },
         );
       } finally {
@@ -889,6 +930,7 @@ async function suiteShadow() {
           shadowHostMs: summarizeSeries(series.map((r) => r.stats.frame.passDurations.shadow)),
           shadowGpuTimestampMs: summarizeSeries(gpuSeriesOf(series, (r) => r.gpuTiming?.passGpuMs?.shadow)),
           shadowSteps: snap.shadowPass.lastDispatch.stepCount,
+          ...shadowAccelerationMetadata(scene, snap.shadowPass.lastDispatch.stepCount),
         },
       );
     } finally {

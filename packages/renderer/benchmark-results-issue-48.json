@@ -1,0 +1,206 @@
+{
+  "schemaVersion": 1,
+  "commit": "221029f",
+  "generatedAt": "2026-08-30T03:54:46+09:00",
+  "environment": {
+    "runner": "issue-48-analysis",
+    "webgpuAvailable": true,
+    "timestampQuerySupported": true,
+    "adapterVendor": "nvidia",
+    "adapterArchitecture": "blackwell",
+    "afterStatus": "measured",
+    "afterRunnerFlag": "BENCH_CHROME_NO_SANDBOX=1"
+  },
+  "analysis": {
+    "issue": 48,
+    "algorithm": "ray-bound-prefix-binary-search+caster-aabb-empty-space",
+    "sameBenchmarkConditions": {
+      "resolution": "640x360",
+      "warmupSamples": 5,
+      "timedSamples": 20,
+      "dpr": 1,
+      "stepSize": 0.5,
+      "bias": 0.5
+    },
+    "extraPasses": 0,
+    "extraDispatches": 0,
+    "extraUploads": 0,
+    "extraStorageBytes": 0
+  },
+  "cases": [
+    {
+      "id": "issue-48/before/stage-shadow",
+      "parameters": {
+        "suite": "stage",
+        "stage": "shadow",
+        "resolution": "640x360",
+        "source": "benchmark-results.json @ 412c2234d1648da57c99626f576735b752324aa4"
+      },
+      "metrics": {
+        "gpuTimestampMs": {
+          "samples": 20,
+          "median": 0.389184,
+          "p95": 0.40336,
+          "min": 0.387968,
+          "max": 0.405632
+        },
+        "frameGpuTimestampMs": {
+          "samples": 20,
+          "median": 0.452992,
+          "p95": 0.467296,
+          "min": 0.451072,
+          "max": 0.470336
+        },
+        "shadowSteps": 400,
+        "shadowMarchAlgorithm": "baseline-ray-march",
+        "extraShadowPasses": 0,
+        "extraShadowDispatches": 0,
+        "extraShadowUploads": 0,
+        "extraShadowStorageBytes": 0
+      }
+    },
+    {
+      "id": "issue-48/after/stage-shadow",
+      "parameters": {
+        "suite": "stage",
+        "stage": "shadow",
+        "resolution": "640x360",
+        "status": "measured",
+        "sameConditionsAs": "issue-48/before/stage-shadow"
+      },
+      "metrics": {
+        "gpuTimestampMs": {
+          "samples": 20,
+          "median": 0.234624,
+          "p95": 0.235872,
+          "min": 0.232704,
+          "max": 0.236064
+        },
+        "frameGpuTimestampMs": {
+          "samples": 20,
+          "median": 0.298592,
+          "p95": 0.301472,
+          "min": 0.296256,
+          "max": 0.304448
+        },
+        "shadowSteps": 400,
+        "shadowMarchAlgorithm": "ray-bound-prefix-binary-search+caster-aabb-empty-space",
+        "rayBoundSearchIterationUpperBound": 9,
+        "casterAabbPadTexels": 2,
+        "extraShadowPasses": 0,
+        "extraShadowDispatches": 0,
+        "extraShadowUploads": 0,
+        "extraShadowStorageBytes": 0,
+        "status": "measured"
+      }
+    },
+    {
+      "id": "issue-48/before/shadow-soft-8-radius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 8,
+        "angularRadius": 0.15,
+        "travel": "medium",
+        "resolution": "640x360",
+        "source": "benchmark-results.json @ 412c2234d1648da57c99626f576735b752324aa4"
+      },
+      "metrics": {
+        "shadowGpuTimestampMs": {
+          "samples": 20,
+          "median": 0.912016,
+          "p95": 0.927744,
+          "min": 0.906112,
+          "max": 1.059968
+        },
+        "gpuTimestampMs": {
+          "samples": 20,
+          "median": 0.94648,
+          "p95": 0.963232,
+          "min": 0.940928,
+          "max": 1.094048
+        },
+        "shadowSteps": 400,
+        "shadowSamples": 8,
+        "shadowMarchAlgorithm": "baseline-ray-march"
+      }
+    },
+    {
+      "id": "issue-48/after/shadow-soft-8-radius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 8,
+        "angularRadius": 0.15,
+        "travel": "medium",
+        "resolution": "640x360",
+        "status": "measured",
+        "sameConditionsAs": "issue-48/before/shadow-soft-8-radius-0.15"
+      },
+      "metrics": {
+        "shadowGpuTimestampMs": {
+          "samples": 20,
+          "median": 0.32984,
+          "p95": 0.34672,
+          "min": 0.326816,
+          "max": 0.495264
+        },
+        "gpuTimestampMs": {
+          "samples": 20,
+          "median": 0.364368,
+          "p95": 0.381664,
+          "min": 0.361248,
+          "max": 0.530112
+        },
+        "shadowSteps": 400,
+        "shadowSamples": 8,
+        "shadowMarchAlgorithm": "ray-bound-prefix-binary-search+caster-aabb-empty-space",
+        "rayBoundSearchIterationUpperBound": 9,
+        "casterAabbPadTexels": 2,
+        "extraShadowPasses": 0,
+        "extraShadowDispatches": 0,
+        "extraShadowUploads": 0,
+        "extraShadowStorageBytes": 0,
+        "status": "measured"
+      }
+    },
+    {
+      "id": "issue-48/before/shadow-travel",
+      "parameters": {
+        "suite": "shadow",
+        "resolution": "640x360",
+        "shadowSamples": 8,
+        "stepSize": 0.5,
+        "source": "benchmark-results.json @ 412c2234d1648da57c99626f576735b752324aa4"
+      },
+      "metrics": {
+        "shortShadowGpuTimestampMs": { "samples": 20, "median": 0.728528, "p95": 0.748224, "min": 0.716, "max": 0.882208 },
+        "mediumShadowGpuTimestampMs": { "samples": 20, "median": 0.908704, "p95": 0.920672, "min": 0.893888, "max": 0.93776 },
+        "longShadowGpuTimestampMs": { "samples": 20, "median": 0.910384, "p95": 0.918048, "min": 0.895776, "max": 1.03808 },
+        "shadowMarchAlgorithm": "baseline-ray-march"
+      }
+    },
+    {
+      "id": "issue-48/after/shadow-travel",
+      "parameters": {
+        "suite": "shadow",
+        "resolution": "640x360",
+        "shadowSamples": 8,
+        "stepSize": 0.5,
+        "status": "measured",
+        "sameConditionsAs": "issue-48/before/shadow-travel"
+      },
+      "metrics": {
+        "shortShadowGpuTimestampMs": { "samples": 20, "median": 0.264656, "p95": 0.268576, "min": 0.259744, "max": 0.273184 },
+        "mediumShadowGpuTimestampMs": { "samples": 20, "median": 0.324752, "p95": 0.330752, "min": 0.318976, "max": 0.351552 },
+        "longShadowGpuTimestampMs": { "samples": 20, "median": 0.345136, "p95": 0.356704, "min": 0.338976, "max": 0.359712 },
+        "shadowMarchAlgorithm": "ray-bound-prefix-binary-search+caster-aabb-empty-space",
+        "rayBoundSearchIterationUpperBound": { "short": 7, "medium": 8, "long": 10 },
+        "casterAabbPadTexels": 2,
+        "extraShadowPasses": 0,
+        "extraShadowDispatches": 0,
+        "extraShadowUploads": 0,
+        "extraShadowStorageBytes": 0,
+        "status": "measured"
+      }
+    }
+  ]
+}
