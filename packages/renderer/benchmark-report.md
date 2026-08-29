@@ -1,9 +1,10 @@
 # Ukibori benchmark report (#46)
 
 - schemaVersion: 1
-- commit: bbbf1e5cdb7557be009d5ed2f8bf9e50c932f69e
-- generatedAt: 2026-08-28T20:10:59.292Z
-- e2e run: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36 / unknown / backend unknown / timestamp-query true
+- commit: 5555d3352949ee37e987be154d476d0aa5277c8c
+- workingTreeDirty: false
+- generatedAt: 2026-08-29T07:49:54.168Z
+- stage run: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36 / unknown / backend unknown / timestamp-query true
 - stage run: Windows_NT 10.0.26200 / AMD Ryzen 7 7700 8-Core Processor               / backend unknown / timestamp-query unknown
 - dom run: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36 / unknown / backend unknown / timestamp-query unknown
 
@@ -14,97 +15,113 @@
 | upload | n/a | n/a |
 | height | 0.025 | 5.6% |
 | normal | 0.004 | 0.9% |
-| shadow | 0.387 | 85.4% |
+| shadow | 0.390 | 85.8% |
 | reconstruction | 0.020 | 4.5% |
-| lighting | 0.009 | 2.0% |
-| presentation | 0.004 | 0.8% |
-| total | 0.453 | 100.0% |
+| lighting | 0.009 | 1.9% |
+| presentation | 0.006 | 1.2% |
+| total | 0.454 | 100.0% |
 
 ## Resolution scaling (median GPU ms, full frame)
 
 | Resolution | GPU ms | host ms | texels |
 |---|---|---|---|
-| 320 | 0.047 | 0.200 | 57600 |
-| 640 | 0.116 | 0.300 | 230400 |
-| 1280 | 0.362 | 0.200 | 921600 |
-| 1920 | 0.817 | 0.300 | 2073600 |
+| 320 | 0.048 | 0.300 | 57600 |
+| 640 | 0.118 | 0.300 | 230400 |
+| 1280 | 0.364 | 0.400 | 921600 |
+| 1920 | 0.810 | 0.300 | 2073600 |
 
 ## Surface-count scaling (median GPU ms)
 
 | Surfaces | Frame GPU ms | Height GPU ms | Encoded bytes |
 |---|---|---|---|
 | 1 | 0.058 | 0.022 | 512 |
-| 4 | 0.078 | 0.033 | 960 |
-| 16 | 0.113 | 0.059 | 2496 |
+| 4 | 0.077 | 0.031 | 960 |
+| 16 | 0.112 | 0.058 | 2496 |
 | 64 | 0.232 | 0.178 | 8640 |
-| 128 | 0.387 | 0.334 | 16832 |
-| 256 | 0.746 | 0.692 | 33216 |
-| 512 | 1.404 | 1.351 | 65984 |
-| 1000 | 2.946 | 2.892 | 128448 |
+| 128 | 0.389 | 0.335 | 16832 |
+| 256 | 0.715 | 0.660 | 33216 |
+| 512 | 1.345 | 1.291 | 65984 |
+| 1000 | 3.099 | 3.044 | 128448 |
 
 ## Mask-resolution scaling (16 masks, median GPU ms)
 
 | Mask resolution | Frame GPU ms | Wall ms | Padded cells |
 |---|---|---|---|
-| 16 | 0.213 | 3.400 | 5184 |
-| 32 | 0.562 | 3.900 | 18496 |
-| 64 | 3.855 | 6.500 | 69696 |
-| 128 | 52.650 | 54.200 | 270400 |
-| 256 | 777.064 | 782.200 | 1065024 |
+| 16 | 0.215 | 3.600 | 5184 |
+| 32 | 0.565 | 3.400 | 18496 |
+| 64 | 3.851 | 5.900 | 69696 |
+| 128 | 52.192 | 55.000 | 270400 |
+| 256 | 776.150 | 779.100 | 1065024 |
 
-- mask SDF re-run on unrelated geometry update: passes=1, executed=[]
+- unchanged mask + unrelated geometry update (this frame): executed=[upload,height,normal,shadow,reconstruction,lighting,presentation], planning=partial (band 192..359 coverage 0.467), maskSdfPasses=1, composePasses=5, totalMaskCells=18496, height GPU=0.488ms, maskSDF GPU=0.481ms, compose GPU=0.057ms, wall=3.700ms (samples=20)
 
 ## Shadow sample scaling (median ShadowPass GPU ms)
 
 | Samples | Angular radius | Soft | Shadow GPU ms | March steps |
 |---|---|---|---|---|
-| 1 | 0 | no | 0.102 | 400 |
-| 4 | 0 | no | 0.102 | 400 |
+| 1 | 0 | no | 0.101 | 400 |
+| 4 | 0 | no | 0.100 | 400 |
 | 8 | 0 | no | 0.101 | 400 |
-| 16 | 0 | no | 0.100 | 400 |
-| 1 | 0.05 | no | 0.102 | 400 |
-| 4 | 0.05 | yes | 0.409 | 400 |
-| 8 | 0.05 | yes | 0.815 | 400 |
-| 16 | 0.05 | yes | 1.610 | 400 |
-| 1 | 0.15 | no | 0.100 | 400 |
-| 4 | 0.15 | yes | 0.462 | 400 |
-| 8 | 0.15 | yes | 0.913 | 400 |
+| 16 | 0 | no | 0.101 | 400 |
+| 1 | 0.05 | no | 0.101 | 400 |
+| 4 | 0.05 | yes | 0.407 | 400 |
+| 8 | 0.05 | yes | 0.809 | 400 |
+| 16 | 0.05 | yes | 1.608 | 400 |
+| 1 | 0.15 | no | 0.101 | 400 |
+| 4 | 0.15 | yes | 0.459 | 400 |
+| 8 | 0.15 | yes | 0.911 | 400 |
 | 16 | 0.15 | yes | 1.808 | 400 |
-| 1 | 0.3 | no | 0.100 | 400 |
-| 4 | 0.3 | yes | 0.564 | 400 |
-| 8 | 0.3 | yes | 1.128 | 400 |
+| 1 | 0.3 | no | 0.101 | 400 |
+| 4 | 0.3 | yes | 0.565 | 400 |
+| 8 | 0.3 | yes | 1.126 | 400 |
 | 16 | 0.3 | yes | 2.239 | 400 |
 
-## Reconstruction radius × DPR (median GPU ms)
+## Shadow travel distance (median ShadowPass GPU ms)
+
+The travel axis is the EXPLICIT maxDistance (the ray-march budget): short 40 / medium 120 / long 300 scene units at stepSize 0.5, so the cases are genuinely different workloads.
+
+| Travel | maxDistance | stepSize | Theoretical max steps | Shadow GPU ms | Dispatch step count |
+|---|---|---|---|---|---|
+| short | 40 | 0.5 | 80 | 0.732 | 80 |
+| medium | 120 | 0.5 | 240 | 0.910 | 240 |
+| long | 300 | 0.5 | 600 | 0.910 | 600 |
+
+## Reconstruction radius x DPR (median GPU ms)
 
 | Radius | DPR | Active | Taps/texel | Recon GPU ms | Frame GPU ms | Recon share |
 |---|---|---|---|---|---|---|
-| 0 | 1 | false | 0 | 0.000 | 0.013 | 0.0% |
-| 1 | 1 | true | 9 | 0.012 | 0.026 | 44.7% |
-| 2 | 1 | true | 25 | 0.020 | 0.035 | 59.3% |
-| 4 | 1 | true | 81 | 0.048 | 0.061 | 75.6% |
+| 0 | 1 | false | 0 | 0.000 | 0.014 | 0.0% |
+| 1 | 1 | true | 9 | 0.012 | 0.026 | 44.6% |
+| 2 | 1 | true | 25 | 0.021 | 0.035 | 63.7% |
+| 4 | 1 | true | 81 | 0.048 | 0.062 | 78.5% |
+| 0 | 1.5 | false | 0 | 0.000 | 0.020 | 0.0% |
+| 1 | 1.5 | true | 25 | 0.037 | 0.057 | 64.5% |
+| 2 | 1.5 | true | 49 | 0.059 | 0.080 | 74.7% |
+| 4 | 1.5 | true | 169 | 0.165 | 0.185 | 88.9% |
 | 0 | 2 | false | 0 | 0.000 | 0.031 | 0.0% |
-| 1 | 2 | true | 25 | 0.061 | 0.090 | 68.2% |
-| 2 | 2 | true | 81 | 0.149 | 0.179 | 83.0% |
-| 4 | 2 | true | 289 | 0.465 | 0.497 | 93.8% |
-| 0 | 3 | false | 0 | 0.000 | 0.093 | 0.0% |
-| 1 | 3 | true | 49 | 0.219 | 0.301 | 72.9% |
-| 2 | 3 | true | 169 | 0.611 | 0.693 | 88.3% |
-| 4 | 3 | true | 625 | 2.069 | 2.158 | 95.9% |
-| 0 | 4 | false | 0 | 0.000 | 0.186 | 0.0% |
-| 1 | 4 | true | 81 | 0.569 | 0.753 | 75.4% |
-| 2 | 4 | true | 289 | 1.773 | 1.959 | 91.2% |
-| 4 | 4 | true | 1089 | 6.503 | 6.689 | 97.5% |
+| 1 | 2 | true | 25 | 0.062 | 0.092 | 66.2% |
+| 2 | 2 | true | 81 | 0.149 | 0.181 | 82.6% |
+| 4 | 2 | true | 289 | 0.464 | 0.495 | 94.0% |
+| 0 | 3 | false | 0 | 0.000 | 0.176 | 0.0% |
+| 1 | 3 | true | 49 | 0.219 | 0.307 | 82.1% |
+| 2 | 3 | true | 169 | 0.607 | 0.694 | 87.4% |
+| 4 | 3 | true | 625 | 2.073 | 2.163 | 95.9% |
+| 0 | 4 | false | 0 | 0.000 | 0.187 | 0.0% |
+| 1 | 4 | true | 81 | 0.568 | 0.754 | 75.5% |
+| 2 | 4 | true | 289 | 1.774 | 1.961 | 91.1% |
+| 4 | 4 | true | 1089 | 6.784 | 6.992 | 97.5% |
 
-## Presentation microbenchmark (median wall ms)
+## Presentation microbenchmark
 
-| Stage | Wall ms | Canvas format |
-|---|---|---|
-| P4 | 0.500 | bgra8unorm |
-| P0 | 5.000 | bgra8unorm |
-| P1 | 2.700 | bgra8unorm |
-| P2 | 3.400 | bgra8unorm |
-| P3 | 2.600 | bgra8unorm |
+P0-P3 wall = submission + queue completion; GPU timestamp = the render pass itself (null on adapters without timestamp-query). P4 wall = production pipeline.present(); P4 GPU timestamp = the presentation stage of a production repaint render. Wall cost alone must never be read as shader cost.
+
+| Stage | Host ms | GPU timestamp ms | Wall ms | Canvas format |
+|---|---|---|---|---|
+| P4 | 0.100 | 0.005 | 3.850 | bgra8unorm |
+| P0 | 0.000 | 0.003 | 4.650 | bgra8unorm |
+| P1 | 0.000 | 0.004 | 2.950 | bgra8unorm |
+| P2 | 0.100 | 0.005 | 2.850 | bgra8unorm |
+| P3 | 0.100 | 0.005 | 3.100 | bgra8unorm |
 
 ## Submission-count overhead (median wall ms)
 
@@ -113,115 +130,131 @@
 | 1 | 0.100 |
 | 2 | 0.100 |
 | 4 | 0.100 |
-| 6 | 0.300 |
+| 6 | 0.200 |
 | 8 | 0.200 |
 
-## Upload benchmark (median host ms, 64-surface grid)
+## Upload benchmark (transition per sample, fresh uploader)
 
-| Update type | Host ms | Encoded bytes | Uploaded bytes | writeBuffer calls |
-|---|---|---|---|---|
-| first | 0.100 | 8640 | 8640 | 3 |
-| identical | 0.000 | 8640 | 8640 | 3 |
-| light-only | 0.100 | 8640 | 8640 | 3 |
-| material-values-only | 0.100 | 8640 | 8640 | 3 |
-| single-surface-geometry | 0.100 | 8640 | 8640 | 3 |
-| mask-change | 0.100 | 2240 | 2240 | 5 |
+hostMs = the uploader.upload() call itself; wallMs = upload + queue completion. writtenSections = sections the uploader transferred (every non-empty section); changedSections = sections whose BYTES differ between the before and after scenes.
 
-## Partial recompute (median GPU ms)
+| Update type | Host ms | Wall ms | Encoded bytes | Uploaded bytes | writeBuffer calls | New allocations | Written sections | Changed sections |
+|---|---|---|---|---|---|---|---|---|
+| first | 0.000 | 0.200 | 8640 | 8640 | 3 | 5 | header+surfaces+materials | first-upload-all-sections |
+| identical | 0.000 | 0.100 | 8640 | 8640 | 3 | 0 | header+surfaces+materials |  |
+| light-only | 0.000 | 0.100 | 8640 | 8640 | 3 | 0 | header+surfaces+materials | header |
+| material-values-only | 0.000 | 0.200 | 8640 | 8640 | 3 | 0 | header+surfaces+materials | materials |
+| single-surface-geometry | 0.000 | 0.100 | 8640 | 8640 | 3 | 0 | header+surfaces+materials | surfaces |
+| mask-change | 0.000 | 0.100 | 2240 | 2240 | 5 | 0 | header+surfaces+masks+maskPixels+materials | maskPixels |
 
-| Dirty ratio | Mode | Frame GPU ms | Dirty texels | Dispatch texels | Planning host ms |
-|---|---|---|---|---|---|
-| 1% | partial | 0.033 | 10200 | 81920 | 0.1000 |
-| 5% | partial | 0.034 | 8900 | 81920 | 0.1000 |
-| 10% | partial | 0.034 | 7300 | 81920 | 0.0000 |
-| 25% | partial | 0.034 | 5700 | 81920 | 0.0000 |
-| 50% | partial | 0.034 | 13700 | 81920 | 0.1000 |
-| 75% | partial | 0.034 | 21700 | 81920 | 0.0000 |
-| 100% | partial | 0.031 | 25650 | 81920 | 0.0000 |
+## Partial vs forced-full recompute (median GPU ms)
 
-## Retained scheduling (median wall ms per frame)
+actualDirtyRatio = planner dirtyTexels / totalTexels (never the input knob). The full comparator is the SAME target scene rendered as the FIRST frame on a fresh pipeline (first-frame contract: fullPlanningMode must be 'full'); partialToFullRatio = partial GPU / forced-full GPU (< 1 = partial wins).
 
-| Case | Wall ms | Submissions/frame | Executed | Expected |
-|---|---|---|---|---|
-| no-change | 0.100 | 0.00 |  |  |
-| repaint-only | 0.600 | 1.00 | presentation | presentation |
-| light-intensity | 0.100 | 0.10 | upload,lighting,presentation| | upload,lighting,presentation |
-| light-direction | 0.100 | 0.15 | upload,shadow,reconstruction,lighting,presentation| | upload,shadow,reconstruction,lighting,presentation |
-| material-values | 0.100 | 0.15 | upload,shadow,reconstruction,lighting,presentation| | upload,shadow,reconstruction,lighting,presentation |
-| geometry | 0.100 | 0.25 | upload,height,normal,shadow,reconstruction,lighting,presentation| | upload,height,normal,shadow,reconstruction,lighting,presentation |
+| Case | Actual dirty ratio | Partial mode | Full mode | Partial GPU ms | Full GPU ms | P/F ratio | Dirty texels | Dispatch texels |
+|---|---|---|---|---|---|---|---|---|
+| move-0.02 | 1.5% | partial | full | 0.033 | 0.103 | 0.325 | 3358 | 40960 |
+| move-0.05 | 1.8% | partial | full | 0.033 | 0.103 | 0.324 | 4094 | 40960 |
+| move-0.1 | 2.3% | partial | full | 0.033 | 0.103 | 0.322 | 5382 | 40960 |
+| move-0.2 | 3.4% | partial | full | 0.033 | 0.103 | 0.324 | 7912 | 40960 |
+| move-0.35 | 5.1% | partial | full | 0.033 | 0.103 | 0.319 | 11684 | 40960 |
+| move-0.55 | 7.2% | partial | full | 0.033 | 0.103 | 0.324 | 16698 | 40960 |
+| move-0.8 | 10.0% | partial | full | 0.033 | 0.103 | 0.322 | 23000 | 40960 |
+| move-1 | 12.2% | partial | full | 0.033 | 0.103 | 0.325 | 28060 | 40960 |
+| grow-1 | 2.3% | partial | full | 0.042 | 0.103 | 0.412 | 5332 | 81920 |
+| grow-2 | 3.4% | full | full | 0.086 | 0.103 | 0.835 | 7812 | 122880 |
+| grow-4 | 5.5% | full | full | 0.087 | 0.104 | 0.836 | 12772 | 163840 |
+| grow-7 | 7.3% | full | full | 0.087 | 0.104 | 0.841 | 16740 | 204800 |
+
+- comparator verification: all 12 forced-full cases planned mode=full.
+
+## Retained scheduling: transition vs repeated (median wall ms)
+
+transitionWallMs = the real base -> variant update frame; repeatedWallMs = identical variant -> variant retained frames after the transition. Never averaged together. Repeated cost is over the recorded frames count.
+
+| Case | Frames | Transition wall ms | Transition GPU ms | Repeated wall ms | Submissions/frame | Dispatches/frame | Bytes/frame | Transition executed | Expected |
+|---|---|---|---|---|---|---|---|---|---|
+| no-change | 200 | n/a | n/a | 0.100 | 0.00 | 0.00 | 0 |  |  |
+| repaint-only | 200 | n/a | n/a | 0.600 | 1.00 | 0.00 | 0 |  | presentation |
+| light-intensity | 200 | 2.700 | 0.014 | 0.100 | 0.00 | 0.00 | 0 | upload,lighting,presentation | upload,lighting,presentation |
+| light-direction | 200 | 0.850 | 0.084 | 0.100 | 0.00 | 0.00 | 0 | upload,shadow,reconstruction,lighting,presentation | upload,shadow,reconstruction,lighting,presentation |
+| material-values | 200 | 3.200 | 0.016 | 0.100 | 0.00 | 0.00 | 0 | upload,lighting,presentation | upload,lighting,presentation |
+| geometry | 200 | 4.500 | 0.120 | 0.100 | 0.00 | 0.00 | 0 | upload,height,normal,shadow,reconstruction,lighting,presentation | upload,height,normal,shadow,reconstruction,lighting,presentation |
 
 ## End-to-end frame cases (median wall ms)
 
 | Case | Wall ms | GPU ms | Executed |
 |---|---|---|---|
-| cold-first | 7.600 | 0.139 | upload,height,normal,shadow,reconstruction,lighting,presentation |
-| warmed-full | 2.900 | 0.118 | upload,height,normal,shadow,reconstruction,lighting,presentation |
-| retained | 0.200 | n/a |  |
-| repaint | 0.500 | 0.006 | presentation |
-| light-intensity | 0.900 | 0.013 | upload,lighting,presentation |
-| light-direction | 4.200 | 0.083 | upload,shadow,reconstruction,lighting,presentation |
-| material-values | 3.100 | 0.013 | upload,lighting,presentation |
-| geometry-move | 4.900 | 0.117 | upload,height,normal,shadow,reconstruction,lighting,presentation |
-| partial-geometry | 1.200 | 0.117 | upload,height,normal,shadow,reconstruction,lighting,presentation |
-| forced-full | 3.800 | 0.136 | upload,height,normal,shadow,reconstruction,lighting,presentation |
+| cold-first | 7.400 | 0.138 | upload,height,normal,shadow,reconstruction,lighting,presentation |
+| warmed-full | 2.900 | 0.119 | upload,height,normal,shadow,reconstruction,lighting,presentation |
+| retained | 0.100 | n/a |  |
+| repaint | 2.050 | 0.005 | presentation |
+| light-intensity | 3.700 | 0.014 | upload,lighting,presentation |
+| light-direction | 3.150 | 0.084 | upload,shadow,reconstruction,lighting,presentation |
+| material-values | 3.700 | 0.014 | upload,lighting,presentation |
+| geometry-move | 1.450 | 0.120 | upload,height,normal,shadow,reconstruction,lighting,presentation |
+| partial-geometry | 3.300 | 0.118 | upload,height,normal,shadow,reconstruction,lighting,presentation |
+| forced-full | 6.300 | 0.138 | upload,height,normal,shadow,reconstruction,lighting,presentation |
 
-## DOM integration (median wall ms)
+## DOM integration (median per-frame timings)
 
-| Scenario | Surfaces | Wall ms | Rect calls | Renderer invocations | Skipped render | Executed |
-|---|---|---|---|---|---|---|
-| stable-page | 1 | 0.500 | 0 | 0.00 | 1.00 |  |
-| one-surface-resize | 1 | 0.700 | 3 | 1.00 | 0.00 |  |
-| unrelated-mutation | 1 | 0.100 | 1 | 0.00 | 1.00 |  |
-| frequent-mutations | 1 | 0.200 | 1 | 0.00 | 1.00 | |upload,height,normal,shadow,reconstruction,lighting,presentation |
-| scroll | 1 | 0.000 | 0 | 0.00 | 1.00 |  |
-| stable-page | 10 | 0.000 | 0 | 0.00 | 1.00 |  |
-| one-surface-resize | 10 | 1.600 | 12 | 1.00 | 0.00 | upload,height,normal,shadow,reconstruction,lighting,presentation |
-| unrelated-mutation | 10 | 0.100 | 10 | 0.00 | 1.00 |  |
-| frequent-mutations | 10 | 0.200 | 10 | 0.00 | 1.00 | |upload,height,normal,shadow,reconstruction,lighting,presentation |
-| scroll | 10 | 0.100 | 0 | 0.00 | 1.00 |  |
-| stable-page | 50 | 0.400 | 0 | 0.00 | 1.00 |  |
-| one-surface-resize | 50 | 2.500 | 52 | 1.00 | 0.00 | upload,height,normal,shadow,reconstruction,lighting,presentation |
-| unrelated-mutation | 50 | 0.700 | 50 | 0.00 | 1.00 |  |
-| frequent-mutations | 50 | 0.900 | 50 | 0.00 | 1.00 | |upload,height,normal,shadow,reconstruction,lighting,presentation |
-| scroll | 50 | 0.000 | 0 | 0.00 | 1.00 |  |
-| stable-page | 100 | 0.600 | 0 | 0.00 | 1.00 |  |
-| one-surface-resize | 100 | 1.800 | 102 | 1.00 | 0.00 | upload,height,normal,shadow,reconstruction,lighting,presentation |
-| unrelated-mutation | 100 | 0.500 | 100 | 0.00 | 1.00 |  |
-| frequent-mutations | 100 | 0.700 | 100 | 0.00 | 1.00 | |upload,height,normal,shadow,reconstruction,lighting,presentation |
-| scroll | 100 | 0.600 | 100 | 0.00 | 1.00 |  |
-| stable-page | 250 | 1.600 | 250 | 0.00 | 1.00 |  |
-| one-surface-resize | 250 | 4.700 | 252 | 1.00 | 0.00 | upload,height,normal,shadow,reconstruction,lighting,presentation |
-| unrelated-mutation | 250 | 0.600 | 250 | 0.00 | 1.00 |  |
-| frequent-mutations | 250 | 1.900 | 250 | 0.00 | 1.00 | |upload,height,normal,shadow,reconstruction,lighting,presentation |
-| scroll | 250 | 2.100 | 250 | 0.00 | 1.00 |  |
-| stable-page | 500 | 1.900 | 0 | 0.00 | 1.00 |  |
-| one-surface-resize | 500 | 8.400 | 502 | 1.00 | 0.00 | upload,height,normal,shadow,reconstruction,lighting,presentation |
-| unrelated-mutation | 500 | 2.900 | 500 | 0.00 | 1.00 |  |
-| frequent-mutations | 500 | 4.300 | 500 | 0.00 | 1.00 | |upload,height,normal,shadow,reconstruction,lighting,presentation |
-| scroll | 500 | 3.400 | 500 | 0.00 | 1.00 |  |
-| stable-page | 1000 | 2.400 | 0 | 0.00 | 1.00 |  |
-| one-surface-resize | 1000 | 13.900 | 1002 | 1.00 | 0.00 | upload,height,normal,shadow,reconstruction,lighting,presentation |
-| unrelated-mutation | 1000 | 3.900 | 1000 | 0.00 | 1.00 |  |
-| frequent-mutations | 1000 | 6.000 | 1000 | 0.00 | 1.00 |  |
-| scroll | 1000 | 5.600 | 1000 | 0.00 | 1.00 |  |
+Every scenario runs warmup + samples frames (never single-shot). callbackHostMs = the Ukibori renderer callbacks inside the harness flush; settleWallMs = the harness observer-delivery wait floor (setTimeout turns, NOT Ukibori work). measurement/scene-build are FRAME-LOCAL: a frame whose serial did not advance reports 0, never a stale previous-frame value. The scroll scenario drives a real window.scrollTo + document scroll listener.
+
+| Scenario | Surfaces | Samples | Wall ms | Callback ms | Settle ms | Meas. ms | Scene-build ms | Rect calls | Style calls | Invocations | Skipped |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| stable-page | 1 | 20 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0 | 0 | 0.00 | 1.00 |
+| one-surface-resize | 1 | 20 | 9.900 | 0.200 | 9.500 | 0.000 | 0.000 | 3 | 3 | 1.00 | 0.00 |
+| unrelated-mutation | 1 | 20 | 9.800 | 0.100 | 9.600 | 0.000 | 0.000 | 1 | 0 | 0.00 | 1.00 |
+| frequent-mutations | 1 | 20 | 9.650 | 0.000 | 9.500 | 0.000 | 0.000 | 1 | 0 | 0.00 | 1.00 |
+| scroll | 1 | 20 | 9.800 | 0.000 | 9.700 | 0.000 | 0.000 | 1 | 0 | 0.00 | 1.00 |
+| stable-page | 10 | 20 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0 | 0 | 0.00 | 1.00 |
+| one-surface-resize | 10 | 20 | 10.000 | 0.800 | 9.100 | 0.100 | 0.000 | 12 | 3 | 1.00 | 0.00 |
+| unrelated-mutation | 10 | 20 | 9.550 | 0.100 | 9.450 | 0.100 | 0.000 | 10 | 0 | 0.00 | 1.00 |
+| frequent-mutations | 10 | 20 | 10.000 | 0.000 | 9.900 | 0.000 | 0.000 | 10 | 0 | 0.00 | 1.00 |
+| scroll | 10 | 20 | 10.000 | 0.050 | 9.850 | 0.000 | 0.000 | 10 | 0 | 0.00 | 1.00 |
+| stable-page | 50 | 20 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0 | 0 | 0.00 | 1.00 |
+| one-surface-resize | 50 | 20 | 10.950 | 1.000 | 9.900 | 0.200 | 0.000 | 52 | 3 | 1.00 | 0.00 |
+| unrelated-mutation | 50 | 20 | 9.600 | 0.200 | 9.300 | 0.200 | 0.000 | 50 | 0 | 0.00 | 1.00 |
+| frequent-mutations | 50 | 20 | 9.550 | 0.200 | 9.400 | 0.200 | 0.000 | 50 | 0 | 0.00 | 1.00 |
+| scroll | 50 | 20 | 10.050 | 0.200 | 9.800 | 0.200 | 0.000 | 50 | 0 | 0.00 | 1.00 |
+| stable-page | 100 | 20 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0 | 0 | 0.00 | 1.00 |
+| one-surface-resize | 100 | 20 | 10.600 | 1.200 | 9.200 | 0.300 | 0.000 | 102 | 3 | 1.00 | 0.00 |
+| unrelated-mutation | 100 | 20 | 9.950 | 0.300 | 9.700 | 0.300 | 0.000 | 100 | 0 | 0.00 | 1.00 |
+| frequent-mutations | 100 | 20 | 10.050 | 0.300 | 9.800 | 0.300 | 0.000 | 100 | 0 | 0.00 | 1.00 |
+| scroll | 100 | 20 | 9.800 | 0.300 | 9.550 | 0.300 | 0.000 | 100 | 0 | 0.00 | 1.00 |
+| stable-page | 250 | 20 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0 | 0 | 0.00 | 1.00 |
+| one-surface-resize | 250 | 20 | 12.150 | 2.350 | 9.700 | 0.700 | 0.000 | 252 | 3 | 1.00 | 0.00 |
+| unrelated-mutation | 250 | 20 | 10.100 | 0.750 | 9.350 | 0.750 | 0.000 | 250 | 0 | 0.00 | 1.00 |
+| frequent-mutations | 250 | 20 | 10.600 | 0.900 | 9.800 | 0.900 | 0.000 | 250 | 0 | 0.00 | 1.00 |
+| scroll | 250 | 20 | 10.000 | 0.700 | 9.150 | 0.700 | 0.000 | 250 | 0 | 0.00 | 1.00 |
+| stable-page | 500 | 20 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0 | 0 | 0.00 | 1.00 |
+| one-surface-resize | 500 | 20 | 13.100 | 3.450 | 9.500 | 1.450 | 0.100 | 502 | 3 | 1.00 | 0.00 |
+| unrelated-mutation | 500 | 20 | 11.000 | 1.300 | 9.650 | 1.300 | 0.000 | 500 | 0 | 0.00 | 1.00 |
+| frequent-mutations | 500 | 20 | 11.050 | 1.400 | 9.400 | 1.400 | 0.000 | 500 | 0 | 0.00 | 1.00 |
+| scroll | 500 | 20 | 10.850 | 1.100 | 9.700 | 1.100 | 0.000 | 500 | 0 | 0.00 | 1.00 |
+| stable-page | 1000 | 20 | 0.000 | 0.000 | 0.000 | 0.000 | 0.000 | 0 | 0 | 0.00 | 1.00 |
+| one-surface-resize | 1000 | 20 | 14.600 | 4.800 | 9.700 | 2.400 | 0.100 | 1002 | 3 | 1.00 | 0.00 |
+| unrelated-mutation | 1000 | 20 | 12.450 | 2.600 | 9.800 | 2.600 | 0.000 | 1000 | 0 | 0.00 | 1.00 |
+| frequent-mutations | 1000 | 20 | 12.500 | 2.750 | 9.750 | 2.750 | 0.000 | 1000 | 0 | 0.00 | 1.00 |
+| scroll | 1000 | 20 | 11.600 | 2.400 | 9.100 | 2.400 | 0.000 | 1000 | 0 | 0.00 | 1.00 |
 
 ## Bottleneck matrix
 
 | Workload | Main bottleneck | Secondary | Scaling factor | Evidence |
 |---|---|---|---|---|
 | simple 640x360 | shadow | - | pixels | 0.078ms GPU shadow |
-| many surfaces | height | - | pixels × surfaces | 2.892ms height / 2.946ms frame (1000 surfaces) |
-| many masks | height (mask SDF) | - | mask cells | 777.064ms frame at mask res 256 (1065024 cells) |
-| soft shadow | shadow | - | pixels × samples × march | 1.808ms shadow at 16 samples (18.0x vs 1 sample) |
-| high DPR + reconstruction | reconstruction | - | DPR² + radiusTexels² | 6.503ms recon / 6.689ms frame at DPR 4 radius 4 |
+| many surfaces | height | - | pixels x surfaces | 3.044ms height / 3.099ms frame (1000 surfaces) |
+| many masks | height (mask SDF) | - | mask cells | 776.150ms frame at mask res 256 (1065024 cells) |
+| soft shadow | shadow | - | pixels x samples x march | 1.808ms shadow at 16 samples (18.0x vs 1 sample) |
+| high DPR + reconstruction | reconstruction | - | DPR^2 + radiusTexels^2 | 6.784ms recon / 6.992ms frame at DPR 4 radius 4 |
 | DOM-heavy | measurement | skipped render | registered surfaces | 1000 getBoundingClientRect at 1000 surfaces |
 
 ## Follow-up optimization candidates
 
-1. **ReconstructionPass is 59.3% of the frame at DPR 1 radius 2** — 0.020ms of 0.035ms. Candidate: shared-memory / separable reconstruction (currently (2r+1)^2 neighborhood).
-2. **Mask SDF generation costs 777.064ms at mask resolution 256** — 1065024 padded mask cells. Candidate: mask SDF algorithm / caching (unchanged masks recomputed on geometry updates).
-3. **Soft shadow at 16 samples costs 18.0x the 1-sample hard path (1.808ms)** — samples {1,4,8,16} → 0.100/1.808ms shadow. Candidate: shadow marcher acceleration / hierarchical ray skipping.
-4. **Full frame issues 6 queue.submit calls** — submission-count benchmark (1..8 empty submissions are sub-ms each). Candidate: single-command-buffer renderer redesign (baseline recorded).
+1. **ReconstructionPass is 63.7% of the frame at DPR 1 radius 2**  E0.021ms of 0.035ms. Candidate: shared-memory / separable reconstruction (currently (2r+1)^2 neighborhood).
+2. **Mask SDF generation costs 776.150ms at mask resolution 256**  E1065024 padded mask cells. Candidate: mask SDF algorithm / caching (unchanged masks recomputed on geometry updates).
+3. **Unchanged masks re-run the mask-SDF pass on an unrelated geometry update**  Eexecuted=[upload,height,normal,shadow,reconstruction,lighting,presentation] maskSdfPasses=1 height GPU=0.488ms. Candidate: GPU mask-SDF cache keyed by mask contents (benchmark-flagged; separate optimization issue).
+4. **Soft shadow at 16 samples costs 18.0x the 1-sample hard path (1.808ms)**  Esamples {1,4,8,16} ->0.101/1.808ms shadow. Candidate: shadow marcher acceleration / hierarchical ray skipping.
+5. **Full frame issues 6 queue.submit calls**  Esubmission-count benchmark (1..8 empty submissions are sub-ms each). Candidate: single-command-buffer renderer redesign (baseline recorded).
 
 ## Notes
 

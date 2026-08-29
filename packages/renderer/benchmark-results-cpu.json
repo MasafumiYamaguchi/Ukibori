@@ -1,14 +1,15 @@
 {
   "schemaVersion": 1,
-  "commit": "bbbf1e5cdb7557be009d5ed2f8bf9e50c932f69e",
-  "generatedAt": "2026-08-28T20:17:11.238Z",
+  "commit": "5555d3352949ee37e987be154d476d0aa5277c8c",
+  "generatedAt": "2026-08-29T07:53:47.510Z",
   "environment": {
-    "timestamp": "2026-08-28T20:17:11.192Z",
+    "timestamp": "2026-08-29T07:53:47.413Z",
     "os": "Windows_NT 10.0.26200",
     "cpuModel": "AMD Ryzen 7 7700 8-Core Processor              ",
     "cpuCores": 16,
     "nodeVersion": "v22.14.0",
-    "commit": "bbbf1e5cdb7557be009d5ed2f8bf9e50c932f69e"
+    "commit": "5555d3352949ee37e987be154d476d0aa5277c8c",
+    "workingTreeDirty": false
   },
   "cases": [
     {
@@ -18,16 +19,15 @@
         "resolution": "320x180",
         "stage": "compose height (incl. mask SDF)",
         "warmups": 3,
-        "samples": 5
+        "samples": 8
       },
       "metrics": {
         "hostMs": {
-          "label": "compose height (incl. mask SDF)",
-          "medianMs": 3.9284000000000106,
-          "p95Ms": 4.150499999999994,
-          "minMs": 3.4827999999999975,
-          "maxMs": 4.150499999999994,
-          "samples": 5
+          "samples": 8,
+          "median": 3.6386499999999984,
+          "p95": 4.797699999999992,
+          "min": 3.501800000000003,
+          "max": 4.797699999999992
         }
       }
     },
@@ -38,16 +38,15 @@
         "resolution": "320x180",
         "stage": "compose caster height",
         "warmups": 3,
-        "samples": 5
+        "samples": 8
       },
       "metrics": {
         "hostMs": {
-          "label": "compose caster height",
-          "medianMs": 1.7220000000000084,
-          "p95Ms": 2.1776000000000124,
-          "minMs": 1.7081000000000017,
-          "maxMs": 2.1776000000000124,
-          "samples": 5
+          "samples": 8,
+          "median": 1.705449999999999,
+          "p95": 1.9222000000000037,
+          "min": 1.6701999999999941,
+          "max": 1.9222000000000037
         }
       }
     },
@@ -58,16 +57,15 @@
         "resolution": "320x180",
         "stage": "normal",
         "warmups": 3,
-        "samples": 5
+        "samples": 8
       },
       "metrics": {
         "hostMs": {
-          "label": "normal",
-          "medianMs": 3.043299999999988,
-          "p95Ms": 3.663499999999999,
-          "minMs": 2.7449000000000012,
-          "maxMs": 3.663499999999999,
-          "samples": 5
+          "samples": 8,
+          "median": 2.8130000000000166,
+          "p95": 4.426900000000018,
+          "min": 2.7502000000000066,
+          "max": 4.426900000000018
         }
       }
     },
@@ -78,16 +76,15 @@
         "resolution": "320x180",
         "stage": "shadow (4 samples)",
         "warmups": 3,
-        "samples": 5
+        "samples": 8
       },
       "metrics": {
         "hostMs": {
-          "label": "shadow (4 samples)",
-          "medianMs": 92.37,
-          "p95Ms": 98.4274999999999,
-          "minMs": 89.54070000000002,
-          "maxMs": 98.4274999999999,
-          "samples": 5
+          "samples": 8,
+          "median": 89.5068,
+          "p95": 101.23059999999998,
+          "min": 87.3424,
+          "max": 101.23059999999998
         }
       }
     },
@@ -98,16 +95,15 @@
         "resolution": "320x180",
         "stage": "reconstruction (radius 2)",
         "warmups": 3,
-        "samples": 5
+        "samples": 8
       },
       "metrics": {
         "hostMs": {
-          "label": "reconstruction (radius 2)",
-          "medianMs": 22.48350000000005,
-          "p95Ms": 22.938899999999876,
-          "minMs": 21.47979999999984,
-          "maxMs": 22.938899999999876,
-          "samples": 5
+          "samples": 8,
+          "median": 11.617550000000051,
+          "p95": 13.885600000000068,
+          "min": 11.255300000000034,
+          "max": 13.885600000000068
         }
       }
     },
@@ -118,16 +114,34 @@
         "resolution": "320x180",
         "stage": "lighting (shade + RGBA bytes)",
         "warmups": 3,
-        "samples": 5
+        "samples": 8
       },
       "metrics": {
         "hostMs": {
-          "label": "lighting (shade + RGBA bytes)",
-          "medianMs": 23.20659999999998,
-          "p95Ms": 25.172200000000203,
-          "minMs": 22.95830000000001,
-          "maxMs": 25.172200000000203,
-          "samples": 5
+          "samples": 8,
+          "median": 23.750999999999976,
+          "p95": 25.450700000000097,
+          "min": 22.75890000000004,
+          "max": 25.450700000000097
+        }
+      }
+    },
+    {
+      "id": "cpu/stage/resolution-320x180/stage-compositing-(final-RGBA-synthesis)",
+      "parameters": {
+        "suite": "stage",
+        "resolution": "320x180",
+        "stage": "compositing (final RGBA synthesis)",
+        "warmups": 3,
+        "samples": 8
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 0.28175000000010186,
+          "p95": 0.31169999999997344,
+          "min": 0.26769999999987704,
+          "max": 0.31169999999997344
         }
       }
     },
@@ -135,17 +149,19 @@
       "id": "cpu/resolution/w-320/h-180",
       "parameters": {
         "suite": "resolution",
+        "warmups": 3,
+        "samples": 8,
         "width": 320,
         "height": 180,
         "scene": "simple-rounded-rect"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 125.00839999999994,
-          "p95": 127.6735000000001,
-          "min": 122.05780000000004,
-          "max": 127.6735000000001
+          "samples": 8,
+          "median": 119.97405000000003,
+          "p95": 129.29689999999982,
+          "min": 117.80610000000024,
+          "max": 129.29689999999982
         },
         "texels": 57600
       }
@@ -154,17 +170,19 @@
       "id": "cpu/resolution/w-640/h-360",
       "parameters": {
         "suite": "resolution",
+        "warmups": 3,
+        "samples": 8,
         "width": 640,
         "height": 360,
         "scene": "simple-rounded-rect"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 616.9013999999997,
-          "p95": 645.0852999999997,
-          "min": 575.4552999999996,
-          "max": 645.0852999999997
+          "samples": 8,
+          "median": 603.5014999999999,
+          "p95": 705.4805999999999,
+          "min": 579.1214,
+          "max": 705.4805999999999
         },
         "texels": 230400
       }
@@ -173,17 +191,19 @@
       "id": "cpu/resolution/w-1280/h-720",
       "parameters": {
         "suite": "resolution",
+        "warmups": 3,
+        "samples": 8,
         "width": 1280,
         "height": 720,
         "scene": "simple-rounded-rect"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 2487.1569000000018,
-          "p95": 2736.412199999999,
-          "min": 2448.8235000000004,
-          "max": 2736.412199999999
+          "samples": 8,
+          "median": 2493.5861999999997,
+          "p95": 2648.1676000000007,
+          "min": 2417.227500000001,
+          "max": 2648.1676000000007
         },
         "texels": 921600
       }
@@ -192,17 +212,19 @@
       "id": "cpu/resolution/w-1920/h-1080",
       "parameters": {
         "suite": "resolution",
+        "warmups": 3,
+        "samples": 8,
         "width": 1920,
         "height": 1080,
         "scene": "simple-rounded-rect"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 5728.993399999999,
-          "p95": 5795.726999999999,
-          "min": 5618.1687999999995,
-          "max": 5795.726999999999
+          "samples": 8,
+          "median": 5611.455049999997,
+          "p95": 5877.923900000002,
+          "min": 5520.333400000003,
+          "max": 5877.923900000002
         },
         "texels": 2073600
       }
@@ -211,17 +233,19 @@
       "id": "cpu/surface/count-1",
       "parameters": {
         "suite": "surface",
+        "warmups": 3,
+        "samples": 8,
         "surfaceCount": 1,
         "resolution": "320x180",
         "scene": "surface-grid"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 62.281400000007125,
-          "p95": 74.329899999997,
-          "min": 57.17160000000149,
-          "max": 74.329899999997
+          "samples": 8,
+          "median": 56.6475500000015,
+          "p95": 78.80590000000666,
+          "min": 53.58849999999802,
+          "max": 78.80590000000666
         },
         "texels": 57600
       }
@@ -230,17 +254,19 @@
       "id": "cpu/surface/count-4",
       "parameters": {
         "suite": "surface",
+        "warmups": 3,
+        "samples": 8,
         "surfaceCount": 4,
         "resolution": "320x180",
         "scene": "surface-grid"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 88.08059999998659,
-          "p95": 91.86000000000058,
-          "min": 79.8119000000006,
-          "max": 91.86000000000058
+          "samples": 8,
+          "median": 78.88119999999617,
+          "p95": 85.02590000000782,
+          "min": 75.30490000000282,
+          "max": 85.02590000000782
         },
         "texels": 57600
       }
@@ -249,17 +275,19 @@
       "id": "cpu/surface/count-16",
       "parameters": {
         "suite": "surface",
+        "warmups": 3,
+        "samples": 8,
         "surfaceCount": 16,
         "resolution": "320x180",
         "scene": "surface-grid"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 136.74589999999444,
-          "p95": 160.4210000000021,
-          "min": 128.1658000000025,
-          "max": 160.4210000000021
+          "samples": 8,
+          "median": 138.3582499999975,
+          "p95": 169.99129999999423,
+          "min": 118.99229999999807,
+          "max": 169.99129999999423
         },
         "texels": 57600
       }
@@ -268,17 +296,19 @@
       "id": "cpu/surface/count-64",
       "parameters": {
         "suite": "surface",
+        "warmups": 3,
+        "samples": 8,
         "surfaceCount": 64,
         "resolution": "320x180",
         "scene": "surface-grid"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 314.1915000000008,
-          "p95": 329.66629999999714,
-          "min": 289.0185999999958,
-          "max": 329.66629999999714
+          "samples": 8,
+          "median": 293.52440000000206,
+          "p95": 327.6054000000004,
+          "min": 274.81819999999425,
+          "max": 327.6054000000004
         },
         "texels": 57600
       }
@@ -287,17 +317,19 @@
       "id": "cpu/surface/count-128",
       "parameters": {
         "suite": "surface",
+        "warmups": 3,
+        "samples": 8,
         "surfaceCount": 128,
         "resolution": "320x180",
         "scene": "surface-grid"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 501.1953999999969,
-          "p95": 537.4198999999935,
-          "min": 471.1450000000041,
-          "max": 537.4198999999935
+          "samples": 8,
+          "median": 519.8547499999986,
+          "p95": 573.8849000000046,
+          "min": 487.1165000000037,
+          "max": 573.8849000000046
         },
         "texels": 57600
       }
@@ -306,17 +338,19 @@
       "id": "cpu/surface/count-256",
       "parameters": {
         "suite": "surface",
+        "warmups": 3,
+        "samples": 8,
         "surfaceCount": 256,
         "resolution": "320x180",
         "scene": "surface-grid"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 934.064200000008,
-          "p95": 1057.0279999999912,
-          "min": 862.9580999999889,
-          "max": 1057.0279999999912
+          "samples": 8,
+          "median": 895.4812999999995,
+          "p95": 963.3803000000044,
+          "min": 859.3503000000055,
+          "max": 963.3803000000044
         },
         "texels": 57600
       }
@@ -325,6 +359,8 @@
       "id": "cpu/mask/maskCount-0/maskResolution-32",
       "parameters": {
         "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
         "maskCount": 0,
         "maskResolution": 32,
         "resolution": "320x180",
@@ -332,18 +368,18 @@
       },
       "metrics": {
         "sdfHostMs": {
-          "samples": 5,
-          "median": 0.0007000000041443855,
-          "p95": 0.005799999998998828,
-          "min": 0.00029999999969732016,
-          "max": 0.005799999998998828
+          "samples": 8,
+          "median": 0.0003000000069732778,
+          "p95": 0.003899999996065162,
+          "min": 0.00019999999494757503,
+          "max": 0.003899999996065162
         },
         "fullHostMs": {
-          "samples": 5,
-          "median": 39.365200000000186,
-          "p95": 49.40979999999399,
-          "min": 34.87369999999646,
-          "max": 49.40979999999399
+          "samples": 8,
+          "median": 36.26530000000639,
+          "p95": 39.199399999997695,
+          "min": 32.69419999999809,
+          "max": 39.199399999997695
         },
         "texels": 57600
       }
@@ -352,6 +388,8 @@
       "id": "cpu/mask/maskCount-1/maskResolution-32",
       "parameters": {
         "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
         "maskCount": 1,
         "maskResolution": 32,
         "resolution": "320x180",
@@ -359,18 +397,18 @@
       },
       "metrics": {
         "sdfHostMs": {
-          "samples": 5,
-          "median": 1.1643000000040047,
-          "p95": 1.3258000000059837,
-          "min": 0.9547000000020489,
-          "max": 1.3258000000059837
+          "samples": 8,
+          "median": 0.9864999999990687,
+          "p95": 1.3135000000038417,
+          "min": 0.5497999999934109,
+          "max": 1.3135000000038417
         },
         "fullHostMs": {
-          "samples": 5,
-          "median": 65.87489999999525,
-          "p95": 70.74559999999474,
-          "min": 58.06949999999779,
-          "max": 70.74559999999474
+          "samples": 8,
+          "median": 60.77309999999852,
+          "p95": 75.5630000000092,
+          "min": 55.28910000000906,
+          "max": 75.5630000000092
         },
         "texels": 57600
       }
@@ -379,6 +417,8 @@
       "id": "cpu/mask/maskCount-16/maskResolution-32",
       "parameters": {
         "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
         "maskCount": 16,
         "maskResolution": 32,
         "resolution": "320x180",
@@ -386,18 +426,18 @@
       },
       "metrics": {
         "sdfHostMs": {
-          "samples": 5,
-          "median": 2.653600000005099,
-          "p95": 3.5460000000020955,
-          "min": 2.338400000007823,
-          "max": 3.5460000000020955
+          "samples": 8,
+          "median": 3.3040500000061,
+          "p95": 4.5644999999931315,
+          "min": 2.938399999999092,
+          "max": 4.5644999999931315
         },
         "fullHostMs": {
-          "samples": 5,
-          "median": 84.2664000000077,
-          "p95": 93.95539999999164,
-          "min": 74.13589999999385,
-          "max": 93.95539999999164
+          "samples": 8,
+          "median": 72.44380000000092,
+          "p95": 81.66999999999825,
+          "min": 70.77550000000338,
+          "max": 81.66999999999825
         },
         "texels": 57600
       }
@@ -406,6 +446,8 @@
       "id": "cpu/mask/maskCount-64/maskResolution-32",
       "parameters": {
         "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
         "maskCount": 64,
         "maskResolution": 32,
         "resolution": "320x180",
@@ -413,18 +455,18 @@
       },
       "metrics": {
         "sdfHostMs": {
-          "samples": 5,
-          "median": 11.706500000000233,
-          "p95": 14.743799999996554,
-          "min": 10.741200000004028,
-          "max": 14.743799999996554
+          "samples": 8,
+          "median": 14.85580000000482,
+          "p95": 15.848999999987427,
+          "min": 9.439400000002934,
+          "max": 15.848999999987427
         },
         "fullHostMs": {
-          "samples": 5,
-          "median": 139.5463000000018,
-          "p95": 157.1597000000038,
-          "min": 122.92129999998724,
-          "max": 157.1597000000038
+          "samples": 8,
+          "median": 131.9965000000011,
+          "p95": 147.4311999999918,
+          "min": 125.85480000000098,
+          "max": 147.4311999999918
         },
         "texels": 57600
       }
@@ -433,6 +475,8 @@
       "id": "cpu/mask-resolution/maskResolution-16/maskCount-16",
       "parameters": {
         "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
         "maskCount": 16,
         "maskResolution": 16,
         "resolution": "320x180",
@@ -440,11 +484,11 @@
       },
       "metrics": {
         "sdfHostMs": {
-          "samples": 5,
-          "median": 1.1923999999999069,
-          "p95": 1.4431000000040513,
-          "min": 0.8282000000035623,
-          "max": 1.4431000000040513
+          "samples": 8,
+          "median": 0.9908999999970547,
+          "p95": 1.3509000000049127,
+          "min": 0.9223999999958323,
+          "max": 1.3509000000049127
         }
       }
     },
@@ -452,6 +496,8 @@
       "id": "cpu/mask-resolution/maskResolution-32/maskCount-16",
       "parameters": {
         "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
         "maskCount": 16,
         "maskResolution": 32,
         "resolution": "320x180",
@@ -459,11 +505,11 @@
       },
       "metrics": {
         "sdfHostMs": {
-          "samples": 5,
-          "median": 3.2796999999991385,
-          "p95": 4.036599999992177,
-          "min": 2.567799999989802,
-          "max": 4.036599999992177
+          "samples": 8,
+          "median": 3.3068999999959487,
+          "p95": 4.2185000000026776,
+          "min": 2.9217999999964377,
+          "max": 4.2185000000026776
         }
       }
     },
@@ -471,6 +517,8 @@
       "id": "cpu/mask-resolution/maskResolution-64/maskCount-16",
       "parameters": {
         "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
         "maskCount": 16,
         "maskResolution": 64,
         "resolution": "320x180",
@@ -478,11 +526,11 @@
       },
       "metrics": {
         "sdfHostMs": {
-          "samples": 5,
-          "median": 13.482600000003004,
-          "p95": 14.163199999995413,
-          "min": 12.993100000006962,
-          "max": 14.163199999995413
+          "samples": 8,
+          "median": 13.574400000004971,
+          "p95": 15.867400000002817,
+          "min": 11.622499999997672,
+          "max": 15.867400000002817
         }
       }
     },
@@ -490,6 +538,7 @@
       "id": "cpu/shadow/samples-1/angularRadius-0",
       "parameters": {
         "suite": "shadow",
+        "warmups": 3,
         "samples": 1,
         "angularRadius": 0,
         "resolution": "320x180",
@@ -497,11 +546,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 131.69920000000275,
-          "p95": 145.03109999999288,
-          "min": 121.84049999999115,
-          "max": 145.03109999999288
+          "samples": 8,
+          "median": 128.49649999999383,
+          "p95": 150.8295999999973,
+          "min": 123.87119999999413,
+          "max": 150.8295999999973
         },
         "texels": 57600
       }
@@ -510,6 +559,7 @@
       "id": "cpu/shadow/samples-4/angularRadius-0",
       "parameters": {
         "suite": "shadow",
+        "warmups": 3,
         "samples": 4,
         "angularRadius": 0,
         "resolution": "320x180",
@@ -517,11 +567,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 128.48709999999846,
-          "p95": 151.8917000000074,
-          "min": 125.07420000000275,
-          "max": 151.8917000000074
+          "samples": 8,
+          "median": 129.04415000000154,
+          "p95": 139.4256000000023,
+          "min": 123.5512000000017,
+          "max": 139.4256000000023
         },
         "texels": 57600
       }
@@ -530,6 +580,7 @@
       "id": "cpu/shadow/samples-8/angularRadius-0",
       "parameters": {
         "suite": "shadow",
+        "warmups": 3,
         "samples": 8,
         "angularRadius": 0,
         "resolution": "320x180",
@@ -537,11 +588,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 131.34019999999146,
-          "p95": 153.82910000000265,
-          "min": 126.76209999999264,
-          "max": 153.82910000000265
+          "samples": 8,
+          "median": 126.31349999999657,
+          "p95": 157.296800000011,
+          "min": 121.70440000000235,
+          "max": 157.296800000011
         },
         "texels": 57600
       }
@@ -550,6 +601,7 @@
       "id": "cpu/shadow/samples-16/angularRadius-0",
       "parameters": {
         "suite": "shadow",
+        "warmups": 3,
         "samples": 16,
         "angularRadius": 0,
         "resolution": "320x180",
@@ -557,11 +609,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 141.88969999999972,
-          "p95": 144.9328000000096,
-          "min": 131.60970000000088,
-          "max": 144.9328000000096
+          "samples": 8,
+          "median": 130.92595000000438,
+          "p95": 149.4725999999937,
+          "min": 121.83350000000792,
+          "max": 149.4725999999937
         },
         "texels": 57600
       }
@@ -570,6 +622,7 @@
       "id": "cpu/shadow/samples-1/angularRadius-0.05",
       "parameters": {
         "suite": "shadow",
+        "warmups": 3,
         "samples": 1,
         "angularRadius": 0.05,
         "resolution": "320x180",
@@ -577,11 +630,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 133.2963000000018,
-          "p95": 149.58819999999832,
-          "min": 131.58770000000368,
-          "max": 149.58819999999832
+          "samples": 8,
+          "median": 124.58045000000857,
+          "p95": 151.5564000000013,
+          "min": 121.34599999999045,
+          "max": 151.5564000000013
         },
         "texels": 57600
       }
@@ -590,6 +643,7 @@
       "id": "cpu/shadow/samples-4/angularRadius-0.05",
       "parameters": {
         "suite": "shadow",
+        "warmups": 3,
         "samples": 4,
         "angularRadius": 0.05,
         "resolution": "320x180",
@@ -597,11 +651,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 536.4814000000042,
-          "p95": 602.0504999999976,
-          "min": 512.1904000000068,
-          "max": 602.0504999999976
+          "samples": 8,
+          "median": 499.7630499999941,
+          "p95": 542.7833000000101,
+          "min": 488.75150000001304,
+          "max": 542.7833000000101
         },
         "texels": 57600
       }
@@ -610,6 +664,7 @@
       "id": "cpu/shadow/samples-8/angularRadius-0.05",
       "parameters": {
         "suite": "shadow",
+        "warmups": 3,
         "samples": 8,
         "angularRadius": 0.05,
         "resolution": "320x180",
@@ -617,11 +672,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 1035.5882000000129,
-          "p95": 1047.266100000008,
-          "min": 1030.8564999999944,
-          "max": 1047.266100000008
+          "samples": 8,
+          "median": 1001.065849999999,
+          "p95": 1032.7538000000059,
+          "min": 987.0546999999788,
+          "max": 1032.7538000000059
         },
         "texels": 57600
       }
@@ -630,6 +685,7 @@
       "id": "cpu/shadow/samples-16/angularRadius-0.05",
       "parameters": {
         "suite": "shadow",
+        "warmups": 3,
         "samples": 16,
         "angularRadius": 0.05,
         "resolution": "320x180",
@@ -637,11 +693,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 2093.1342000000004,
-          "p95": 2140.184799999988,
-          "min": 2000.9850000000006,
-          "max": 2140.184799999988
+          "samples": 8,
+          "median": 1993.8777500000142,
+          "p95": 2183.831600000005,
+          "min": 1971.517599999992,
+          "max": 2183.831600000005
         },
         "texels": 57600
       }
@@ -650,6 +706,7 @@
       "id": "cpu/shadow/samples-1/angularRadius-0.15",
       "parameters": {
         "suite": "shadow",
+        "warmups": 3,
         "samples": 1,
         "angularRadius": 0.15,
         "resolution": "320x180",
@@ -657,11 +714,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 139.87369999999646,
-          "p95": 158.75350000000617,
-          "min": 127.26380000000063,
-          "max": 158.75350000000617
+          "samples": 8,
+          "median": 125.59984999998414,
+          "p95": 134.33730000001378,
+          "min": 118.5801999999967,
+          "max": 134.33730000001378
         },
         "texels": 57600
       }
@@ -670,6 +727,7 @@
       "id": "cpu/shadow/samples-4/angularRadius-0.15",
       "parameters": {
         "suite": "shadow",
+        "warmups": 3,
         "samples": 4,
         "angularRadius": 0.15,
         "resolution": "320x180",
@@ -677,11 +735,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 553.4487000000081,
-          "p95": 600.336100000015,
-          "min": 537.8151000000071,
-          "max": 600.336100000015
+          "samples": 8,
+          "median": 509.1292000000103,
+          "p95": 553.1275000000023,
+          "min": 491.50479999999516,
+          "max": 553.1275000000023
         },
         "texels": 57600
       }
@@ -690,6 +748,7 @@
       "id": "cpu/shadow/samples-8/angularRadius-0.15",
       "parameters": {
         "suite": "shadow",
+        "warmups": 3,
         "samples": 8,
         "angularRadius": 0.15,
         "resolution": "320x180",
@@ -697,11 +756,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 1047.979399999982,
-          "p95": 1070.1925999999803,
-          "min": 1026.6236999999965,
-          "max": 1070.1925999999803
+          "samples": 8,
+          "median": 1023.5660999999964,
+          "p95": 1072.5108999999939,
+          "min": 1002.295700000017,
+          "max": 1072.5108999999939
         },
         "texels": 57600
       }
@@ -710,6 +769,7 @@
       "id": "cpu/shadow/samples-16/angularRadius-0.15",
       "parameters": {
         "suite": "shadow",
+        "warmups": 3,
         "samples": 16,
         "angularRadius": 0.15,
         "resolution": "320x180",
@@ -717,11 +777,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 2123.0678999999946,
-          "p95": 2146.335299999977,
-          "min": 2089.3239999999932,
-          "max": 2146.335299999977
+          "samples": 8,
+          "median": 2060.828099999999,
+          "p95": 2158.7943000000087,
+          "min": 2018.7609999999986,
+          "max": 2158.7943000000087
         },
         "texels": 57600
       }
@@ -730,6 +790,8 @@
       "id": "cpu/reconstruction/radius-1",
       "parameters": {
         "suite": "reconstruction",
+        "warmups": 3,
+        "samples": 8,
         "radius": 1,
         "tapsPerTexel": 9,
         "resolution": "320x180",
@@ -737,11 +799,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 6.473700000002282,
-          "p95": 7.039000000018859,
-          "min": 4.812799999985145,
-          "max": 7.039000000018859
+          "samples": 8,
+          "median": 4.627200000002631,
+          "p95": 5.693599999998696,
+          "min": 4.439899999997579,
+          "max": 5.693599999998696
         },
         "texels": 57600,
         "totalTaps": 518400
@@ -751,6 +813,8 @@
       "id": "cpu/reconstruction/radius-2",
       "parameters": {
         "suite": "reconstruction",
+        "warmups": 3,
+        "samples": 8,
         "radius": 2,
         "tapsPerTexel": 25,
         "resolution": "320x180",
@@ -758,11 +822,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 11.664199999999255,
-          "p95": 15.175799999997253,
-          "min": 10.864199999981793,
-          "max": 15.175799999997253
+          "samples": 8,
+          "median": 11.241249999991851,
+          "p95": 12.809200000017881,
+          "min": 10.539199999999255,
+          "max": 12.809200000017881
         },
         "texels": 57600,
         "totalTaps": 1440000
@@ -772,6 +836,8 @@
       "id": "cpu/reconstruction/radius-4",
       "parameters": {
         "suite": "reconstruction",
+        "warmups": 3,
+        "samples": 8,
         "radius": 4,
         "tapsPerTexel": 81,
         "resolution": "320x180",
@@ -779,11 +845,11 @@
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 34.799499999993714,
-          "p95": 37.809700000012526,
-          "min": 33.60409999999683,
-          "max": 37.809700000012526
+          "samples": 8,
+          "median": 35.80464999997639,
+          "p95": 41.78200000000652,
+          "min": 32.694799999997485,
+          "max": 41.78200000000652
         },
         "texels": 57600,
         "totalTaps": 4665600
@@ -793,17 +859,19 @@
       "id": "cpu/partial/ratio-1",
       "parameters": {
         "suite": "partial",
+        "warmups": 3,
+        "samples": 8,
         "dirtyRatio": 1,
         "resolution": "320x180",
         "scene": "partial-edit"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 0.06309999999939464,
-          "p95": 0.1247000000148546,
-          "min": 0.04670000000623986,
-          "max": 0.1247000000148546
+          "samples": 8,
+          "median": 0.043999999994412065,
+          "p95": 0.1038000000116881,
+          "min": 0.02529999997932464,
+          "max": 0.1038000000116881
         }
       }
     },
@@ -811,17 +879,19 @@
       "id": "cpu/partial/ratio-10",
       "parameters": {
         "suite": "partial",
+        "warmups": 3,
+        "samples": 8,
         "dirtyRatio": 10,
         "resolution": "320x180",
         "scene": "partial-edit"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 0.022100000001955777,
-          "p95": 0.02909999998519197,
-          "min": 0.0211999999883119,
-          "max": 0.02909999998519197
+          "samples": 8,
+          "median": 0.026549999995040707,
+          "p95": 0.02890000000479631,
+          "min": 0.025200000003678724,
+          "max": 0.02890000000479631
         }
       }
     },
@@ -829,17 +899,19 @@
       "id": "cpu/partial/ratio-25",
       "parameters": {
         "suite": "partial",
+        "warmups": 3,
+        "samples": 8,
         "dirtyRatio": 25,
         "resolution": "320x180",
         "scene": "partial-edit"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 0.021799999987706542,
-          "p95": 0.022700000001350418,
-          "min": 0.021100000012665987,
-          "max": 0.022700000001350418
+          "samples": 8,
+          "median": 0.0037499999889405444,
+          "p95": 0.004199999995762482,
+          "min": 0.003599999996367842,
+          "max": 0.004199999995762482
         }
       }
     },
@@ -847,17 +919,19 @@
       "id": "cpu/partial/ratio-50",
       "parameters": {
         "suite": "partial",
+        "warmups": 3,
+        "samples": 8,
         "dirtyRatio": 50,
         "resolution": "320x180",
         "scene": "partial-edit"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 0.005100000009406358,
-          "p95": 0.005299999989802018,
-          "min": 0.0050999999803025275,
-          "max": 0.005299999989802018
+          "samples": 8,
+          "median": 0.003700000001117587,
+          "p95": 0.004300000000512227,
+          "min": 0.003599999996367842,
+          "max": 0.004300000000512227
         }
       }
     },
@@ -865,17 +939,19 @@
       "id": "cpu/partial/ratio-100",
       "parameters": {
         "suite": "partial",
+        "warmups": 3,
+        "samples": 8,
         "dirtyRatio": 100,
         "resolution": "320x180",
         "scene": "partial-edit"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 0.005399999994551763,
-          "p95": 0.005600000004051253,
-          "min": 0.005299999989802018,
-          "max": 0.005600000004051253
+          "samples": 8,
+          "median": 0.0036499999987427145,
+          "p95": 0.0038000000058673322,
+          "min": 0.003499999991618097,
+          "max": 0.0038000000058673322
         }
       }
     },
@@ -883,16 +959,18 @@
       "id": "cpu/upload/scene-surface-grid-64",
       "parameters": {
         "suite": "upload",
+        "warmups": 3,
+        "samples": 8,
         "scene": "surface-grid-64",
         "resolution": "320x180"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 0.15309999999590218,
-          "p95": 1.0675999999803025,
-          "min": 0.12510000000474975,
-          "max": 1.0675999999803025
+          "samples": 8,
+          "median": 0.1506999999837717,
+          "p95": 0.21259999999892898,
+          "min": 0.08759999999892898,
+          "max": 0.21259999999892898
         },
         "encodedBytes": 8640
       }
@@ -901,19 +979,22 @@
       "id": "cpu/upload/scene-mask-heavy-64",
       "parameters": {
         "suite": "upload",
+        "warmups": 3,
+        "samples": 8,
         "scene": "mask-heavy-64",
         "resolution": "320x180"
       },
       "metrics": {
         "hostMs": {
-          "samples": 5,
-          "median": 0.2054000000061933,
-          "p95": 0.29170000000158325,
-          "min": 0.15840000001480803,
-          "max": 0.29170000000158325
+          "samples": 8,
+          "median": 0.180000000007567,
+          "p95": 0.26509999998961575,
+          "min": 0.15580000000772998,
+          "max": 0.26509999998961575
         },
         "encodedBytes": 76160
       }
     }
-  ]
+  ],
+  "workingTreeDirty": false
 }

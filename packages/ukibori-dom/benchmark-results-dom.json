@@ -1,10 +1,12 @@
 {
   "schemaVersion": 1,
-  "commit": "bbbf1e5cdb7557be009d5ed2f8bf9e50c932f69e",
-  "generatedAt": "2026-08-28T20:17:18.473Z",
+  "commit": "5555d3352949ee37e987be154d476d0aa5277c8c",
+  "generatedAt": "2026-08-29T07:54:29.460Z",
   "environment": {
-    "timestamp": "2026-08-28T20:17:18.473Z",
+    "timestamp": "2026-08-29T07:54:29.459Z",
     "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+    "browser": "chrome",
+    "headless": true,
     "devicePixelRatio": 1,
     "backend": "webgpu"
   },
@@ -15,52 +17,101 @@
         "suite": "dom",
         "scenario": "stable-page",
         "surfaceCount": 1,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 0.5,
-          "p95": 0.5,
-          "min": 0.5,
-          "max": 0.5
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 7.099999999627471,
-          "p95": 7.099999999627471,
-          "min": 7.099999999627471,
-          "max": 7.099999999627471
+          "samples": 20,
+          "median": 7,
+          "p95": 7,
+          "min": 7,
+          "max": 7
         },
         "executed": "",
         "retained": 0,
@@ -74,52 +125,101 @@
         "suite": "dom",
         "scenario": "one-surface-resize",
         "surfaceCount": 1,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 0.6999999992549419,
-          "p95": 0.6999999992549419,
-          "min": 0.6999999992549419,
-          "max": 0.6999999992549419
+          "samples": 20,
+          "median": 9.900000005960464,
+          "p95": 11.099999994039536,
+          "min": 9.100000001490116,
+          "max": 11.100000001490116
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.20000000298023224,
+          "p95": 0.3999999985098839,
+          "min": 0.10000000149011612,
+          "max": 0.5
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.50000000372529,
+          "p95": 10.700000002980232,
+          "min": 8.900000005960464,
+          "max": 10.800000004470348
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 3,
+          "max": 3
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
           "median": 3,
           "p95": 3,
           "min": 3,
           "max": 3
         },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.19999999552965164,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 0.599999999627471,
-          "p95": 0.599999999627471,
-          "min": 0.599999999627471,
-          "max": 0.599999999627471
+          "samples": 20,
+          "median": 0.20000000298023224,
+          "p95": 0.3999999985098839,
+          "min": 0.10000000149011612,
+          "max": 0.5
         },
         "executed": "",
         "retained": 1,
@@ -133,52 +233,101 @@
         "suite": "dom",
         "scenario": "unrelated-mutation",
         "surfaceCount": 1,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 0.09999999962747097,
-          "p95": 0.09999999962747097,
-          "min": 0.09999999962747097,
-          "max": 0.09999999962747097
+          "samples": 20,
+          "median": 9.799999997019768,
+          "p95": 11.100000001490116,
+          "min": 9,
+          "max": 11.600000001490116
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.10000000149011612,
+          "p95": 0.20000000298023224,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.599999997764826,
+          "p95": 10.900000005960464,
+          "min": 8.799999997019768,
+          "max": 11.299999997019768
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.19999999552965164,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 0.09999999962747097,
-          "p95": 0.09999999962747097,
-          "min": 0.09999999962747097,
-          "max": 0.09999999962747097
+          "samples": 20,
+          "median": 0.04999999701976776,
+          "p95": 0.19999999552965164,
+          "min": 0,
+          "max": 0.20000000298023224
         },
         "executed": "",
         "retained": 0,
@@ -192,54 +341,103 @@
         "suite": "dom",
         "scenario": "frequent-mutations",
         "surfaceCount": 1,
-        "frames": 10,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 10,
-          "median": 0.2000000011175871,
-          "p95": 6.099999999627471,
+          "samples": 20,
+          "median": 9.649999998509884,
+          "p95": 10.800000004470348,
+          "min": 8.399999998509884,
+          "max": 11.699999995529652
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
           "min": 0,
-          "max": 6.099999999627471
+          "max": 0.20000000298023224
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.5,
+          "p95": 10.700000002980232,
+          "min": 8.299999997019768,
+          "max": 11.699999995529652
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 1,
           "p95": 1,
-          "min": 0,
+          "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 10,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 0,
           "p95": 0.10000000149011612,
           "min": 0,
           "max": 0.10000000149011612
         },
-        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "executed": "",
         "retained": 0,
         "renderSize": "192x164",
         "backend": "webgpu"
@@ -251,52 +449,101 @@
         "suite": "dom",
         "scenario": "scroll",
         "surfaceCount": 1,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
+          "samples": 20,
+          "median": 9.800000000745058,
+          "p95": 11.700000002980232,
+          "min": 4.5999999940395355,
+          "max": 11.900000005960464
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
-          "p95": 0,
+          "p95": 0.10000000149011612,
           "min": 0,
-          "max": 0
+          "max": 0.10000000149011612
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.699999999254942,
+          "p95": 11.600000001490116,
+          "min": 4.5999999940395355,
+          "max": 11.800000004470348
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.04999999701976776,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 1.299999998882413,
-          "p95": 1.299999998882413,
-          "min": 1.299999998882413,
-          "max": 1.299999998882413
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "executed": "",
         "retained": 0,
@@ -310,52 +557,101 @@
         "suite": "dom",
         "scenario": "stable-page",
         "surfaceCount": 10,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0.09999999403953552
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 1.800000000745058,
-          "p95": 1.800000000745058,
-          "min": 1.800000000745058,
-          "max": 1.800000000745058
+          "samples": 20,
+          "median": 1.8999999985098839,
+          "p95": 1.8999999985098839,
+          "min": 1.8999999985098839,
+          "max": 1.8999999985098839
         },
         "executed": "",
         "retained": 0,
@@ -369,52 +665,101 @@
         "suite": "dom",
         "scenario": "one-surface-resize",
         "surfaceCount": 10,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 1.599999999627471,
-          "p95": 1.599999999627471,
-          "min": 1.599999999627471,
-          "max": 1.599999999627471
+          "samples": 20,
+          "median": 10,
+          "p95": 11.5,
+          "min": 9.299999997019768,
+          "max": 11.600000001490116
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.8000000007450581,
+          "p95": 1.1000000014901161,
+          "min": 0.5,
+          "max": 1.1000000014901161
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.100000001490116,
+          "p95": 10.5,
+          "min": 8.399999998509884,
+          "max": 10.5
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 12,
           "p95": 12,
           "min": 12,
           "max": 12
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 3,
+          "max": 3
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.10000000149011612,
+          "p95": 0.20000000298023224,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 10,
+          "p95": 10,
+          "min": 10,
+          "max": 10
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 1.5,
-          "p95": 1.5,
-          "min": 1.5,
-          "max": 1.5
+          "samples": 20,
+          "median": 0.7999999970197678,
+          "p95": 1.1000000014901161,
+          "min": 0.5,
+          "max": 1.1000000014901161
         },
         "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
         "retained": 0,
@@ -428,52 +773,101 @@
         "suite": "dom",
         "scenario": "unrelated-mutation",
         "surfaceCount": 10,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 0.09999999962747097,
-          "p95": 0.09999999962747097,
-          "min": 0.09999999962747097,
-          "max": 0.09999999962747097
+          "samples": 20,
+          "median": 9.550000000745058,
+          "p95": 10.299999997019768,
+          "min": 8.5,
+          "max": 11.899999998509884
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.10000000149011612,
+          "p95": 0.20000000298023224,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.449999999254942,
+          "p95": 10.199999995529652,
+          "min": 8.399999998509884,
+          "max": 11.700000002980232
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 10,
           "p95": 10,
           "min": 10,
           "max": 10
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.10000000149011612,
+          "p95": 0.20000000298023224,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 10,
+          "p95": 10,
+          "min": 10,
+          "max": 10
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 0.09999999962747097,
-          "p95": 0.09999999962747097,
-          "min": 0.09999999962747097,
-          "max": 0.09999999962747097
+          "samples": 20,
+          "median": 0.10000000149011612,
+          "p95": 0.20000000298023224,
+          "min": 0,
+          "max": 0.20000000298023224
         },
         "executed": "",
         "retained": 0,
@@ -487,54 +881,103 @@
         "suite": "dom",
         "scenario": "frequent-mutations",
         "surfaceCount": 10,
-        "frames": 10,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 10,
-          "median": 0.2000000011175871,
-          "p95": 6,
+          "samples": 20,
+          "median": 10,
+          "p95": 11.600000001490116,
+          "min": 8.399999998509884,
+          "max": 11.600000001490116
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
           "min": 0,
-          "max": 6
+          "max": 0.10000000149011612
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.900000002235174,
+          "p95": 11.600000001490116,
+          "min": 8.199999995529652,
+          "max": 11.600000001490116
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 10,
           "p95": 10,
           "min": 10,
           "max": 10
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 1,
           "p95": 1,
-          "min": 0,
+          "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 10,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 10,
+          "p95": 10,
+          "min": 10,
+          "max": 10
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 0,
           "p95": 0.10000000149011612,
           "min": 0,
           "max": 0.10000000149011612
         },
-        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "executed": "",
         "retained": 0,
         "renderSize": "822x224",
         "backend": "webgpu"
@@ -546,52 +989,101 @@
         "suite": "dom",
         "scenario": "scroll",
         "surfaceCount": 10,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 0.10000000149011612,
+          "samples": 20,
+          "median": 10,
+          "p95": 10.899999998509884,
+          "min": 8.5,
+          "max": 11.100000001490116
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.04999999701976776,
           "p95": 0.10000000149011612,
-          "min": 0.10000000149011612,
+          "min": 0,
           "max": 0.10000000149011612
         },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.850000001490116,
+          "p95": 10.799999997019768,
+          "min": 8.5,
+          "max": 10.899999998509884
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 10,
+          "p95": 10,
+          "min": 10,
+          "max": 10
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 10,
+          "p95": 10,
+          "min": 10,
+          "max": 10
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 1,
-          "p95": 1,
-          "min": 1,
-          "max": 1
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "executed": "",
         "retained": 0,
@@ -605,52 +1097,101 @@
         "suite": "dom",
         "scenario": "stable-page",
         "surfaceCount": 50,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 0.40000000037252903,
-          "p95": 0.40000000037252903,
-          "min": 0.40000000037252903,
-          "max": 0.40000000037252903
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 1.699999999254942,
-          "p95": 1.699999999254942,
-          "min": 1.699999999254942,
-          "max": 1.699999999254942
+          "samples": 20,
+          "median": 2.2999999970197678,
+          "p95": 2.2999999970197678,
+          "min": 2.2999999970197678,
+          "max": 2.2999999970197678
         },
         "executed": "",
         "retained": 0,
@@ -664,52 +1205,101 @@
         "suite": "dom",
         "scenario": "one-surface-resize",
         "surfaceCount": 50,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 2.5,
-          "p95": 2.5,
-          "min": 2.5,
-          "max": 2.5
+          "samples": 20,
+          "median": 10.950000002980232,
+          "p95": 12.100000001490116,
+          "min": 9.100000001490116,
+          "max": 19.69999999552965
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1.2000000029802322,
+          "min": 0.7000000029802322,
+          "max": 1.3999999985098839
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.899999998509884,
+          "p95": 11.199999995529652,
+          "min": 8.100000001490116,
+          "max": 18.49999999254942
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 52,
           "p95": 52,
           "min": 52,
           "max": 52
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 3,
+          "max": 3
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.19999999925494194,
+          "p95": 0.30000000447034836,
+          "min": 0,
+          "max": 0.4000000059604645
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 50,
+          "p95": 50,
+          "min": 50,
+          "max": 50
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 1.799999998882413,
-          "p95": 1.799999998882413,
-          "min": 1.799999998882413,
-          "max": 1.799999998882413
+          "samples": 20,
+          "median": 1,
+          "p95": 1.2000000029802322,
+          "min": 0.7000000029802322,
+          "max": 1.3999999985098839
         },
         "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
         "retained": 0,
@@ -723,52 +1313,101 @@
         "suite": "dom",
         "scenario": "unrelated-mutation",
         "surfaceCount": 50,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 0.6999999992549419,
-          "p95": 0.6999999992549419,
-          "min": 0.6999999992549419,
-          "max": 0.6999999992549419
+          "samples": 20,
+          "median": 9.600000001490116,
+          "p95": 10.5,
+          "min": 8.700000002980232,
+          "max": 11.100000001490116
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.19999999552965164,
+          "p95": 0.30000000447034836,
+          "min": 0.10000000149011612,
+          "max": 0.30000000447034836
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.300000000745058,
+          "p95": 10.200000002980232,
+          "min": 8.5,
+          "max": 10.899999998509884
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 50,
           "p95": 50,
           "min": 50,
           "max": 50
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.19999999552965164,
+          "p95": 0.29999999701976776,
+          "min": 0.09999999403953552,
+          "max": 0.30000000447034836
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 50,
+          "p95": 50,
+          "min": 50,
+          "max": 50
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 0.19999999925494194,
-          "p95": 0.19999999925494194,
-          "min": 0.19999999925494194,
-          "max": 0.19999999925494194
+          "samples": 20,
+          "median": 0.19999999552965164,
+          "p95": 0.29999999701976776,
+          "min": 0.10000000149011612,
+          "max": 0.30000000447034836
         },
         "executed": "",
         "retained": 0,
@@ -782,54 +1421,103 @@
         "suite": "dom",
         "scenario": "frequent-mutations",
         "surfaceCount": 50,
-        "frames": 10,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 10,
-          "median": 0.900000000372529,
-          "p95": 5.5,
-          "min": 0.09999999962747097,
-          "max": 5.5
+          "samples": 20,
+          "median": 9.550000000745058,
+          "p95": 10.899999998509884,
+          "min": 8.399999998509884,
+          "max": 12.299999997019768
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.19999999925494194,
+          "p95": 0.29999999701976776,
+          "min": 0.09999999403953552,
+          "max": 0.30000000447034836
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.400000002235174,
+          "p95": 10.800000004470348,
+          "min": 8.199999995529652,
+          "max": 11.899999998509884
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 50,
           "p95": 50,
           "min": 50,
           "max": 50
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 1,
           "p95": 1,
-          "min": 0,
+          "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 10,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.19999999552965164,
+          "p95": 0.29999999701976776,
+          "min": 0.09999999403953552,
+          "max": 0.30000000447034836
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 50,
+          "p95": 50,
+          "min": 50,
+          "max": 50
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 10,
-          "median": 0.10000000149011612,
-          "p95": 0.2999999988824129,
-          "min": 0,
-          "max": 0.2999999988824129
+          "samples": 20,
+          "median": 0.19999999552965164,
+          "p95": 0.29999999701976776,
+          "min": 0.09999999403953552,
+          "max": 0.30000000447034836
         },
-        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "executed": "",
         "retained": 0,
         "renderSize": "822x524",
         "backend": "webgpu"
@@ -841,52 +1529,101 @@
         "suite": "dom",
         "scenario": "scroll",
         "surfaceCount": 50,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 0,
-          "p95": 0,
+          "samples": 20,
+          "median": 10.049999997019768,
+          "p95": 11.100000001490116,
+          "min": 4.5,
+          "max": 12.600000001490116
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.20000000298023224,
+          "p95": 0.29999999701976776,
           "min": 0,
-          "max": 0
+          "max": 0.30000000447034836
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.800000000745058,
+          "p95": 10.899999998509884,
+          "min": 4.399999998509884,
+          "max": 12.299999997019768
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 50,
+          "p95": 50,
+          "min": 0,
+          "max": 50
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.20000000298023224,
+          "p95": 0.29999999701976776,
+          "min": 0,
+          "max": 0.30000000447034836
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 50,
+          "p95": 50,
+          "min": 0,
+          "max": 50
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 1.900000000372529,
-          "p95": 1.900000000372529,
-          "min": 1.900000000372529,
-          "max": 1.900000000372529
+          "samples": 20,
+          "median": 0.20000000298023224,
+          "p95": 0.29999999701976776,
+          "min": 0,
+          "max": 0.30000000447034836
         },
         "executed": "",
         "retained": 0,
@@ -900,52 +1637,101 @@
         "suite": "dom",
         "scenario": "stable-page",
         "surfaceCount": 100,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 0.599999999627471,
-          "p95": 0.599999999627471,
-          "min": 0.599999999627471,
-          "max": 0.599999999627471
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 4.5,
-          "p95": 4.5,
-          "min": 4.5,
-          "max": 4.5
+          "samples": 20,
+          "median": 0.20000000298023224,
+          "p95": 0.20000000298023224,
+          "min": 0.20000000298023224,
+          "max": 0.20000000298023224
         },
         "executed": "",
         "retained": 0,
@@ -959,52 +1745,101 @@
         "suite": "dom",
         "scenario": "one-surface-resize",
         "surfaceCount": 100,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 1.799999998882413,
-          "p95": 1.799999998882413,
-          "min": 1.799999998882413,
-          "max": 1.799999998882413
+          "samples": 20,
+          "median": 10.599999997764826,
+          "p95": 11.400000005960464,
+          "min": 9.399999998509884,
+          "max": 11.5
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.2000000029802322,
+          "p95": 1.7000000029802322,
+          "min": 0.8999999985098839,
+          "max": 2.100000001490116
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.200000002980232,
+          "p95": 9.899999998509884,
+          "min": 7.899999998509884,
+          "max": 10.400000005960464
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 102,
           "p95": 102,
           "min": 102,
           "max": 102
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 3,
+          "max": 3
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.30000000447034836,
+          "p95": 0.4000000059604645,
+          "min": 0.20000000298023224,
+          "max": 0.7000000029802322
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 100,
+          "p95": 100,
+          "min": 100,
+          "max": 100
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 1.799999998882413,
-          "p95": 1.799999998882413,
-          "min": 1.799999998882413,
-          "max": 1.799999998882413
+          "samples": 20,
+          "median": 1.2000000029802322,
+          "p95": 1.7000000029802322,
+          "min": 0.8999999985098839,
+          "max": 2.100000001490116
         },
         "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
         "retained": 0,
@@ -1018,52 +1853,101 @@
         "suite": "dom",
         "scenario": "unrelated-mutation",
         "surfaceCount": 100,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 0.5,
-          "p95": 0.5,
-          "min": 0.5,
+          "samples": 20,
+          "median": 9.949999999254942,
+          "p95": 11,
+          "min": 8.700000002980232,
+          "max": 11
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.30000000447034836,
+          "p95": 0.4000000059604645,
+          "min": 0.19999999552965164,
           "max": 0.5
         },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.699999995529652,
+          "p95": 10.600000001490116,
+          "min": 8.300000004470348,
+          "max": 10.700000002980232
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 100,
           "p95": 100,
           "min": 100,
           "max": 100
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.30000000447034836,
+          "p95": 0.4000000059604645,
+          "min": 0.19999999552965164,
+          "max": 0.5
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 100,
+          "p95": 100,
+          "min": 100,
+          "max": 100
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 0.40000000037252903,
-          "p95": 0.40000000037252903,
-          "min": 0.40000000037252903,
-          "max": 0.40000000037252903
+          "samples": 20,
+          "median": 0.30000000447034836,
+          "p95": 0.4000000059604645,
+          "min": 0.19999999552965164,
+          "max": 0.5
         },
         "executed": "",
         "retained": 0,
@@ -1077,54 +1961,103 @@
         "suite": "dom",
         "scenario": "frequent-mutations",
         "surfaceCount": 100,
-        "frames": 10,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 10,
-          "median": 0.6999999992549419,
-          "p95": 5.5,
-          "min": 0.19999999925494194,
-          "max": 5.5
+          "samples": 20,
+          "median": 10.050000000745058,
+          "p95": 11.099999994039536,
+          "min": 8.900000005960464,
+          "max": 12.100000001490116
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.30000000447034836,
+          "p95": 0.3999999985098839,
+          "min": 0.19999999552965164,
+          "max": 0.6000000014901161
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.800000000745058,
+          "p95": 10.800000004470348,
+          "min": 8.5,
+          "max": 11.700000002980232
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 100,
           "p95": 100,
           "min": 100,
           "max": 100
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 1,
           "p95": 1,
-          "min": 0,
+          "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 10,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.30000000447034836,
+          "p95": 0.3999999985098839,
+          "min": 0.19999999552965164,
+          "max": 0.5
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 100,
+          "p95": 100,
+          "min": 100,
+          "max": 100
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 10,
-          "median": 0.19999999925494194,
-          "p95": 0.5,
-          "min": 0.19999999925494194,
+          "samples": 20,
+          "median": 0.30000000447034836,
+          "p95": 0.3999999985098839,
+          "min": 0.19999999552965164,
           "max": 0.5
         },
-        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "executed": "",
         "retained": 0,
         "renderSize": "822x884",
         "backend": "webgpu"
@@ -1136,52 +2069,101 @@
         "suite": "dom",
         "scenario": "scroll",
         "surfaceCount": 100,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 0.599999999627471,
-          "p95": 0.599999999627471,
-          "min": 0.599999999627471,
-          "max": 0.599999999627471
+          "samples": 20,
+          "median": 9.799999997019768,
+          "p95": 11.399999998509884,
+          "min": 8.699999995529652,
+          "max": 11.400000005960464
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.30000000447034836,
+          "p95": 0.3999999985098839,
+          "min": 0.20000000298023224,
+          "max": 0.5
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.549999997019768,
+          "p95": 10.899999998509884,
+          "min": 8.399999998509884,
+          "max": 10.900000005960464
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 100,
           "p95": 100,
           "min": 100,
           "max": 100
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.30000000074505806,
+          "p95": 0.3999999985098839,
+          "min": 0.20000000298023224,
+          "max": 0.5
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 100,
+          "p95": 100,
+          "min": 100,
+          "max": 100
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 0.19999999925494194,
-          "p95": 0.19999999925494194,
-          "min": 0.19999999925494194,
-          "max": 0.19999999925494194
+          "samples": 20,
+          "median": 0.30000000074505806,
+          "p95": 0.3999999985098839,
+          "min": 0.20000000298023224,
+          "max": 0.5
         },
         "executed": "",
         "retained": 0,
@@ -1195,52 +2177,101 @@
         "suite": "dom",
         "scenario": "stable-page",
         "surfaceCount": 250,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 1.599999999627471,
-          "p95": 1.599999999627471,
-          "min": 1.599999999627471,
-          "max": 1.599999999627471
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "rectCallsPerFrame": {
-          "samples": 1,
-          "median": 250,
-          "p95": 250,
-          "min": 250,
-          "max": 250
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 0.599999999627471,
-          "p95": 0.599999999627471,
-          "min": 0.599999999627471,
-          "max": 0.599999999627471
+          "samples": 20,
+          "median": 1.0999999940395355,
+          "p95": 1.0999999940395355,
+          "min": 1.0999999940395355,
+          "max": 1.0999999940395355
         },
         "executed": "",
         "retained": 0,
@@ -1254,52 +2285,101 @@
         "suite": "dom",
         "scenario": "one-surface-resize",
         "surfaceCount": 250,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 4.699999999254942,
-          "p95": 4.699999999254942,
-          "min": 4.699999999254942,
-          "max": 4.699999999254942
+          "samples": 20,
+          "median": 12.149999998509884,
+          "p95": 14,
+          "min": 10.899999998509884,
+          "max": 14.399999998509884
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 2.350000001490116,
+          "p95": 3.2999999970197678,
+          "min": 1.3999999985098839,
+          "max": 3.7000000029802322
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.699999995529652,
+          "p95": 10.900000005960464,
+          "min": 8.600000001490116,
+          "max": 11.700000002980232
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 252,
           "p95": 252,
           "min": 252,
           "max": 252
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 3,
+          "max": 3
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.7000000029802322,
+          "p95": 1.1000000014901161,
+          "min": 0.5,
+          "max": 1.2999999970197678
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 250,
+          "p95": 250,
+          "min": 250,
+          "max": 250
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 4.599999999627471,
-          "p95": 4.599999999627471,
-          "min": 4.599999999627471,
-          "max": 4.599999999627471
+          "samples": 20,
+          "median": 2.350000001490116,
+          "p95": 3.2999999970197678,
+          "min": 1.3999999985098839,
+          "max": 3.7000000029802322
         },
         "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
         "retained": 0,
@@ -1313,52 +2393,101 @@
         "suite": "dom",
         "scenario": "unrelated-mutation",
         "surfaceCount": 250,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 0.599999999627471,
-          "p95": 0.599999999627471,
-          "min": 0.599999999627471,
-          "max": 0.599999999627471
+          "samples": 20,
+          "median": 10.100000001490116,
+          "p95": 11.100000001490116,
+          "min": 9,
+          "max": 11.100000001490116
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.7500000037252903,
+          "p95": 1.1000000014901161,
+          "min": 0.5,
+          "max": 1.2000000029802322
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.350000001490116,
+          "p95": 10.199999995529652,
+          "min": 8.200000002980232,
+          "max": 10.299999997019768
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 250,
           "p95": 250,
           "min": 250,
           "max": 250
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.7500000037252903,
+          "p95": 1.1000000014901161,
+          "min": 0.5,
+          "max": 1.2000000029802322
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 250,
+          "p95": 250,
+          "min": 250,
+          "max": 250
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 0.5,
-          "p95": 0.5,
+          "samples": 20,
+          "median": 0.7500000037252903,
+          "p95": 1.1000000014901161,
           "min": 0.5,
-          "max": 0.5
+          "max": 1.2000000029802322
         },
         "executed": "",
         "retained": 0,
@@ -1372,54 +2501,103 @@
         "suite": "dom",
         "scenario": "frequent-mutations",
         "surfaceCount": 250,
-        "frames": 10,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 10,
-          "median": 1.900000000372529,
-          "p95": 6.599999999627471,
-          "min": 1.099999999627471,
-          "max": 6.599999999627471
+          "samples": 20,
+          "median": 10.600000001490116,
+          "p95": 11.599999994039536,
+          "min": 9.600000001490116,
+          "max": 12.200000002980232
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.8999999985098839,
+          "p95": 1,
+          "min": 0.5,
+          "max": 1
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.799999993294477,
+          "p95": 10.799999997019768,
+          "min": 8.700000002980232,
+          "max": 11.300000004470348
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 250,
           "p95": 250,
           "min": 250,
           "max": 250
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 1,
           "p95": 1,
-          "min": 0,
+          "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 10,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.8999999985098839,
+          "p95": 1,
+          "min": 0.5,
+          "max": 1
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 250,
+          "p95": 250,
+          "min": 250,
+          "max": 250
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 10,
-          "median": 1,
-          "p95": 1.400000000372529,
-          "min": 0.599999999627471,
-          "max": 1.400000000372529
+          "samples": 20,
+          "median": 0.8999999985098839,
+          "p95": 1,
+          "min": 0.5,
+          "max": 1
         },
-        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "executed": "",
         "retained": 0,
         "renderSize": "822x2024",
         "backend": "webgpu"
@@ -1431,52 +2609,101 @@
         "suite": "dom",
         "scenario": "scroll",
         "surfaceCount": 250,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 2.099999999627471,
-          "p95": 2.099999999627471,
-          "min": 2.099999999627471,
-          "max": 2.099999999627471
+          "samples": 20,
+          "median": 10,
+          "p95": 11.100000001490116,
+          "min": 4.199999995529652,
+          "max": 11.5
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.6999999955296516,
+          "p95": 0.8999999985098839,
+          "min": 0,
+          "max": 0.8999999985098839
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.149999998509884,
+          "p95": 10.300000004470348,
+          "min": 4.199999995529652,
+          "max": 10.800000004470348
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.04999999701976776,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 250,
           "p95": 250,
-          "min": 250,
+          "min": 0,
           "max": 250
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.6999999955296516,
+          "p95": 0.8999999985098839,
+          "min": 0,
+          "max": 0.8999999985098839
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 250,
+          "p95": 250,
+          "min": 0,
+          "max": 250
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 0.7999999988824129,
-          "p95": 0.7999999988824129,
-          "min": 0.7999999988824129,
-          "max": 0.7999999988824129
+          "samples": 20,
+          "median": 0.6999999955296516,
+          "p95": 0.8999999985098839,
+          "min": 0.5,
+          "max": 0.8999999985098839
         },
         "executed": "",
         "retained": 0,
@@ -1490,52 +2717,101 @@
         "suite": "dom",
         "scenario": "stable-page",
         "surfaceCount": 500,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 1.900000000372529,
-          "p95": 1.900000000372529,
-          "min": 1.900000000372529,
-          "max": 1.900000000372529
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 9.199999999254942,
-          "p95": 9.199999999254942,
-          "min": 9.199999999254942,
-          "max": 9.199999999254942
+          "samples": 20,
+          "median": 2,
+          "p95": 2,
+          "min": 2,
+          "max": 2
         },
         "executed": "",
         "retained": 0,
@@ -1549,52 +2825,101 @@
         "suite": "dom",
         "scenario": "one-surface-resize",
         "surfaceCount": 500,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 8.400000000372529,
-          "p95": 8.400000000372529,
-          "min": 8.400000000372529,
-          "max": 8.400000000372529
+          "samples": 20,
+          "median": 13.100000001490116,
+          "p95": 14.299999997019768,
+          "min": 11.5,
+          "max": 14.899999998509884
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 3.449999999254942,
+          "p95": 4.799999997019768,
+          "min": 2.5,
+          "max": 5.5
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.5,
+          "p95": 10.5,
+          "min": 8.299999989569187,
+          "max": 10.600000001490116
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 502,
           "p95": 502,
           "min": 502,
           "max": 502
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 3,
+          "max": 3
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.4500000029802322,
+          "p95": 2.2000000029802322,
+          "min": 1,
+          "max": 2.7999999970197678
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 500,
+          "p95": 500,
+          "min": 500,
+          "max": 500
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.10000000149011612,
+          "p95": 0.29999999701976776,
+          "min": 0,
+          "max": 0.29999999701976776
+        },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 6.699999999254942,
-          "p95": 6.699999999254942,
-          "min": 6.699999999254942,
-          "max": 6.699999999254942
+          "samples": 20,
+          "median": 3.400000002235174,
+          "p95": 4.799999997019768,
+          "min": 2.5,
+          "max": 5.5
         },
         "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
         "retained": 0,
@@ -1608,52 +2933,101 @@
         "suite": "dom",
         "scenario": "unrelated-mutation",
         "surfaceCount": 500,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 2.900000000372529,
-          "p95": 2.900000000372529,
-          "min": 2.900000000372529,
-          "max": 2.900000000372529
+          "samples": 20,
+          "median": 11,
+          "p95": 12.700000002980232,
+          "min": 9.600000001490116,
+          "max": 13
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.2999999970197678,
+          "p95": 1.5,
+          "min": 1.1000000014901161,
+          "max": 1.7000000029802322
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.649999998509884,
+          "p95": 11.400000005960464,
+          "min": 8.400000005960464,
+          "max": 11.5
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.09999999403953552,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 500,
           "p95": 500,
           "min": 500,
           "max": 500
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.2999999970197678,
+          "p95": 1.5,
+          "min": 1.1000000014901161,
+          "max": 1.7000000029802322
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 500,
+          "p95": 500,
+          "min": 500,
+          "max": 500
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 1.599999999627471,
-          "p95": 1.599999999627471,
-          "min": 1.599999999627471,
-          "max": 1.599999999627471
+          "samples": 20,
+          "median": 1.2999999970197678,
+          "p95": 1.5,
+          "min": 1.1000000014901161,
+          "max": 1.7000000029802322
         },
         "executed": "",
         "retained": 0,
@@ -1667,54 +3041,103 @@
         "suite": "dom",
         "scenario": "frequent-mutations",
         "surfaceCount": 500,
-        "frames": 10,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 10,
-          "median": 4.299999998882413,
-          "p95": 6.900000000372529,
-          "min": 2.099999999627471,
-          "max": 6.900000000372529
+          "samples": 20,
+          "median": 11.049999997019768,
+          "p95": 12.5,
+          "min": 10.200000002980232,
+          "max": 12.600000001490116
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.4000000059604645,
+          "p95": 2,
+          "min": 1.1000000014901161,
+          "max": 2.100000001490116
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.400000005960464,
+          "p95": 11.199999995529652,
+          "min": 8.899999998509884,
+          "max": 11.300000004470348
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 500,
           "p95": 500,
           "min": 500,
           "max": 500
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 1,
           "p95": 1,
-          "min": 0,
+          "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 10,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.4000000059604645,
+          "p95": 2,
+          "min": 1.1000000014901161,
+          "max": 2.100000001490116
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 500,
+          "p95": 500,
+          "min": 500,
+          "max": 500
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 10,
-          "median": 1.900000000372529,
-          "p95": 2.200000001117587,
-          "min": 1,
-          "max": 2.200000001117587
+          "samples": 20,
+          "median": 1.4000000059604645,
+          "p95": 2,
+          "min": 1.1000000014901161,
+          "max": 2.100000001490116
         },
-        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "executed": "",
         "retained": 0,
         "renderSize": "822x3884",
         "backend": "webgpu"
@@ -1726,51 +3149,100 @@
         "suite": "dom",
         "scenario": "scroll",
         "surfaceCount": 500,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 3.399999998509884,
-          "p95": 3.399999998509884,
-          "min": 3.399999998509884,
-          "max": 3.399999998509884
+          "samples": 20,
+          "median": 10.850000001490116,
+          "p95": 12.100000001490116,
+          "min": 4.100000001490116,
+          "max": 12.100000001490116
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.1000000014901161,
+          "p95": 1.5,
+          "min": 0,
+          "max": 1.5
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.699999999254942,
+          "p95": 10.799999997019768,
+          "min": 4.100000001490116,
+          "max": 10.800000004470348
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 500,
           "p95": 500,
-          "min": 500,
+          "min": 0,
           "max": 500
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.1000000014901161,
+          "p95": 1.5,
+          "min": 0,
+          "max": 1.5
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 500,
+          "p95": 500,
+          "min": 0,
+          "max": 500
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 1.5,
+          "samples": 20,
+          "median": 1.1500000022351742,
           "p95": 1.5,
-          "min": 1.5,
+          "min": 1,
           "max": 1.5
         },
         "executed": "",
@@ -1785,52 +3257,101 @@
         "suite": "dom",
         "scenario": "stable-page",
         "surfaceCount": 1000,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 2.400000000372529,
-          "p95": 2.400000000372529,
-          "min": 2.400000000372529,
-          "max": 2.400000000372529
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 8.400000000372529,
-          "p95": 8.400000000372529,
-          "min": 8.400000000372529,
-          "max": 8.400000000372529
+          "samples": 20,
+          "median": 7.700000002980232,
+          "p95": 7.700000002980232,
+          "min": 7.700000002980232,
+          "max": 7.700000002980232
         },
         "executed": "",
         "retained": 0,
@@ -1844,52 +3365,101 @@
         "suite": "dom",
         "scenario": "one-surface-resize",
         "surfaceCount": 1000,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 13.900000000372529,
-          "p95": 13.900000000372529,
-          "min": 13.900000000372529,
-          "max": 13.900000000372529
+          "samples": 20,
+          "median": 14.600000001490116,
+          "p95": 16.399999998509884,
+          "min": 12.899999998509884,
+          "max": 16.5
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 4.800000000745058,
+          "p95": 6.600000001490116,
+          "min": 4.200000002980232,
+          "max": 6.700000002980232
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.699999999254942,
+          "p95": 10.5,
+          "min": 8,
+          "max": 10.600000001490116
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1002,
           "p95": 1002,
           "min": 1002,
           "max": 1002
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 3,
+          "max": 3
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
           "min": 1,
           "max": 1
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 2.400000002235174,
+          "p95": 3.2000000029802322,
+          "min": 2.100000001490116,
+          "max": 3.399999998509884
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1000,
+          "p95": 1000,
+          "min": 1000,
+          "max": 1000
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.10000000149011612,
+          "p95": 0.20000000298023224,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 11.900000000372529,
-          "p95": 11.900000000372529,
-          "min": 11.900000000372529,
-          "max": 11.900000000372529
+          "samples": 20,
+          "median": 4.800000000745058,
+          "p95": 6.5,
+          "min": 4.200000002980232,
+          "max": 6.600000001490116
         },
         "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
         "retained": 0,
@@ -1903,54 +3473,103 @@
         "suite": "dom",
         "scenario": "unrelated-mutation",
         "surfaceCount": 1000,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 3.900000000372529,
-          "p95": 3.900000000372529,
-          "min": 3.900000000372529,
-          "max": 3.900000000372529
+          "samples": 20,
+          "median": 12.449999999254942,
+          "p95": 14,
+          "min": 10.5,
+          "max": 15.200000002980232
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 2.600000001490116,
+          "p95": 3.6999999955296516,
+          "min": 2.100000001490116,
+          "max": 3.7000000029802322
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.799999997019768,
+          "p95": 11.199999995529652,
+          "min": 8.399999998509884,
+          "max": 11.399999998509884
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1000,
           "p95": 1000,
           "min": 1000,
           "max": 1000
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
-          "min": 1,
+          "min": 0,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 2.600000001490116,
+          "p95": 3.6999999955296516,
+          "min": 2.100000001490116,
+          "max": 3.7000000029802322
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1000,
+          "p95": 1000,
+          "min": 1000,
+          "max": 1000
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 2.699999999254942,
-          "p95": 2.699999999254942,
-          "min": 2.699999999254942,
-          "max": 2.699999999254942
+          "samples": 20,
+          "median": 2.600000001490116,
+          "p95": 3.6999999955296516,
+          "min": 2.100000001490116,
+          "max": 3.7000000029802322
         },
-        "executed": "",
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation|",
         "retained": 0,
         "renderSize": "822x7604",
         "backend": "webgpu"
@@ -1962,54 +3581,103 @@
         "suite": "dom",
         "scenario": "frequent-mutations",
         "surfaceCount": 1000,
-        "frames": 10,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 10,
-          "median": 6,
-          "p95": 8.099999999627471,
-          "min": 2.799999998882413,
-          "max": 8.099999999627471
+          "samples": 20,
+          "median": 12.5,
+          "p95": 13.600000001490116,
+          "min": 11.399999998509884,
+          "max": 15.5
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 2.7500000037252903,
+          "p95": 3.600000001490116,
+          "min": 2.100000001490116,
+          "max": 3.8000000044703484
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.74999999627471,
+          "p95": 10.899999998509884,
+          "min": 8.399999998509884,
+          "max": 12.399999998509884
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
         },
         "rectCallsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 1000,
           "p95": 1000,
           "min": 1000,
           "max": 1000
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 10,
+          "samples": 20,
           "median": 1,
           "p95": 1,
-          "min": 1,
+          "min": 0,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 10,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 2.7500000037252903,
+          "p95": 3.600000001490116,
+          "min": 2.100000001490116,
+          "max": 3.8000000044703484
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1000,
+          "p95": 1000,
+          "min": 1000,
+          "max": 1000
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 10,
-          "median": 2.5,
-          "p95": 3.200000001117587,
-          "min": 1.900000000372529,
-          "max": 3.200000001117587
+          "samples": 20,
+          "median": 2.7500000037252903,
+          "p95": 3.600000001490116,
+          "min": 2.100000001490116,
+          "max": 3.8000000044703484
         },
-        "executed": "",
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation|",
         "retained": 0,
         "renderSize": "822x7604",
         "backend": "webgpu"
@@ -2021,58 +3689,108 @@
         "suite": "dom",
         "scenario": "scroll",
         "surfaceCount": 1000,
-        "frames": 1,
-        "warmups": 2,
-        "samples": 5
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
       },
       "metrics": {
         "wallMs": {
-          "samples": 1,
-          "median": 5.600000001490116,
-          "p95": 5.600000001490116,
-          "min": 5.600000001490116,
-          "max": 5.600000001490116
+          "samples": 20,
+          "median": 11.599999997764826,
+          "p95": 13.600000001490116,
+          "min": 4.199999995529652,
+          "max": 14
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 2.399999998509884,
+          "p95": 2.899999998509884,
+          "min": 0,
+          "max": 3.2000000029802322
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.100000001490116,
+          "p95": 10.600000001490116,
+          "min": 4.199999995529652,
+          "max": 11.599999994039536
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.20000000298023224
         },
         "rectCallsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1000,
           "p95": 1000,
-          "min": 1000,
+          "min": 0,
           "max": 1000
         },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
         "rendererInvocationsPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "skippedRenderPerFrame": {
-          "samples": 1,
+          "samples": 20,
           "median": 1,
           "p95": 1,
-          "min": 1,
+          "min": 0,
           "max": 1
         },
         "dirtyCountPerFrame": {
-          "samples": 1,
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 2.399999998509884,
+          "p95": 2.899999998509884,
+          "min": 0,
+          "max": 3.2000000029802322
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1000,
+          "p95": 1000,
+          "min": 0,
+          "max": 1000
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
           "median": 0,
           "p95": 0,
           "min": 0,
           "max": 0
         },
         "lastRenderMsPerFrame": {
-          "samples": 1,
-          "median": 2.5,
-          "p95": 2.5,
-          "min": 2.5,
-          "max": 2.5
+          "samples": 20,
+          "median": 2.5999999940395355,
+          "p95": 2.899999998509884,
+          "min": 2.1999999955296516,
+          "max": 3.2000000029802322
         },
-        "executed": "",
+        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
         "retained": 0,
         "renderSize": "822x7604",
         "backend": "webgpu"
       }
     }
-  ]
+  ],
+  "workingTreeDirty": false
 }
