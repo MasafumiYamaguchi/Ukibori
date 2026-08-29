@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "commit": "5555d3352949ee37e987be154d476d0aa5277c8c",
-  "generatedAt": "2026-08-29T07:54:29.460Z",
+  "commit": "28e4ac255fab2bc179b0a245fb6a15400e9a5a17",
+  "generatedAt": "2026-08-29T13:18:05.991Z",
   "environment": {
-    "timestamp": "2026-08-29T07:54:29.459Z",
+    "timestamp": "2026-08-29T13:18:05.991Z",
     "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
     "browser": "chrome",
     "headless": true,
@@ -106,12 +106,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 7,
-          "p95": 7,
-          "min": 7,
-          "max": 7
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "executed": "",
         "retained": 0,
@@ -132,31 +132,139 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 9.900000005960464,
-          "p95": 11.099999994039536,
-          "min": 9.100000001490116,
-          "max": 11.100000001490116
+          "median": 11.099999994039536,
+          "p95": 11.900000005960464,
+          "min": 9.5,
+          "max": 12.5
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0.20000000298023224,
-          "p95": 0.3999999985098839,
-          "min": 0.10000000149011612,
-          "max": 0.5
+          "median": 1.2500000074505806,
+          "p95": 1.7999999970197678,
+          "min": 0.7000000029802322,
+          "max": 2.2000000029802322
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.50000000372529,
-          "p95": 10.700000002980232,
-          "min": 8.900000005960464,
-          "max": 10.800000004470348
+          "median": 9.649999991059303,
+          "p95": 10.200000002980232,
+          "min": 8.500000014901161,
+          "max": 10.200000002980232
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
+        },
+        "rectCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 3,
+          "max": 3
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 3,
+          "max": 3
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "dirtyCountPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.04999999701976776,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.10000000894069672
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.10000000894069672
+        },
+        "renderHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.2000000104308128,
+          "p95": 1.7999999970197678,
+          "min": 0.7000000029802322,
+          "max": 2.2000000029802322
+        },
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "217x189",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/surface-style-mutation/1",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "surface-style-mutation",
+        "surfaceCount": 1,
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 10,
+          "p95": 11.099999994039536,
+          "min": 8.599999994039536,
+          "max": 11.099999994039536
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.29999999701976776,
+          "p95": 0.4000000059604645,
+          "min": 0.19999998807907104,
+          "max": 0.5
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.699999995529652,
+          "p95": 10.700000002980232,
+          "min": 8.399999991059303,
+          "max": 10.799999997019768
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -196,7 +304,7 @@
         "measureHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.19999999552965164,
+          "p95": 0.10000000894069672,
           "min": 0,
           "max": 0.20000000298023224
         },
@@ -210,15 +318,15 @@
         "sceneBuildHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.20000000298023224,
-          "p95": 0.3999999985098839,
-          "min": 0.10000000149011612,
+          "median": 0.29999999701976776,
+          "p95": 0.4000000059604645,
+          "min": 0.19999998807907104,
           "max": 0.5
         },
         "executed": "",
@@ -240,31 +348,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 9.799999997019768,
-          "p95": 11.100000001490116,
-          "min": 9,
-          "max": 11.600000001490116
+          "median": 9.5,
+          "p95": 10.700000002980232,
+          "min": 8.400000005960464,
+          "max": 11.100000008940697
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0.10000000149011612,
+          "median": 0.09999999403953552,
           "p95": 0.20000000298023224,
           "min": 0,
           "max": 0.20000000298023224
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.599999997764826,
-          "p95": 10.900000005960464,
-          "min": 8.799999997019768,
-          "max": 11.299999997019768
+          "median": 9.399999998509884,
+          "p95": 10.5,
+          "min": 8.400000005960464,
+          "max": 11.100000008940697
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.09999999403953552,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -304,7 +412,7 @@
         "measureHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.19999999552965164,
+          "p95": 0.20000000298023224,
           "min": 0,
           "max": 0.20000000298023224
         },
@@ -322,10 +430,10 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.04999999701976776,
-          "p95": 0.19999999552965164,
+          "median": 0,
+          "p95": 0.20000000298023224,
           "min": 0,
           "max": 0.20000000298023224
         },
@@ -348,31 +456,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 9.649999998509884,
-          "p95": 10.800000004470348,
-          "min": 8.399999998509884,
-          "max": 11.699999995529652
+          "median": 9.600000001490116,
+          "p95": 11.100000008940697,
+          "min": 8.699999988079071,
+          "max": 11.699999988079071
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
           "max": 0.20000000298023224
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.5,
-          "p95": 10.700000002980232,
-          "min": 8.299999997019768,
-          "max": 11.699999995529652
+          "median": 9.600000001490116,
+          "p95": 11.100000008940697,
+          "min": 8.599999994039536,
+          "max": 11.399999991059303
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.09999999403953552,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.09999999403953552
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -412,9 +520,9 @@
         "measureHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -430,12 +538,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "executed": "",
         "retained": 0,
@@ -456,31 +564,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 9.800000000745058,
-          "p95": 11.700000002980232,
-          "min": 4.5999999940395355,
-          "max": 11.900000005960464
+          "median": 9.699999988079071,
+          "p95": 10.599999994039536,
+          "min": 4.5,
+          "max": 11.100000008940697
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.699999999254942,
-          "p95": 11.600000001490116,
-          "min": 4.5999999940395355,
-          "max": 11.800000004470348
+          "median": 9.599999986588955,
+          "p95": 10.400000005960464,
+          "min": 4.399999991059303,
+          "max": 10.899999991059303
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
-          "median": 0.04999999701976776,
-          "p95": 0.10000000149011612,
+          "median": 0.09999999403953552,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.19999998807907104
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -520,9 +628,9 @@
         "measureHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -538,12 +646,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "executed": "",
         "retained": 0,
@@ -567,7 +675,7 @@
           "median": 0,
           "p95": 0,
           "min": 0,
-          "max": 0.09999999403953552
+          "max": 0.10000000894069672
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
@@ -646,12 +754,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 1.8999999985098839,
-          "p95": 1.8999999985098839,
-          "min": 1.8999999985098839,
-          "max": 1.8999999985098839
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "executed": "",
         "retained": 0,
@@ -672,31 +780,139 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 10,
-          "p95": 11.5,
-          "min": 9.299999997019768,
-          "max": 11.600000001490116
+          "median": 10.049999997019768,
+          "p95": 12.300000011920929,
+          "min": 4.200000002980232,
+          "max": 12.799999997019768
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0.8000000007450581,
-          "p95": 1.1000000014901161,
-          "min": 0.5,
-          "max": 1.1000000014901161
+          "median": 0.9000000059604645,
+          "p95": 1.300000011920929,
+          "min": 0,
+          "max": 2.0999999940395355
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.100000001490116,
-          "p95": 10.5,
-          "min": 8.399999998509884,
-          "max": 10.5
+          "median": 9.25,
+          "p95": 10.699999988079071,
+          "min": 4.200000002980232,
+          "max": 11.100000008940697
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.09999999403953552,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.09999999403953552
+        },
+        "rectCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 0,
+          "max": 3
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 0,
+          "max": 3
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.10000000894069672
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.09999999403953552,
+          "min": 0,
+          "max": 0.09999999403953552
+        },
+        "renderHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.9000000059604645,
+          "p95": 1.300000011920929,
+          "min": 0,
+          "max": 2
+        },
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation|",
+        "retained": 0,
+        "renderSize": "822x224",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/surface-style-mutation/10",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "surface-style-mutation",
+        "surfaceCount": 10,
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 10,
+          "p95": 11.299999997019768,
+          "min": 9.199999988079071,
+          "max": 12.099999994039536
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.7000000029802322,
+          "p95": 1,
+          "min": 0.4000000059604645,
+          "max": 1
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.200000017881393,
+          "p95": 10.600000008940697,
+          "min": 8.199999988079071,
+          "max": 11.299999997019768
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.04999999701976776,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -735,10 +951,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.10000000149011612,
-          "p95": 0.20000000298023224,
+          "median": 0.09999999403953552,
+          "p95": 0.29999999701976776,
           "min": 0,
-          "max": 0.20000000298023224
+          "max": 0.29999999701976776
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -750,16 +966,16 @@
         "sceneBuildHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.7999999970197678,
-          "p95": 1.1000000014901161,
-          "min": 0.5,
-          "max": 1.1000000014901161
+          "median": 0.6999999955296516,
+          "p95": 1,
+          "min": 0.4000000059604645,
+          "max": 1
         },
         "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
         "retained": 0,
@@ -780,31 +996,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 9.550000000745058,
-          "p95": 10.299999997019768,
-          "min": 8.5,
-          "max": 11.899999998509884
+          "median": 30.549999997019768,
+          "p95": 32.3999999910593,
+          "min": 8.600000008940697,
+          "max": 32.79999999701977
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0.10000000149011612,
-          "p95": 0.20000000298023224,
+          "median": 0.09999999403953552,
+          "p95": 0.29999999701976776,
           "min": 0,
-          "max": 0.20000000298023224
+          "max": 0.30000001192092896
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.449999999254942,
-          "p95": 10.199999995529652,
-          "min": 8.399999998509884,
-          "max": 11.700000002980232
+          "median": 30.399999998509884,
+          "p95": 32,
+          "min": 8.5,
+          "max": 32.5
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -843,10 +1059,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.10000000149011612,
-          "p95": 0.20000000298023224,
+          "median": 0.09999999403953552,
+          "p95": 0.29999999701976776,
           "min": 0,
-          "max": 0.20000000298023224
+          "max": 0.30000001192092896
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -862,12 +1078,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.10000000149011612,
-          "p95": 0.20000000298023224,
+          "median": 0.09999999403953552,
+          "p95": 0.29999999701976776,
           "min": 0,
-          "max": 0.20000000298023224
+          "max": 0.30000001192092896
         },
         "executed": "",
         "retained": 0,
@@ -888,137 +1104,29 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 10,
-          "p95": 11.600000001490116,
-          "min": 8.399999998509884,
-          "max": 11.600000001490116
+          "median": 30.900000005960464,
+          "p95": 31.799999997019768,
+          "min": 29.599999994039536,
+          "max": 32
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0,
-          "p95": 0.10000000149011612,
+          "median": 0.09999999403953552,
+          "p95": 0.19999998807907104,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.19999998807907104
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.900000002235174,
-          "p95": 11.600000001490116,
-          "min": 8.199999995529652,
-          "max": 11.600000001490116
+          "median": 30.799999997019768,
+          "p95": 31.5,
+          "min": 29.5,
+          "max": 31.80000001192093
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
-          "min": 0,
-          "max": 0.10000000149011612
-        },
-        "rectCallsPerFrame": {
-          "samples": 20,
-          "median": 10,
-          "p95": 10,
-          "min": 10,
-          "max": 10
-        },
-        "computedStyleCallsPerFrame": {
-          "samples": 20,
-          "median": 0,
-          "p95": 0,
-          "min": 0,
-          "max": 0
-        },
-        "rendererInvocationsPerFrame": {
-          "samples": 20,
-          "median": 0,
-          "p95": 0,
-          "min": 0,
-          "max": 0
-        },
-        "skippedRenderPerFrame": {
-          "samples": 20,
-          "median": 1,
-          "p95": 1,
-          "min": 1,
-          "max": 1
-        },
-        "dirtyCountPerFrame": {
-          "samples": 20,
-          "median": 0,
-          "p95": 0,
-          "min": 0,
-          "max": 0
-        },
-        "measureHostMsPerFrame": {
-          "samples": 20,
-          "median": 0,
-          "p95": 0.10000000149011612,
-          "min": 0,
-          "max": 0.10000000149011612
-        },
-        "measuredEntriesPerFrame": {
-          "samples": 20,
-          "median": 10,
-          "p95": 10,
-          "min": 10,
-          "max": 10
-        },
-        "sceneBuildHostMsPerFrame": {
-          "samples": 20,
-          "median": 0,
-          "p95": 0,
-          "min": 0,
-          "max": 0
-        },
-        "lastRenderMsPerFrame": {
-          "samples": 20,
-          "median": 0,
-          "p95": 0.10000000149011612,
-          "min": 0,
-          "max": 0.10000000149011612
-        },
-        "executed": "",
-        "retained": 0,
-        "renderSize": "822x224",
-        "backend": "webgpu"
-      }
-    },
-    {
-      "id": "dom/scroll/10",
-      "parameters": {
-        "suite": "dom",
-        "scenario": "scroll",
-        "surfaceCount": 10,
-        "frames": 25,
-        "warmups": 5,
-        "samples": 20
-      },
-      "metrics": {
-        "wallMs": {
-          "samples": 20,
-          "median": 10,
-          "p95": 10.899999998509884,
-          "min": 8.5,
-          "max": 11.100000001490116
-        },
-        "callbackHostMsPerFrame": {
-          "samples": 20,
-          "median": 0.04999999701976776,
-          "p95": 0.10000000149011612,
-          "min": 0,
-          "max": 0.10000000149011612
-        },
-        "settleWallMsPerFrame": {
-          "samples": 20,
-          "median": 9.850000001490116,
-          "p95": 10.799999997019768,
-          "min": 8.5,
-          "max": 10.899999998509884
-        },
-        "triggerHostMsPerFrame": {
-          "samples": 20,
-          "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
           "max": 0.20000000298023224
         },
@@ -1059,10 +1167,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0,
-          "p95": 0.10000000149011612,
+          "median": 0.09999999403953552,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.19999998807907104
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -1078,12 +1186,120 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.09999999403953552,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.19999998807907104
+        },
+        "executed": "",
+        "retained": 0,
+        "renderSize": "822x224",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/scroll/10",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "scroll",
+        "surfaceCount": 10,
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 15.650000005960464,
+          "p95": 31.099999994039536,
+          "min": 14.799999997019768,
+          "max": 31.399999991059303
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.09999999403953552,
+          "p95": 0.20000000298023224,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 15.5,
+          "p95": 30.899999991059303,
+          "min": 14.699999988079071,
+          "max": 31.200000002980232
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.10000000149011612,
+          "p95": 0.20000000298023224,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "rectCallsPerFrame": {
+          "samples": 20,
+          "median": 10,
+          "p95": 10,
+          "min": 10,
+          "max": 10
+        },
+        "computedStyleCallsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "skippedRenderPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.09999999403953552,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 10,
+          "p95": 10,
+          "min": 10,
+          "max": 10
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "renderHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.09999999403953552,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.20000000298023224
         },
         "executed": "",
         "retained": 0,
@@ -1186,12 +1402,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 2.2999999970197678,
-          "p95": 2.2999999970197678,
-          "min": 2.2999999970197678,
-          "max": 2.2999999970197678
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "executed": "",
         "retained": 0,
@@ -1212,31 +1428,139 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 10.950000002980232,
-          "p95": 12.100000001490116,
-          "min": 9.100000001490116,
-          "max": 19.69999999552965
+          "median": 11.100000001490116,
+          "p95": 17.900000005960464,
+          "min": 4.5999999940395355,
+          "max": 28.599999994039536
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 1,
+          "median": 0.7999999970197678,
           "p95": 1.2000000029802322,
-          "min": 0.7000000029802322,
-          "max": 1.3999999985098839
+          "min": 0,
+          "max": 1.4000000059604645
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.899999998509884,
-          "p95": 11.199999995529652,
-          "min": 8.100000001490116,
-          "max": 18.49999999254942
+          "median": 10.25,
+          "p95": 16.69999998807907,
+          "min": 4.5999999940395355,
+          "max": 27.19999998807907
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.09999999403953552,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
+        },
+        "rectCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 0,
+          "max": 3
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 0,
+          "max": 3
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.10000000894069672
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.09999999403953552,
+          "min": 0,
+          "max": 0.10000000894069672
+        },
+        "renderHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.7999999970197678,
+          "p95": 1.1000000089406967,
+          "min": 0,
+          "max": 1.4000000059604645
+        },
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation|",
+        "retained": 0,
+        "renderSize": "822x524",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/surface-style-mutation/50",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "surface-style-mutation",
+        "surfaceCount": 50,
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 11.150000005960464,
+          "p95": 16.899999991059303,
+          "min": 10.799999997019768,
+          "max": 28
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.9000000059604645,
+          "p95": 1.2000000029802322,
+          "min": 0.7999999970197678,
+          "max": 1.5999999940395355
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 10.199999995529652,
+          "p95": 15.700000002980232,
+          "min": 9.899999991059303,
+          "max": 26.799999997019768
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -1275,10 +1599,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.19999999925494194,
-          "p95": 0.30000000447034836,
-          "min": 0,
-          "max": 0.4000000059604645
+          "median": 0.20000000298023224,
+          "p95": 0.30000001192092896,
+          "min": 0.09999999403953552,
+          "max": 0.30000001192092896
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -1290,16 +1614,16 @@
         "sceneBuildHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.09999999403953552,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.09999999403953552
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 1,
+          "median": 0.9000000059604645,
           "p95": 1.2000000029802322,
-          "min": 0.7000000029802322,
-          "max": 1.3999999985098839
+          "min": 0.7999999970197678,
+          "max": 1.5999999940395355
         },
         "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
         "retained": 0,
@@ -1320,31 +1644,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 9.600000001490116,
-          "p95": 10.5,
-          "min": 8.700000002980232,
-          "max": 11.100000001490116
+          "median": 30.80000000447035,
+          "p95": 31.599999994039536,
+          "min": 29.899999991059303,
+          "max": 32.099999994039536
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0.19999999552965164,
-          "p95": 0.30000000447034836,
-          "min": 0.10000000149011612,
-          "max": 0.30000000447034836
+          "median": 0.29999999701976776,
+          "p95": 0.4000000059604645,
+          "min": 0.09999999403953552,
+          "max": 0.4000000059604645
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.300000000745058,
-          "p95": 10.200000002980232,
-          "min": 8.5,
-          "max": 10.899999998509884
+          "median": 30.50000000745058,
+          "p95": 31.400000005960464,
+          "min": 29.400000005960464,
+          "max": 31.799999997019768
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -1383,10 +1707,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.19999999552965164,
+          "median": 0.29999999701976776,
           "p95": 0.29999999701976776,
           "min": 0.09999999403953552,
-          "max": 0.30000000447034836
+          "max": 0.29999999701976776
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -1402,12 +1726,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.19999999552965164,
+          "median": 0.29999999701976776,
           "p95": 0.29999999701976776,
-          "min": 0.10000000149011612,
-          "max": 0.30000000447034836
+          "min": 0.09999999403953552,
+          "max": 0.29999999701976776
         },
         "executed": "",
         "retained": 0,
@@ -1428,31 +1752,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 9.550000000745058,
-          "p95": 10.899999998509884,
-          "min": 8.399999998509884,
-          "max": 12.299999997019768
+          "median": 30.150000005960464,
+          "p95": 31.30000001192093,
+          "min": 15,
+          "max": 32
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0.19999999925494194,
-          "p95": 0.29999999701976776,
+          "median": 0.29999999701976776,
+          "p95": 0.4000000059604645,
           "min": 0.09999999403953552,
-          "max": 0.30000000447034836
+          "max": 0.5
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.400000002235174,
-          "p95": 10.800000004470348,
-          "min": 8.199999995529652,
-          "max": 11.899999998509884
+          "median": 29.899999998509884,
+          "p95": 31.100000008940697,
+          "min": 14.600000008940697,
+          "max": 31.599999994039536
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -1491,10 +1815,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.19999999552965164,
-          "p95": 0.29999999701976776,
+          "median": 0.25,
+          "p95": 0.4000000059604645,
           "min": 0.09999999403953552,
-          "max": 0.30000000447034836
+          "max": 0.5
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -1510,12 +1834,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.19999999552965164,
-          "p95": 0.29999999701976776,
+          "median": 0.25,
+          "p95": 0.4000000059604645,
           "min": 0.09999999403953552,
-          "max": 0.30000000447034836
+          "max": 0.5
         },
         "executed": "",
         "retained": 0,
@@ -1536,31 +1860,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 10.049999997019768,
-          "p95": 11.100000001490116,
-          "min": 4.5,
-          "max": 12.600000001490116
+          "median": 15.650000005960464,
+          "p95": 31.399999991059303,
+          "min": 5.4000000059604645,
+          "max": 32.099999994039536
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0.20000000298023224,
+          "median": 0.19999999552965164,
           "p95": 0.29999999701976776,
           "min": 0,
-          "max": 0.30000000447034836
+          "max": 0.30000001192092896
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.800000000745058,
-          "p95": 10.899999998509884,
-          "min": 4.399999998509884,
-          "max": 12.299999997019768
+          "median": 15.399999998509884,
+          "p95": 31.099999994039536,
+          "min": 5.4000000059604645,
+          "max": 31.799999982118607
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
-          "median": 0,
-          "p95": 0.10000000149011612,
+          "median": 0.09999999403953552,
+          "p95": 0.20000000298023224,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.20000000298023224
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -1599,10 +1923,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.20000000298023224,
+          "median": 0.19999999552965164,
           "p95": 0.29999999701976776,
           "min": 0,
-          "max": 0.30000000447034836
+          "max": 0.30000001192092896
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -1618,12 +1942,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.20000000298023224,
+          "median": 0.19999999552965164,
           "p95": 0.29999999701976776,
           "min": 0,
-          "max": 0.30000000447034836
+          "max": 0.30000001192092896
         },
         "executed": "",
         "retained": 0,
@@ -1726,12 +2050,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.20000000298023224,
-          "p95": 0.20000000298023224,
-          "min": 0.20000000298023224,
-          "max": 0.20000000298023224
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "executed": "",
         "retained": 0,
@@ -1752,31 +2076,139 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 10.599999997764826,
-          "p95": 11.400000005960464,
-          "min": 9.399999998509884,
-          "max": 11.5
+          "median": 11.199999995529652,
+          "p95": 21.799999997019768,
+          "min": 4,
+          "max": 29.400000005960464
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 1.2000000029802322,
-          "p95": 1.7000000029802322,
-          "min": 0.8999999985098839,
-          "max": 2.100000001490116
+          "median": 1.1999999955296516,
+          "p95": 1.5,
+          "min": 0,
+          "max": 1.5999999940395355
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.200000002980232,
-          "p95": 9.899999998509884,
-          "min": 7.899999998509884,
-          "max": 10.400000005960464
+          "median": 10.149999991059303,
+          "p95": 20.299999997019768,
+          "min": 4,
+          "max": 28.00000001490116
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
+        },
+        "rectCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 0,
+          "max": 3
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 0,
+          "max": 3
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.09999999403953552,
+          "min": 0,
+          "max": 0.09999999403953552
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "renderHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.1999999955296516,
+          "p95": 1.5,
+          "min": 0,
+          "max": 1.5
+        },
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation|",
+        "retained": 0,
+        "renderSize": "822x884",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/surface-style-mutation/100",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "surface-style-mutation",
+        "surfaceCount": 100,
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 13.49999999254942,
+          "p95": 22.200000002980232,
+          "min": 10.600000008940697,
+          "max": 29.400000005960464
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.6000000014901161,
+          "p95": 2,
+          "min": 1.0999999940395355,
+          "max": 2.2000000029802322
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 12.149999991059303,
+          "p95": 20.299999997019768,
+          "min": 8.800000011920929,
+          "max": 27.400000005960464
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.09999999403953552,
+          "min": 0,
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -1815,10 +2247,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.30000000447034836,
-          "p95": 0.4000000059604645,
-          "min": 0.20000000298023224,
-          "max": 0.7000000029802322
+          "median": 0.4000000059604645,
+          "p95": 0.699999988079071,
+          "min": 0.29999999701976776,
+          "max": 1.1000000089406967
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -1830,16 +2262,16 @@
         "sceneBuildHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 1.2000000029802322,
-          "p95": 1.7000000029802322,
-          "min": 0.8999999985098839,
-          "max": 2.100000001490116
+          "median": 1.6000000014901161,
+          "p95": 2,
+          "min": 1.0999999940395355,
+          "max": 2.2000000029802322
         },
         "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
         "retained": 0,
@@ -1860,31 +2292,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 9.949999999254942,
-          "p95": 11,
-          "min": 8.700000002980232,
-          "max": 11
+          "median": 30.49999999254942,
+          "p95": 31.799999997019768,
+          "min": 15.5,
+          "max": 31.799999997019768
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0.30000000447034836,
-          "p95": 0.4000000059604645,
-          "min": 0.19999999552965164,
-          "max": 0.5
+          "median": 0.4000000059604645,
+          "p95": 0.6000000089406967,
+          "min": 0.29999999701976776,
+          "max": 0.7000000029802322
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.699999995529652,
-          "p95": 10.600000001490116,
-          "min": 8.300000004470348,
-          "max": 10.700000002980232
+          "median": 30,
+          "p95": 31.19999998807907,
+          "min": 14.899999991059303,
+          "max": 31.400000005960464
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.09999999403953552,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -1923,10 +2355,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.30000000447034836,
-          "p95": 0.4000000059604645,
-          "min": 0.19999999552965164,
-          "max": 0.5
+          "median": 0.4000000059604645,
+          "p95": 0.5,
+          "min": 0.29999999701976776,
+          "max": 0.7000000029802322
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -1942,12 +2374,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.30000000447034836,
-          "p95": 0.4000000059604645,
-          "min": 0.19999999552965164,
-          "max": 0.5
+          "median": 0.4000000059604645,
+          "p95": 0.5,
+          "min": 0.29999999701976776,
+          "max": 0.7000000029802322
         },
         "executed": "",
         "retained": 0,
@@ -1968,31 +2400,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 10.050000000745058,
-          "p95": 11.099999994039536,
-          "min": 8.900000005960464,
-          "max": 12.100000001490116
+          "median": 30.75,
+          "p95": 31.299999997019768,
+          "min": 15.300000011920929,
+          "max": 31.400000005960464
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0.30000000447034836,
-          "p95": 0.3999999985098839,
-          "min": 0.19999999552965164,
-          "max": 0.6000000014901161
+          "median": 0.4000000059604645,
+          "p95": 0.5,
+          "min": 0.20000000298023224,
+          "max": 0.6000000089406967
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.800000000745058,
-          "p95": 10.800000004470348,
-          "min": 8.5,
-          "max": 11.700000002980232
+          "median": 30.299999997019768,
+          "p95": 30.900000005960464,
+          "min": 14.799999997019768,
+          "max": 31
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.20000000298023224
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -2031,10 +2463,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.30000000447034836,
-          "p95": 0.3999999985098839,
-          "min": 0.19999999552965164,
-          "max": 0.5
+          "median": 0.4000000059604645,
+          "p95": 0.5,
+          "min": 0.20000000298023224,
+          "max": 0.6000000089406967
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -2050,12 +2482,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.30000000447034836,
-          "p95": 0.3999999985098839,
-          "min": 0.19999999552965164,
-          "max": 0.5
+          "median": 0.4000000059604645,
+          "p95": 0.5,
+          "min": 0.20000000298023224,
+          "max": 0.6000000089406967
         },
         "executed": "",
         "retained": 0,
@@ -2076,31 +2508,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 9.799999997019768,
-          "p95": 11.399999998509884,
-          "min": 8.699999995529652,
-          "max": 11.400000005960464
+          "median": 15.549999997019768,
+          "p95": 31.099999994039536,
+          "min": 10.200000002980232,
+          "max": 31.399999991059303
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0.30000000447034836,
-          "p95": 0.3999999985098839,
-          "min": 0.20000000298023224,
+          "median": 0.3999999985098839,
+          "p95": 0.5,
+          "min": 0.19999998807907104,
           "max": 0.5
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.549999997019768,
-          "p95": 10.899999998509884,
-          "min": 8.399999998509884,
-          "max": 10.900000005960464
+          "median": 15.100000001490116,
+          "p95": 30.49999998509884,
+          "min": 9.699999988079071,
+          "max": 31.099999994039536
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
-          "median": 0,
-          "p95": 0.10000000149011612,
+          "median": 0.09999999403953552,
+          "p95": 0.20000000298023224,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.20000000298023224
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -2139,9 +2571,9 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.30000000074505806,
-          "p95": 0.3999999985098839,
-          "min": 0.20000000298023224,
+          "median": 0.30000000447034836,
+          "p95": 0.5,
+          "min": 0.19999998807907104,
           "max": 0.5
         },
         "measuredEntriesPerFrame": {
@@ -2158,11 +2590,11 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.30000000074505806,
-          "p95": 0.3999999985098839,
-          "min": 0.20000000298023224,
+          "median": 0.30000000447034836,
+          "p95": 0.5,
+          "min": 0.19999998807907104,
           "max": 0.5
         },
         "executed": "",
@@ -2187,7 +2619,7 @@
           "median": 0,
           "p95": 0,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
@@ -2266,12 +2698,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 1.0999999940395355,
-          "p95": 1.0999999940395355,
-          "min": 1.0999999940395355,
-          "max": 1.0999999940395355
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "executed": "",
         "retained": 0,
@@ -2292,31 +2724,139 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 12.149999998509884,
-          "p95": 14,
-          "min": 10.899999998509884,
-          "max": 14.399999998509884
+          "median": 15.850000001490116,
+          "p95": 25.900000005960464,
+          "min": 4.299999997019768,
+          "max": 31.099999994039536
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 2.350000001490116,
-          "p95": 3.2999999970197678,
-          "min": 1.3999999985098839,
-          "max": 3.7000000029802322
+          "median": 1.3000000044703484,
+          "p95": 2.3999999910593033,
+          "min": 0,
+          "max": 3.0999999940395355
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.699999995529652,
-          "p95": 10.900000005960464,
-          "min": 8.600000001490116,
-          "max": 11.700000002980232
+          "median": 14.549999997019768,
+          "p95": 23.50000001490116,
+          "min": 4.299999997019768,
+          "max": 29.599999994039536
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.09999999403953552,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.09999999403953552
+        },
+        "rectCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 0,
+          "max": 3
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 0,
+          "max": 3
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.09999999403953552,
+          "min": 0,
+          "max": 0.09999999403953552
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.04999999701976776,
+          "p95": 0.20000000298023224,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "renderHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.2999999970197678,
+          "p95": 2.3999999910593033,
+          "min": 0,
+          "max": 3.0999999940395355
+        },
+        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "822x2024",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/surface-style-mutation/250",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "surface-style-mutation",
+        "surfaceCount": 250,
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 18.19999999552965,
+          "p95": 28.400000005960464,
+          "min": 14.799999997019768,
+          "max": 29.200000002980232
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.9500000029802322,
+          "p95": 2.5999999940395355,
+          "min": 1.5999999940395355,
+          "max": 3.2999999970197678
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 16.299999997019768,
+          "p95": 25.80000001192093,
+          "min": 12.900000005960464,
+          "max": 27.00000001490116
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -2355,10 +2895,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.7000000029802322,
-          "p95": 1.1000000014901161,
-          "min": 0.5,
-          "max": 1.2999999970197678
+          "median": 0.7999999970197678,
+          "p95": 1.1000000089406967,
+          "min": 0.5999999940395355,
+          "max": 1.7999999970197678
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -2370,16 +2910,16 @@
         "sceneBuildHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.09999999403953552,
           "min": 0,
-          "max": 0.20000000298023224
+          "max": 0.19999998807907104
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 2.350000001490116,
-          "p95": 3.2999999970197678,
-          "min": 1.3999999985098839,
-          "max": 3.7000000029802322
+          "median": 1.8999999985098839,
+          "p95": 2.5999999940395355,
+          "min": 1.5999999940395355,
+          "max": 3.2999999970197678
         },
         "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
         "retained": 0,
@@ -2400,31 +2940,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 10.100000001490116,
-          "p95": 11.100000001490116,
-          "min": 9,
-          "max": 11.100000001490116
+          "median": 16.80000000447035,
+          "p95": 31.399999991059303,
+          "min": 9.799999997019768,
+          "max": 31.400000005960464
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0.7500000037252903,
-          "p95": 1.1000000014901161,
+          "median": 0.8500000089406967,
+          "p95": 1.0999999940395355,
           "min": 0.5,
           "max": 1.2000000029802322
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.350000001490116,
-          "p95": 10.199999995529652,
-          "min": 8.200000002980232,
-          "max": 10.299999997019768
+          "median": 15.899999998509884,
+          "p95": 30.099999994039536,
+          "min": 9.100000008940697,
+          "max": 30.5
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -2463,8 +3003,8 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.7500000037252903,
-          "p95": 1.1000000014901161,
+          "median": 0.8500000014901161,
+          "p95": 1.0999999940395355,
           "min": 0.5,
           "max": 1.2000000029802322
         },
@@ -2482,10 +3022,10 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.7500000037252903,
-          "p95": 1.1000000014901161,
+          "median": 0.8500000014901161,
+          "p95": 1.0999999940395355,
           "min": 0.5,
           "max": 1.2000000029802322
         },
@@ -2508,31 +3048,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 10.600000001490116,
-          "p95": 11.599999994039536,
-          "min": 9.600000001490116,
-          "max": 12.200000002980232
+          "median": 10.600000008940697,
+          "p95": 11.100000008940697,
+          "min": 8.699999988079071,
+          "max": 11.599999994039536
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0.8999999985098839,
-          "p95": 1,
+          "median": 0.6000000014901161,
+          "p95": 0.8999999910593033,
           "min": 0.5,
           "max": 1
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.799999993294477,
-          "p95": 10.799999997019768,
-          "min": 8.700000002980232,
-          "max": 11.300000004470348
+          "median": 9.900000005960464,
+          "p95": 10.5,
+          "min": 8.099999994039536,
+          "max": 11
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -2571,9 +3111,9 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.8999999985098839,
-          "p95": 1,
-          "min": 0.5,
+          "median": 0.6000000014901161,
+          "p95": 0.8999999910593033,
+          "min": 0.4000000059604645,
           "max": 1
         },
         "measuredEntriesPerFrame": {
@@ -2590,11 +3130,11 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.8999999985098839,
-          "p95": 1,
-          "min": 0.5,
+          "median": 0.6000000014901161,
+          "p95": 0.8999999910593033,
+          "min": 0.4000000059604645,
           "max": 1
         },
         "executed": "",
@@ -2616,37 +3156,37 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 10,
-          "p95": 11.100000001490116,
-          "min": 4.199999995529652,
-          "max": 11.5
+          "median": 10.699999995529652,
+          "p95": 12.399999991059303,
+          "min": 9.299999997019768,
+          "max": 12.5
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 0.6999999955296516,
-          "p95": 0.8999999985098839,
-          "min": 0,
-          "max": 0.8999999985098839
+          "median": 0.7000000029802322,
+          "p95": 1,
+          "min": 0.5,
+          "max": 1.0999999940395355
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.149999998509884,
-          "p95": 10.300000004470348,
-          "min": 4.199999995529652,
-          "max": 10.800000004470348
+          "median": 9.849999994039536,
+          "p95": 11.399999991059303,
+          "min": 8.600000008940697,
+          "max": 11.699999988079071
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
-          "median": 0.04999999701976776,
-          "p95": 0.10000000149011612,
+          "median": 0.09999999403953552,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.20000000298023224
         },
         "rectCallsPerFrame": {
           "samples": 20,
           "median": 250,
           "p95": 250,
-          "min": 0,
+          "min": 250,
           "max": 250
         },
         "computedStyleCallsPerFrame": {
@@ -2679,16 +3219,16 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 0.6999999955296516,
-          "p95": 0.8999999985098839,
-          "min": 0,
-          "max": 0.8999999985098839
+          "median": 0.7000000029802322,
+          "p95": 1,
+          "min": 0.4000000059604645,
+          "max": 1.0999999940395355
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
           "median": 250,
           "p95": 250,
-          "min": 0,
+          "min": 250,
           "max": 250
         },
         "sceneBuildHostMsPerFrame": {
@@ -2698,12 +3238,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 0.6999999955296516,
-          "p95": 0.8999999985098839,
-          "min": 0.5,
-          "max": 0.8999999985098839
+          "median": 0.7000000029802322,
+          "p95": 1,
+          "min": 0.4000000059604645,
+          "max": 1.0999999940395355
         },
         "executed": "",
         "retained": 0,
@@ -2806,12 +3346,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 2,
-          "p95": 2,
-          "min": 2,
-          "max": 2
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "executed": "",
         "retained": 0,
@@ -2832,31 +3372,139 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 13.100000001490116,
-          "p95": 14.299999997019768,
-          "min": 11.5,
-          "max": 14.899999998509884
+          "median": 10.850000008940697,
+          "p95": 12.5,
+          "min": 10,
+          "max": 12.599999994039536
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 3.449999999254942,
-          "p95": 4.799999997019768,
-          "min": 2.5,
-          "max": 5.5
+          "median": 1.5,
+          "p95": 2.0999999940395355,
+          "min": 1.2000000029802322,
+          "max": 2.5
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.5,
-          "p95": 10.5,
-          "min": 8.299999989569187,
-          "max": 10.600000001490116
+          "median": 9.24999999254942,
+          "p95": 10.299999997019768,
+          "min": 8.399999991059303,
+          "max": 11
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.09999999403953552,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
+        },
+        "rectCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 3,
+          "max": 3
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 3,
+          "max": 3
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "dirtyCountPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.10000000894069672
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 1,
+          "max": 1
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.10000000894069672
+        },
+        "renderHostMsPerFrame": {
+          "samples": 20,
+          "median": 1.5,
+          "p95": 2.0999999940395355,
+          "min": 1.2000000029802322,
+          "max": 2.3999999910593033
+        },
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "retained": 0,
+        "renderSize": "822x3884",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/surface-style-mutation/500",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "surface-style-mutation",
+        "surfaceCount": 500,
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 12.200000002980232,
+          "p95": 13.5,
+          "min": 10.599999994039536,
+          "max": 13.799999997019768
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 2.6000000089406967,
+          "p95": 3.5999999940395355,
+          "min": 2.2000000029802322,
+          "max": 3.7999999970197678
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 9.549999997019768,
+          "p95": 10.299999997019768,
+          "min": 8.299999997019768,
+          "max": 10.499999985098839
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -2895,10 +3543,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 1.4500000029802322,
-          "p95": 2.2000000029802322,
+          "median": 1.2999999970197678,
+          "p95": 1.8999999910593033,
           "min": 1,
-          "max": 2.7999999970197678
+          "max": 2.2000000029802322
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -2909,17 +3557,17 @@
         },
         "sceneBuildHostMsPerFrame": {
           "samples": 20,
-          "median": 0.10000000149011612,
-          "p95": 0.29999999701976776,
+          "median": 0,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.29999999701976776
+          "max": 0.20000000298023224
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 3.400000002235174,
-          "p95": 4.799999997019768,
-          "min": 2.5,
-          "max": 5.5
+          "median": 2.6000000089406967,
+          "p95": 3.5999999940395355,
+          "min": 2.2000000029802322,
+          "max": 3.7999999970197678
         },
         "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
         "retained": 0,
@@ -2940,31 +3588,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 11,
-          "p95": 12.700000002980232,
-          "min": 9.600000001490116,
-          "max": 13
+          "median": 10.950000002980232,
+          "p95": 12.099999994039536,
+          "min": 9.899999991059303,
+          "max": 12.099999994039536
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 1.2999999970197678,
-          "p95": 1.5,
-          "min": 1.1000000014901161,
-          "max": 1.7000000029802322
+          "median": 1.3500000014901161,
+          "p95": 1.9000000059604645,
+          "min": 1,
+          "max": 2.0999999940395355
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.649999998509884,
-          "p95": 11.400000005960464,
-          "min": 8.400000005960464,
-          "max": 11.5
+          "median": 9.350000001490116,
+          "p95": 10.700000002980232,
+          "min": 8.600000008940697,
+          "max": 10.900000005960464
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.09999999403953552,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -3003,10 +3651,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 1.2999999970197678,
-          "p95": 1.5,
-          "min": 1.1000000014901161,
-          "max": 1.7000000029802322
+          "median": 1.3500000014901161,
+          "p95": 1.9000000059604645,
+          "min": 1,
+          "max": 2.0999999940395355
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -3022,12 +3670,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 1.2999999970197678,
-          "p95": 1.5,
-          "min": 1.1000000014901161,
-          "max": 1.7000000029802322
+          "median": 1.3500000014901161,
+          "p95": 1.9000000059604645,
+          "min": 1,
+          "max": 2.0999999940395355
         },
         "executed": "",
         "retained": 0,
@@ -3048,31 +3696,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 11.049999997019768,
-          "p95": 12.5,
-          "min": 10.200000002980232,
-          "max": 12.600000001490116
+          "median": 11.100000008940697,
+          "p95": 12.299999997019768,
+          "min": 10.099999994039536,
+          "max": 12.699999988079071
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 1.4000000059604645,
+          "median": 1.4499999955296516,
           "p95": 2,
-          "min": 1.1000000014901161,
-          "max": 2.100000001490116
+          "min": 1.0999999940395355,
+          "max": 2.1000000089406967
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.400000005960464,
-          "p95": 11.199999995529652,
-          "min": 8.899999998509884,
-          "max": 11.300000004470348
+          "median": 9.599999994039536,
+          "p95": 10.700000002980232,
+          "min": 8.599999994039536,
+          "max": 10.700000002980232
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.09999999403953552,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -3111,10 +3759,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 1.4000000059604645,
-          "p95": 2,
-          "min": 1.1000000014901161,
-          "max": 2.100000001490116
+          "median": 1.4499999955296516,
+          "p95": 1.9000000059604645,
+          "min": 1.0999999940395355,
+          "max": 2.1000000089406967
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -3130,12 +3778,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 1.4000000059604645,
+          "median": 1.4499999955296516,
           "p95": 2,
-          "min": 1.1000000014901161,
-          "max": 2.100000001490116
+          "min": 1.0999999940395355,
+          "max": 2.1000000089406967
         },
         "executed": "",
         "retained": 0,
@@ -3156,31 +3804,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 10.850000001490116,
-          "p95": 12.100000001490116,
-          "min": 4.100000001490116,
-          "max": 12.100000001490116
+          "median": 10.5,
+          "p95": 11.5,
+          "min": 4.100000008940697,
+          "max": 11.700000002980232
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 1.1000000014901161,
-          "p95": 1.5,
+          "median": 1.1499999985098839,
+          "p95": 1.6000000089406967,
           "min": 0,
-          "max": 1.5
+          "max": 2
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.699999999254942,
-          "p95": 10.799999997019768,
-          "min": 4.100000001490116,
-          "max": 10.800000004470348
+          "median": 9.199999995529652,
+          "p95": 10.100000008940697,
+          "min": 4.100000008940697,
+          "max": 10.199999988079071
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.20000000298023224
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -3219,10 +3867,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 1.1000000014901161,
-          "p95": 1.5,
+          "median": 1.1499999985098839,
+          "p95": 1.6000000089406967,
           "min": 0,
-          "max": 1.5
+          "max": 2
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -3238,12 +3886,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 1.1500000022351742,
-          "p95": 1.5,
-          "min": 1,
-          "max": 1.5
+          "median": 1.1499999985098839,
+          "p95": 1.6000000089406967,
+          "min": 0,
+          "max": 2
         },
         "executed": "",
         "retained": 0,
@@ -3346,12 +3994,12 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 7.700000002980232,
-          "p95": 7.700000002980232,
-          "min": 7.700000002980232,
-          "max": 7.700000002980232
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
         },
         "executed": "",
         "retained": 0,
@@ -3372,31 +4020,139 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 14.600000001490116,
-          "p95": 16.399999998509884,
-          "min": 12.899999998509884,
-          "max": 16.5
+          "median": 11.199999995529652,
+          "p95": 13.100000008940697,
+          "min": 4.5,
+          "max": 13.799999997019768
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 4.800000000745058,
-          "p95": 6.600000001490116,
-          "min": 4.200000002980232,
-          "max": 6.700000002980232
+          "median": 2.2499999925494194,
+          "p95": 3,
+          "min": 0,
+          "max": 3.2000000029802322
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.699999999254942,
-          "p95": 10.5,
-          "min": 8,
-          "max": 10.600000001490116
+          "median": 8.850000001490116,
+          "p95": 9.900000005960464,
+          "min": 4.5,
+          "max": 11.199999988079071
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.09999999403953552,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.09999999403953552
+        },
+        "rectCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 0,
+          "max": 3
+        },
+        "computedStyleCallsPerFrame": {
+          "samples": 20,
+          "median": 3,
+          "p95": 3,
+          "min": 0,
+          "max": 3
+        },
+        "rendererInvocationsPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "skippedRenderPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "dirtyCountPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "measureHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0.09999999403953552
+        },
+        "measuredEntriesPerFrame": {
+          "samples": 20,
+          "median": 1,
+          "p95": 1,
+          "min": 0,
+          "max": 1
+        },
+        "sceneBuildHostMsPerFrame": {
+          "samples": 20,
+          "median": 0.09999999403953552,
+          "p95": 0.20000000298023224,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "renderHostMsPerFrame": {
+          "samples": 20,
+          "median": 2.1999999955296516,
+          "p95": 3,
+          "min": 0,
+          "max": 3.2000000029802322
+        },
+        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation|",
+        "retained": 0,
+        "renderSize": "822x7604",
+        "backend": "webgpu"
+      }
+    },
+    {
+      "id": "dom/surface-style-mutation/1000",
+      "parameters": {
+        "suite": "dom",
+        "scenario": "surface-style-mutation",
+        "surfaceCount": 1000,
+        "frames": 25,
+        "warmups": 5,
+        "samples": 20
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 20,
+          "median": 14.700000010430813,
+          "p95": 16.599999994039536,
+          "min": 13.299999997019768,
+          "max": 17.099999994039536
+        },
+        "callbackHostMsPerFrame": {
+          "samples": 20,
+          "median": 4.800000004470348,
+          "p95": 5.199999988079071,
+          "min": 4,
+          "max": 5.200000002980232
+        },
+        "settleWallMsPerFrame": {
+          "samples": 20,
+          "median": 10,
+          "p95": 11.700000002980232,
+          "min": 8.900000005960464,
+          "max": 12.199999988079071
+        },
+        "triggerHostMsPerFrame": {
+          "samples": 20,
+          "median": 0,
+          "p95": 0.10000000894069672,
+          "min": 0,
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -3435,10 +4191,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 2.400000002235174,
-          "p95": 3.2000000029802322,
-          "min": 2.100000001490116,
-          "max": 3.399999998509884
+          "median": 2.350000001490116,
+          "p95": 3.1000000089406967,
+          "min": 2,
+          "max": 3.199999988079071
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -3449,17 +4205,17 @@
         },
         "sceneBuildHostMsPerFrame": {
           "samples": 20,
-          "median": 0.10000000149011612,
+          "median": 0.09999999403953552,
           "p95": 0.20000000298023224,
           "min": 0,
           "max": 0.20000000298023224
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 4.800000000745058,
-          "p95": 6.5,
-          "min": 4.200000002980232,
-          "max": 6.600000001490116
+          "median": 4.800000004470348,
+          "p95": 5.199999988079071,
+          "min": 4,
+          "max": 5.200000002980232
         },
         "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation",
         "retained": 0,
@@ -3480,31 +4236,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 12.449999999254942,
+          "median": 11.800000011920929,
           "p95": 14,
-          "min": 10.5,
-          "max": 15.200000002980232
+          "min": 10.600000008940697,
+          "max": 14.199999988079071
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 2.600000001490116,
-          "p95": 3.6999999955296516,
-          "min": 2.100000001490116,
-          "max": 3.7000000029802322
+          "median": 2.399999998509884,
+          "p95": 3.2999999970197678,
+          "min": 2.0999999940395355,
+          "max": 3.2999999970197678
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.799999997019768,
-          "p95": 11.199999995529652,
-          "min": 8.399999998509884,
-          "max": 11.399999998509884
+          "median": 9.349999994039536,
+          "p95": 10.999999985098839,
+          "min": 8.200000017881393,
+          "max": 11.300000011920929
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -3531,7 +4287,7 @@
           "samples": 20,
           "median": 1,
           "p95": 1,
-          "min": 0,
+          "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
@@ -3543,10 +4299,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 2.600000001490116,
-          "p95": 3.6999999955296516,
-          "min": 2.100000001490116,
-          "max": 3.7000000029802322
+          "median": 2.399999998509884,
+          "p95": 3.2999999970197678,
+          "min": 2.0999999940395355,
+          "max": 3.2999999970197678
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -3562,14 +4318,14 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 2.600000001490116,
-          "p95": 3.6999999955296516,
-          "min": 2.100000001490116,
-          "max": 3.7000000029802322
+          "median": 2.399999998509884,
+          "p95": 3.2999999970197678,
+          "min": 2.0999999940395355,
+          "max": 3.2999999970197678
         },
-        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation|",
+        "executed": "",
         "retained": 0,
         "renderSize": "822x7604",
         "backend": "webgpu"
@@ -3588,31 +4344,31 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 12.5,
-          "p95": 13.600000001490116,
-          "min": 11.399999998509884,
-          "max": 15.5
+          "median": 12.099999994039536,
+          "p95": 13.299999997019768,
+          "min": 11,
+          "max": 13.300000011920929
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 2.7500000037252903,
-          "p95": 3.600000001490116,
-          "min": 2.100000001490116,
-          "max": 3.8000000044703484
+          "median": 2.4500000029802322,
+          "p95": 3,
+          "min": 2.1000000089406967,
+          "max": 3.3999999910593033
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.74999999627471,
-          "p95": 10.899999998509884,
-          "min": 8.399999998509884,
-          "max": 12.399999998509884
+          "median": 9.349999994039536,
+          "p95": 10.799999997019768,
+          "min": 8.5,
+          "max": 10.900000005960464
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
           "median": 0,
-          "p95": 0.10000000149011612,
+          "p95": 0.10000000894069672,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.10000000894069672
         },
         "rectCallsPerFrame": {
           "samples": 20,
@@ -3639,7 +4395,7 @@
           "samples": 20,
           "median": 1,
           "p95": 1,
-          "min": 0,
+          "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
@@ -3651,10 +4407,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 2.7500000037252903,
-          "p95": 3.600000001490116,
-          "min": 2.100000001490116,
-          "max": 3.8000000044703484
+          "median": 2.4500000029802322,
+          "p95": 3,
+          "min": 2.1000000089406967,
+          "max": 3.3999999910593033
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -3670,14 +4426,14 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 2.7500000037252903,
-          "p95": 3.600000001490116,
-          "min": 2.100000001490116,
-          "max": 3.8000000044703484
+          "median": 2.4500000029802322,
+          "p95": 3,
+          "min": 2.1000000089406967,
+          "max": 3.3999999910593033
         },
-        "executed": "upload,height,normal,shadow,reconstruction,lighting,presentation|",
+        "executed": "",
         "retained": 0,
         "renderSize": "822x7604",
         "backend": "webgpu"
@@ -3696,29 +4452,29 @@
       "metrics": {
         "wallMs": {
           "samples": 20,
-          "median": 11.599999997764826,
-          "p95": 13.600000001490116,
-          "min": 4.199999995529652,
-          "max": 14
+          "median": 11.349999994039536,
+          "p95": 13.599999994039536,
+          "min": 4.299999997019768,
+          "max": 14.600000008940697
         },
         "callbackHostMsPerFrame": {
           "samples": 20,
-          "median": 2.399999998509884,
-          "p95": 2.899999998509884,
+          "median": 2.3499999940395355,
+          "p95": 3.1000000089406967,
           "min": 0,
-          "max": 3.2000000029802322
+          "max": 3.300000011920929
         },
         "settleWallMsPerFrame": {
           "samples": 20,
-          "median": 9.100000001490116,
-          "p95": 10.600000001490116,
-          "min": 4.199999995529652,
-          "max": 11.599999994039536
+          "median": 8.949999988079071,
+          "p95": 11.099999994039536,
+          "min": 4.199999988079071,
+          "max": 11.100000008940697
         },
         "triggerHostMsPerFrame": {
           "samples": 20,
-          "median": 0,
-          "p95": 0.10000000149011612,
+          "median": 0.09999999403953552,
+          "p95": 0.10000000894069672,
           "min": 0,
           "max": 0.20000000298023224
         },
@@ -3747,7 +4503,7 @@
           "samples": 20,
           "median": 1,
           "p95": 1,
-          "min": 0,
+          "min": 1,
           "max": 1
         },
         "dirtyCountPerFrame": {
@@ -3759,10 +4515,10 @@
         },
         "measureHostMsPerFrame": {
           "samples": 20,
-          "median": 2.399999998509884,
-          "p95": 2.899999998509884,
+          "median": 2.3499999940395355,
+          "p95": 3,
           "min": 0,
-          "max": 3.2000000029802322
+          "max": 3.300000011920929
         },
         "measuredEntriesPerFrame": {
           "samples": 20,
@@ -3778,14 +4534,14 @@
           "min": 0,
           "max": 0
         },
-        "lastRenderMsPerFrame": {
+        "renderHostMsPerFrame": {
           "samples": 20,
-          "median": 2.5999999940395355,
-          "p95": 2.899999998509884,
-          "min": 2.1999999955296516,
-          "max": 3.2000000029802322
+          "median": 2.3499999940395355,
+          "p95": 3,
+          "min": 0,
+          "max": 3.300000011920929
         },
-        "executed": "|upload,height,normal,shadow,reconstruction,lighting,presentation",
+        "executed": "",
         "retained": 0,
         "renderSize": "822x7604",
         "backend": "webgpu"
