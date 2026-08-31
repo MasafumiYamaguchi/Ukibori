@@ -198,6 +198,11 @@ function formatTiming(timing) {
   return `${formatNumber(timing.median)} / ${formatNumber(timing.p95)}`;
 }
 
+function formatTimingDetailed(timing, warmups, samples) {
+  if (timing === null) return "n/a";
+  return `${formatNumber(timing.median)}/${formatNumber(timing.p95)}/${formatNumber(timing.min)}/${formatNumber(timing.max)} ms (n=${timing.samples ?? samples ?? "n/a"}, w=${warmups ?? "n/a"})`;
+}
+
 function formatDelta(entry) {
   const value = entry?.percent;
   return typeof value === "number" ? `${value >= 0 ? "+" : ""}${value.toFixed(1)}%` : "n/a";
@@ -254,6 +259,21 @@ function markdown(compact) {
     const a = row.after.workload;
     lines.push(
       `| ${row.parameters.scenario} (${row.parameters.scene}) | ${row.parameters.shadowSamples} / ${formatNumber(row.parameters.angularRadius, 3)} | ${row.parameters.maxDistance} / ${row.parameters.stepSize} (${a.shadowSteps}) | ${formatNumber(a.casterAabbCoverageRatio, 4)} | ${b.rayBoundSearch ?? "n/a"} | ${a.rayBoundSearch ?? "n/a"} (${a.rayBoundSearchIterationUpperBound ?? "n/a"} iters) |`,
+    );
+  }
+  lines.push(
+    "",
+    "### Worst-case complete timing summaries",
+    "",
+    "Each cell is `median / p95 / min / max ms (n=samples, w=warmups)`; these are the raw timestamp summaries used for the deltas above.",
+    "",
+    "| Scenario | Shadow before | Shadow after | Frame before | Frame after | Extra resources (after) |",
+    "|---|---:|---:|---:|---:|---|",
+  );
+  for (const row of rows.filter((entry) => WORST_CASES.has(entry.id))) {
+    const extra = row.after.resources;
+    lines.push(
+      `| ${row.parameters.scenario} | ${formatTimingDetailed(row.before.timing.shadowGpuTimestampMs, row.before.warmups, row.before.samples)} | ${formatTimingDetailed(row.after.timing.shadowGpuTimestampMs, row.after.warmups, row.after.samples)} | ${formatTimingDetailed(row.before.timing.frameGpuTimestampMs, row.before.warmups, row.before.samples)} | ${formatTimingDetailed(row.after.timing.frameGpuTimestampMs, row.after.warmups, row.after.samples)} | passes=${extra.extraShadowPasses}, dispatches=${extra.extraShadowDispatches}, uploads=${extra.extraShadowUploads}, storageBytes=${extra.extraShadowStorageBytes} |`,
     );
   }
   lines.push("", "## Regression accounting", "");
