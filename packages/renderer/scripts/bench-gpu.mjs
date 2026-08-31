@@ -15,6 +15,9 @@
 // Usage:
 //   node scripts/bench-gpu.mjs [--suite stage,e2e] [--samples 10]
 //        [--json benchmark-results.json] [--width 640] [--height 360]
+// Restricted desktop/CI hosts may opt into the diagnostic
+// BENCH_CHROME_NO_SANDBOX=1 environment variable; the default remains
+// sandboxed.
 //
 // Suites: stage, e2e, resolution, surface, mask, shadow, reconstruction,
 // presentation, submission, upload, partial, retained (default: all).
@@ -72,6 +75,12 @@ const CHROME = findChrome();
 const CHROME_FLAGS = [
   "--headless=new",
   "--enable-unsafe-webgpu",
+  // Restricted CI/desktop sandboxes can prevent Chrome's GPU process from
+  // creating its profile/sandbox broker. Opt in explicitly for those hosts;
+  // the default benchmark remains sandboxed.
+  ...(process.env.BENCH_CHROME_NO_SANDBOX === "1"
+    ? ["--no-sandbox", "--disable-gpu-sandbox"]
+    : []),
   ...(process.platform === "darwin" ? ["--use-angle=metal"] : []),
   "--no-first-run",
   "--no-default-browser-check",

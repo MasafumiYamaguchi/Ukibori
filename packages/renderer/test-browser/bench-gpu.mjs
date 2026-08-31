@@ -30,6 +30,10 @@ import {
   glyphGridScene,
   maskHeavyScene,
   shadowScene,
+  shadowDenseCasterScene,
+  shadowNearBlockerScene,
+  shadowMaxHeightFastExitScene,
+  shadowDenseOverlapScene,
   reconstructionHeavyScene,
   partialEditScene,
   SCENE_FAMILIES,
@@ -258,6 +262,57 @@ function snapshotWorkgroups(pipeline) {
   return out;
 }
 
+/**
+ * #48 benchmark metadata for the shadow marcher.  These fields are a
+ * contract/upper-bound description rather than fabricated GPU counters: the
+ * production pass still issues the same one dispatch, one upload and one
+ * submission, while the shader performs the bound search and empty-space
+ * test inside each invocation.  Keeping the metadata beside every shadow
+ * case makes before/after JSON comparisons self-describing.
+ */
+function shadowAccelerationMetadata(scene, stepCount) {
+  const casting = scene.surfaces.filter((surface) => surface.castsShadow === true);
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const surface of casting) {
+    minX = Math.min(minX, surface.position.x);
+    minY = Math.min(minY, surface.position.y);
+    maxX = Math.max(maxX, surface.position.x + surface.size.x);
+    maxY = Math.max(maxY, surface.position.y + surface.size.y);
+  }
+  const searchIterations = Number.isInteger(stepCount) && stepCount > 0
+    ? Math.ceil(Math.log2(stepCount + 1))
+    : 0;
+  const frameLogicalArea = Math.max(0, scene.width * scene.height);
+  const clippedMinX = casting.length > 0 ? Math.max(0, Math.min(scene.width, minX)) : 0;
+  const clippedMinY = casting.length > 0 ? Math.max(0, Math.min(scene.height, minY)) : 0;
+  const clippedMaxX = casting.length > 0 ? Math.max(0, Math.min(scene.width, maxX)) : 0;
+  const clippedMaxY = casting.length > 0 ? Math.max(0, Math.min(scene.height, maxY)) : 0;
+  const unionCasterAabbArea = casting.length > 0
+    ? Math.max(0, clippedMaxX - clippedMinX) * Math.max(0, clippedMaxY - clippedMinY)
+    : 0;
+  const casterAabbCoverageRatio = frameLogicalArea > 0
+    ? Math.max(0, Math.min(1, unionCasterAabbArea / frameLogicalArea))
+    : 0;
+  return {
+    shadowMarchAlgorithm: "ray-bound-prefix-binary-search+caster-aabb-empty-space",
+    rayBoundSearch: "monotone-prefix-binary-search",
+    rayBoundSearchIterationUpperBound: searchIterations,
+    casterAabbCulling: true,
+    casterAabbPadTexels: 2,
+    casterAabb: casting.length > 0 ? { minX, minY, maxX, maxY } : null,
+    frameLogicalArea,
+    unionCasterAabbArea,
+    casterAabbCoverageRatio,
+    extraShadowPasses: 0,
+    extraShadowDispatches: 0,
+    extraShadowUploads: 0,
+    extraShadowStorageBytes: 0,
+  };
+}
+
 function pushCase(id, parameters, metrics) {
   cases.push({ id, parameters, metrics });
 }
@@ -303,6 +358,9 @@ async function suiteStage() {
           newAllocations: first.stats.frame.newAllocations,
           renderExtent: `${first.stats.renderWidth}x${first.stats.renderHeight}`,
           workgroups: snapshot[stage]?.workgroupCountX ?? null,
+          ...(stage === "shadow"
+            ? shadowAccelerationMetadata(scene, snapshot.shadow?.steps ?? null)
+            : {}),
         },
       );
     }
@@ -831,6 +889,7 @@ async function suiteShadow() {
             shadowSteps: snap.shadowPass.lastDispatch.stepCount,
             renderExtent: `${series[0].stats.renderWidth}x${series[0].stats.renderHeight}`,
             texels: series[0].stats.renderWidth * series[0].stats.renderHeight,
+            ...shadowAccelerationMetadata(scene, snap.shadowPass.lastDispatch.stepCount),
           },
         );
       } finally {
@@ -889,6 +948,99 @@ async function suiteShadow() {
           shadowHostMs: summarizeSeries(series.map((r) => r.stats.frame.passDurations.shadow)),
           shadowGpuTimestampMs: summarizeSeries(gpuSeriesOf(series, (r) => r.gpuTiming?.passGpuMs?.shadow)),
           shadowSteps: snap.shadowPass.lastDispatch.stepCount,
+          ...shadowAccelerationMetadata(scene, snap.shadowPass.lastDispatch.stepCount),
+        },
+      );
+    } finally {
+      pipeline.dispose();
+      canvas.remove();
+    }
+  }
+
+  // #48 adversarial workloads.  These are deliberately outside the sparse
+  // historical scene so that the prefix-search and AABB-cull trade-offs are
+  // measured where they are most likely to regress: dense caster coverage,
+  // near blockers, max-height exits, and many overlapping casters.
+  const worstCases = [
+    {
+      id: "dense-caster",
+      scene: shadowDenseCasterScene,
+      sceneFamily: SCENE_FAMILIES.shadowDenseCaster,
+      angularRadius: 0.15,
+      shadowOptions: { samples: 8, maxDistance: 200, stepSize: 0.5, bias: 0.5 },
+    },
+    {
+      id: "near-blocker",
+      scene: shadowNearBlockerScene,
+      sceneFamily: SCENE_FAMILIES.shadowNearBlocker,
+      angularRadius: 0,
+      shadowOptions: { samples: 1, maxDistance: 200, stepSize: 0.5, bias: 0.5 },
+    },
+    {
+      id: "max-height-fast-exit",
+      scene: shadowMaxHeightFastExitScene,
+      sceneFamily: SCENE_FAMILIES.shadowMaxHeightFastExit,
+      angularRadius: 0,
+      shadowOptions: { samples: 1, maxDistance: 300, stepSize: 0.5, bias: 0.5 },
+    },
+    {
+      id: "dense-overlap",
+      scene: shadowDenseOverlapScene,
+      sceneFamily: SCENE_FAMILIES.shadowDenseOverlap,
+      angularRadius: 0.15,
+      shadowOptions: { samples: 8, maxDistance: 200, stepSize: 0.5, bias: 0.5 },
+    },
+  ];
+  for (const worst of worstCases) {
+    const { canvas, context, canvasFormat } = makeCanvas();
+    const pipeline = new api.GpuScenePipeline(device, context, canvasFormat);
+    const scene = sceneFor(() => worst.scene({ width: WIDTH, height: HEIGHT, angularRadius: worst.angularRadius }));
+    const primerRadius = worst.angularRadius > 0 ? 0 : 0.15;
+    const primer = sceneFor(() => worst.scene({ width: WIDTH, height: HEIGHT, angularRadius: primerRadius }));
+    const primerOptions = {
+      ...worst.shadowOptions,
+      samples: worst.angularRadius > 0 ? 1 : 8,
+    };
+    try {
+      const series = await benchUpdateFrame(
+        pipeline,
+        { scene: primer, dpr: 1, shadowOptions: primerOptions },
+        { scene, dpr: 1, shadowOptions: worst.shadowOptions },
+      );
+      const snap = pipeline.getSnapshot();
+      const shadowDispatch = snap.shadowPass.lastDispatch;
+      const first = series[0];
+      pushCase(
+        `shadow/worst/${worst.id}`,
+        {
+          suite: "shadow",
+          scenario: worst.id,
+          scene: worst.sceneFamily,
+          resolution: `${WIDTH}x${HEIGHT}`,
+          shadowSamples: worst.shadowOptions.samples,
+          angularRadius: worst.angularRadius,
+          maxDistance: worst.shadowOptions.maxDistance,
+          stepSize: worst.shadowOptions.stepSize,
+          bias: worst.shadowOptions.bias,
+          warmups: WARMUP,
+          samples: SAMPLES,
+        },
+        {
+          wallMs: summarizeSeries(series.map((r) => r.wallMs)),
+          shadowHostMs: summarizeSeries(series.map((r) => r.stats.frame.passDurations.shadow)),
+          shadowGpuTimestampMs: summarizeSeries(gpuSeriesOf(series, (r) => r.gpuTiming?.passGpuMs?.shadow)),
+          gpuTimestampMs: totalGpuSummary(series),
+          submissions: first.stats.frame.submissions,
+          dispatches: first.stats.frame.dispatchCount,
+          bytesUploaded: first.stats.frame.bytesUploaded,
+          newAllocations: first.stats.frame.newAllocations,
+          executed: first.stats.invalidation.executed.join(","),
+          shadowSteps: shadowDispatch.stepCount,
+          shadowSampleCount: snap.shadowPass.options.samples,
+          shadowAngularRadius: scene.light.angularRadius,
+          renderExtent: `${first.stats.renderWidth}x${first.stats.renderHeight}`,
+          texels: first.stats.renderWidth * first.stats.renderHeight,
+          ...shadowAccelerationMetadata(scene, shadowDispatch.stepCount),
         },
       );
     } finally {

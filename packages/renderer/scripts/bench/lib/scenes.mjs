@@ -10,6 +10,7 @@
 //   glyph-grid              N glyph masks in a grid
 //   mask-heavy              N distinct masks at maskResolution
 //   short-shadow / long-shadow / soft-shadow   shadow travel variants
+//   shadow-worst-*     adversarial ShadowPass ray-march workloads (#48)
 //   reconstruction-heavy    soft + reconstruction-ready casters
 //   partial-edit            base + edit scene pair for partial recompute
 
@@ -276,6 +277,166 @@ export function shadowScene({ width, height, travel, angularRadius, dpr = 1 }) {
   };
 }
 
+function shadowBenchmarkPanel(width, height) {
+  return {
+    id: "panel",
+    position: { x: 0, y: 0 },
+    size: { x: width, y: height },
+    elevation: 0,
+    thickness: 0,
+    shape: { kind: "roundedRect", radius: 0 },
+    profile: { kind: "flat" },
+    material: "matte",
+    castsShadow: false,
+    receivesShadow: true,
+  };
+}
+
+function shadowBenchmarkCaster({
+  id,
+  position,
+  size,
+  elevation,
+  thickness,
+  radius = 0,
+  profile = "flat",
+}) {
+  return {
+    id,
+    position,
+    size,
+    elevation,
+    thickness,
+    shape: { kind: "roundedRect", radius },
+    profile: { kind: profile },
+    material: "silicone",
+    castsShadow: true,
+    receivesShadow: true,
+  };
+}
+
+/**
+ * #48 worst-case A: a soft shadow with a caster footprint covering almost the
+ * entire frame.  This keeps AABB culling mostly inactive while exercising the
+ * ray-bound prefix search on every invocation.
+ */
+export function shadowDenseCasterScene({ width, height, angularRadius = 0.15, dpr = 1 }) {
+  const marginX = Math.max(1, Math.floor(width * 0.01));
+  const marginY = Math.max(1, Math.floor(height * 0.01));
+  return {
+    width,
+    height,
+    surfaces: [
+      shadowBenchmarkPanel(width, height),
+      shadowBenchmarkCaster({
+        id: "dense-caster",
+        position: { x: marginX, y: marginY },
+        size: { x: width - 2 * marginX, y: height - 2 * marginY },
+        elevation: 1,
+        thickness: 12,
+        radius: 8,
+        profile: "bevel",
+      }),
+    ],
+    light: {
+      direction: { x: -0.6, y: -0.4, z: 0.8 },
+      intensity: 1,
+      angularRadius: Math.fround(angularRadius),
+    },
+  };
+}
+
+/**
+ * #48 worst-case B: a thin, wide blocker close to a receiver band.  Rays that
+ * point toward the strip terminate after only a few samples, making the
+ * fixed binary-search overhead visible instead of hiding it behind a long
+ * march.
+ */
+export function shadowNearBlockerScene({ width, height, angularRadius = 0, dpr = 1 }) {
+  const stripHeight = Math.max(2, Math.floor(height * 0.025));
+  return {
+    width,
+    height,
+    surfaces: [
+      shadowBenchmarkPanel(width, height),
+      shadowBenchmarkCaster({
+        id: "near-blocker",
+        position: { x: 1, y: Math.floor(height * 0.5) },
+        size: { x: width - 2, y: stripHeight },
+        elevation: 0,
+        thickness: 24,
+        radius: 0,
+      }),
+    ],
+    light: {
+      direction: { x: 0, y: -0.8, z: 0.6 },
+      intensity: 1,
+      angularRadius: Math.fround(angularRadius),
+    },
+  };
+}
+
+/**
+ * #48 worst-case C: a nearly full-frame caster with a very low top and a
+ * near-vertical light.  The max-caster-height guard exits after the first
+ * useful sample, even though the configured march budget is large.
+ */
+export function shadowMaxHeightFastExitScene({ width, height, angularRadius = 0, dpr = 1 }) {
+  return {
+    width,
+    height,
+    surfaces: [
+      shadowBenchmarkPanel(width, height),
+      shadowBenchmarkCaster({
+        id: "low-caster",
+        position: { x: 1, y: 1 },
+        size: { x: width - 2, y: height - 2 },
+        elevation: 0,
+        thickness: 0.25,
+        radius: 0,
+      }),
+    ],
+    light: {
+      direction: { x: 0.05, y: 0.05, z: 0.9975 },
+      intensity: 1,
+      angularRadius: Math.fround(angularRadius),
+    },
+  };
+}
+
+/**
+ * #48 worst-case D: many nearly full-frame, overlapping casters.  The union
+ * AABB is dense and the composed caster field has a high max height, so this
+ * stresses both the prefix search and the strict height comparison.
+ */
+export function shadowDenseOverlapScene({ width, height, count = 12, angularRadius = 0.15, dpr = 1 }) {
+  const casters = [];
+  for (let i = 0; i < count; i++) {
+    const offset = i % 4;
+    casters.push(
+      shadowBenchmarkCaster({
+        id: `overlap-${i}`,
+        position: { x: 2 + offset, y: 2 + ((i * 3) % 4) },
+        size: { x: width - 4, y: height - 4 },
+        elevation: 1 + (i % 5),
+        thickness: 2 + (i % 4),
+        radius: 4,
+        profile: "bevel",
+      }),
+    );
+  }
+  return {
+    width,
+    height,
+    surfaces: [shadowBenchmarkPanel(width, height), ...casters],
+    light: {
+      direction: { x: -0.6, y: -0.4, z: 0.8 },
+      intensity: 1,
+      angularRadius: Math.fround(angularRadius),
+    },
+  };
+}
+
 export function reconstructionHeavyScene({ width, height, dpr = 1 }) {
   return {
     width,
@@ -425,6 +586,10 @@ export const SCENE_FAMILIES = Object.freeze({
   shortShadow: "short-shadow",
   longShadow: "long-shadow",
   softShadow: "soft-shadow",
+  shadowDenseCaster: "shadow-worst-dense-caster",
+  shadowNearBlocker: "shadow-worst-near-blocker",
+  shadowMaxHeightFastExit: "shadow-worst-max-height-fast-exit",
+  shadowDenseOverlap: "shadow-worst-dense-overlap",
   reconstructionHeavy: "reconstruction-heavy",
   partialEdit: "partial-edit",
 });
