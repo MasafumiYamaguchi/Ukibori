@@ -1208,7 +1208,10 @@ describe("ShadowPass shader — CPU shadow semantics pinned in WGSL", () => {
     expect(SHADOW_PASS_WGSL).toContain(
       "return !(sx < 0.5 / params.dpr || sx > (f32(params.width) - 0.5) / params.dpr ||",
     );
-    expect(SHADOW_PASS_WGSL).toContain("fn rayBoundsStepLimit(px: f32, py: f32, dx: f32, dy: f32) -> u32 {");
+    expect(SHADOW_PASS_WGSL).toContain(
+      "fn rayBoundsStepLimit(px: f32, py: f32, dx: f32, dy: f32, searchLimit: u32) -> u32 {",
+    );
+    expect(SHADOW_PASS_WGSL).toContain("fn rayHeightStepLimit(rz0: f32, dz: f32) -> u32 {");
     expect(SHADOW_PASS_WGSL).toContain("let rayZ = rz0 + dz * t;");
     expect(SHADOW_PASS_WGSL).toContain(
       "traceOccluded(\n      px,\n      py,\n      rz0,\n      params.lightDirection.x,\n      params.lightDirection.y,\n      params.lightDirection.z,\n    );",
