@@ -6,7 +6,7 @@
 
 - Baseline commit: `3c315d2b6ca95432e87f5367a10370a0b8b4f399` (workingTreeDirty=false)
 - Optimized commit: `3fc2e70b3b0d69c4592a37bf0afb58484a751824` (workingTreeDirty=false)
-- Benchmark artifact commit: `pending-artifact-commit`
+- Benchmark artifact commit: `db7d0d8bfe72b309460e069522d671c941f59bb7`
 - Adapter: nvidia / blackwell / backend unknown
 - Browser: chrome 151.0; timestamp-query=true
 
