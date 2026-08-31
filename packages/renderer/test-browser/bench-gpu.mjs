@@ -23,6 +23,7 @@
 // Configuration comes from URL query parameters (the runner passes them
 // through; defaults keep a single suite run under a couple of minutes):
 //   ?suite=all|stage,e2e,...&warmup=3&samples=5&width=640&height=360
+//   &algorithm=optimized|baseline (metadata label only)
 
 import {
   simpleRoundedRectScene,
@@ -59,6 +60,12 @@ const WARMUP = Number(query.get("warmup") ?? 3);
 const SAMPLES = Number(query.get("samples") ?? 5);
 const RETAINED_FRAMES = Number(query.get("retainedFrames") ?? 20);
 const SUITE_QUERY = query.get("suite") ?? "all";
+// The production benchmark defaults to the optimized #48 path.  The
+// baseline worktree uses `algorithm=baseline` only to label its existing
+// per-step marcher accurately; it does not alter production code or timing.
+const SHADOW_BENCHMARK_ALGORITHM = query.get("algorithm") === "baseline"
+  ? "baseline-ray-march"
+  : "ray-bound-prefix-binary-search+caster-aabb-empty-space";
 
 const cases = [];
 const notes = [];
@@ -297,11 +304,15 @@ function shadowAccelerationMetadata(scene, stepCount) {
     ? Math.max(0, Math.min(1, unionCasterAabbArea / frameLogicalArea))
     : 0;
   return {
-    shadowMarchAlgorithm: "ray-bound-prefix-binary-search+caster-aabb-empty-space",
-    rayBoundSearch: "monotone-prefix-binary-search",
-    rayBoundSearchIterationUpperBound: searchIterations,
-    casterAabbCulling: true,
-    casterAabbPadTexels: 2,
+    shadowMarchAlgorithm: SHADOW_BENCHMARK_ALGORITHM,
+    rayBoundSearch: SHADOW_BENCHMARK_ALGORITHM === "baseline-ray-march"
+      ? "per-step-bounds-check"
+      : "monotone-prefix-binary-search",
+    rayBoundSearchIterationUpperBound: SHADOW_BENCHMARK_ALGORITHM === "baseline-ray-march"
+      ? 0
+      : searchIterations,
+    casterAabbCulling: SHADOW_BENCHMARK_ALGORITHM !== "baseline-ray-march",
+    casterAabbPadTexels: SHADOW_BENCHMARK_ALGORITHM === "baseline-ray-march" ? 0 : 2,
     casterAabb: casting.length > 0 ? { minX, minY, maxX, maxY } : null,
     frameLogicalArea,
     unionCasterAabbArea,
