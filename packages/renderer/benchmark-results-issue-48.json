@@ -4,7 +4,7 @@
   "generatedAt": "2026-08-31T14:21:38.411Z",
   "baselineCommit": "3c315d2b6ca95432e87f5367a10370a0b8b4f399",
   "optimizedCommit": "da2b2b6fb184da76b6545a4b95dd27b70506b836",
-  "benchmarkArtifactCommit": "pending-artifact-commit",
+  "benchmarkArtifactCommit": "777943c0d710c28003acd52a92eac8913906cd69",
   "provenance": {
     "baselineWorkingTreeDirty": false,
     "optimizedWorkingTreeDirty": false,
