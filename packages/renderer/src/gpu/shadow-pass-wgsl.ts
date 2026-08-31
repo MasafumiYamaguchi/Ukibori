@@ -63,11 +63,12 @@ import { WGSL_SCENE_BASE } from "./wgsl";
  *   — a value whose f32 rounds to zero is rejected by the host sanitizer
  *   and can never appear here.
  * - #48 ray-bound clipping: projected XY coordinates are monotone along a
- *   ray, so the last in-bounds integer step is found with an exact-arithmetic
- *   binary search. A conservative analytic upper bound from max-caster-height
- *   shrinks that search when the height exit is early. The march then
- *   iterates only that prefix; no valid sample is skipped and the per-step
- *   bounds branch is removed from the normal path.
+ *   ray, and an upward ray's historical f32 `rayZ` series is monotone too.
+ *   The last reachable integer step is found with one exact combined-prefix
+ *   binary search using those same f32 expressions. Non-rising rays perform
+ *   the historical step-1 height check, then search only the XY prefix. No
+ *   analytic ratio or magic safety margin is used, so no valid sample is
+ *   skipped and the per-step bounds branch is removed from the normal path.
  * - #48 empty-space culling: the host packs the union of casting-surface
  *   footprint AABBs into the otherwise-unused w lanes of the first four
  *   sample-direction vec4s. Outside that union (with a conservative
@@ -279,11 +280,12 @@ fn sampleCasterHeight(sx: f32, sy: f32) -> f32 {
   return top + (bottom - top) * ty;
 }
 
-// The bounds predicate deliberately uses the exact arithmetic from the
-// historical march.  For a fixed direction, t = f32(k) * stepSize is
-// monotone and each projected coordinate is monotone as well, so the set of
-// in-bounds integer steps is a prefix.  The binary search below therefore
-// finds the last valid step without changing which samples can be visited.
+// The predicates deliberately use the exact arithmetic from the historical
+// march.  For a fixed direction, t = f32(k) * stepSize is monotone and each
+// projected coordinate is monotone as well, so the set of in-bounds integer
+// steps is a prefix.  The height predicate below uses the very same
+// rayZ = rz0 + dz * (f32(k) * stepSize) expression as the historical loop;
+// it never substitutes an analytic ratio or a rounded safety margin.
 fn rayInBoundsAtStep(px: f32, py: f32, dx: f32, dy: f32, stepIndex: u32) -> bool {
   let t = f32(stepIndex) * params.stepSize;
   let sx = px + dx * t;
@@ -292,34 +294,20 @@ fn rayInBoundsAtStep(px: f32, py: f32, dx: f32, dy: f32, stepIndex: u32) -> bool
       sy < 0.5 / params.dpr || sy > (f32(params.height) - 0.5) / params.dpr);
 }
 
-// Return a conservative upper bound on the steps that can be reached before
-// the max-caster-height exit.  The +8 margin covers the f32 rounding of the
-// explicit t/rayZ series; using an upper bound here can only retain extra
-// iterations, never remove a potentially blocking sample.
-fn rayHeightStepLimit(rz0: f32, dz: f32) -> u32 {
-  let limit = params.stepCount;
-  if (limit == 0u || dz <= 0.0) {
-    return limit;
-  }
-  let bound = params.maxCasterHeight + params.bias;
-  if (rz0 > bound) {
-    return 0u;
-  }
-  let perStepRise = dz * params.stepSize;
-  if (perStepRise <= 0.0) {
-    return limit;
-  }
-  let ratio = (bound - rz0) / perStepRise;
-  if (ratio >= f32(limit)) {
-    return limit;
-  }
-  return min(limit, u32(ceil(max(ratio, 0.0))) + 8u);
+// Historical ray-Z arithmetic, shared by the prefix predicate and the
+// eventual march.  Keeping this as one expression is correctness by
+// construction for non-dyadic step sizes and all f32 rounding boundaries.
+fn rayZAtStep(rz0: f32, dz: f32, stepIndex: u32) -> f32 {
+  let t = f32(stepIndex) * params.stepSize;
+  return rz0 + dz * t;
 }
 
-// Return the largest march index whose sample position is inside the
-// inclusive pixel-center rectangle.  stepCount is host-capped, so the
-// integer search always terminates.  A ray with no XY travel stays in bounds
-// for the whole configured budget and avoids the search entirely.
+// Return the largest march index whose historical step can be reached before
+// either the inclusive XY scene bound or the max-caster-height break.  For
+// dz > 0 the combined predicate is a monotone prefix.  For dz <= 0, height
+// can only stay level/fall, so the historical step-1 check is sufficient; a
+// failed step 1 returns zero and a passing step 1 leaves only the XY prefix.
+// stepCount is host-capped, so the integer search always terminates.
 fn rayBoundsStepLimit(px: f32, py: f32, dx: f32, dy: f32, searchLimit: u32) -> u32 {
   let limit = searchLimit;
   if (limit == 0u || (dx == 0.0 && dy == 0.0)) {
@@ -341,6 +329,44 @@ fn rayBoundsStepLimit(px: f32, py: f32, dx: f32, dy: f32, searchLimit: u32) -> u
   return lo;
 }
 
+fn rayPrefixStepLimit(
+  px: f32,
+  py: f32,
+  rz0: f32,
+  dx: f32,
+  dy: f32,
+  dz: f32,
+) -> u32 {
+  let limit = params.stepCount;
+  if (limit == 0u) {
+    return 0u;
+  }
+  let bound = params.maxCasterHeight + params.bias;
+  if (dz <= 0.0) {
+    // The historical loop checks XY before height.  Only an in-bounds step 1
+    // can therefore expose a height break, and after it passes a non-rising
+    // ray cannot cross the same upper bound on later steps.
+    if (rayInBoundsAtStep(px, py, dx, dy, 1u) && rayZAtStep(rz0, dz, 1u) > bound) {
+      return 0u;
+    }
+    return rayBoundsStepLimit(px, py, dx, dy, limit);
+  }
+  if (rayInBoundsAtStep(px, py, dx, dy, limit) && rayZAtStep(rz0, dz, limit) <= bound) {
+    return limit;
+  }
+  var lo = 0u;
+  var hi = limit;
+  while (lo < hi) {
+    let mid = (lo + hi + 1u) >> 1u;
+    if (rayInBoundsAtStep(px, py, dx, dy, mid) && rayZAtStep(rz0, dz, mid) <= bound) {
+      lo = mid;
+    } else {
+      hi = mid - 1u;
+    }
+  }
+  return lo;
+}
+
 /**
  * One #17/#27/#41 height-field occlusion march along the explicit direction
  * (dx, dy, dz) from receiver P = (px, py, rz0). The single hard ray and
@@ -351,9 +377,9 @@ fn rayBoundsStepLimit(px: f32, py: f32, dx: f32, dy: f32, searchLimit: u32) -> u
  */fn traceOccluded(px: f32, py: f32, rz0: f32, dx: f32, dy: f32, dz: f32) -> bool {
   // Integer step index: the loop terminates on every device (stepCount is
   // host-capped), even when a positive subnormal stepSize makes t round to
-  // a constant in f32.
-  let heightLimit = rayHeightStepLimit(rz0, dz);
-  let stepLimit = rayBoundsStepLimit(px, py, dx, dy, heightLimit);
+  // a constant in f32.  The prefix search uses the historical f32 ray-Z
+  // expression directly, so it cannot trim a valid height-boundary sample.
+  let stepLimit = rayPrefixStepLimit(px, py, rz0, dx, dy, dz);
   let casterPad = 2.0 / params.dpr;
   let casterMinX = params.sampleDirs[0].w - casterPad;
   let casterMinY = params.sampleDirs[1].w - casterPad;
@@ -371,7 +397,7 @@ fn rayBoundsStepLimit(px: f32, py: f32, dx: f32, dy: f32, searchLimit: u32) -> u
     let t = f32(stepIndex) * params.stepSize;
     let sx = px + dx * t;
     let sy = py + dy * t;
-    let rayZ = rz0 + dz * t;
+    let rayZ = rayZAtStep(rz0, dz, stepIndex);
     // Conservative host-derived bound: beyond maxCasterHeight + bias no
     // sample can exceed rayZ + bias, so this early exit cannot remove a
     // blocker (mirrors the CPU's maxHeight early exit).

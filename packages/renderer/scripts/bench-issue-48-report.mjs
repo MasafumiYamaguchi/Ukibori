@@ -339,7 +339,7 @@ async function main() {
   if (baselineAlgorithm !== "baseline-ray-march") {
     fail(`baseline artifact does not identify the baseline marcher (${baselineAlgorithm})`);
   }
-  if (optimizedAlgorithm !== "ray-bound-prefix-binary-search+caster-aabb-empty-space") {
+  if (optimizedAlgorithm !== "exact-prefix-binary-search+caster-aabb-empty-space") {
     fail(`optimized artifact does not identify the #48 algorithm (${optimizedAlgorithm})`);
   }
   const extraKeys = [

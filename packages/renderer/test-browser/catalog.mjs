@@ -27,7 +27,7 @@
 // supported by the scene contract —there is NO rotation/skew support, and
 // the catalog never claims any.
 
-export const CATALOG_VERSION = 8;
+export const CATALOG_VERSION = 9;
 
 // #48 adversarial ShadowPass fixtures.  The real-WebGPU parity harness uses
 // this explicit set as a runtime gate (rather than relying on fixture names
@@ -39,6 +39,17 @@ export const ISSUE_48_ADVERSARIAL_FIXTURE_IDS = Object.freeze([
   "shadow-negative-threshold-cull-guard",
   "shadow-dense-full-frame-hard",
   "shadow-dense-full-frame-soft",
+  "shadow-prefix-dz-positive-before-boundary",
+  "shadow-prefix-dz-positive-after-boundary",
+  "shadow-prefix-dz-zero",
+  "shadow-prefix-dz-negative",
+  "shadow-prefix-receiver-above-height",
+  "shadow-prefix-small-positive-dz",
+  "shadow-prefix-large-valid-stepcount",
+  "shadow-prefix-nondyadic-0.1",
+  "shadow-prefix-nondyadic-0.3",
+  "shadow-prefix-height-equality",
+  "shadow-prefix-xy-height-same-step",
 ]);
 
 // ---------------------------------------------------------------------------
@@ -986,6 +997,59 @@ export function createCatalog(api) {
     };
   }
 
+  /**
+   * #48 exact-prefix real-WebGPU fixtures. The integrated scene is only used
+   * to provide the validated light direction and the conservative caster-top
+   * ABI bound; the two f32 fields are uploaded directly so height exits can be
+   * placed independently of the receiver field. Every fixture compares the
+   * production ShadowPass readback with the TypeScript oracle on a real
+   * adapter, rather than relying on a source-string check.
+   */
+  function shadowPrefixSynthFixture(
+    name,
+    direction,
+    shadowOptions,
+    {
+      maxHeight = 4,
+      receiverHeight = 0,
+      casterX0 = 8,
+      casterX1 = 13,
+      casterY0 = 1,
+      casterY1 = 10,
+    } = {},
+  ) {
+    const width = 24;
+    const height = 12;
+    const casterTop = Math.fround(maxHeight);
+    const heightField = synthHeight(width, height, () => receiverHeight);
+    const casterField = synthHeight(width, height, (x, y) =>
+      x >= casterX0 && x <= casterX1 && y >= casterY0 && y <= casterY1 ? casterTop : 0,
+    );
+    const scene = createScene({
+      width,
+      height,
+      surfaces: [shadowSurface({
+        id: `${name}-bound`,
+        position: { x: 0, y: 0 },
+        size: { x: width, y: height },
+        elevation: casterTop,
+        thickness: 0,
+      })],
+      light: { direction, intensity: 1 },
+    });
+    return {
+      name,
+      shadowPrefixSynth: true,
+      width,
+      height,
+      heightField,
+      casterField,
+      scene,
+      shadowOptions,
+      shadowThresholdExact: true,
+    };
+  }
+
   const SHADOW_FIXTURES = [
     { ...twoLevelScene(LIGHT_FROM_RIGHT), name: "shadow-two-level-light-right", dpr: 1 },
     { ...twoLevelScene(LIGHT_FROM_LEFT), name: "shadow-two-level-light-left", dpr: 1 },
@@ -1166,6 +1230,72 @@ export function createCatalog(api) {
     { ...fracShadowScene(), name: "shadow-frac-dpr1.5", dpr: 1.5 },
     { ...fracShadowScene(), name: "shadow-frac-dpr2", dpr: 2 },
     selfShadowSynthFixture(),
+    shadowPrefixSynthFixture(
+      "shadow-prefix-dz-positive-before-boundary",
+      { x: 3, y: 0, z: 4 },
+      { stepSize: 0.5, bias: 0, maxDistance: 12 },
+      { maxHeight: 1.59 },
+    ),
+    shadowPrefixSynthFixture(
+      "shadow-prefix-dz-positive-after-boundary",
+      { x: 3, y: 0, z: 4 },
+      { stepSize: 0.5, bias: 0, maxDistance: 12 },
+      { maxHeight: 1.61 },
+    ),
+    shadowPrefixSynthFixture(
+      "shadow-prefix-dz-zero",
+      { x: 1, y: 0, z: 0 },
+      { stepSize: 0.5, bias: 0, maxDistance: 32 },
+      { maxHeight: 4 },
+    ),
+    shadowPrefixSynthFixture(
+      "shadow-prefix-dz-negative",
+      { x: 3, y: 0, z: -4 },
+      { stepSize: 0.5, bias: 0, maxDistance: 12 },
+      { maxHeight: 4 },
+    ),
+    shadowPrefixSynthFixture(
+      "shadow-prefix-receiver-above-height",
+      { x: 1, y: 0, z: 0 },
+      { stepSize: 0.5, bias: 0, maxDistance: 32 },
+      { maxHeight: 4, receiverHeight: 5 },
+    ),
+    shadowPrefixSynthFixture(
+      "shadow-prefix-small-positive-dz",
+      { x: 1, y: 0, z: 1e-7 },
+      { stepSize: 0.3, bias: 0, maxDistance: 32 },
+      { maxHeight: 4 },
+    ),
+    shadowPrefixSynthFixture(
+      "shadow-prefix-large-valid-stepcount",
+      { x: 1, y: 0, z: 0 },
+      { stepSize: 0.5, bias: 0, maxDistance: 4096 },
+      { maxHeight: 0, casterX0: 100, casterX1: 101, casterY0: 0, casterY1: 0 },
+    ),
+    shadowPrefixSynthFixture(
+      "shadow-prefix-nondyadic-0.1",
+      { x: 3, y: 0, z: 4 },
+      { stepSize: 0.1, bias: 0.25, maxDistance: 12 },
+      { maxHeight: 4 },
+    ),
+    shadowPrefixSynthFixture(
+      "shadow-prefix-nondyadic-0.3",
+      { x: 4, y: 0, z: 3 },
+      { stepSize: 0.3, bias: 0.25, maxDistance: 12 },
+      { maxHeight: 4 },
+    ),
+    shadowPrefixSynthFixture(
+      "shadow-prefix-height-equality",
+      { x: 3, y: 0, z: 4 },
+      { stepSize: 0.5, bias: 0, maxDistance: 12 },
+      { maxHeight: 1.6 },
+    ),
+    shadowPrefixSynthFixture(
+      "shadow-prefix-xy-height-same-step",
+      { x: 4, y: 0, z: 3 },
+      { stepSize: 1, bias: 0, maxDistance: 24 },
+      { maxHeight: 2.4, casterX0: 5, casterX1: 8 },
+    ),
   ];
 
   // -------------------------------------------------------------------------
@@ -1855,6 +1985,17 @@ export function createCatalog(api) {
     "shadow-soft-mask-caster": ["shadow-visibility", "soft-shadow", "mask-shape", "glyph-shape"],
     "shadow-dense-full-frame-hard": ["shadow-visibility", "shadow-options", "opaque-owned-pixels"],
     "shadow-dense-full-frame-soft": ["shadow-visibility", "soft-shadow", "sampling-boundary", "opaque-owned-pixels"],
+    "shadow-prefix-dz-positive-before-boundary": ["shadow-visibility", "shadow-options", "shadow-synthetic", "shadow-max-distance"],
+    "shadow-prefix-dz-positive-after-boundary": ["shadow-visibility", "shadow-options", "shadow-synthetic", "shadow-max-distance"],
+    "shadow-prefix-dz-zero": ["shadow-visibility", "shadow-options", "shadow-synthetic"],
+    "shadow-prefix-dz-negative": ["shadow-visibility", "shadow-options", "shadow-synthetic", "shadow-opposing-directions"],
+    "shadow-prefix-receiver-above-height": ["shadow-visibility", "shadow-options", "shadow-synthetic", "threshold-equality"],
+    "shadow-prefix-small-positive-dz": ["shadow-visibility", "shadow-options", "shadow-synthetic"],
+    "shadow-prefix-large-valid-stepcount": ["shadow-visibility", "shadow-options", "shadow-synthetic", "shadow-max-distance"],
+    "shadow-prefix-nondyadic-0.1": ["shadow-visibility", "shadow-options", "shadow-synthetic"],
+    "shadow-prefix-nondyadic-0.3": ["shadow-visibility", "shadow-options", "shadow-synthetic"],
+    "shadow-prefix-height-equality": ["shadow-visibility", "shadow-options", "shadow-synthetic", "threshold-equality"],
+    "shadow-prefix-xy-height-same-step": ["shadow-visibility", "shadow-options", "shadow-synthetic", "shadow-max-distance"],
     // #43 reconstructed soft shadows (edge-aware visibility reconstruction)
     "shadow-reconstruction-radius-0.25-samples-4-r2": ["shadow-visibility", "soft-shadow", "reconstruction"],
     "shadow-reconstruction-radius-0.15-samples-8-r2": ["shadow-visibility", "soft-shadow", "reconstruction"],
@@ -2037,7 +2178,7 @@ export function createCatalog(api) {
     let buffers;
     if (entry.synthetic === true || entry.optionChange === true) {
       buffers = ["normal"];
-    } else if (entry.shadowSynth === true) {
+    } else if (entry.shadowSynth === true || entry.shadowPrefixSynth === true) {
       buffers = ["visibility"];
     } else if (isPresentation === true) {
       buffers =

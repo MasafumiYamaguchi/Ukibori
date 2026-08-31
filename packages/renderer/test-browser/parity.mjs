@@ -156,6 +156,7 @@ async function runFixture(device, fixture) {
   let shadowPass = null;
   let lightingPass = null;
   let synthHeightBuffer = null;
+  let synthCasterBuffer = null;
   let synthObjectIdBuffer = null;
   let result = null;
   let failure = null;
@@ -357,6 +358,127 @@ async function runFixture(device, fixture) {
           mismatches: a.mismatches + b.mismatches + extraMismatches,
           samples: [...a.samples, ...b.samples, ...extraSamples],
         },
+        casterTexels: 0,
+        caster: { mismatches: 0, maxError: 0 },
+      };
+    } else if (fixture.shadowPrefixSynth) {
+      // #48 exact-prefix fixtures: keep the receiver and caster fields
+      // synthetic so each case can place a blocker precisely around the
+      // historical f32 height/XY boundary, while still dispatching the real
+      // production ShadowPass on a real adapter. No CPU implementation is
+      // substituted for the GPU result; the actual oracle compares the
+      // readback visibility field below.
+      const {
+        width,
+        height: rh,
+        heightField,
+        casterField,
+        scene,
+        shadowOptions,
+      } = fixture;
+      if (!(heightField instanceof Float32Array) || !(casterField instanceof Float32Array)) {
+        throw new TypeError(`${fixture.id}: shadowPrefixSynth requires Float32Array heightField/casterField`);
+      }
+      if (heightField.length !== width * rh || casterField.length !== width * rh) {
+        throw new RangeError(`${fixture.id}: synthetic fields do not match ${width}x${rh}`);
+      }
+      const byteLength = width * rh * 4;
+      synthHeightBuffer = device.createBuffer({
+        size: Math.max(byteLength, 16),
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        label: "ukibori-test-prefix-height",
+      });
+      synthCasterBuffer = device.createBuffer({
+        size: Math.max(byteLength, 16),
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        label: "ukibori-test-prefix-caster",
+      });
+      device.queue.writeBuffer(
+        synthHeightBuffer,
+        0,
+        new Uint8Array(heightField.buffer, heightField.byteOffset, byteLength),
+      );
+      device.queue.writeBuffer(
+        synthCasterBuffer,
+        0,
+        new Uint8Array(casterField.buffer, casterField.byteOffset, byteLength),
+      );
+      const objectId = new Uint32Array(width * rh).fill(api.NO_OWNER);
+      synthObjectIdBuffer = device.createBuffer({
+        size: Math.max(byteLength, 16),
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+        label: "ukibori-test-prefix-objid",
+      });
+      device.queue.writeBuffer(
+        synthObjectIdBuffer,
+        0,
+        new Uint8Array(objectId.buffer, objectId.byteOffset, byteLength),
+      );
+      const encoded = api.encodeScene(scene, 1);
+      uploader = new api.SceneUploader(device);
+      uploader.upload(encoded);
+      const bindings = uploader.getBindings();
+      const syntheticProvenance = Object.freeze({
+        sceneBytes: encoded.bytes,
+        width,
+        height: rh,
+        dpr: 1,
+      });
+      shadowPass = new api.ShadowPass(device);
+      shadowPass.dispatch({
+        scene: encoded,
+        bindings,
+        height: {
+          buffer: synthHeightBuffer,
+          byteLength,
+          format: "f32",
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+          width,
+          height: rh,
+          provenance: syntheticProvenance,
+        },
+        casterHeight: {
+          buffer: synthCasterBuffer,
+          byteLength,
+          format: "f32",
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+          width,
+          height: rh,
+          provenance: syntheticProvenance,
+        },
+        objectId: {
+          buffer: synthObjectIdBuffer,
+          byteLength,
+          format: "u32",
+          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+          width,
+          height: rh,
+          provenance: syntheticProvenance,
+        },
+        options: shadowOptions,
+      });
+      const snapshot = shadowPass.getSnapshot();
+      const bytes = await readback(device, snapshot.output.buffer, snapshot.output.byteLength);
+      const visibility = new Float32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4);
+      const visibilityOracle = oracle.stableShadowOracle(
+        scene,
+        width,
+        rh,
+        heightField,
+        casterField,
+        objectId,
+        1,
+        snapshot.options,
+        fixture.shadowThresholdExact === true,
+      );
+      const compare = oracle.compareVisibility(fixture, visibilityOracle, visibility, width);
+      result = {
+        name: fixture.id,
+        texels: width * rh,
+        mismatches: 0,
+        samples: [],
+        shadowTexels: width * rh,
+        shadow: compare,
         casterTexels: 0,
         caster: { mismatches: 0, maxError: 0 },
       };
@@ -738,6 +860,7 @@ async function runFixture(device, fixture) {
     shadowPass?.dispose();
     lightingPass?.dispose();
     synthHeightBuffer?.destroy();
+    synthCasterBuffer?.destroy();
     synthObjectIdBuffer?.destroy();
   } catch {
     // disposal must never mask the fixture outcome
