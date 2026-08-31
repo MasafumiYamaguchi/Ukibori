@@ -1,15 +1,15 @@
 {
   "schemaVersion": 1,
   "issue": 48,
-  "generatedAt": "2026-08-31T14:21:38.411Z",
+  "generatedAt": "2026-08-31T15:19:14.270Z",
   "baselineCommit": "3c315d2b6ca95432e87f5367a10370a0b8b4f399",
-  "optimizedCommit": "da2b2b6fb184da76b6545a4b95dd27b70506b836",
-  "benchmarkArtifactCommit": "777943c0d710c28003acd52a92eac8913906cd69",
+  "optimizedCommit": "3fc2e70b3b0d69c4592a37bf0afb58484a751824",
+  "benchmarkArtifactCommit": "pending-artifact-commit",
   "provenance": {
     "baselineWorkingTreeDirty": false,
     "optimizedWorkingTreeDirty": false,
     "baselineGeneratedAt": "2026-08-31T13:47:15.390Z",
-    "optimizedGeneratedAt": "2026-08-31T14:21:38.411Z"
+    "optimizedGeneratedAt": "2026-08-31T15:19:14.270Z"
   },
   "environment": {
     "baseline": {
@@ -31,7 +31,7 @@
       "maxComputeWorkgroupsPerDimension": 65535
     },
     "optimized": {
-      "timestamp": "2026-08-31T14:21:38.411Z",
+      "timestamp": "2026-08-31T15:19:14.270Z",
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
       "browser": "chrome",
       "browserVersion": "151.0",
@@ -59,8 +59,8 @@
   },
   "algorithm": {
     "baseline": "baseline-ray-march",
-    "optimized": "ray-bound-prefix-binary-search+caster-aabb-empty-space",
-    "optimizedRayBoundSearch": "monotone-prefix-binary-search"
+    "optimized": "exact-prefix-binary-search+caster-aabb-empty-space",
+    "optimizedRayBoundSearch": "exact-combined-prefix-binary-search"
   },
   "resourceContract": {
     "extraShadowPasses": 0,
@@ -116,7 +116,7 @@
             "median": 0,
             "p95": 0.09999999403953552,
             "min": 0,
-            "max": 0.10000002384185791
+            "max": 0.09999999403953552
           },
           "shadowHostMs": null,
           "shadowGpuTimestampMs": null,
@@ -185,10 +185,10 @@
           "wallMs": null,
           "hostMs": {
             "samples": 20,
-            "median": 0.04999999701976776,
-            "p95": 0.10000002384185791,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
             "min": 0,
-            "max": 0.19999998807907104
+            "max": 0.20000001788139343
           },
           "shadowHostMs": null,
           "shadowGpuTimestampMs": null,
@@ -211,8 +211,8 @@
         "frameGpuTimestampMs": null,
         "wallMs": null,
         "hostMs": {
-          "milliseconds": -0.05,
-          "percent": -50,
+          "milliseconds": 0,
+          "percent": 0,
           "regression": false
         }
       }
@@ -262,9 +262,9 @@
           "hostMs": {
             "samples": 20,
             "median": 0,
-            "p95": 0.10000002384185791,
+            "p95": 0.09999999403953552,
             "min": 0,
-            "max": 0.10000002384185791
+            "max": 0.09999999403953552
           },
           "shadowHostMs": null,
           "shadowGpuTimestampMs": null,
@@ -359,17 +359,17 @@
           "hostMs": {
             "samples": 20,
             "median": 0.09999999403953552,
-            "p95": 0.19999998807907104,
+            "p95": 0.10000002384185791,
             "min": 0,
             "max": 0.20000001788139343
           },
           "shadowHostMs": null,
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.228144,
-            "p95": 0.229408,
-            "min": 0.226624,
-            "max": 0.2296
+            "median": 0.254384,
+            "p95": 0.256192,
+            "min": 0.250784,
+            "max": 0.256352
           },
           "frameGpuTimestampMs": null
         },
@@ -379,7 +379,7 @@
           "shadowAngularRadius": null,
           "renderExtent": "640x360",
           "texels": null,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -406,8 +406,8 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.161584,
-          "percent": -41.461,
+          "milliseconds": -0.135344,
+          "percent": -34.728,
           "regression": false
         },
         "frameGpuTimestampMs": null,
@@ -466,7 +466,7 @@
             "median": 0,
             "p95": 0.09999999403953552,
             "min": 0,
-            "max": 0.09999999403953552
+            "max": 0.10000002384185791
           },
           "shadowHostMs": null,
           "shadowGpuTimestampMs": null,
@@ -535,10 +535,10 @@
           "wallMs": null,
           "hostMs": {
             "samples": 20,
-            "median": 0.04999999701976776,
-            "p95": 0.10000002384185791,
+            "median": 0.09999999403953552,
+            "p95": 0.09999999403953552,
             "min": 0,
-            "max": 0.19999998807907104
+            "max": 0.10000002384185791
           },
           "shadowHostMs": null,
           "shadowGpuTimestampMs": null,
@@ -561,8 +561,8 @@
         "frameGpuTimestampMs": null,
         "wallMs": null,
         "hostMs": {
-          "milliseconds": -0.05,
-          "percent": -50,
+          "milliseconds": 0,
+          "percent": 0,
           "regression": false
         }
       }
@@ -612,9 +612,9 @@
           "hostMs": {
             "samples": 20,
             "median": 0,
-            "p95": 0.19999998807907104,
+            "p95": 0.09999999403953552,
             "min": 0,
-            "max": 0.19999998807907104
+            "max": 0.09999999403953552
           },
           "shadowHostMs": null,
           "shadowGpuTimestampMs": null,
@@ -693,26 +693,26 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 4,
-            "p95": 5.700000017881393,
-            "min": 1.100000023841858,
-            "max": 6.100000023841858
+            "median": 3.4500000029802322,
+            "p95": 5,
+            "min": 0.9000000059604645,
+            "max": 5.5
           },
           "hostMs": {
             "samples": 20,
-            "median": 0.29999998211860657,
-            "p95": 0.5,
+            "median": 0.29999999701976776,
+            "p95": 0.4000000059604645,
             "min": 0.09999999403953552,
-            "max": 0.5
+            "max": 0.4000000059604645
           },
           "shadowHostMs": null,
           "shadowGpuTimestampMs": null,
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.292112,
-            "p95": 0.295808,
-            "min": 0.289824,
-            "max": 0.297088
+            "median": 0.31798399999999993,
+            "p95": 0.320448,
+            "min": 0.31504,
+            "max": 0.3219840000000001
           }
         },
         "workload": null,
@@ -730,13 +730,13 @@
       "delta": {
         "shadowGpuTimestampMs": null,
         "frameGpuTimestampMs": {
-          "milliseconds": -0.161504,
-          "percent": -35.604,
+          "milliseconds": -0.135632,
+          "percent": -29.9,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": -0.7,
-          "percent": -14.894,
+          "milliseconds": -1.25,
+          "percent": -26.596,
           "regression": false
         },
         "hostMs": {
@@ -829,32 +829,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.9500000029802322,
+            "median": 4,
             "p95": 6,
             "min": 0.800000011920929,
-            "max": 6.5
+            "max": 6.200000017881393
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
             "median": 0.09999999403953552,
-            "p95": 0.19999998807907104,
+            "p95": 0.10000002384185791,
             "min": 0,
-            "max": 0.19999998807907104
+            "max": 0.20000001788139343
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.039584,
-            "p95": 0.041088,
-            "min": 0.039008,
-            "max": 0.0432
+            "median": 0.042208,
+            "p95": 0.042624,
+            "min": 0.04176,
+            "max": 0.047776
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.053568000000000005,
-            "p95": 0.054848,
-            "min": 0.052544,
-            "max": 0.056735999999999995
+            "median": 0.056176000000000004,
+            "p95": 0.057056,
+            "min": 0.055263999999999994,
+            "max": 0.06204799999999999
           }
         },
         "workload": {
@@ -863,7 +863,7 @@
           "shadowAngularRadius": 0,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -890,18 +890,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.061152,
-          "percent": -60.705,
+          "milliseconds": -0.058528,
+          "percent": -58.1,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.061104,
-          "percent": -53.286,
+          "milliseconds": -0.058496,
+          "percent": -51.012,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": -1,
-          "percent": -20.202,
+          "milliseconds": -0.95,
+          "percent": -19.192,
           "regression": false
         },
         "hostMs": null
@@ -990,10 +990,10 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 2.7999999970197678,
-            "p95": 5.5,
+            "median": 3.7000000029802322,
+            "p95": 5.300000011920929,
             "min": 0.699999988079071,
-            "max": 6.299999982118607
+            "max": 6.0999999940395355
           },
           "hostMs": null,
           "shadowHostMs": {
@@ -1005,17 +1005,17 @@
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.039472,
-            "p95": 0.044096,
-            "min": 0.039072,
-            "max": 0.046304
+            "median": 0.042128,
+            "p95": 0.047584,
+            "min": 0.041888,
+            "max": 0.048864
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.053248000000000004,
-            "p95": 0.05862400000000001,
-            "min": 0.052224000000000007,
-            "max": 0.059968
+            "median": 0.056112,
+            "p95": 0.061152,
+            "min": 0.055424,
+            "max": 0.06319999999999999
           }
         },
         "workload": {
@@ -1024,7 +1024,7 @@
           "shadowAngularRadius": 0,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -1051,18 +1051,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.06144,
-          "percent": -60.885,
+          "milliseconds": -0.058784,
+          "percent": -58.253,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.061696,
-          "percent": -53.675,
+          "milliseconds": -0.058832,
+          "percent": -51.183,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": -1.85,
-          "percent": -39.785,
+          "milliseconds": -0.95,
+          "percent": -20.43,
           "regression": false
         },
         "hostMs": null
@@ -1151,32 +1151,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.199999988079071,
-            "p95": 4.5999999940395355,
-            "min": 0.699999988079071,
-            "max": 5.300000011920929
+            "median": 4,
+            "p95": 5.5999999940395355,
+            "min": 0.7000000178813934,
+            "max": 6.0999999940395355
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
-            "median": 0.09999999403953552,
+            "median": 0.04999999701976776,
             "p95": 0.10000002384185791,
             "min": 0,
             "max": 0.10000002384185791
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.039472,
-            "p95": 0.04576,
-            "min": 0.038944,
-            "max": 0.046656
+            "median": 0.042256,
+            "p95": 0.045248,
+            "min": 0.041856,
+            "max": 0.04576
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.05336,
-            "p95": 0.059104000000000004,
-            "min": 0.052608,
-            "max": 0.060608
+            "median": 0.05609599999999999,
+            "p95": 0.05923200000000001,
+            "min": 0.055232,
+            "max": 0.060224
           }
         },
         "workload": {
@@ -1185,7 +1185,7 @@
           "shadowAngularRadius": 0,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -1212,18 +1212,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.060288,
-          "percent": -60.433,
+          "milliseconds": -0.057504,
+          "percent": -57.642,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.060368,
-          "percent": -53.081,
+          "milliseconds": -0.057632,
+          "percent": -50.675,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": -2.2,
-          "percent": -40.741,
+          "milliseconds": -1.4,
+          "percent": -25.926,
           "regression": false
         },
         "hostMs": null
@@ -1312,32 +1312,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.2000000029802322,
-            "p95": 5.5,
-            "min": 0.7999999821186066,
-            "max": 6
+            "median": 3.2999999970197678,
+            "p95": 5.100000023841858,
+            "min": 0.9000000059604645,
+            "max": 5.5999999940395355
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
             "median": 0.09999999403953552,
-            "p95": 0.19999998807907104,
+            "p95": 0.20000001788139343,
             "min": 0,
-            "max": 0.20000001788139343
+            "max": 0.3999999761581421
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.039344000000000004,
-            "p95": 0.043456,
-            "min": 0.038976,
-            "max": 0.04368
+            "median": 0.042112,
+            "p95": 0.046432,
+            "min": 0.041664,
+            "max": 0.048704
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.053472,
-            "p95": 0.05744,
-            "min": 0.052447999999999995,
-            "max": 0.05791999999999999
+            "median": 0.056064,
+            "p95": 0.060224,
+            "min": 0.055392,
+            "max": 0.063008
           }
         },
         "workload": {
@@ -1346,7 +1346,7 @@
           "shadowAngularRadius": 0,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -1373,18 +1373,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.060576,
-          "percent": -60.624,
+          "milliseconds": -0.057808,
+          "percent": -57.854,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.060544,
-          "percent": -53.101,
+          "milliseconds": -0.057952,
+          "percent": -50.828,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": -0.95,
-          "percent": -22.892,
+          "milliseconds": -0.85,
+          "percent": -20.482,
           "regression": false
         },
         "hostMs": null
@@ -1473,32 +1473,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.1000000089406967,
-            "p95": 4.800000011920929,
-            "min": 0.8999999761581421,
-            "max": 6.399999976158142
+            "median": 4,
+            "p95": 5,
+            "min": 0.7000000178813934,
+            "max": 5.5
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
             "median": 0.09999999403953552,
-            "p95": 0.19999998807907104,
+            "p95": 0.10000002384185791,
             "min": 0,
-            "max": 0.20000001788139343
+            "max": 0.19999998807907104
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.039344000000000004,
-            "p95": 0.046432,
-            "min": 0.039072,
-            "max": 0.046592
+            "median": 0.042048,
+            "p95": 0.043648,
+            "min": 0.04176,
+            "max": 0.046336
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.053328,
-            "p95": 0.060256,
-            "min": 0.05260800000000001,
-            "max": 0.060416
+            "median": 0.055968000000000004,
+            "p95": 0.0576,
+            "min": 0.054880000000000005,
+            "max": 0.060576000000000005
           }
         },
         "workload": {
@@ -1507,7 +1507,7 @@
           "shadowAngularRadius": 0.05,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -1534,19 +1534,19 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.061536,
-          "percent": -60.999,
+          "milliseconds": -0.058832,
+          "percent": -58.319,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.06128,
-          "percent": -53.469,
+          "milliseconds": -0.05864,
+          "percent": -51.166,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": -0.5,
-          "percent": -13.889,
-          "regression": false
+          "milliseconds": 0.4,
+          "percent": 11.111,
+          "regression": true
         },
         "hostMs": null
       }
@@ -1634,32 +1634,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.800000011920929,
-            "p95": 5.5,
-            "min": 1.2999999821186066,
-            "max": 7
+            "median": 3.4500000029802322,
+            "p95": 5.200000017881393,
+            "min": 0.800000011920929,
+            "max": 6.0999999940395355
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
             "median": 0.09999999403953552,
-            "p95": 0.20000001788139343,
+            "p95": 0.10000002384185791,
             "min": 0,
-            "max": 0.29999998211860657
+            "max": 0.10000002384185791
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.14849600000000002,
-            "p95": 0.154816,
-            "min": 0.145792,
-            "max": 0.155232
+            "median": 0.157968,
+            "p95": 0.16528,
+            "min": 0.15616,
+            "max": 0.167392
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.18291200000000002,
-            "p95": 0.189344,
-            "min": 0.17984,
-            "max": 0.189632
+            "median": 0.192432,
+            "p95": 0.19952,
+            "min": 0.19040000000000004,
+            "max": 0.20268800000000003
           }
         },
         "workload": {
@@ -1668,7 +1668,7 @@
           "shadowAngularRadius": 0.05,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -1695,19 +1695,19 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.258608,
-          "percent": -63.524,
+          "milliseconds": -0.249136,
+          "percent": -61.197,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.259008,
-          "percent": -58.61,
+          "milliseconds": -0.249488,
+          "percent": -56.455,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": 0.1,
-          "percent": 2.703,
-          "regression": true
+          "milliseconds": -0.25,
+          "percent": -6.757,
+          "regression": false
         },
         "hostMs": null
       }
@@ -1795,32 +1795,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.2999999970197678,
-            "p95": 6.5999999940395355,
-            "min": 0.800000011920929,
-            "max": 19.5
+            "median": 1.7500000149011612,
+            "p95": 4.200000017881393,
+            "min": 0.9000000059604645,
+            "max": 5.199999988079071
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
             "median": 0.09999999403953552,
-            "p95": 0.20000001788139343,
+            "p95": 0.19999998807907104,
             "min": 0,
             "max": 0.20000001788139343
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.290864,
-            "p95": 0.50416,
-            "min": 0.284928,
-            "max": 0.524576
+            "median": 0.315488,
+            "p95": 0.321408,
+            "min": 0.311808,
+            "max": 0.49584
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.324704,
-            "p95": 0.53872,
-            "min": 0.31926400000000005,
-            "max": 0.5589760000000001
+            "median": 0.349888,
+            "p95": 0.35596800000000006,
+            "min": 0.34608,
+            "max": 0.530624
           }
         },
         "workload": {
@@ -1829,7 +1829,7 @@
           "shadowAngularRadius": 0.05,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -1856,18 +1856,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.518112,
-          "percent": -64.045,
+          "milliseconds": -0.493488,
+          "percent": -61.002,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.519008,
-          "percent": -61.515,
+          "milliseconds": -0.493824,
+          "percent": -58.53,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": -1.8,
-          "percent": -35.294,
+          "milliseconds": -3.35,
+          "percent": -65.686,
           "regression": false
         },
         "hostMs": null
@@ -1956,32 +1956,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.9000000059604645,
+            "median": 4.449999988079071,
             "p95": 5.5999999940395355,
-            "min": 3.199999988079071,
-            "max": 5.899999976158142
+            "min": 3.0999999940395355,
+            "max": 6.699999988079071
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
-            "median": 0.04999999701976776,
-            "p95": 0.20000001788139343,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
             "min": 0,
             "max": 0.20000001788139343
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.583152,
-            "p95": 0.58688,
-            "min": 0.569568,
-            "max": 0.591328
+            "median": 0.621632,
+            "p95": 0.633248,
+            "min": 0.61376,
+            "max": 0.838048
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.617904,
-            "p95": 0.621536,
-            "min": 0.6044799999999999,
-            "max": 0.6260799999999999
+            "median": 0.655824,
+            "p95": 0.667456,
+            "min": 0.648256,
+            "max": 0.8725440000000001
           }
         },
         "workload": {
@@ -1990,7 +1990,7 @@
           "shadowAngularRadius": 0.05,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -2017,18 +2017,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -1.021968,
-          "percent": -63.669,
+          "milliseconds": -0.983488,
+          "percent": -61.272,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -1.021792,
-          "percent": -62.316,
+          "milliseconds": -0.983872,
+          "percent": -60.003,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": -1,
-          "percent": -20.408,
+          "milliseconds": -0.45,
+          "percent": -9.184,
           "regression": false
         },
         "hostMs": null
@@ -2117,32 +2117,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.6499999910593033,
-            "p95": 6.5999999940395355,
-            "min": 0.7000000178813934,
-            "max": 7
+            "median": 4,
+            "p95": 6.0999999940395355,
+            "min": 0.8999999761581421,
+            "max": 6.300000011920929
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
-            "median": 0.09999999403953552,
+            "median": 0,
             "p95": 0.10000002384185791,
             "min": 0,
-            "max": 0.19999998807907104
+            "max": 0.10000002384185791
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.039488,
-            "p95": 0.043264,
-            "min": 0.039136,
-            "max": 0.04416
+            "median": 0.042112,
+            "p95": 0.045824,
+            "min": 0.041824,
+            "max": 0.048288
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.053391999999999995,
-            "p95": 0.05712,
-            "min": 0.052672,
-            "max": 0.058272
+            "median": 0.056048,
+            "p95": 0.060031999999999995,
+            "min": 0.055104,
+            "max": 0.062048
           }
         },
         "workload": {
@@ -2151,7 +2151,7 @@
           "shadowAngularRadius": 0.15,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -2178,18 +2178,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.061648,
-          "percent": -60.956,
+          "milliseconds": -0.059024,
+          "percent": -58.361,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.061472,
-          "percent": -53.517,
+          "milliseconds": -0.058816,
+          "percent": -51.205,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": 0.15,
-          "percent": 4.286,
+          "milliseconds": 0.5,
+          "percent": 14.286,
           "regression": true
         },
         "hostMs": null
@@ -2278,10 +2278,10 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 2.9500000029802322,
-            "p95": 5.4000000059604645,
-            "min": 0.5999999940395355,
-            "max": 5.5999999940395355
+            "median": 4.299999997019768,
+            "p95": 6.199999988079071,
+            "min": 0.699999988079071,
+            "max": 6.699999988079071
           },
           "hostMs": null,
           "shadowHostMs": {
@@ -2293,17 +2293,17 @@
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.1632,
-            "p95": 0.16656,
-            "min": 0.161088,
-            "max": 0.169568
+            "median": 0.174048,
+            "p95": 0.175392,
+            "min": 0.172544,
+            "max": 0.332096
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.197888,
-            "p95": 0.200704,
-            "min": 0.19504000000000002,
-            "max": 0.204768
+            "median": 0.208416,
+            "p95": 0.20998399999999998,
+            "min": 0.206784,
+            "max": 0.36691199999999996
           }
         },
         "workload": {
@@ -2312,7 +2312,7 @@
           "shadowAngularRadius": 0.15,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -2339,18 +2339,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.297232,
-          "percent": -64.555,
+          "milliseconds": -0.286384,
+          "percent": -62.199,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.297312,
-          "percent": -60.039,
+          "milliseconds": -0.286784,
+          "percent": -57.913,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": -1.9,
-          "percent": -39.175,
+          "milliseconds": -0.55,
+          "percent": -11.34,
           "regression": false
         },
         "hostMs": null
@@ -2439,10 +2439,10 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.250000014901161,
-            "p95": 6,
-            "min": 0.9000000059604645,
-            "max": 6.0999999940395355
+            "median": 3.9500000029802322,
+            "p95": 6.5999999940395355,
+            "min": 1.0999999940395355,
+            "max": 6.800000011920929
           },
           "hostMs": null,
           "shadowHostMs": {
@@ -2450,21 +2450,21 @@
             "median": 0.09999999403953552,
             "p95": 0.19999998807907104,
             "min": 0,
-            "max": 0.20000001788139343
+            "max": 0.29999998211860657
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.321808,
-            "p95": 0.334304,
-            "min": 0.319456,
-            "max": 0.342432
+            "median": 0.3448,
+            "p95": 0.362112,
+            "min": 0.340352,
+            "max": 0.503328
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.35656,
-            "p95": 0.368768,
-            "min": 0.35404800000000003,
-            "max": 0.376096
+            "median": 0.379552,
+            "p95": 0.398144,
+            "min": 0.37385599999999997,
+            "max": 0.5369599999999999
           }
         },
         "workload": {
@@ -2473,7 +2473,7 @@
           "shadowAngularRadius": 0.15,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -2500,18 +2500,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.588752,
-          "percent": -64.658,
+          "milliseconds": -0.56576,
+          "percent": -62.133,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.588976,
-          "percent": -62.29,
+          "milliseconds": -0.565984,
+          "percent": -59.859,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": -1.45,
-          "percent": -30.851,
+          "milliseconds": -0.75,
+          "percent": -15.957,
           "regression": false
         },
         "hostMs": null
@@ -2600,10 +2600,10 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.9000000059604645,
-            "p95": 5.700000017881393,
-            "min": 2.9000000059604645,
-            "max": 6.0999999940395355
+            "median": 5.050000011920929,
+            "p95": 6.399999976158142,
+            "min": 3.0999999940395355,
+            "max": 6.5999999940395355
           },
           "hostMs": null,
           "shadowHostMs": {
@@ -2615,17 +2615,17 @@
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.639344,
-            "p95": 0.648544,
-            "min": 0.6336,
-            "max": 0.806816
+            "median": 0.68632,
+            "p95": 0.841664,
+            "min": 0.675904,
+            "max": 0.852768
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.674032,
-            "p95": 0.6831680000000001,
-            "min": 0.6676480000000001,
-            "max": 0.8418880000000001
+            "median": 0.7210559999999999,
+            "p95": 0.876544,
+            "min": 0.7107519999999999,
+            "max": 0.886656
           }
         },
         "workload": {
@@ -2634,7 +2634,7 @@
           "shadowAngularRadius": 0.15,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -2661,18 +2661,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -1.168992,
-          "percent": -64.645,
+          "milliseconds": -1.122016,
+          "percent": -62.047,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -1.168912,
-          "percent": -63.426,
+          "milliseconds": -1.121888,
+          "percent": -60.875,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": 0.05,
-          "percent": 1.299,
+          "milliseconds": 1.2,
+          "percent": 31.169,
           "regression": true
         },
         "hostMs": null
@@ -2761,32 +2761,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.1500000059604645,
-            "p95": 5.100000023841858,
-            "min": 1.0999999940395355,
+            "median": 3.8500000089406967,
+            "p95": 6,
+            "min": 0.7999999821186066,
             "max": 6.0999999940395355
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
             "median": 0.09999999403953552,
-            "p95": 0.19999998807907104,
+            "p95": 0.09999999403953552,
             "min": 0,
-            "max": 0.19999998807907104
+            "max": 0.10000002384185791
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.039648,
-            "p95": 0.040064,
-            "min": 0.03904,
-            "max": 0.056512
+            "median": 0.042144,
+            "p95": 0.042496,
+            "min": 0.041728,
+            "max": 0.042624
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.053872,
-            "p95": 0.054591999999999995,
-            "min": 0.052736,
-            "max": 0.070816
+            "median": 0.056128000000000004,
+            "p95": 0.05648,
+            "min": 0.05488,
+            "max": 0.05664
           }
         },
         "workload": {
@@ -2795,7 +2795,7 @@
           "shadowAngularRadius": 0.3,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -2822,19 +2822,19 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.061344,
-          "percent": -60.741,
+          "milliseconds": -0.058848,
+          "percent": -58.27,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.061248,
-          "percent": -53.204,
+          "milliseconds": -0.058992,
+          "percent": -51.244,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": -0.4,
-          "percent": -11.268,
-          "regression": false
+          "milliseconds": 0.3,
+          "percent": 8.451,
+          "regression": true
         },
         "hostMs": null
       }
@@ -2922,32 +2922,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 1.5,
-            "p95": 5.0999999940395355,
-            "min": 0.7000000178813934,
-            "max": 5.600000023841858
+            "median": 1.0499999970197678,
+            "p95": 5.5999999940395355,
+            "min": 0.5999999940395355,
+            "max": 6.699999988079071
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
             "median": 0.09999999403953552,
-            "p95": 0.19999998807907104,
+            "p95": 0.10000002384185791,
             "min": 0,
             "max": 0.20000001788139343
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.19576,
-            "p95": 0.213216,
-            "min": 0.194176,
-            "max": 0.216384
+            "median": 0.206304,
+            "p95": 0.207104,
+            "min": 0.203264,
+            "max": 0.207456
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.230528,
-            "p95": 0.248832,
-            "min": 0.229024,
-            "max": 0.249504
+            "median": 0.24087999999999998,
+            "p95": 0.241856,
+            "min": 0.237536,
+            "max": 0.241888
           }
         },
         "workload": {
@@ -2956,7 +2956,7 @@
           "shadowAngularRadius": 0.3,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -2983,18 +2983,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.36912,
-          "percent": -65.345,
+          "milliseconds": -0.358576,
+          "percent": -63.478,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.3688,
-          "percent": -61.536,
+          "milliseconds": -0.358448,
+          "percent": -59.808,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": -3.15,
-          "percent": -67.742,
+          "milliseconds": -3.6,
+          "percent": -77.419,
           "regression": false
         },
         "hostMs": null
@@ -3083,32 +3083,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.7999999970197678,
-            "p95": 6.0999999940395355,
-            "min": 1.0999999940395355,
-            "max": 6.300000011920929
+            "median": 3.7000000178813934,
+            "p95": 5.5,
+            "min": 1.300000011920929,
+            "max": 5.700000017881393
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
             "median": 0.09999999403953552,
-            "p95": 0.19999998807907104,
+            "p95": 0.10000002384185791,
             "min": 0,
-            "max": 0.20000001788139343
+            "max": 0.19999998807907104
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.38884799999999997,
-            "p95": 0.403552,
-            "min": 0.38592,
-            "max": 0.40912
+            "median": 0.411312,
+            "p95": 0.423904,
+            "min": 0.405248,
+            "max": 0.455072
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.423264,
-            "p95": 0.438176,
-            "min": 0.420672,
-            "max": 0.44329599999999997
+            "median": 0.44612799999999997,
+            "p95": 0.458368,
+            "min": 0.439424,
+            "max": 0.490496
           }
         },
         "workload": {
@@ -3117,7 +3117,7 @@
           "shadowAngularRadius": 0.3,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -3144,18 +3144,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.737728,
-          "percent": -65.484,
+          "milliseconds": -0.715264,
+          "percent": -63.49,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.737808,
-          "percent": -63.545,
+          "milliseconds": -0.714944,
+          "percent": -61.576,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": -0.75,
-          "percent": -16.484,
+          "milliseconds": -0.85,
+          "percent": -18.681,
           "regression": false
         },
         "hostMs": null
@@ -3244,32 +3244,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 4.5,
-            "p95": 5.600000023841858,
-            "min": 2.5999999940395355,
-            "max": 6.5999999940395355
+            "median": 4.250000014901161,
+            "p95": 6,
+            "min": 1.2999999821186066,
+            "max": 6
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
             "median": 0.09999999403953552,
-            "p95": 0.19999998807907104,
+            "p95": 0.10000002384185791,
             "min": 0,
-            "max": 0.20000001788139343
+            "max": 0.19999998807907104
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.776432,
-            "p95": 0.784192,
-            "min": 0.766464,
-            "max": 0.803264
+            "median": 0.82376,
+            "p95": 0.84128,
+            "min": 0.80864,
+            "max": 1.1048
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.810864,
-            "p95": 0.818368,
-            "min": 0.800288,
-            "max": 0.8386879999999999
+            "median": 0.8588799999999999,
+            "p95": 0.8760640000000001,
+            "min": 0.8427520000000001,
+            "max": 1.140288
           }
         },
         "workload": {
@@ -3278,7 +3278,7 @@
           "shadowAngularRadius": 0.3,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -3305,19 +3305,19 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -1.461008,
-          "percent": -65.298,
+          "milliseconds": -1.41368,
+          "percent": -63.183,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -1.460976,
-          "percent": -64.308,
+          "milliseconds": -1.41296,
+          "percent": -62.195,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": 0.05,
-          "percent": 1.124,
-          "regression": true
+          "milliseconds": -0.2,
+          "percent": -4.494,
+          "regression": false
         },
         "hostMs": null
       }
@@ -3401,10 +3401,10 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 4.1500000059604645,
-            "p95": 5.5999999940395355,
+            "median": 2.25,
+            "p95": 6,
             "min": 0.699999988079071,
-            "max": 6.699999988079071
+            "max": 6.0999999940395355
           },
           "hostMs": null,
           "shadowHostMs": {
@@ -3412,14 +3412,14 @@
             "median": 0.09999999403953552,
             "p95": 0.19999998807907104,
             "min": 0,
-            "max": 0.19999998807907104
+            "max": 0.20000001788139343
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.269184,
-            "p95": 0.276864,
-            "min": 0.265696,
-            "max": 0.450048
+            "median": 0.279424,
+            "p95": 0.29504,
+            "min": 0.275744,
+            "max": 0.297984
           },
           "frameGpuTimestampMs": null
         },
@@ -3429,7 +3429,7 @@
           "shadowAngularRadius": 0.15,
           "renderExtent": null,
           "texels": null,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 7,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -3456,14 +3456,14 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.459792,
-          "percent": -63.074,
+          "milliseconds": -0.449552,
+          "percent": -61.669,
           "regression": false
         },
         "frameGpuTimestampMs": null,
         "wallMs": {
-          "milliseconds": -1.1,
-          "percent": -20.952,
+          "milliseconds": -3,
+          "percent": -57.143,
           "regression": false
         },
         "hostMs": null
@@ -3548,25 +3548,25 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.9000000059604645,
-            "p95": 6.399999976158142,
-            "min": 0.699999988079071,
-            "max": 6.5
+            "median": 4.25,
+            "p95": 6.5,
+            "min": 0.800000011920929,
+            "max": 6.600000023841858
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
             "median": 0.09999999403953552,
-            "p95": 0.19999998807907104,
+            "p95": 0.10000002384185791,
             "min": 0,
-            "max": 0.19999998807907104
+            "max": 0.10000002384185791
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.321616,
-            "p95": 0.328864,
-            "min": 0.317888,
-            "max": 0.333952
+            "median": 0.3416,
+            "p95": 0.348736,
+            "min": 0.33568,
+            "max": 0.356032
           },
           "frameGpuTimestampMs": null
         },
@@ -3576,7 +3576,7 @@
           "shadowAngularRadius": 0.15,
           "renderExtent": null,
           "texels": null,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 8,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -3603,14 +3603,14 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.587616,
-          "percent": -64.628,
+          "milliseconds": -0.567632,
+          "percent": -62.43,
           "regression": false
         },
         "frameGpuTimestampMs": null,
         "wallMs": {
-          "milliseconds": -1.1,
-          "percent": -22,
+          "milliseconds": -0.75,
+          "percent": -15,
           "regression": false
         },
         "hostMs": null
@@ -3695,25 +3695,25 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 4.25,
-            "p95": 5.5999999940395355,
-            "min": 0.7999999821186066,
-            "max": 5.700000017881393
+            "median": 4.199999988079071,
+            "p95": 5.300000011920929,
+            "min": 1.0999999940395355,
+            "max": 6.0999999940395355
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
             "median": 0.09999999403953552,
-            "p95": 0.19999998807907104,
+            "p95": 0.10000002384185791,
             "min": 0,
-            "max": 0.20000001788139343
+            "max": 0.10000002384185791
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.322944,
-            "p95": 0.336576,
-            "min": 0.319584,
-            "max": 0.338208
+            "median": 0.348864,
+            "p95": 0.365888,
+            "min": 0.344608,
+            "max": 0.370208
           },
           "frameGpuTimestampMs": null
         },
@@ -3723,7 +3723,7 @@
           "shadowAngularRadius": 0.15,
           "renderExtent": null,
           "texels": null,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 10,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -3750,14 +3750,14 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.58768,
-          "percent": -64.536,
+          "milliseconds": -0.56176,
+          "percent": -61.69,
           "regression": false
         },
         "frameGpuTimestampMs": null,
         "wallMs": {
-          "milliseconds": -0.45,
-          "percent": -9.574,
+          "milliseconds": -0.5,
+          "percent": -10.638,
           "regression": false
         },
         "hostMs": null
@@ -3849,32 +3849,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.75,
-            "p95": 5.9000000059604645,
-            "min": 0.7000000178813934,
-            "max": 6.4000000059604645
+            "median": 2.8999999910593033,
+            "p95": 4.699999988079071,
+            "min": 0.699999988079071,
+            "max": 5.199999988079071
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
-            "median": 0.09999999403953552,
+            "median": 0,
             "p95": 0.19999998807907104,
             "min": 0,
-            "max": 0.19999998807907104
+            "max": 0.20000001788139343
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.087456,
-            "p95": 0.106112,
-            "min": 0.082016,
-            "max": 0.107168
+            "median": 0.11097599999999999,
+            "p95": 0.124288,
+            "min": 0.104064,
+            "max": 0.132672
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.121824,
-            "p95": 0.140352,
-            "min": 0.116384,
-            "max": 0.14144
+            "median": 0.145312,
+            "p95": 0.15884800000000002,
+            "min": 0.13859200000000002,
+            "max": 0.16768000000000002
           }
         },
         "workload": {
@@ -3883,7 +3883,7 @@
           "shadowAngularRadius": 0.15000000596046448,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -3910,18 +3910,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.01976,
-          "percent": -18.43,
-          "regression": false
+          "milliseconds": 0.00376,
+          "percent": 3.507,
+          "regression": true
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.019808,
-          "percent": -13.986,
-          "regression": false
+          "milliseconds": 0.00368,
+          "percent": 2.598,
+          "regression": true
         },
         "wallMs": {
-          "milliseconds": 2.55,
-          "percent": 212.5,
+          "milliseconds": 1.7,
+          "percent": 141.667,
           "regression": true
         },
         "hostMs": null
@@ -4013,10 +4013,10 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 4.049999997019768,
-            "p95": 5.199999988079071,
-            "min": 0.800000011920929,
-            "max": 6
+            "median": 3.4000000059604645,
+            "p95": 5.9000000059604645,
+            "min": 0.5999999940395355,
+            "max": 6.5
           },
           "hostMs": null,
           "shadowHostMs": {
@@ -4024,21 +4024,21 @@
             "median": 0.09999999403953552,
             "p95": 0.10000002384185791,
             "min": 0,
-            "max": 0.10000002384185791
+            "max": 0.19999998807907104
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.035295999999999994,
-            "p95": 0.040288,
-            "min": 0.033856,
-            "max": 0.045056
+            "median": 0.038592,
+            "p95": 0.049984,
+            "min": 0.036992,
+            "max": 0.05328
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.049248,
-            "p95": 0.054592,
-            "min": 0.047263999999999994,
-            "max": 0.059295999999999995
+            "median": 0.052719999999999996,
+            "p95": 0.063776,
+            "min": 0.050688,
+            "max": 0.067584
           }
         },
         "workload": {
@@ -4047,7 +4047,7 @@
           "shadowAngularRadius": 0,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -4074,18 +4074,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": -0.056848,
-          "percent": -61.695,
+          "milliseconds": -0.053552,
+          "percent": -58.118,
           "regression": false
         },
         "frameGpuTimestampMs": {
-          "milliseconds": -0.056768,
-          "percent": -53.547,
+          "milliseconds": -0.053296,
+          "percent": -50.272,
           "regression": false
         },
         "wallMs": {
-          "milliseconds": 1,
-          "percent": 32.787,
+          "milliseconds": 0.35,
+          "percent": 11.475,
           "regression": true
         },
         "hostMs": null
@@ -4177,10 +4177,10 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.1500000059604645,
-            "p95": 5.4000000059604645,
-            "min": 0.800000011920929,
-            "max": 5.799999982118607
+            "median": 4.5999999940395355,
+            "p95": 6.5,
+            "min": 0.7999999821186066,
+            "max": 6.5999999940395355
           },
           "hostMs": null,
           "shadowHostMs": {
@@ -4188,21 +4188,21 @@
             "median": 0.09999999403953552,
             "p95": 0.19999998807907104,
             "min": 0,
-            "max": 0.20000001788139343
+            "max": 0.19999998807907104
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.005344,
-            "p95": 0.014848,
-            "min": 0.005248,
-            "max": 0.015296
+            "median": 0.010176,
+            "p95": 0.017056,
+            "min": 0.00992,
+            "max": 0.02
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.0196,
-            "p95": 0.028575999999999997,
-            "min": 0.019008,
-            "max": 0.029120000000000004
+            "median": 0.024304,
+            "p95": 0.03136,
+            "min": 0.022560000000000004,
+            "max": 0.034048
           }
         },
         "workload": {
@@ -4211,7 +4211,7 @@
           "shadowAngularRadius": 0,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 10,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -4238,19 +4238,19 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": 0.000672,
-          "percent": 14.384,
+          "milliseconds": 0.005504,
+          "percent": 117.808,
           "regression": true
         },
         "frameGpuTimestampMs": {
-          "milliseconds": 0.000752,
-          "percent": 3.99,
+          "milliseconds": 0.005456,
+          "percent": 28.947,
           "regression": true
         },
         "wallMs": {
-          "milliseconds": -1.2,
-          "percent": -27.586,
-          "regression": false
+          "milliseconds": 0.25,
+          "percent": 5.747,
+          "regression": true
         },
         "hostMs": null
       }
@@ -4341,32 +4341,32 @@
         "timing": {
           "wallMs": {
             "samples": 20,
-            "median": 3.25,
-            "p95": 5.0999999940395355,
-            "min": 0.699999988079071,
-            "max": 6
+            "median": 1.7999999970197678,
+            "p95": 6.0999999940395355,
+            "min": 1,
+            "max": 7.300000011920929
           },
           "hostMs": null,
           "shadowHostMs": {
             "samples": 20,
-            "median": 0.09999999403953552,
-            "p95": 0.19999998807907104,
+            "median": 0.10000002384185791,
+            "p95": 0.30000001192092896,
             "min": 0,
-            "max": 0.29999998211860657
+            "max": 0.30000001192092896
           },
           "shadowGpuTimestampMs": {
             "samples": 20,
-            "median": 0.043536000000000005,
-            "p95": 0.054656,
-            "min": 0.040896,
-            "max": 0.059872
+            "median": 0.061056,
+            "p95": 0.06304,
+            "min": 0.058528,
+            "max": 0.075136
           },
           "frameGpuTimestampMs": {
             "samples": 20,
-            "median": 0.07780800000000002,
-            "p95": 0.08905600000000001,
-            "min": 0.075008,
-            "max": 0.09424
+            "median": 0.095584,
+            "p95": 0.09712,
+            "min": 0.09264,
+            "max": 0.10944000000000001
           }
         },
         "workload": {
@@ -4375,7 +4375,7 @@
           "shadowAngularRadius": 0.15000000596046448,
           "renderExtent": "640x360",
           "texels": 230400,
-          "rayBoundSearch": "monotone-prefix-binary-search",
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
           "rayBoundSearchIterationUpperBound": 9,
           "casterAabbCulling": true,
           "casterAabbPadTexels": 2,
@@ -4402,18 +4402,18 @@
       },
       "delta": {
         "shadowGpuTimestampMs": {
-          "milliseconds": 0.00448,
-          "percent": 11.471,
+          "milliseconds": 0.022,
+          "percent": 56.329,
           "regression": true
         },
         "frameGpuTimestampMs": {
-          "milliseconds": 0.00504,
-          "percent": 6.926,
+          "milliseconds": 0.022816,
+          "percent": 31.354,
           "regression": true
         },
         "wallMs": {
-          "milliseconds": 2.15,
-          "percent": 195.455,
+          "milliseconds": 0.7,
+          "percent": 63.636,
           "regression": true
         },
         "hostMs": null
@@ -4423,36 +4423,52 @@
   "regressions": {
     "shadowGpuTimestampMs": [
       {
+        "id": "shadow/worst/dense-caster",
+        "delta": {
+          "milliseconds": 0.00376,
+          "percent": 3.507,
+          "regression": true
+        }
+      },
+      {
         "id": "shadow/worst/max-height-fast-exit",
         "delta": {
-          "milliseconds": 0.000672,
-          "percent": 14.384,
+          "milliseconds": 0.005504,
+          "percent": 117.808,
           "regression": true
         }
       },
       {
         "id": "shadow/worst/dense-overlap",
         "delta": {
-          "milliseconds": 0.00448,
-          "percent": 11.471,
+          "milliseconds": 0.022,
+          "percent": 56.329,
           "regression": true
         }
       }
     ],
     "frameGpuTimestampMs": [
       {
+        "id": "shadow/worst/dense-caster",
+        "delta": {
+          "milliseconds": 0.00368,
+          "percent": 2.598,
+          "regression": true
+        }
+      },
+      {
         "id": "shadow/worst/max-height-fast-exit",
         "delta": {
-          "milliseconds": 0.000752,
-          "percent": 3.99,
+          "milliseconds": 0.005456,
+          "percent": 28.947,
           "regression": true
         }
       },
       {
         "id": "shadow/worst/dense-overlap",
         "delta": {
-          "milliseconds": 0.00504,
-          "percent": 6.926,
+          "milliseconds": 0.022816,
+          "percent": 31.354,
           "regression": true
         }
       }
