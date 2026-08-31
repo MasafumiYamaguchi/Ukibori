@@ -64,8 +64,10 @@ import { WGSL_SCENE_BASE } from "./wgsl";
  *   and can never appear here.
  * - #48 ray-bound clipping: projected XY coordinates are monotone along a
  *   ray, so the last in-bounds integer step is found with an exact-arithmetic
- *   binary search. The march then iterates only that prefix; no valid sample
- *   is skipped and the per-step bounds branch is removed.
+ *   binary search. A bounded short-height probe handles rays that hit the
+ *   max-caster-height exit within eight steps without paying the search cost.
+ *   The march then iterates only that prefix; no valid sample is skipped and
+ *   the per-step bounds branch is removed from the normal path.
  * - #48 empty-space culling: the host packs the union of casting-surface
  *   footprint AABBs into the otherwise-unused w lanes of the first four
  *   sample-direction vec4s. Outside that union (with a conservative
@@ -235,6 +237,9 @@ const SHADOW_MAX_SAMPLES: u32 = ${SHADOW_MAX_SAMPLES}u;
 // #43 must mirror SHADOW_KERNEL_VARIANTS in shadow-sampling.ts exactly.
 const SHADOW_KERNEL_VARIANTS: u32 = ${SHADOW_KERNEL_VARIANTS}u;
 const NO_OWNER: u32 = 0xffffffffu;
+// #48: avoid binary-search overhead when the conservative height exit is
+// provably within this short prefix (dense/near-vertical worst cases).
+const SHADOW_SHORT_HEIGHT_PREFIX: u32 = 8u;
 // ABI SurfaceRecord flags (offset 28): bit0 castsShadow, bit1 receivesShadow
 const FLAG_RECEIVES_SHADOW: u32 = 0x2u;
 
@@ -290,6 +295,38 @@ fn rayInBoundsAtStep(px: f32, py: f32, dx: f32, dy: f32, stepIndex: u32) -> bool
       sy < 0.5 / params.dpr || sy > (f32(params.height) - 0.5) / params.dpr);
 }
 
+// Return a short exact prefix when the max-caster-height exit is reached
+// within SHADOW_SHORT_HEIGHT_PREFIX steps.  The helper checks the same
+// inclusive bounds predicate before each candidate step, so it is
+// conservative even when a near-vertical ray leaves the scene first.  The
+// sentinel (stepCount + 1) requests the normal full-prefix binary search.
+fn shortHeightPrefixLimit(px: f32, py: f32, rz0: f32, dx: f32, dy: f32, dz: f32) -> u32 {
+  let limit = params.stepCount;
+  let sentinel = limit + 1u;
+  if (limit == 0u || dz <= 0.0) {
+    return sentinel;
+  }
+  let bound = params.maxCasterHeight + params.bias;
+  let gap = bound - rz0;
+  if (gap > params.stepSize * f32(SHADOW_SHORT_HEIGHT_PREFIX) * dz) {
+    return sentinel;
+  }
+  let probeLimit = min(limit, SHADOW_SHORT_HEIGHT_PREFIX);
+  var probe = 1u;
+  while (probe <= probeLimit) {
+    if (!rayInBoundsAtStep(px, py, dx, dy, probe)) {
+      return probe - 1u;
+    }
+    let t = f32(probe) * params.stepSize;
+    let rayZ = rz0 + dz * t;
+    if (rayZ > bound) {
+      return probe - 1u;
+    }
+    probe += 1u;
+  }
+  return select(sentinel, limit, probeLimit == limit);
+}
+
 // Return the largest march index whose sample position is inside the
 // inclusive pixel-center rectangle.  stepCount is host-capped, so the
 // integer search always terminates.  A ray with no XY travel stays in bounds
@@ -326,7 +363,12 @@ fn rayBoundsStepLimit(px: f32, py: f32, dx: f32, dy: f32) -> u32 {
   // Integer step index: the loop terminates on every device (stepCount is
   // host-capped), even when a positive subnormal stepSize makes t round to
   // a constant in f32.
-  let stepLimit = rayBoundsStepLimit(px, py, dx, dy);
+  let shortLimit = shortHeightPrefixLimit(px, py, rz0, dx, dy, dz);
+  let stepLimit = select(
+    rayBoundsStepLimit(px, py, dx, dy),
+    shortLimit,
+    shortLimit <= params.stepCount,
+  );
   let casterPad = 2.0 / params.dpr;
   let casterMinX = params.sampleDirs[0].w - casterPad;
   let casterMinY = params.sampleDirs[1].w - casterPad;
