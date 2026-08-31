@@ -29,6 +29,18 @@
 
 export const CATALOG_VERSION = 8;
 
+// #48 adversarial ShadowPass fixtures.  The real-WebGPU parity harness uses
+// this explicit set as a runtime gate (rather than relying on fixture names
+// or source-string checks alone).
+export const ISSUE_48_ADVERSARIAL_FIXTURE_IDS = Object.freeze([
+  "shadow-thin-caster-aabb-edge",
+  "shadow-bilinear-support-boundary",
+  "shadow-scene-edge-last-valid-step",
+  "shadow-negative-threshold-cull-guard",
+  "shadow-dense-full-frame-hard",
+  "shadow-dense-full-frame-soft",
+]);
+
 // ---------------------------------------------------------------------------
 // Central comparison policy table (#30). One declaration, used by the
 // browser harness, the static-CPU-golden canonicalization and every report.

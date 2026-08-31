@@ -40,7 +40,11 @@
 // explicit `npm run goldens:update -w ukibori-renderer` command may
 // regenerate them (printing exactly which fixture/buffer changed).
 
-import { createCatalog, CATALOG_VERSION } from "./catalog.mjs";
+import {
+  createCatalog,
+  CATALOG_VERSION,
+  ISSUE_48_ADVERSARIAL_FIXTURE_IDS,
+} from "./catalog.mjs";
 import { createOracle } from "./oracle.mjs";
 
 const RESULT_EL = document.getElementById("result");
@@ -95,6 +99,7 @@ const summaryData = {
   partialProblems: 0,
   tileBenchmarkCases: 0,
   benchmarkSpeedup: null,
+  issue48Adversarial: null,
 };
 
 const detail = [];
@@ -1577,8 +1582,8 @@ async function runReconstructionBenchmark(device) {
  *    the byte-identical baseline output, so retained results are equivalent
  *    to a full recompute
  *
- * The existing 79 compute + 17 presentation golden fixture gate is kept
- * intact; every problem collected here FAILs the run before the PASS marker.
+ * The catalog-wide compute + presentation golden fixture gate is kept intact;
+ * every problem collected here FAILs the run before the PASS marker.
  */
 /**
  * The retained-parity scene: a panel that does NOT cover the whole canvas,
@@ -1826,8 +1831,8 @@ async function runRetainedParity(device) {
  *    with the documented deterministic reasons (no partial, no stale texels)
  * 4. viewport changes never take the partial path
  *
- * The existing 79 compute + 17 presentation golden fixture gate is kept
- * intact; every problem collected here FAILs the run before the PASS marker.
+ * The catalog-wide compute + presentation golden fixture gate is kept intact;
+ * every problem collected here FAILs the run before the PASS marker.
  */
 
 /**
@@ -3485,6 +3490,55 @@ async function main() {
         fixtureResults.push({ name: fixture.id, error: String(error?.stack ?? error) });
       }
     }
+    // #48 direct adversarial gate: these fixtures must have been executed by
+    // this real-adapter run and must pass the same full-chain comparisons as
+    // every other catalog entry. A missing ID, thrown fixture, or any
+    // mismatch is a gate failure even if unrelated fixtures pass.
+    const fixtureByName = new Map(fixtureResults.map((result) => [result.name, result]));
+    const issue48Missing = ISSUE_48_ADVERSARIAL_FIXTURE_IDS.filter(
+      (id) => !fixtureByName.has(id),
+    );
+    const issue48ExecutionErrors = [];
+    const issue48Mismatches = [];
+    for (const id of ISSUE_48_ADVERSARIAL_FIXTURE_IDS) {
+      const result = fixtureByName.get(id);
+      if (result === undefined) {
+        continue;
+      }
+      if (result.error !== undefined) {
+        issue48ExecutionErrors.push({ id, error: result.error });
+      }
+      const mismatchCount =
+        (result.mismatches ?? 0) +
+        (result.normal?.mismatches ?? 0) +
+        (result.shadow?.mismatches ?? 0) +
+        (result.caster?.mismatches ?? 0) +
+        (result.reconstruction?.mismatches ?? 0) +
+        (result.lighting?.diffuse?.mismatches ?? 0) +
+        (result.lighting?.specular?.mismatches ?? 0) +
+        (result.lighting?.color?.hard ?? 0) +
+        (result.lighting?.mutation?.mismatches ?? 0);
+      if (mismatchCount > 0) {
+        issue48Mismatches.push({ id, mismatches: mismatchCount });
+      }
+    }
+    const issue48AdversarialProblems = [
+      ...issue48Missing.map((id) => `missing fixture ${id}`),
+      ...issue48ExecutionErrors.map(({ id, error }) => `fixture ${id} errored: ${error}`),
+      ...issue48Mismatches.map(({ id, mismatches }) => `fixture ${id} mismatches=${mismatches}`),
+    ];
+    summaryData.issue48Adversarial = {
+      expected: [...ISSUE_48_ADVERSARIAL_FIXTURE_IDS],
+      executed: ISSUE_48_ADVERSARIAL_FIXTURE_IDS.filter((id) => fixtureByName.has(id)),
+      missing: issue48Missing,
+      executionErrors: issue48ExecutionErrors.map(({ id }) => id),
+      mismatches: issue48Mismatches,
+      hardFixture: "shadow-dense-full-frame-hard",
+      softFixture: "shadow-dense-full-frame-soft",
+    };
+    for (const problem of issue48AdversarialProblems) {
+      detail.push(`issue48 adversarial parity: ${problem}`);
+    }
     // #27 benchmark: the same 640x360 nontrivial scene on CPU and GPU.
     let benchmark = null;
     let benchmarkFailure = null;
@@ -3969,6 +4023,14 @@ async function main() {
       );
       return;
     }
+    if (issue48AdversarialProblems.length > 0) {
+      finish(
+        MARKER_FAIL,
+        `#48 adversarial parity gate failed (${issue48AdversarialProblems.length}): ` +
+          issue48AdversarialProblems.join("; "),
+      );
+      return;
+    }
     if (totalMismatches > 0) {
       finish(
         MARKER_FAIL,
@@ -4243,6 +4305,10 @@ async function main() {
       "partial/full parity: PASS (small edits planned partial with fewer dispatched " +
         "workgroups; every partial/full frame byte-equal to a forced full recompute " +
         "across move/add/remove/reorder and the light/material/viewport fallbacks)",
+    );
+    detail.push(
+      `#48 adversarial parity: PASS (${ISSUE_48_ADVERSARIAL_FIXTURE_IDS.length} real-WebGPU ` +
+        "fixtures; hard/soft dense-frame pair included)",
     );
     // #32 tile benchmark report lines (never gating)
     if (tileBenchmarkFailure !== null) {
