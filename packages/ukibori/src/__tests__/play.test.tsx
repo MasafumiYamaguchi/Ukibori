@@ -81,6 +81,104 @@ describe("UkiboriText glyph integration", () => {
   });
 });
 
+describe("UkiboriText #52 physical ink compositing policy", () => {
+  it("delegates the glyph ink to the physical relief while the node, text and aria stay intact", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    let layer: UkiboriDom | null = null;
+    const { unmount } = render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText
+          sceneId="play"
+          text="PLAY"
+          aria-label="Play button label"
+          elevation={3}
+          thickness={0.8}
+          bevelWidth={1.1}
+          material="metal"
+        />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY");
+    // The compositing policy: the physical glyph is the visual representation,
+    // so the DOM ink is suppressed through the managed attribute.
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+    // Nothing else about the DOM changes: node, text, aria, layout.
+    expect(span.tagName).toBe("SPAN");
+    expect(span.textContent).toBe("PLAY");
+    expect(span.getAttribute("aria-label")).toBe("Play button label");
+    expect(span.style.width).not.toBe("");
+    // Selection still works on the (transparent-ink) text.
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    expect(range.toString()).toBe("PLAY");
+    // The physical scene still holds the glyph.
+    expect(layer!.registry.get("play")!.options.shape.kind).toBe("mask");
+
+    await act(async () => {
+      unmount();
+    });
+    // The span is gone with the tree; a re-render would show plain text again
+    // (the attribute is owned by the layer's registration).
+  });
+
+  it("keeps the DOM text fully visible in css mode (physical-only suppression)", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    render(
+      <Ukibori backend="css" schedule={(cb) => cb()}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY");
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(span.getAttribute("data-ukibori-surface")).toBeNull();
+    expect(span.textContent).toBe("PLAY");
+  });
+
+  it("keeps the DOM text fully visible without a provider", () => {
+    stubElementRects();
+    render(<UkiboriText text="PLAY" />);
+    const span = screen.getByText("PLAY");
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+  });
+
+  it("keeps the DOM text visible when rasterization fails (plain DOM fallback)", async () => {
+    stubElementRects();
+    // Same failure seam as the sizing-policy test: only the 300x150 capability
+    // probe canvas works; the element-sized rasterizer canvas fails.
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+      (function (
+        this: HTMLCanvasElement,
+      ): CanvasRenderingContext2D | null {
+        const functional = {
+          clearRect: () => undefined,
+          fillText: () => undefined,
+          getImageData: () => ({ width: 0, height: 0, data: new Uint8ClampedArray(0) }),
+          putImageData: () => undefined,
+        } as unknown as CanvasRenderingContext2D;
+        if (this.width === 300 && this.height === 150) {
+          return functional;
+        }
+        return null;
+      }) as unknown as typeof HTMLCanvasElement.prototype.getContext,
+    );
+    let layer: UkiboriDom | null = null;
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY");
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(span.getAttribute("data-ukibori-surface")).toBeNull();
+    expect(layer!.registry.has("play")).toBe(false);
+  });
+});
+
 describe("UkiboriText sizing policy (bare usage)", () => {
   it("satisfies the #19 isotropic mapping with fractional initial dimensions", async () => {
     // No demo CSS: a bare span whose initial box is fractional.

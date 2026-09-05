@@ -217,6 +217,124 @@ describe("UkiboriDom — DOM integration", () => {
     layer.dispose();
   });
 
+  describe("#52 physical glyph ink compositing policy", () => {
+    /** Isotropic 2x2 mask for a 160x160 stubbed box (scene-builder contract). */
+    const MASK = {
+      width: 2,
+      height: 2,
+      alpha: new Float32Array([1, 1, 1, 1]),
+    };
+    const MASK_OPTIONS = {
+      id: "glyph",
+      shape: { kind: "mask", mask: MASK } as const,
+      elevation: 3,
+      thickness: 0.8,
+      bevelWidth: 1.1,
+      material: "metal",
+    };
+
+    function maskElement(): HTMLSpanElement {
+      const span = document.createElement("span");
+      span.textContent = "PLAY";
+      host.appendChild(span);
+      stubRectFor(span, { left: 60, top: 80, width: 160, height: 160 });
+      return span;
+    }
+
+    function makeLayer() {
+      const fake = makeFakeOverlay();
+      const layer = new UkiboriDom({
+        overlay: { factory: () => fake.overlay },
+        schedule: (cb) => cb(),
+        observe: false,
+        onError: () => undefined,
+      });
+      return layer;
+    }
+
+    it("delegates DOM text ink to the physical glyph only for mask surfaces", () => {
+      const layer = makeLayer();
+      // A roundedRect surface keeps its DOM ink (only background/box-shadow
+      // are suppressed).
+      layer.register(button, BUTTON_OPTIONS);
+      expect(button.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      // A mask surface delegates its ink to the physical relief.
+      const span = maskElement();
+      layer.register(span, MASK_OPTIONS);
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      layer.dispose();
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      expect(button.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    });
+
+    it("suppresses ink through the stylesheet, never by touching inline styles", () => {
+      const span = maskElement();
+      span.style.color = "red";
+      const layer = makeLayer();
+      layer.register(span, MASK_OPTIONS);
+      const style = document.querySelector("style[data-ukibori-style]");
+      expect(style?.textContent).toContain("[data-ukibori-physical-ink]");
+      expect(style?.textContent).toContain("color: transparent");
+      // Inline styles are untouched while registered (app/React updates keep
+      // working; the stylesheet rule overrides them).
+      expect(span.style.getPropertyValue("color")).toBe("red");
+      layer.unregister("glyph");
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      expect(span.style.getPropertyValue("color")).toBe("red");
+      layer.dispose();
+    });
+
+    it("follows shape-kind transitions through updateSurface", () => {
+      const span = maskElement();
+      const layer = makeLayer();
+      layer.register(span, MASK_OPTIONS);
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      layer.updateSurface("glyph", { shape: { kind: "roundedRect", radius: 8 } });
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      layer.updateSurface("glyph", { shape: { kind: "mask", mask: MASK } });
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      layer.dispose();
+    });
+
+    it("never removes a pre-existing application-owned ink attribute", () => {
+      const span = maskElement();
+      span.setAttribute("data-ukibori-physical-ink", "");
+      const layer = makeLayer();
+      layer.register(span, MASK_OPTIONS);
+      layer.unregister("glyph");
+      // The layer only owns what it created.
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      layer.dispose();
+    });
+
+    it("leaves no ink suppression behind when registration fails", () => {
+      const span = maskElement();
+      const layer = makeLayer();
+      layer.register(span, MASK_OPTIONS);
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      // A second registration of the SAME element must fail atomically and
+      // must not disturb the existing (owned) suppression.
+      expect(() => layer.register(span, { ...MASK_OPTIONS, id: "other" })).toThrow();
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      layer.dispose();
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    });
+
+    it("keeps text selection and accessibility semantics intact while suppressed", () => {
+      const span = maskElement();
+      const layer = makeLayer();
+      layer.register(span, MASK_OPTIONS);
+      // The node, its text and its aria attributes are untouched by the
+      // compositing policy (only the ink-painting CSS properties change).
+      expect(span.textContent).toBe("PLAY");
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      const range = document.createRange();
+      range.selectNodeContents(span);
+      expect(range.toString()).toBe("PLAY");
+      layer.dispose();
+    });
+  });
+
   it("leaves absolutely positioned descendants' layout untouched by register/unregister", () => {
     // A surface with an absolutely positioned child: the child's containing
     // block must not change when the surface is registered (no

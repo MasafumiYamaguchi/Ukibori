@@ -21,7 +21,7 @@ import type {
 import { computeRegion, renderTargetSize, sanitizeDpr, scaleShadowOptions } from "./coords";
 import { compositeSurfaceImage } from "./compositor";
 import { geometriesEqual, measureSurfaceElement } from "./measure";
-import { OverlayCanvas, isManagedMutation, restoreSurface, suppressSurface } from "./overlay";
+import { OverlayCanvas, isManagedMutation, restorePhysicalInk, restoreSurface, suppressPhysicalInk, suppressSurface } from "./overlay";
 import type { Overlay } from "./overlay";
 import { SurfaceRegistry, assertValidId } from "./registry";
 import { buildScene } from "./scene-builder";
@@ -530,6 +530,14 @@ export class UkiboriDom {
    * background/shadow are suppressed via the managed `data-ukibori-surface`
    * attribute (stylesheet rule) and revealed again on `unregister`.
    *
+   * #52 compositing policy: a MASK surface additionally gets the managed
+   * `data-ukibori-physical-ink` attribute — its DOM text ink is delegated to
+   * the physical glyph on the overlay canvas. Registration only happens in
+   * physical mode, so the ink suppression is physical-backend-only by
+   * construction (css mode / provider-less / SSR never register); a failed
+   * mask rasterization means UkiboriText passes no shape at all, and an
+   * unregistered element reveals its ink again.
+   *
    * Atomic: duplicate ids / already-registered elements are rejected BEFORE
    * any attribute is touched, so a failed registration never leaves
    * suppression behind.
@@ -554,8 +562,12 @@ export class UkiboriDom {
         dirty: true,
       };
       this.registry.add(entry);
+      if (entry.options.shape?.kind === "mask") {
+        suppressPhysicalInk(element);
+      }
     } catch (error) {
       restoreSurface(element);
+      restorePhysicalInk(element);
       throw error;
     }
     this.resizeObserver?.observe(element);
@@ -577,6 +589,7 @@ export class UkiboriDom {
     }
     this.resizeObserver?.unobserve(entry.element);
     restoreSurface(entry.element);
+    restorePhysicalInk(entry.element);
     this.sceneDirty = true;
     this.scheduleRender();
   }
@@ -600,6 +613,14 @@ export class UkiboriDom {
       );
     }
     entry.options = { ...entry.options, ...patch, id: entry.options.id };
+    // #52 compositing policy: follow shape-kind transitions (mask ink
+    // delegated to the physical glyph; non-mask surfaces keep their DOM
+    // ink). restorePhysicalInk is a refcounted no-op when not owned.
+    if (entry.options.shape?.kind === "mask") {
+      suppressPhysicalInk(entry.element);
+    } else {
+      restorePhysicalInk(entry.element);
+    }
     // Any option change feeds the scene (geometry, elevation, material...).
     this.sceneDirty = true;
     this.registry.markDirty(id);
@@ -1090,6 +1111,7 @@ export class UkiboriDom {
     this.disposeGpuResources();
     for (const entry of this.registry.entries()) {
       restoreSurface(entry.element);
+      restorePhysicalInk(entry.element);
     }
     this.registry.clear();
     this.overlay.dispose();

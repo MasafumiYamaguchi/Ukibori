@@ -58,6 +58,16 @@ import type { Region, SurfaceImage } from "./types";
 
 /** Managed attribute marking a registered surface (suppressed appearance). */
 export const SURFACE_ATTR = "data-ukibori-surface";
+/**
+ * Managed attribute marking a registered MASK surface whose DOM text ink is
+ * delegated to the physical glyph (#52 compositing policy): the physical
+ * relief on the overlay canvas is the visual representation, so the DOM
+ * element's own text ink must not paint over it. The DOM node, textContent,
+ * selection, focus, ARIA and layout are untouched — only the ink-painting
+ * CSS properties are suppressed by the injected stylesheet rule, exactly
+ * like the `data-ukibori-surface` background suppression.
+ */
+export const PHYSICAL_INK_ATTR = "data-ukibori-physical-ink";
 /** Managed attribute marking the stage element (isolation for the overlay). */
 export const STAGE_ATTR = "data-ukibori-stage";
 /** Marker attribute on the injected stylesheet (deduplication). */
@@ -72,6 +82,13 @@ export const OVERLAY_ATTR = "data-ukibori-overlay";
  * style updates cannot double-render (the rule overrides plain inline
  * values), and on unregister the element reveals its LATEST app-owned style
  * rather than a stale mount-time snapshot.
+ *
+ * `PHYSICAL_INK_ATTR` (#52) extends the same pattern to the TEXT INK of
+ * registered mask surfaces: the rule suppresses every ink-painting property
+ * (`color`, the WebKit fill/stroke colors and `text-shadow`) with
+ * `!important` so app inline styles cannot double-paint either. Text
+ * selection stays visible through the UA's `::selection` background
+ * highlight, which is independent of the ink color.
  */
 export function ensureOverlayStylesheet(doc: Document = document): HTMLStyleElement {
   const existing = doc.querySelector<HTMLStyleElement>(`style[${STYLE_ATTR}]`);
@@ -83,6 +100,14 @@ export function ensureOverlayStylesheet(doc: Document = document): HTMLStyleElem
   style.textContent = [
     `[${SURFACE_ATTR}] { background: transparent !important; box-shadow: none !important; }`,
     `[${STAGE_ATTR}] { isolation: isolate; }`,
+    [
+      `[${PHYSICAL_INK_ATTR}] {`,
+      "  color: transparent !important;",
+      "  -webkit-text-fill-color: transparent !important;",
+      "  -webkit-text-stroke-color: transparent !important;",
+      "  text-shadow: none !important;",
+      "}",
+    ].join("\n"),
   ].join("\n");
   (doc.head ?? doc.documentElement).appendChild(style);
   return style;
@@ -104,6 +129,7 @@ interface AttributeOwnership {
  */
 const stageOwnership = new WeakMap<Element, AttributeOwnership>();
 const surfaceOwnership = new WeakMap<Element, AttributeOwnership>();
+const physicalInkOwnership = new WeakMap<Element, AttributeOwnership>();
 
 function acquireAttribute(
   element: Element,
@@ -150,6 +176,23 @@ export function suppressSurface(element: HTMLElement): void {
 /** Unmark a registered surface (reveal the element's own current styles). */
 export function restoreSurface(element: HTMLElement): void {
   releaseAttribute(element, SURFACE_ATTR, surfaceOwnership);
+}
+
+/**
+ * Mark a registered MASK surface so its DOM text ink is delegated to the
+ * physical glyph (#52 compositing policy). Registration only happens in
+ * physical mode, which makes the attribute physical-backend-only by
+ * construction: css mode / provider-less / SSR / pre-registration states
+ * never acquire it, so the DOM text stays visible there.
+ */
+export function suppressPhysicalInk(element: HTMLElement): void {
+  ensureOverlayStylesheet(document);
+  acquireAttribute(element, PHYSICAL_INK_ATTR, physicalInkOwnership);
+}
+
+/** Unmark a mask surface (reveal the DOM text ink again). */
+export function restorePhysicalInk(element: HTMLElement): void {
+  releaseAttribute(element, PHYSICAL_INK_ATTR, physicalInkOwnership);
 }
 
 /** Acquire the stage attribute for an overlay canvas (refcounted). */
