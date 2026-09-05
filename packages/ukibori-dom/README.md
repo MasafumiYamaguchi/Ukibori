@@ -191,6 +191,14 @@ delegates anything. Ownership is edge-triggered: retained property updates
 the attribute, so the refcount tracks "who owns the attribute now", not the
 number of option updates.
 
+The layer is intent-driven and shape-driven only: whether a `delegateTextInk`
+registration actually reflects a faithful raster of the element's own text
+(single line box, usable font metrics, matching typography) is the
+registering component's responsibility — `<UkiboriText>` gates its intent
+through `rasterizeText`'s fidelity result and drops the raster (and the
+delegation) when the current value fails; multi-line/wrapped text keeps its
+DOM ink visible.
+
 A registered element that measures to zero / non-positive size (e.g.
 `display: none`, detached, still laying out) is a **temporarily
 non-renderable scene node**: it is excluded from the scene and region while

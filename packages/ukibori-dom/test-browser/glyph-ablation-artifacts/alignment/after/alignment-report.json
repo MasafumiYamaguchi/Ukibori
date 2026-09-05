@@ -24,6 +24,9 @@
           84,
           43
         ],
+        "canDelegateInk": true,
+        "lineRectCount": 1,
+        "inkAttrPresent": true,
         "lineBox": {
           "top": 0,
           "height": 43,
@@ -79,6 +82,9 @@
           160,
           85
         ],
+        "canDelegateInk": true,
+        "lineRectCount": 1,
+        "inkAttrPresent": true,
         "lineBox": {
           "top": 0,
           "height": 85,
@@ -134,6 +140,9 @@
           237,
           128
         ],
+        "canDelegateInk": true,
+        "lineRectCount": 1,
+        "inkAttrPresent": true,
         "lineBox": {
           "top": 0,
           "height": 128,
@@ -189,6 +198,9 @@
           88,
           85
         ],
+        "canDelegateInk": true,
+        "lineRectCount": 1,
+        "inkAttrPresent": true,
         "lineBox": {
           "top": 0,
           "height": 85,
@@ -244,6 +256,9 @@
           116,
           85
         ],
+        "canDelegateInk": true,
+        "lineRectCount": 1,
+        "inkAttrPresent": true,
         "lineBox": {
           "top": 0,
           "height": 85,
@@ -299,6 +314,9 @@
           160,
           85
         ],
+        "canDelegateInk": true,
+        "lineRectCount": 1,
+        "inkAttrPresent": true,
         "lineBox": {
           "top": 0,
           "height": 85,
@@ -354,6 +372,9 @@
           160,
           85
         ],
+        "canDelegateInk": true,
+        "lineRectCount": 1,
+        "inkAttrPresent": true,
         "lineBox": {
           "top": 0,
           "height": 85,
@@ -382,6 +403,65 @@
           "top": 80,
           "width": 160,
           "height": 85
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "PLAY STOP WAIT",
+        "fontWeight": 700,
+        "fontPx": 48,
+        "dpr": 1,
+        "constrainWidth": 140
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 140,
+          "height": 192
+        },
+        "maskInk": {
+          "left": 8,
+          "top": 75,
+          "right": 140,
+          "bottom": 109
+        },
+        "maskSize": [
+          140,
+          192
+        ],
+        "canDelegateInk": false,
+        "lineRectCount": 3,
+        "inkAttrPresent": false,
+        "lineBox": {
+          "top": 0,
+          "height": 64,
+          "left": 0
+        },
+        "canvas": [
+          508,
+          360
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 56,
+          "top": 98,
+          "right": 189,
+          "bottom": 278
+        },
+        "inBox": {
+          "left": -4,
+          "top": 18,
+          "right": 129,
+          "bottom": 198
+        },
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 140,
+          "height": 192
         }
       }
     }

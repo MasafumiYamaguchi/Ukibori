@@ -11,16 +11,19 @@ real WebGPU adapter, headless Chrome).
   `*-ink.png` / `*-noink.png` pairs toggle the DOM ink manually.
 - `after/` — captured AFTER the policy (registered glyph surfaces own the
   `data-ukibori-physical-ink` suppression through the explicit
-  `delegateTextInk` intent). `*-ink.png` here reproduces the pre-fix
-  appearance through the harness's documented DEBUG OVERRIDE (removing the
-  layer-owned attribute); `*-noink.png` is the live policy state: the
-  physical glyph relief on the canvas is the visual representation and its
-  highlight flips with the light direction. The relief now sits exactly on
-  the DOM ink position (see `alignment/`).
+  `delegateTextInk` intent, which UkiboriText only sets for faithful
+  rasters — the review-round-2 fidelity gate). `*-ink.png` here reproduces
+  the pre-fix appearance through the harness's documented DEBUG OVERRIDE
+  (removing the layer-owned attribute); `*-noink.png` is the live policy
+  state: the physical glyph relief on the canvas is the visual
+  representation and its highlight flips with the light direction. The
+  relief now sits exactly on the DOM ink position (see `alignment/`).
 - `alignment/` — #52 review alignment matrix (DOM ink bounds measured from
   real screenshot pixels vs the rasterized mask ink bounds):
   `before/` = centered/middle rasterization, `after/` = live-layout
-  baseline anchoring (UkiboriText.rasterizeText).
+  baseline anchoring (UkiboriText.rasterizeText) with the fidelity gate
+  (single line box + usable font metrics + typography match; see the
+  multiline row below).
 
 ## Light-response numbers (glyph-region |delta| between opposite lights, u8)
 
@@ -36,15 +39,25 @@ showed no light response at all.
 
 ## Alignment numbers (DOM ink center vs mask ink center, CSS px)
 
-| case | before (centered/middle) | after (live-layout baseline) |
-|---|---:|---:|
-| PLAY 700 @32 px, DPR 1 | +5.00 px | 0.00 px |
-| PLAY 700 @64 px, DPR 1 | +9.00 px | 0.00 px |
-| PLAY 700 @96 px, DPR 1 | +14.00 px | 0.00 px |
-| thin "illii" 400 @64 px, DPR 1 | +9.00 px | 0.00 px |
-| thick "OM" 900 @64 px, DPR 1 | +9.00 px | 0.00 px |
-| PLAY 700 @64 px, DPR 1.5 | +9.00 px | 0.00 px |
-| PLAY 700 @64 px, DPR 2 | +9.00 px | 0.00 px |
+`canDelegate` / `lines` / `inkAttr` = the review-round-2 fidelity evidence:
+the delegation gate result, the live line-rect count, and the presence of
+the layer-owned `data-ukibori-physical-ink` attribute.
+
+| case | before | after | canDelegate | lines | inkAttr |
+|---|---:|---:|---|---:|---|
+| PLAY 700 @32 px, DPR 1 | +5.00 px | 0.00 px | true | 1 | present |
+| PLAY 700 @64 px, DPR 1 | +9.00 px | 0.00 px | true | 1 | present |
+| PLAY 700 @96 px, DPR 1 | +14.00 px | 0.00 px | true | 1 | present |
+| thin "illii" 400 @64 px, DPR 1 | +9.00 px | 0.00 px | true | 1 | present |
+| thick "OM" 900 @64 px, DPR 1 | +9.00 px | 0.00 px | true | 1 | present |
+| PLAY 700 @64 px, DPR 1.5 | +9.00 px | 0.00 px | true | 1 | present |
+| PLAY 700 @64 px, DPR 2 | +9.00 px | 0.00 px | true | 1 | present |
+| 3-line wrap "PLAY STOP WAIT" 700 @48 px (140 px box), DPR 1 | n/a | n/a | **false** | 3 | **absent** |
+
+The multiline row is the fidelity fixture: a constrained box wraps the text
+into three lines, the single-line mask cannot represent it, and the policy
+keeps the DOM ink visible (the mask stays registered as geometry only —
+mask/DOM bounds intentionally diverge there; not an alignment case).
 
 Horizontal: the DOM ink sat ~1–1.5 px left of the mask ink (center vs left
 anchoring); after the fix the residual is ≤ 0.5 px — the screenshot/mask

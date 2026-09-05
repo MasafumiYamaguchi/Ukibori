@@ -72,9 +72,10 @@ registration, which only happens in physical mode:
 
 | State | DOM text |
 |---|---|
-| Before mask ready (no shape) / rasterization failure | visible (never registered) |
-| Physical mask ready + physical backend active (CPU or WebGPU) | node/text/selection/aria/layout intact, ink delegated to the relief |
-| Rasterization failure after registration (`shape: null`) | visible |
+| Before mask ready (no shape) / rasterization failure | visible (never registered; a failure for the current value drops the raster entirely — no stale previous glyph) |
+| Physical mask ready + physical backend active (CPU or WebGPU) + faithful raster (`canDelegateInk`) | node/text/selection/aria/layout intact, ink delegated to the relief |
+| Fidelity-degraded raster (multiline / metrics unavailable / typography mismatch) | visible — the mask may stay registered as geometry, but the DOM ink is never suppressed |
+| Props changed since the last raster (identity mismatch) | visible (render-time identity gate — the stale raster is not the visual representation) |
 | CSS backend / provider-less / SSR / pre-hydration / high-contrast | visible (no registration in those modes) |
 
 ## Rejected/deferred candidates
@@ -90,12 +91,16 @@ registration, which only happens in physical mode:
   encoding, DOM measurement, surface sizing, partial updates and the per-mask
   SDF cache identity. The reviewer gate allows deferring when it cannot be
   completed safely inside the issue; the response evidence shows it is not
-  required for the acceptance criteria. **Follow-up candidate** (together with
-  the alignment offset below).
+  required for the acceptance criteria. **Follow-up candidate**.
 - **DOM transparent styling in UkiboriText (inline `color: transparent`) —
   rejected**: it would fight user styles, need state-dependent re-application
   and would apply in modes where registration (physical backend) is not
   guaranteed. The stylesheet + managed attribute approach is state-safe.
+- **Full multiline rasterizer — non-goal (review round 2)**: wrapping /
+  multi-line text is not faithfully rasterized by the single-line mask;
+  instead the fidelity gate keeps the DOM ink visible there (see below), so
+  the fallback is DOM-visible rather than an incorrect physical
+  representation.
 
 ## Correctness
 
@@ -120,6 +125,16 @@ registration, which only happens in physical mode:
   shared-attribute refcount preserved).
 - **Generic mask preservation**: a generic `Surface` with `shape={{kind:"mask"}}`
   — including nested child text — keeps its DOM text DOM-owned (React tests).
+- **Stale raster invalidation (review round 2)**: the raster state is bound
+  to its `text`/`font` identity — a success → failure on a text/font change
+  removes the physical-ink attribute, empties the registration and leaves
+  the CURRENT text visible/selectable/labelled (pinned); success → failure
+  → success re-acquires the delegation exactly once (pinned, including the
+  structural css release afterwards).
+- **Delegation fidelity (review round 2)**: `canDelegateInk` gating pinned —
+  metrics-unavailable fallback (mask registered, attr absent, text visible)
+  and the explicit-font typography gate (geometry-only) in jsdom; the
+  3-line wrap fixture in the real-browser alignment matrix.
 - **Alignment**: real-browser measurement (screenshot round-trip ink
   segmentation vs mask alpha bounds) — the pre-fix DOM ink sat +5/+9/+14 px
   (font 32/64/96) below the mask ink and ~1–1.5 px left; after the
@@ -148,11 +163,15 @@ Committed artifacts: `packages/ukibori-dom/test-browser/glyph-ablation-artifacts
 
 ## Performance
 
-No additional GPU/CPU cost: the policy is pure CSS (one managed attribute +
-four stylesheet declarations). No extra pass, dispatch, upload, storage, or
-allocation; no scheduling change (the managed attribute is already filtered
-from the mutation observer by the `data-ukibori-` prefix rule). The ablation
-harness's own renders are evidence-only.
+- No added GPU pass / dispatch / upload / storage and no additional
+  per-frame renderer cost: the policy is pure CSS (one managed attribute +
+  four stylesheet declarations) and the renderer is untouched.
+- Rasterization-time CPU work added (one-off per text/font change, not per
+  frame): a `Range` line-box measurement, `TextMetrics`
+  (fontBoundingBox/actual) queries, computed-style reads for
+  letter-spacing/typography and the normalized font comparison for the
+  fidelity gate. All are client-side DOM reads; none enter the renderer
+  path.
 
 ## Remaining limitations
 
@@ -164,9 +183,14 @@ harness's own renders are evidence-only.
 3. **Interior plateau** has no directional shading — physically correct for a
    flat plateau; a stronger relief impression can be tuned via user-supplied
    `thickness`/`bevelWidth` (e.g. the demo's PLAY glyph parameters).
-4. **Multi-line DOM text** (wrapping spans) rasterizes only its first line
-   box into the single-line mask — pre-existing; the alignment anchoring uses
-   the first line box and documents this.
+4. **Multi-line DOM text** (wrapping spans): no full multiline rasterizer —
+   the fidelity gate keeps the DOM ink VISIBLE there (DOM-visible fallback,
+   the physical mask stays geometry only and is never the visual source of
+   truth). A real-browser fixture pins this (3-line wrap →
+   `canDelegateInk=false`, `data-ukibori-physical-ink` absent).
+5. **Explicit `font` prop with typography that differs from the DOM computed
+   font**: the fidelity gate keeps the ink delegated-off (geometry only);
+   delegation requires normalized raster/computed typography equality.
 
 ## Review round (PR #54)
 
@@ -181,13 +205,19 @@ harness's own renders are evidence-only.
   (screenshot pixel analysis vs mask alpha bounds), then fixed by anchoring
   the rasterization baseline to the live DOM line box; all measured cases
   align at the quantization floor (artifacts `alignment/before|after`).
-- Renderer: still zero changes (no glyph-specific normal, no supersampling).
+- **Review round 2** — the raster state is identity-bound (success →
+  failure on a text/font change drops the stale raster and releases the
+  delegation; recovery re-acquires exactly once), and delegation is
+  fidelity-gated (`canDelegateInk`: single live line box + usable font
+  metrics + typography match; multiline/metrics-unavailable/typography-
+  mismatched rasters keep the DOM ink visible). Renderer: still zero
+  changes (no glyph-specific normal, no supersampling).
 
 ## Verification summary
 
 - `ukibori-renderer` typecheck / tests (incl. the 5 characterization tests) / build: pass
 - `ukibori-dom` typecheck / tests (126, incl. the transition-safe ownership policy tests) / build: pass; real-WebGPU DOM harness: `UKIBORI_DOM_GPU_PASS`
-- `ukibori` typecheck / tests (181, incl. the intent + alignment + generic-mask React tests) / build: pass
+- `ukibori` typecheck / tests (185, incl. the intent + alignment + generic-mask React tests and the review-round-2 identity/fidelity tests) / build: pass
 - `demo` build: pass
 - Ablation runner (light + alignment modes): OK, artifacts committed
 - Real-Chrome alignment matrix: dCenter 0.00 / ≤ 0.5 px across all cases (see `alignment/after`)
