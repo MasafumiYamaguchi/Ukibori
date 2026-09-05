@@ -26,6 +26,7 @@
     "goldens:update": "node scripts/golden-cpu.mjs --update",
     "bench": "node scripts/bench-cpu.mjs",
     "bench:gpu": "node scripts/bench-gpu.mjs",
+    "bench:issue-48-report": "node scripts/bench-issue-48-report.mjs",
     "bench:cpu": "node scripts/bench-cpu.mjs",
     "bench:report": "node scripts/bench-report.mjs",
     "clean": "rimraf dist"

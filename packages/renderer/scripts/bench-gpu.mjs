@@ -15,6 +15,10 @@
 // Usage:
 //   node scripts/bench-gpu.mjs [--suite stage,e2e] [--samples 10]
 //        [--json benchmark-results.json] [--width 640] [--height 360]
+//        [--algorithm optimized|baseline]
+// Restricted desktop/CI hosts may opt into the diagnostic
+// BENCH_CHROME_NO_SANDBOX=1 environment variable; the default remains
+// sandboxed.
 //
 // Suites: stage, e2e, resolution, surface, mask, shadow, reconstruction,
 // presentation, submission, upload, partial, retained (default: all).
@@ -48,6 +52,7 @@ const warmupArg = flag("--warmup", process.env.BENCH_WARMUP ?? "3");
 const widthArg = flag("--width", process.env.BENCH_WIDTH ?? "640");
 const heightArg = flag("--height", process.env.BENCH_HEIGHT ?? "360");
 const retainedArg = flag("--retained-frames", process.env.BENCH_RETAINED_FRAMES ?? "20");
+const algorithmArg = flag("--algorithm", process.env.BENCH_ALGORITHM ?? "optimized");
 const jsonPath = flag("--json", join(pkgRoot, "benchmark-results.json"));
 
 function findChrome() {
@@ -72,6 +77,12 @@ const CHROME = findChrome();
 const CHROME_FLAGS = [
   "--headless=new",
   "--enable-unsafe-webgpu",
+  // Restricted CI/desktop sandboxes can prevent Chrome's GPU process from
+  // creating its profile/sandbox broker. Opt in explicitly for those hosts;
+  // the default benchmark remains sandboxed.
+  ...(process.env.BENCH_CHROME_NO_SANDBOX === "1"
+    ? ["--no-sandbox", "--disable-gpu-sandbox"]
+    : []),
   ...(process.platform === "darwin" ? ["--use-angle=metal"] : []),
   "--no-first-run",
   "--no-default-browser-check",
@@ -234,6 +245,7 @@ async function main() {
       width: widthArg,
       height: heightArg,
       retainedFrames: retainedArg,
+      algorithm: algorithmArg,
     });
     const url = `http://127.0.0.1:${port}/bench-gpu.html?${query}`;
     chrome = spawn(

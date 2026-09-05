@@ -6,6 +6,7 @@ import {
   GPU_USAGE_COPY_SRC,
   GPU_USAGE_STORAGE,
   HEADER_SIZE,
+  SURFACE_OFFSET_BOUNDS,
   SURFACE_OFFSET_ELEVATION,
   SURFACE_OFFSET_FLAGS,
   SURFACE_OFFSET_THICKNESS,
@@ -136,6 +137,16 @@ import {
  * readback. Updating only shadow options rewrites the bounded uniform and
  * redispatches; all input/output allocations and the cached pipeline are
  * reused.
+ *
+ * ## #48 marcher acceleration
+ *
+ * The WGSL marcher clips each direction to its exact in-bounds integer-step
+ * prefix with a monotone binary search. It also receives a conservative union
+ * AABB of casting surface footprints (packed into the direction table's w
+ * padding lanes) and skips empty-space bilinear reads when the zero base plane
+ * cannot occlude. These are conservative hints only: the caster height field
+ * remains the source of truth, no extra pass/buffer/upload is introduced, and
+ * the retained/partial scheduling contract is unchanged.
  *
  * ## Structural device interface
  *
@@ -383,6 +394,11 @@ interface CasterInfo {
   readonly hasCasters: boolean;
   readonly casterSurfaceCount: number;
   readonly maxCasterHeight: number;
+  /** conservative scene-space union of casting surface AABBs */
+  readonly minX: number;
+  readonly minY: number;
+  readonly maxX: number;
+  readonly maxY: number;
 }
 
 export class ShadowPass {
@@ -837,6 +853,10 @@ export class ShadowPass {
     let hasCasters = false;
     let casterSurfaceCount = 0;
     let maxCasterHeight = 0;
+    let minX = Number.POSITIVE_INFINITY;
+    let minY = Number.POSITIVE_INFINITY;
+    let maxX = Number.NEGATIVE_INFINITY;
+    let maxY = Number.NEGATIVE_INFINITY;
     for (let i = 0; i < header.surfaceCount; i++) {
       const record = HEADER_SIZE + i * SURFACE_STRIDE;
       const flags = view.getUint32(record + SURFACE_OFFSET_FLAGS, true);
@@ -848,8 +868,26 @@ export class ShadowPass {
       const elevation = view.getFloat32(record + SURFACE_OFFSET_ELEVATION, true);
       const thickness = view.getFloat32(record + SURFACE_OFFSET_THICKNESS, true);
       maxCasterHeight = Math.max(maxCasterHeight, Math.fround(elevation + thickness));
+      // SurfaceRecord.bounds is a validated conservative AABB of the
+      // transformed footprint.  The union is used only as an empty-space
+      // culling hint in the shadow shader; the caster field remains the sole
+      // source of occlusion truth.
+      minX = Math.min(minX, view.getFloat32(record + SURFACE_OFFSET_BOUNDS, true));
+      minY = Math.min(minY, view.getFloat32(record + SURFACE_OFFSET_BOUNDS + 4, true));
+      maxX = Math.max(maxX, view.getFloat32(record + SURFACE_OFFSET_BOUNDS + 8, true));
+      maxY = Math.max(maxY, view.getFloat32(record + SURFACE_OFFSET_BOUNDS + 12, true));
     }
-    return { hasCasters, casterSurfaceCount, maxCasterHeight };
+    return {
+      hasCasters,
+      casterSurfaceCount,
+      maxCasterHeight,
+      // Keep the no-caster sentinel finite because the values are packed into
+      // the uniform even though the shader exits before consulting them.
+      minX: hasCasters ? Math.fround(minX) : 0,
+      minY: hasCasters ? Math.fround(minY) : 0,
+      maxX: hasCasters ? Math.fround(maxX) : 0,
+      maxY: hasCasters ? Math.fround(maxY) : 0,
+    };
   }
 
   // -- allocations ----------------------------------------------------------
@@ -919,7 +957,9 @@ export class ShadowPass {
     view.setUint32(76, regionEnd, true);
     // #41/#43 area-light sampling state. On the hard path the shader ignores
     // these fields (angularRadius 0 / sampleCount 1), and every variant's
-    // direction array is zero-filled.
+    // direction array is zero-filled.  The w lanes of the first four entries
+    // are reserved for the caster AABB culling hint; direction code consumes
+    // xyz only.
     view.setFloat32(80, angularRadius, true);
     view.setUint32(84, sampleCount, true);
     view.setFloat32(88, 0, true);
@@ -943,6 +983,10 @@ export class ShadowPass {
         }
       }
     }
+    view.setFloat32(96 + 12, caster.minX, true);
+    view.setFloat32(112 + 12, caster.minY, true);
+    view.setFloat32(128 + 12, caster.maxX, true);
+    view.setFloat32(144 + 12, caster.maxY, true);
   }
 
   // -- pipeline and bind group ----------------------------------------------
