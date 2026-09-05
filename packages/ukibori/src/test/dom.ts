@@ -75,6 +75,16 @@ export function stubCanvas2d(): void {
       fillStyle: "#000",
       clearRect: () => undefined,
       fillText: () => undefined,
+      // #52 fidelity gate input: font bounding metrics (the same values CSS
+      // line layout would resolve for the stub font).
+      measureText: (text: string) => ({
+        text,
+        width: text.length * 10,
+        fontBoundingBoxAscent: height * 0.8,
+        fontBoundingBoxDescent: height * 0.2,
+        actualBoundingBoxAscent: height * 0.5,
+        actualBoundingBoxDescent: height * 0.1,
+      }),
       beginPath: () => undefined,
       moveTo: () => undefined,
       lineTo: () => undefined,
@@ -85,4 +95,42 @@ export function stubCanvas2d(): void {
     } as unknown as CanvasRenderingContext2D;
     }) as unknown as typeof HTMLCanvasElement.prototype.getContext,
   );
+}
+
+/**
+ * #52 fidelity gate seam: make the LIVE layout measurement usable in jsdom
+ * (a single text line box). Without this stub the fidelity gate correctly
+ * keeps the DOM ink delegated-off (mask geometry only), which is its own
+ * pinned fallback behavior.
+ */
+export function stubTextLineBox(): void {
+  // jsdom's Range has no getClientRects implementation — provide a
+  // replaceable empty one first, then report exactly one line box.
+  if (Range.prototype.getClientRects === undefined) {
+    Object.defineProperty(Range.prototype, "getClientRects", {
+      value: () => [] as DOMRectList,
+      configurable: true,
+      writable: true,
+    });
+  }
+  vi.spyOn(Range.prototype, "getClientRects").mockImplementation(function (
+    this: Range,
+  ): DOMRectList {
+    // UkiboriText rasterizes its single-text-node span; report exactly one
+    // line box. The exact geometry is irrelevant to the gate (it must be a
+    // single finite rect); the mask ink position it produces is not
+    // asserted in jsdom (the canvas itself is stubbed).
+    const line = {
+      left: 0,
+      top: 0,
+      width: 120,
+      height: 40,
+      right: 120,
+      bottom: 40,
+      x: 0,
+      y: 0,
+      toJSON: () => line,
+    } as DOMRect;
+    return [line] as unknown as DOMRectList;
+  });
 }

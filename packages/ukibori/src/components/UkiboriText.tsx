@@ -8,13 +8,30 @@ import type { UkiboriTextProps } from "../types";
  * <UkiboriText> — DOM-owned accessible text whose GLYPH participates in the
  * physical scene through the #19 mask geometry path.
  *
- * The component renders a real `<span>` with the text: the visible text is
- * always DOM-owned, accessible and selectable. After mount (client only) the
- * text is rasterized into an alpha MaskSource (canvas 2d — rasterization
- * stays OUTSIDE the renderer core) and the surface registers with that mask
+ * The component renders a real `<span>` with the text: the text is always
+ * DOM-owned, accessible and selectable. After mount (client only) the text
+ * is rasterized into an alpha MaskSource (canvas 2d — rasterization stays
+ * OUTSIDE the renderer core) and the surface registers with that mask
  * shape, so the glyph becomes physical geometry (height relief + cast
- * shadows, renderer #19) while the DOM text stays the readable layer above
- * it.
+ * shadows, renderer #19).
+ *
+ * #52 glyph compositing contract: the DOM text ink is delegated to the
+ * physical glyph ONLY while the current raster is a FAITHFUL visual
+ * representation of the current DOM text:
+ *
+ * - the raster state is bound to its input identity (`text` + `font` prop):
+ *   the moment the props change, the previous raster stops being the visual
+ *   representation (render-time identity gate — a stale glyph can never
+ *   suppress the DOM ink of different text);
+ * - the rasterization must report `canDelegateInk` (live single-line layout
+ *   metrics available, alphabetic anchoring applied, raster typography equal
+ *   to the DOM typography); a multi-line/wrapped text, missing font metrics
+ *   or an explicit raster font that does not match the computed DOM font
+ *   keeps the DOM ink visible (the mask may stay as physical geometry, but
+ *   it is never the visual source of truth);
+ * - a rasterization FAILURE for the current value drops the raster entirely
+ *   (plain DOM text fallback — no stale previous glyph, the physical-ink
+ *   delegation is released, and a later success re-registers).
  *
  * Sizing policy (valid in bare usage, no demo CSS required): the element's
  * measured box is rounded to integer pixel dimensions, the glyph is
@@ -28,16 +45,30 @@ import type { UkiboriTextProps } from "../types";
  * INITIAL measurement, but the final DOM box always equals the mask
  * dimensions, so the aspects can never diverge.
  *
- * Before a valid mask exists — or if rasterization fails — the component
- * stays PLAIN DOM TEXT: `shape` is `null`, nothing is registered, and no
- * rounded-rectangle substitute is created. Re-rasterization happens on
- * text/font changes and after `document.fonts.ready`.
+ * Before an identity-matched raster exists — or if rasterization failed —
+ * the component stays PLAIN DOM TEXT: `shape` is `null`, nothing is
+ * registered, and no rounded-rectangle substitute is created.
+ * Re-rasterization happens on text/font changes and after
+ * `document.fonts.ready`.
  */
+
+/** Rasterization outcome bound to the exact input identity it was made from. */
+interface RasterState {
+  text: string;
+  font: string | undefined;
+  mask: MaskSource;
+  /**
+   * #52 fidelity gate: the raster is a faithful single-line visual
+   * representation of the DOM text (live layout anchored, typography
+   * matched) and may take over the DOM ink as the physical glyph.
+   */
+  canDelegateInk: boolean;
+}
 
 export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
   function UkiboriText({ text, font, ...surfaceProps }, forwardedRef) {
     const innerRef = useRef<HTMLElement | null>(null);
-    const [mask, setMask] = useState<MaskSource | null>(null);
+    const [raster, setRaster] = useState<RasterState | null>(null);
 
     useEffect(() => {
       const element = innerRef.current;
@@ -50,10 +81,14 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
           return;
         }
         try {
-          setMask(rasterizeText(text, element, font));
+          const result = rasterizeText(text, element, font);
+          setRaster({ text, font, mask: result.mask, canDelegateInk: result.canDelegateInk });
         } catch (error) {
-          // Rasterization failure: the DOM text remains visible and readable;
-          // only the physical glyph relief is lost (no substitute is made).
+          // Rasterization failure for the CURRENT value: drop the raster
+          // entirely (including any previous successful raster — it must
+          // never keep representing different text). The DOM text remains
+          // visible, readable and selectable as the immediate fallback.
+          setRaster(null);
           console.error("UkiboriText rasterization failed:", error);
         }
       };
@@ -66,17 +101,31 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
       };
     }, [text, font]);
 
+    // Render-time identity gate: only an identity-matched raster represents
+    // the current text/font. Everything else (props changed since the last
+    // raster, failed rasterization, fidelity-degraded raster) is the plain
+    // DOM fallback — the physical glyph cannot outlive its own input.
+    const rasterMatches = raster !== null && raster.text === text && raster.font === font;
+    // The physical geometry exists whenever an identity-matched raster
+    // exists (even a fidelity-degraded one stays valid GEOMETRY); the
+    // visual representation authority (DOM ink delegation) additionally
+    // requires the fidelity gate.
+    const shape: UkiboriTextProps["shape"] =
+      rasterMatches ? { kind: "mask", mask: raster.mask } : null;
+    const delegateTextInk = rasterMatches && raster.canDelegateInk;
+
     // Layout policy: the span must honor width/height (inline-block default;
     // a user `display` that does not honor width/height breaks the contract),
     // and the INTEGER mask dimensions are authoritative for the physical
-    // footprint — the final DOM box always equals the mask dimensions.
+    // footprint — the final DOM box always equals the mask dimensions. The
+    // box is fixed only while an identity-matched raster exists.
     const fixedStyle: CSSProperties | undefined =
-      mask !== null
+      rasterMatches
         ? {
             ...surfaceProps.style,
             display: surfaceProps.style?.display ?? "inline-block",
-            width: mask.width,
-            height: mask.height,
+            width: raster.mask.width,
+            height: raster.mask.height,
           }
         : surfaceProps.style;
 
@@ -86,12 +135,12 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
         as="span"
         ref={mergeRefs(forwardedRef, innerRef)}
         style={fixedStyle}
-        shape={mask !== null ? { kind: "mask", mask } : null}
+        shape={shape}
         // #52 glyph compositing contract: this component rasterizes ITS OWN
-        // DOM text into the mask, so when the physical glyph is the visual
-        // representation the DOM ink is delegated to it. Generic mask
+        // DOM text into the mask, and only a faithful single-line raster
+        // with matching typography may take the ink over. Generic mask
         // surfaces never set this and keep their DOM text.
-        delegateTextInk={mask !== null}
+        delegateTextInk={delegateTextInk}
       >
         {text}
       </Surface>
@@ -100,11 +149,22 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
 );
 
 /** Sizing policy: round the measured box to integer pixels. */
+interface RasterizeResult {
+  mask: MaskSource;
+  /**
+   * #52 fidelity gate result: true only when the raster anchors the live
+   * DOM layout faithfully — exactly one rendered line box, the required
+   * font metrics available, and (when an explicit raster font is given)
+   * typography identical to the element's computed font.
+   */
+  canDelegateInk: boolean;
+}
+
 function rasterizeText(
   text: string,
   element: HTMLElement,
   font: string | undefined,
-): MaskSource {
+): RasterizeResult {
   const rect = element.getBoundingClientRect();
   const width = Math.max(1, Math.round(rect.width));
   const height = Math.max(1, Math.round(rect.height));
@@ -136,17 +196,26 @@ function rasterizeText(
   // correction and no font-specific constants are involved. Computed
   // letter-spacing is replicated through the canvas property when available.
   //
-  // When live layout metrics are unavailable (e.g. test environments without
-  // layout or canvas metrics), the rasterization falls back to the legacy
-  // centered/middle placement.
+  // Delegation fidelity (#52): the ink is delegated ONLY when this live
+  // anchoring actually happened — exactly ONE rendered line box (wrapped or
+  // multi-line text cannot be faithfully rasterized by the single fillText)
+  // and usable font metrics. Without them the raster falls back to the
+  // legacy centered placement and remains physical GEOMETRY only: the DOM
+  // ink stays visible and is never suppressed for an unfaithful mask.
+  // An explicit `font` prop is allowed to delegate only when its resolved
+  // (normalized) typography equals the element's computed font — a
+  // typographic mismatch would make the physical glyph an inaccurate
+  // representation of the DOM text.
   let anchored = false;
+  let canDelegateInk = false;
   try {
     const range = document.createRange();
     range.selectNodeContents(element);
-    const lineBox = range.getClientRects()[0];
+    const lineRects = range.getClientRects();
     const metrics = ctx.measureText(text);
     const ascent = metrics?.fontBoundingBoxAscent;
     const descent = metrics?.fontBoundingBoxDescent;
+    const lineBox = lineRects.length === 1 ? lineRects[0] : undefined;
     if (
       lineBox !== undefined &&
       typeof ascent === "number" &&
@@ -155,23 +224,35 @@ function rasterizeText(
       Number.isFinite(descent) &&
       ascent + descent > 0
     ) {
-      const halfLeading = (lineBox.height - (ascent + descent)) / 2;
-      const baselineY = lineBox.top - rect.top + halfLeading + ascent;
-      const anchorX = lineBox.left - rect.left;
-      if ("letterSpacing" in ctx) {
-        const letterSpacing = getComputedStyle(element).letterSpacing;
-        if (typeof letterSpacing === "string" && letterSpacing !== "normal" && letterSpacing.length > 0) {
-          ctx.letterSpacing = letterSpacing;
-        }
+      // Typography gate for an explicit raster font (the default path draws
+      // with the element's own computed font, which matches by
+      // construction).
+      let typographyMatch = true;
+      if (font !== undefined) {
+        const computedFont = getComputedStyle(element).font;
+        typographyMatch =
+          computedFont.length > 0 && normalizeFont(ctx.font) === normalizeFont(computedFont);
       }
-      ctx.textAlign = "left";
-      ctx.textBaseline = "alphabetic";
-      ctx.fillStyle = "#fff";
-      ctx.fillText(text, anchorX, baselineY);
-      anchored = true;
+      if (typographyMatch) {
+        const halfLeading = (lineBox.height - (ascent + descent)) / 2;
+        const baselineY = lineBox.top - rect.top + halfLeading + ascent;
+        const anchorX = lineBox.left - rect.left;
+        if ("letterSpacing" in ctx) {
+          const letterSpacing = getComputedStyle(element).letterSpacing;
+          if (typeof letterSpacing === "string" && letterSpacing !== "normal" && letterSpacing.length > 0) {
+            ctx.letterSpacing = letterSpacing;
+          }
+        }
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillStyle = "#fff";
+        ctx.fillText(text, anchorX, baselineY);
+        anchored = true;
+        canDelegateInk = true;
+      }
     }
   } catch {
-    // fall through to the legacy placement
+    // fall through to the legacy placement (delegation stays off)
   }
   if (!anchored) {
     ctx.textAlign = "center";
@@ -184,5 +265,10 @@ function rasterizeText(
   for (let i = 0; i < alpha.length; i++) {
     alpha[i] = data[i * 4 + 3] / 255;
   }
-  return { width, height, alpha };
+  return { mask: { width, height, alpha }, canDelegateInk };
+}
+
+/** Whitespace-insensitive font-string comparison for the typography gate. */
+function normalizeFont(font: string): string {
+  return font.replace(/\s+/g, " ").trim().toLowerCase();
 }

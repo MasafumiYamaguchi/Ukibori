@@ -101,7 +101,8 @@ async function stagingReadback(handle) {
 }
 
 /** Rasterize the span's text to a mask exactly like UkiboriText.rasterizeText
- * (including the #52 alignment policy: live-layout baseline anchoring). */
+ * (including the #52 alignment policy AND the fidelity gate: the result
+ * carries canDelegateInk, false for multi-line/unmeasurable text). */
 function rasterizeGlyph(span) {
   const rect = span.getBoundingClientRect();
   const width = Math.max(1, Math.round(rect.width));
@@ -113,15 +114,14 @@ function rasterizeGlyph(span) {
   ctx.clearRect(0, 0, width, height);
   const style = getComputedStyle(span);
   ctx.font = style.font;
-  // #52 alignment policy (mirror of UkiboriText.rasterizeText): measure the
-  // text's live line box via a Range and place an alphabetic baseline at
-  // lineBoxTop + halfLeading + fontBoundingBoxAscent, left-anchored at the
-  // line box origin, so the rasterized ink lands on the DOM ink.
+  // #52 alignment policy + fidelity gate (mirror of UkiboriText.rasterizeText).
   let anchored = false;
+  let canDelegateInk = false;
   try {
     const range = document.createRange();
     range.selectNodeContents(span);
-    const lineBox = range.getClientRects()[0];
+    const lineRects = range.getClientRects();
+    const lineBox = lineRects.length === 1 ? lineRects[0] : undefined;
     const metrics = ctx.measureText(span.textContent);
     const ascent = metrics && metrics.fontBoundingBoxAscent;
     const descent = metrics && metrics.fontBoundingBoxDescent;
@@ -147,9 +147,10 @@ function rasterizeGlyph(span) {
       ctx.fillStyle = "#fff";
       ctx.fillText(span.textContent, anchorX, baselineY);
       anchored = true;
+      canDelegateInk = true;
     }
   } catch {
-    // fall through to the legacy placement
+    // fall through to the legacy placement (delegation stays off)
   }
   if (!anchored) {
     ctx.textAlign = "center";
@@ -162,7 +163,7 @@ function rasterizeGlyph(span) {
   for (let i = 0; i < alpha.length; i++) {
     alpha[i] = data[i * 4 + 3] / 255;
   }
-  return { width, height, alpha };
+  return { mask: { width, height, alpha }, canDelegateInk };
 }
 
 async function settle(device) {
@@ -297,32 +298,53 @@ window.__prepare = async ({ direction, dpr, ink, readback = true }) => {
 window.__report = () => report;
 
 /**
- * #52 alignment evidence: reconfigure the glyph span (text/weight/size/DPR)
- * through the UkiboriText lifecycle (measure natural inline box -> rasterize
- * -> fix box -> retained mask update) and report the MASK ink bounds in box
- * coordinates. The DOM ink bounds come from the runner's screenshot analysis
- * (window.__measureInk) — real rendered pixels, not line-box estimates.
+ * #52 alignment/fidelity evidence: reconfigure the glyph span
+ * (text/weight/size/DPR, optional constrained width for the multiline
+ * fixture) through the UkiboriText lifecycle (measure box -> rasterize with
+ * the fidelity gate -> fix box -> retained mask + intent update) and report
+ * the MASK ink bounds in box coordinates. The DOM ink bounds come from the
+ * runner's screenshot analysis (window.__measureInk) — real rendered
+ * pixels, not line-box estimates.
  */
-window.__configureAlignment = async ({ text, fontWeight, fontPx, dpr }) => {
+window.__configureAlignment = async ({ text, fontWeight, fontPx, dpr, constrainWidth }) => {
   const span = document.getElementById("glyph");
   const stage = document.getElementById("stage");
-  // Reset to the natural inline state so the box is measured like a fresh
-  // UkiboriText mount (the mask size must come from the natural text box).
-  span.style.display = "";
-  span.style.width = "";
+  // Reset to the measurement state so the box is measured like a fresh
+  // UkiboriText mount (the mask size must come from the measured box).
+  span.style.display = constrainWidth !== undefined ? "inline-block" : "";
+  span.style.width = constrainWidth !== undefined ? `${constrainWidth}px` : "";
   span.style.height = "";
   span.style.font = `${fontWeight} ${fontPx}px "Segoe UI", Arial, sans-serif`;
   span.textContent = text;
   const rect = span.getBoundingClientRect();
-  const mask = rasterizeGlyph(span);
+  const raster = rasterizeGlyph(span);
+  const mask = raster.mask;
   span.style.display = "inline-block";
   span.style.width = `${mask.width}px`;
   span.style.height = `${mask.height}px`;
   glyphRect = { x: rect.left, y: rect.top, w: mask.width, h: mask.height };
   layer.setDpr(() => dpr);
-  layer.updateSurface("glyph", { shape: { kind: "mask", mask } });
+  // #52 fidelity policy: the delegation intent follows the rasterization
+  // gate (multi-line/unmeasurable rasters keep the DOM ink visible).
+  layer.updateSurface("glyph", {
+    shape: { kind: "mask", mask },
+    delegateTextInk: raster.canDelegateInk,
+  });
   flush();
   await settle(layer.gpuDevice);
+  // Re-normalize the layer-owned suppression attribute after any prior
+  // DEBUG OVERRIDE (__setInk removes/adds it behind the layer's back): the
+  // fixture state must reflect the POLICY, not the override bookkeeping.
+  if (raster.canDelegateInk) {
+    span.setAttribute("data-ukibori-physical-ink", "");
+  } else {
+    span.removeAttribute("data-ukibori-physical-ink");
+  }
+  // #52 policy evidence: the live line-rect count and the delegation state
+  // AFTER the retained update (multi-line text must leave the ink visible).
+  const lineRange = document.createRange();
+  lineRange.selectNodeContents(span);
+  const lineRectsAfter = lineRange.getClientRects();
   // Mask ink bounds in box coordinates (the production SDF threshold).
   let inkTop = Infinity;
   let inkBottom = -Infinity;
@@ -339,15 +361,16 @@ window.__configureAlignment = async ({ text, fontWeight, fontPx, dpr }) => {
     }
   }
   const box = span.getBoundingClientRect();
-  const line = document.createRange();
-  line.selectNodeContents(span);
-  const lineBox = line.getClientRects()[0];
+  const lineBox = lineRectsAfter[0];
   return {
     box: { left: box.left, top: box.top, width: box.width, height: box.height },
     maskInk: Number.isFinite(inkTop)
       ? { left: inkLeft, top: inkTop, right: inkRight, bottom: inkBottom }
       : null,
     maskSize: [mask.width, mask.height],
+    canDelegateInk: raster.canDelegateInk,
+    lineRectCount: lineRectsAfter.length,
+    inkAttrPresent: span.getAttribute("data-ukibori-physical-ink") !== null,
     lineBox: lineBox
       ? { top: lineBox.top - box.top, height: lineBox.height, left: lineBox.left - box.left }
       : null,
@@ -429,7 +452,8 @@ async function main() {
     }
     // Measure + fix the span box exactly like UkiboriText (integer policy).
     const rect = span.getBoundingClientRect();
-    const mask = rasterizeGlyph(span);
+    const raster = rasterizeGlyph(span);
+    const mask = raster.mask;
     span.style.display = "inline-block";
     span.style.width = `${mask.width}px`;
     span.style.height = `${mask.height}px`;
@@ -481,9 +505,10 @@ async function main() {
       shape: { kind: "mask", mask },
       ...GLYPH_OPTIONS_BASE,
       // #52 UkiboriText contract: this page's glyph span rasterizes ITS OWN
-      // text into the mask, so the ink delegation intent is explicit (a
-      // generic mask surface would omit it and keep its DOM text).
-      delegateTextInk: true,
+      // text into the mask, so the ink delegation intent follows the
+      // rasterization fidelity gate (a generic mask surface would omit it
+      // and keep its DOM text).
+      delegateTextInk: raster.canDelegateInk,
     });
     // A panel under the glyph, matching the demo's glyph-panel context.
     const panel = document.createElement("div");

@@ -1,7 +1,7 @@
 import { act } from "react";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { stubCanvas2d, stubElementRects } from "../test/dom";
+import { stubCanvas2d, stubElementRects, stubTextLineBox } from "../test/dom";
 import { Surface, Ukibori, UkiboriText } from "../index";
 import type { UkiboriDom } from "ukibori-dom";
 
@@ -85,6 +85,7 @@ describe("UkiboriText #52 physical ink compositing policy", () => {
   it("delegates the glyph ink to the physical relief while the node, text and aria stay intact", async () => {
     stubElementRects();
     stubCanvas2d();
+    stubTextLineBox();
     let layer: UkiboriDom | null = null;
     const { unmount } = render(
       <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
@@ -249,6 +250,7 @@ describe("UkiboriText #52 physical ink compositing policy", () => {
   it("removes the ink suppression on the physical -> CSS transition (no refcount leak)", async () => {
     stubElementRects();
     stubCanvas2d();
+    stubTextLineBox();
     const { rerender } = render(
       <Ukibori backend="auto" schedule={(cb) => cb()}>
         <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
@@ -270,7 +272,7 @@ describe("UkiboriText #52 physical ink compositing policy", () => {
     }
 
     // physical -> css: the layer lifecycle disposes and every registration
-    // is released — the ink must come back exactly once (a leaked refcount
+    // is released  Ethe ink must come back exactly once (a leaked refcount
     // would leave the attribute behind).
     rerender(
       <Ukibori backend="css" schedule={(cb) => cb()}>
@@ -282,6 +284,189 @@ describe("UkiboriText #52 physical ink compositing policy", () => {
     expect(spanAfter.getAttribute("data-ukibori-physical-ink")).toBeNull();
     expect(spanAfter.getAttribute("data-ukibori-surface")).toBeNull();
     expect(spanAfter.textContent).toBe("PLAY");
+  });
+
+  /**
+   * Deterministic rasterization-failure seam by TEXT: the element-sized
+   * rasterizer works for every text except the listed ones, where
+   * getImageData throws (a full rasterization failure). Text-based rules
+   * stay deterministic even across the async document.fonts.ready
+   * re-rasterization. The 300x150 capability probe canvas always works.
+   */
+  function stubRasterFailures(failTexts: string[]): void {
+    stubElementRects();
+    let lastText = "";
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+      (function (
+        this: HTMLCanvasElement,
+      ): CanvasRenderingContext2D | null {
+        const functional = {
+          font: "",
+          textAlign: "left",
+          textBaseline: "alphabetic",
+          fillStyle: "#000",
+          clearRect: () => undefined,
+          fillText: (text: string) => {
+            lastText = text;
+          },
+          measureText: (text: string) => ({
+            text,
+            width: text.length * 10,
+            fontBoundingBoxAscent: 32,
+            fontBoundingBoxDescent: 8,
+            actualBoundingBoxAscent: 20,
+            actualBoundingBoxDescent: 4,
+          }),
+          getImageData: () => {
+            if (failTexts.includes(lastText)) {
+              throw new Error("injected raster failure");
+            }
+            return {
+              width: this.width,
+              height: this.height,
+              data: new Uint8ClampedArray(this.width * this.height * 4),
+            };
+          },
+          putImageData: () => undefined,
+        } as unknown as CanvasRenderingContext2D;
+        if (this.width === 300 && this.height === 150) {
+          return functional;
+        }
+        return functional;
+      }) as unknown as typeof HTMLCanvasElement.prototype.getContext,
+    );
+  }
+
+  it("drops a stale raster when the current text fails to rasterize (no stale visual glyph)", async () => {
+    // PLAY rasterizes fine; every later rasterization fails.
+    const failTexts: string[] = ["STOP"];
+    stubRasterFailures(failTexts);
+    stubTextLineBox();
+    let layer: UkiboriDom | null = null;
+    const { rerender } = render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="play" text="PLAY" aria-label="label" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+    expect(layer!.registry.get("play")!.options.shape.kind).toBe("mask");
+
+    // Text changes to STOP and the re-rasterization FAILS: the previous
+    // PLAY raster must not stay active  Eno stale physical glyph, the DOM
+    // STOP text is the visible fallback, and the delegation is released.
+    rerender(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="play" text="STOP" aria-label="label" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("STOP");
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(span.textContent).toBe("STOP");
+    expect(span.getAttribute("aria-label")).toBe("label");
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    expect(range.toString()).toBe("STOP");
+    // The physical glyph is gone with the stale raster (plain DOM fallback).
+    expect(layer!.registry.has("play")).toBe(false);
+    expect(layer!.registry.size).toBe(0);
+    expect(span.style.width).toBe("");
+  });
+
+  it("re-acquires the delegation exactly once across success -> failure -> success", async () => {
+    // outcomes: PLAY ok, STOP fails, PLAY ok again.
+    const failTexts: string[] = ["STOP"];
+    stubRasterFailures(failTexts);
+    stubTextLineBox();
+    const { rerender } = render(
+      <Ukibori schedule={(cb) => cb()}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+
+    rerender(
+      <Ukibori schedule={(cb) => cb()}>
+        <UkiboriText sceneId="play" text="STOP" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    // Failure for the current value: plain DOM fallback, delegation off.
+    expect(screen.getByText("STOP").getAttribute("data-ukibori-physical-ink")).toBeNull();
+
+    rerender(
+      <Ukibori schedule={(cb) => cb()}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    // Recovery: the delegation is re-acquired...
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+
+    // ...and still releasable exactly once (physical -> css structural
+    // switch disposes the layer and reveals the ink completely).
+    rerender(
+      <Ukibori backend="css" schedule={(cb) => cb()}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const spanAfter = screen.getByText("PLAY");
+    expect(spanAfter.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(spanAfter.textContent).toBe("PLAY");
+  });
+
+  it("applies the same fallback when the font prop changes and later fails", async () => {
+    // An explicit font prop never matches the (empty) computed font in jsdom:
+    // the fidelity gate keeps the ink delegated-off while the raster exists.
+    const failTexts: string[] = [];
+    stubRasterFailures(failTexts);
+    let layer: UkiboriDom | null = null;
+    const { rerender } = render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="play" text="PLAY" font="700 48px Arial" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY");
+    // Geometry registered, visual authority stays DOM-side (typography gate).
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(span.textContent).toBe("PLAY");
+    expect(layer!.registry.get("play")!.options.shape.kind).toBe("mask");
+
+    // font prop change with a failing rasterization: plain DOM fallback.
+    failTexts.push("PLAY");
+    rerender(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="play" text="PLAY" font="700 96px Arial" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(layer!.registry.has("play")).toBe(false);
+  });
+
+  it("keeps DOM text visible when live layout metrics are unavailable (fidelity fallback)", async () => {
+    // stubCanvas2d WITHOUT the line-box seam: the Range measurement yields
+    // no line box, so the raster falls back to the legacy centered placement
+    // and MUST NOT take the DOM ink over.
+    stubElementRects();
+    stubCanvas2d();
+    let layer: UkiboriDom | null = null;
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY");
+    // The mask may exist as physical geometry...
+    expect(layer!.registry.get("play")!.options.shape.kind).toBe("mask");
+    // ...but it is never the visual source of truth: the DOM ink stays.
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(span.textContent).toBe("PLAY");
   });
 });
 
@@ -398,7 +583,7 @@ describe("UkiboriText layout policy", () => {
     await flushAsync();
     expect(errors).toHaveLength(0);
     const span = screen.getByText("PLAY");
-    // The final DOM box equals the integer mask footprint — the aspects can
+    // The final DOM box equals the integer mask footprint  Ethe aspects can
     // never diverge, and no scene error occurs.
     expect(span.style.width).toBe("80px");
     expect(span.style.height).toBe("40px");
@@ -410,3 +595,5 @@ describe("UkiboriText layout policy", () => {
     expect(layer!.debugBuffers()).not.toBeNull();
   });
 });
+
+

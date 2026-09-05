@@ -289,6 +289,10 @@ async function main() {
         { text: "OM", fontWeight: 900, fontPx: 64, dpr: 1 },
         { text: "PLAY", fontWeight: 700, fontPx: 64, dpr: 1.5 },
         { text: "PLAY", fontWeight: 700, fontPx: 64, dpr: 2 },
+        // #52 fidelity fixture: a constrained box wraps the text into
+        // multiple lines -> canDelegateInk false -> the DOM ink stays
+        // visible (the physical mask remains geometry only).
+        { text: "PLAY STOP WAIT", fontWeight: 700, fontPx: 48, dpr: 1, constrainWidth: 140 },
       ];
       const alignment = [];
       for (const alignmentCase of cases) {
