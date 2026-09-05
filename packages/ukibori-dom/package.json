@@ -4,7 +4,9 @@
   "description": "Framework-agnostic DOM integration layer for Ukibori: retained DOM registry, scene synchronization and a non-interactive compositing overlay that keeps DOM semantics and events untouched.",
   "type": "module",
   "sideEffects": false,
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -22,7 +24,8 @@
     "test": "vitest run",
     "test:webgpu": "node scripts/test-webgpu-dom.mjs",
     "bench:dom": "node scripts/bench-dom.mjs",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "ablation:glyph": "node scripts/glyph-ablation.mjs"
   },
   "dependencies": {
     "ukibori-renderer": "*"
