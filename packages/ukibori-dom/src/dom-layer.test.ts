@@ -224,6 +224,11 @@ describe("UkiboriDom — DOM integration", () => {
       height: 2,
       alpha: new Float32Array([1, 1, 1, 1]),
     };
+    const MASK_B = {
+      width: 2,
+      height: 2,
+      alpha: new Float32Array([1, 0, 0, 1]),
+    };
     const MASK_OPTIONS = {
       id: "glyph",
       shape: { kind: "mask", mask: MASK } as const,
@@ -231,6 +236,8 @@ describe("UkiboriDom — DOM integration", () => {
       thickness: 0.8,
       bevelWidth: 1.1,
       material: "metal",
+      // #52: the explicit glyph delegation intent (UkiboriText contract).
+      delegateTextInk: true,
     };
 
     function maskElement(): HTMLSpanElement {
@@ -252,19 +259,32 @@ describe("UkiboriDom — DOM integration", () => {
       return layer;
     }
 
-    it("delegates DOM text ink to the physical glyph only for mask surfaces", () => {
+    it("delegates DOM text ink only for the explicit glyph intent on a mask shape", () => {
       const layer = makeLayer();
       // A roundedRect surface keeps its DOM ink (only background/box-shadow
       // are suppressed).
       layer.register(button, BUTTON_OPTIONS);
       expect(button.getAttribute("data-ukibori-physical-ink")).toBeNull();
-      // A mask surface delegates its ink to the physical relief.
+      // A GENERIC mask surface (icon silhouette etc.) keeps its DOM text:
+      // shape.kind === "mask" alone must NOT delegate the ink.
+      const icon = maskElement();
+      layer.register(icon, { ...MASK_OPTIONS, id: "icon", delegateTextInk: undefined });
+      expect(icon.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      // The UkiboriText contract: explicit intent + mask shape.
       const span = maskElement();
       layer.register(span, MASK_OPTIONS);
       expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
       layer.dispose();
       expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      expect(icon.getAttribute("data-ukibori-physical-ink")).toBeNull();
       expect(button.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    });
+
+    it("never delegates ink for an explicit intent on a non-mask shape", () => {
+      const layer = makeLayer();
+      layer.register(button, { ...BUTTON_OPTIONS, delegateTextInk: true });
+      expect(button.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      layer.dispose();
     });
 
     it("suppresses ink through the stylesheet, never by touching inline styles", () => {
@@ -284,16 +304,70 @@ describe("UkiboriDom — DOM integration", () => {
       layer.dispose();
     });
 
-    it("follows shape-kind transitions through updateSurface", () => {
+    it("follows delegation transitions through updateSurface (edge-triggered, no refcount growth)", () => {
       const span = maskElement();
       const layer = makeLayer();
       layer.register(span, MASK_OPTIONS);
       expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
-      layer.updateSurface("glyph", { shape: { kind: "roundedRect", radius: 8 } });
+      // generic mask (no intent) -> suppression released exactly once
+      layer.updateSurface("glyph", { shape: { kind: "mask", mask: MASK_B }, delegateTextInk: undefined });
       expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      // intent on a NON-mask shape -> still no suppression
+      layer.updateSurface("glyph", { shape: { kind: "roundedRect", radius: 8 }, delegateTextInk: true });
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      // intent + mask again -> re-acquired exactly once
       layer.updateSurface("glyph", { shape: { kind: "mask", mask: MASK } });
       expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
       layer.dispose();
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    });
+
+    it("keeps the attribute exactly once across repeated delegated updates (unregister)", () => {
+      const span = maskElement();
+      const layer = makeLayer();
+      layer.register(span, MASK_OPTIONS);
+      for (let i = 0; i < 10; i++) {
+        layer.updateSurface("glyph", {
+          shape: { kind: "mask", mask: i % 2 === 0 ? MASK : MASK_B },
+          elevation: i,
+          material: i % 2 === 0 ? "metal" : "matte",
+          thickness: 0.8 + i * 0.1,
+        });
+      }
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      layer.unregister("glyph");
+      // One release, despite one acquire + 10 delegated updates: no leak.
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      layer.dispose();
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    });
+
+    it("keeps the attribute exactly once across repeated delegated updates (dispose)", () => {
+      const span = maskElement();
+      const layer = makeLayer();
+      layer.register(span, MASK_OPTIONS);
+      for (let i = 0; i < 10; i++) {
+        layer.updateSurface("glyph", { thickness: 1 + i * 0.25, bevelWidth: 1 + i * 0.5 });
+      }
+      layer.dispose();
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    });
+
+    it("non-mask -> delegated -> delegated updates -> non-mask acquires and releases exactly once", () => {
+      const span = maskElement();
+      const layer = makeLayer();
+      layer.register(span, { ...BUTTON_OPTIONS, id: "glyph", shape: { kind: "roundedRect", radius: 8 } });
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      layer.updateSurface("glyph", { shape: { kind: "mask", mask: MASK }, delegateTextInk: true });
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      // Delegated retained updates must not re-acquire.
+      layer.updateSurface("glyph", { shape: { kind: "mask", mask: MASK_B } });
+      layer.updateSurface("glyph", { elevation: 9 });
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      layer.updateSurface("glyph", { shape: { kind: "roundedRect", radius: 4 } });
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      layer.dispose();
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
     });
 
     it("never removes a pre-existing application-owned ink attribute", () => {
@@ -318,6 +392,25 @@ describe("UkiboriDom — DOM integration", () => {
       expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
       layer.dispose();
       expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    });
+
+    it("preserves the shared-attribute refcount semantics across layers", () => {
+      // Two genuine UkiboriDom instances acquiring the SAME element attribute
+      // (the ownership map is module-global and refcounted): the attribute
+      // must survive until the LAST owner releases.
+      const span = maskElement();
+      const layerA = makeLayer();
+      const layerB = makeLayer();
+      layerA.register(span, MASK_OPTIONS);
+      layerB.register(span, { ...MASK_OPTIONS, id: "glyph-b" });
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      layerA.unregister("glyph");
+      // B still owns it.
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      layerB.unregister("glyph-b");
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      layerA.dispose();
+      layerB.dispose();
     });
 
     it("keeps text selection and accessibility semantics intact while suppressed", () => {

@@ -16,6 +16,15 @@ export interface SurfaceEntry {
   /** last measured geometry (null until first measure) */
   geometry: MeasuredGeometry | null;
   dirty: boolean;
+  /**
+   * #52 compositing policy state: whether THIS layer currently owns the
+   * `data-ukibori-physical-ink` suppression for the element. Edge-triggered
+   * (set on the false->true delegation transition, cleared on the
+   * true->false transition), so retained property updates never multiply the
+   * attribute ownership refcount — the refcount tracks "who owns the
+   * attribute now", not how many times an option changed.
+   */
+  inkDelegated: boolean;
 }
 
 export class SurfaceRegistry {
