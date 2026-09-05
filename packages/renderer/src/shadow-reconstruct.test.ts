@@ -836,3 +836,243 @@ describe("#43/#53 reconstructed-visibility parity policy (tolerance evidence)", 
     expect(nonDyadic).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// #53 hard-mode ring-rule binomial edge refinement
+// ---------------------------------------------------------------------------
+
+/** Build a binary raw-visibility field from an ASCII mask (# = 0, . = 1). */
+function binaryField(mask: string[]): HostBuffer {
+  const height = mask.length;
+  const width = mask[0]!.length;
+  const buf = new HostBuffer(VISIBILITY_SPEC(width, height));
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      buf.set(x, y, 0, mask[y]![x] === "#" ? 0 : 1);
+    }
+  }
+  return buf;
+}
+
+describe("refineHardEdgeVisibility — #53 hard edge quality (ring-rule binomial)", () => {
+  it("keeps the exported rule constants at their documented values", () => {
+    expect(RING_EDGE_TRANSITIONS).toBe(2);
+    expect(RING_EDGE_MIN_ARC).toBe(3);
+  });
+
+  it("is a pure postprocess: every output is an exact dyadic k/16 in [0, 1]", () => {
+    const raw = binaryField([
+      "..........",
+      "....##....",
+      "....##....",
+      "....##....",
+      "....##....",
+      "..........",
+    ]);
+    const refined = refineHardEdgeVisibility(raw);
+    const values = toArray(refined);
+    for (const v of values) {
+      expect(Number.isFinite(v)).toBe(true);
+      expect(v).toBeGreaterThanOrEqual(0);
+      expect(v).toBeLessThanOrEqual(1);
+      expect(Math.abs(v * 16 - Math.round(v * 16))).toBeLessThan(1e-9);
+    }
+  });
+
+  it("refines a straight vertical boundary into a 1-2 texel ramp with the crossing preserved", () => {
+    // 5x11: the boundary between x=4 (lit) and x=5 (shadow) is a straight
+    // vertical edge; the refined values around it are the separable
+    // (1,2,1)^2/16 binomial of the binary window.
+    const raw = binaryField([
+      ".....#####",
+      ".....#####",
+      ".....#####",
+      ".....#####",
+      ".....#####",
+    ]);
+    const refined = refineHardEdgeVisibility(raw);
+    // interior edge rows (y=1..3): the columns around the boundary. The
+    // vertically-uniform field makes wxN = wx = wxS.
+    for (const y of [1, 2, 3]) {
+      // x=4: window columns 3..5 = 1,1,0 -> wx = 1 + 2*1 + 0 = 3
+      // -> value (3 + 2*3 + 3)/16 = 12/16
+      expect(refined.get(4, y, 0)).toBeCloseTo(12 / 16, 12);
+      // x=5: window columns 4..6 = 1,0,0 -> wx = 1 -> (1 + 2*1 + 1)/16 = 4/16
+      expect(refined.get(5, y, 0)).toBeCloseTo(4 / 16, 12);
+      // two columns away: windows are uniform -> binary preserved
+      expect(refined.get(3, y, 0)).toBe(1);
+      expect(refined.get(6, y, 0)).toBe(0);
+    }
+    // the 50% crossing stays between the same texel pair (4 -> 5): the ramp
+    // is centered on the raw boundary
+    expect(refined.get(4, 2, 0)).toBeGreaterThan(0.5);
+    expect(refined.get(5, 2, 0)).toBeLessThan(0.5);
+  });
+
+  it("refines a diagonal staircase boundary row by row without moving the edge", () => {
+    // the raw {0,1} diagonal is a staircase: each row's boundary texel pair
+    // is refined exactly like the vertical case, so the PER-ROW crossing
+    // stays between the same texel pair while the ramp removes the visual
+    // jaggedness
+    const raw = binaryField([
+      "......#####",
+      ".......####",
+      "........###",
+      ".........##",
+      "..........#",
+    ]);
+    const refined = refineHardEdgeVisibility(raw);
+    for (let y = 1; y < 4; y++) {
+      const boundary = y + 5; // raw: columns <= boundary are lit in row y
+      const ramp = refined.get(boundary, y, 0);
+      const next = refined.get(boundary + 1, y, 0);
+      expect(ramp).toBeGreaterThan(0.5);
+      expect(next).toBeLessThan(0.5);
+      // dyadic intermediate levels exist on the refined boundary
+      expect(ramp).not.toBe(1);
+      expect(next).not.toBe(0);
+    }
+  });
+
+  it("preserves thin features verbatim (ring arcs below the minimum)", () => {
+    // a 1-texel dark band, 3 texels tall: the band's MIDDLE row sees 4 ring
+    // transitions (verbatim), the band's END rows see a 5-vs-3 arc split
+    // (refined to the dyadic 8/16 ramp toward the band's own edge), and the
+    // band's interior depth (minVis 0) is preserved — thin blockers keep
+    // their fully-dark core instead of being averaged away.
+    const raw = binaryField([
+      "..........",
+      "..........",
+      "....#.....",
+      "....#.....",
+      "....#.....",
+      "..........",
+      "..........",
+    ]);
+    const refined = refineHardEdgeVisibility(raw);
+    // the 1-texel-wide band is never refined: every ring walk around it has
+    // a dark arc of only 1-2 ring texels (or more than two transitions), so
+    // the band stays FULLY dark verbatim — thin blockers keep their depth
+    // instead of being averaged away
+    for (let y = 2; y <= 4; y++) {
+      expect(refined.get(4, y, 0)).toBe(0);
+    }
+    // the band's core rows stay verbatim; the band's straight side edges
+    // (the middle-row lateral neighbors, whose rings are straight 5-vs-3
+    // boundaries) refine to the dyadic side ramp 12/16; the end-row ring
+    // neighbors refine to their own asymmetric dyadic values (13/16 below,
+    // verbatim where the dark arc is only 1-2 ring texels)
+    expect(refined.get(4, 2, 0)).toBe(0);
+    expect(refined.get(4, 3, 0)).toBe(0);
+    expect(refined.get(4, 4, 0)).toBe(0);
+    expect(refined.get(3, 3, 0)).toBeCloseTo(12 / 16, 12);
+    expect(refined.get(5, 3, 0)).toBeCloseTo(12 / 16, 12);
+    expect(refined.get(5, 4, 0)).toBeCloseTo(13 / 16, 12);
+    expect(refined.get(5, 2, 0)).toBe(1);
+    expect(refined.get(3, 4, 0)).toBe(1);
+    // the field is fully lit everywhere outside the band
+    for (let y = 0; y < 7; y++) {
+      for (let x = 0; x < 10; x++) {
+        const inBand = y >= 2 && y <= 4 && x >= 3 && x <= 5;
+        if (!inBand) {
+          expect(refined.get(x, y, 0)).toBe(1);
+        }
+      }
+    }
+    // the band's depth is preserved: the field still reaches full darkness
+    let minVis = 1;
+    for (let y = 2; y <= 4; y++) {
+      minVis = Math.min(minVis, refined.get(4, y, 0));
+    }
+    expect(minVis).toBe(0);
+  });
+
+  it("preserves isolated texels and corners verbatim", () => {
+    const raw = binaryField([
+      "..........",
+      "..........",
+      "...#......",
+      "..........",
+      "..#######.",
+      "..#.....#.",
+      "..#######.",
+      "..........",
+    ]);
+    const refined = refineHardEdgeVisibility(raw);
+    // isolated texel: verbatim
+    expect(refined.get(3, 2, 0)).toBe(0);
+    // rectangle corners (a ring walk sees 4 transitions): verbatim
+    expect(refined.get(2, 4, 0)).toBe(0);
+    expect(refined.get(8, 4, 0)).toBe(0);
+    expect(refined.get(2, 6, 0)).toBe(0);
+    expect(refined.get(8, 6, 0)).toBe(0);
+    // rectangle edge midpoints: refined (straight boundary)
+    expect(refined.get(5, 4, 0)).toBeLessThan(1);
+    expect(refined.get(5, 6, 0)).toBeLessThan(1);
+  });
+
+  it("keeps uniform fields (empty scene / full-frame shadow) and the 1-texel frame border verbatim", () => {
+    const lit = binaryField([".....", ".....", ".....", ".....", "....."]);
+    const refinedLit = refineHardEdgeVisibility(lit);
+    expect(toArray(refinedLit).every((v) => v === 1)).toBe(true);
+    const dark = binaryField(["#####", "#####", "#####", "#####", "#####"]);
+    const refinedDark = refineHardEdgeVisibility(dark);
+    expect(toArray(refinedDark).every((v) => v === 0)).toBe(true);
+    // the frame border keeps the raw value even around content
+    const raw = binaryField([
+      "..........",
+      ".########.",
+      ".########.",
+      ".########.",
+      "..........",
+    ]);
+    const refined = refineHardEdgeVisibility(raw);
+    for (let x = 0; x < 10; x++) {
+      expect(refined.get(x, 0, 0)).toBe(1);
+      expect(refined.get(x, 4, 0)).toBe(1);
+    }
+    for (let y = 0; y < 5; y++) {
+      expect(refined.get(0, y, 0)).toBe(1);
+      expect(refined.get(9, y, 0)).toBe(1);
+    }
+  });
+
+  it("is deterministic and never mutates the raw input", () => {
+    const raw = binaryField([
+      ".....#####",
+      ".....#####",
+      ".....#####",
+      ".....#####",
+      ".....#####",
+    ]);
+    const before = toArray(raw);
+    const a = refineHardEdgeVisibility(raw);
+    const b = refineHardEdgeVisibility(raw);
+    expect(toArray(a)).toEqual(toArray(b));
+    expect(toArray(raw)).toEqual(before);
+  });
+
+  it("end-to-end: the refined field of a real hard shadow scene is dyadic and matches the raw occupancy", () => {
+    const scene = sceneWithSlab(0, 1); // hard: angularRadius 0, samples 1
+    const { composed, visibility } = rawVisibilityFor(scene, 1);
+    const refined = refineHardEdgeVisibility(visibility);
+    const { width, height: h } = visibility.spec;
+    let rawShadowed = 0;
+    let refinedShadowed = 0;
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < width; x++) {
+        const rv = visibility.get(x, y, 0);
+        const fv = refined.get(x, y, 0);
+        expect(rv === 0 || rv === 1).toBe(true); // raw contract untouched
+        const k16 = fv * 16;
+        expect(Math.abs(k16 - Math.round(k16))).toBeLessThan(1e-9);
+        if (rv < 0.5) rawShadowed += 1;
+        if (fv < 0.5) refinedShadowed += 1;
+      }
+    }
+    // the refinement never moves the shadow footprint: the below-half area
+    // is identical to the raw one (each texel keeps its side of the boundary)
+    expect(refinedShadowed).toBe(rawShadowed);
+    expect(rawShadowed).toBeGreaterThan(0);
+  });
+});

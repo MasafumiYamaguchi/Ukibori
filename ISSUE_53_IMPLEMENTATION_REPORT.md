@@ -1,0 +1,169 @@
+# Issue #53 implementation report
+
+Issue: [#53 — [Rendering] Improve hard and soft shadow edge quality without changing shadow semantics](https://github.com/MasafumiYamaguchi/Ukibori/issues/53)
+Branch: `feat/issue-53-shadow-edge-quality` (base: master `03115b8`)
+
+## 1. Root cause analysis
+
+Measured with `packages/renderer/scripts/shadow-edge-evidence.mjs` (the CPU
+oracle is bit-exact with the GPU for the raw visibility field, so the whole
+matrix runs in Node; artifacts: `packages/renderer/test-browser/shadow-edge-artifacts/phase1/`).
+
+| Candidate | Contribution | Evidence |
+|---|---|---|
+| **Hard path: raw binary displayed with zero antialiasing (PRIMARY)** | The historical hard path wrote exact {0, 1} and bypassed reconstruction entirely, so diagonal/curved shadow boundaries displayed as a raw texel staircase. | Every hard case: transition width **0 texels**, **0 intermediate levels** at DPR 1/1.5/2/3 (raw field), while the occlusion boundary itself is exact (0/84624 parity mismatches). |
+| **Soft path: sampling speckle + the #43 box average washing out narrow bands (PRIMARY)** | The decorrelated k/n speckle contours wobble, and the plain gated box average averages ACROSS narrow dark bands: a 3-texel band lost ~62% of its depth (minVis 0 → 0.38); glyph strokes washed from minVis 0 → 0.22. | thin/soft8/dpr1: raw minVis 0/area 111 → box recon minVis 0.383/area 48; glyph/soft8/dpr1: raw 0/133 → box 0.216/85. Raw speckle zigzag 1.5-4.3 texels at DPR 1-2. |
+| Presentation byte quantization (NOT significant) | The compositor's premultiplied strength byte adds ≤1 LSB. | Byte-space margin analysis (see below); fixing the field quality moved the presented bytes with it. |
+| DPR (NOT a cause by itself) | The raw staircase is DPR-invariant in CSS space (the boundary is sampled at (tx+0.5)/dpr). | Hard transition width 0 at every DPR; the CSS-space crossing is constant (crossings.csv). |
+| Normals/lighting/ownership/heightGate (NOT significant) | The shading chain is not the source; the boundary-local cost is the 3x3-neighborhood non-uniform fraction (~2-4% of texels). | boundaryTexelFractionRaw per case in summary.json. |
+
+## 2. Adopted solution
+
+**One reconstruction stage, two kernels — selected automatically by the
+shadow path, zero new options:**
+
+- **Soft mode (kernel mode 0): value-bilateral box.** The #43 box kernel
+  gains a per-tap weight `exp(-(dv)²/(2σ²))`, `σ = RECONSTRUCTION_VALUE_SIGMA
+  = 0.25` visibility units (plus the unchanged height/ownership gates, radius
+  semantics, DPR mapping). Full-range jumps (thin band edges, 0↔1) get weight
+  ~3e-4 — excluded, bands keep their depth; one-to-two sample-level
+  differences (the sampling speckle) keep weight ≥ 0.6 — the penumbra still
+  smooths. Measured: transition width within one texel of the old box
+  (no new softness), thin-band minVis 0.38 → 0.0006 (preserved), glyph-stroke
+  minVis 0.216 → 0.099 (preserved), DPR ≥ 2 contour zigzag 3.85 → 0.88 texels.
+- **Hard mode (kernel mode 1): ring-rule binomial edge refinement.** A PURE
+  POSTPROCESS of the binary field (no extra rays): a texel is refined only
+  when its 8-neighbor ring shows exactly two visibility-side transitions with
+  both same-side arcs ≥ `RING_EDGE_MIN_ARC = 3` ring texels (exactly one
+  locally straight boundary through the 3x3 window); the refinement value is
+  the separable (1,2,1)²/16 binomial — an exact dyadic k/16 rational
+  (f32-exact integer sums) producing a 1-2 texel ramp centered on the same
+  boundary. Thin features, corners, speckle and the 1-texel frame border stay
+  verbatim. Measured: 2-4 texel ramps at DPR 1-3, per-row 50% crossing
+  preserved (zigzag 0/0), below-half area identical to the raw field.
+- `enabled: false` (and radius 0) bypasses BOTH kernels: the raw field is
+  displayed and every historical byte is preserved.
+
+Implementation: `src/shadow-reconstruct.ts` (CPU oracle, both kernels),
+`src/gpu/reconstruction-pass-wgsl.ts` (mode-branching WGSL, params
+valueSigma@24 f32 + mode@28 u32, 32 bytes unchanged),
+`src/gpu/reconstruction-pass.ts` (mode plumbed through packUniform/input/
+snapshot), `src/gpu/pipeline.ts` + `src/wasm/pipeline.ts` (mode selection =
+`softShadowActive`), `src/lighting.ts` (display-field selection). The hard
+halo is fixed at 1 texel (the 3x3 ring); the soft halo is the sanitized
+texel radius (unchanged).
+
+## 3. Rejected alternatives (measured, then rejected)
+
+| Candidate | Why rejected |
+|---|---|
+| Subtexel supersampling (K=4/9 hard-ray tests at boundary texels) | Inherits the march step-phase noise: refined texels show dropouts (visibility flips back to 0 between sub-samples); no staircase win over the ring rule. |
+| Hard value-gated reconstruction (gate 1/N, 2/N) | A gate stops the salt-and-pepper smoothing entirely (every neighbor differs by ≥1 level); zigzag worse than the box. |
+| Ring rule ON TOP of the recon field | Unstable on smoothed fields (ring arcs fragment; zigzag ~23 texels). |
+| Plain corner-coverage supersampling | Equivalent to a blur (adds softness the ray geometry does not own). |
+
+## 4. Shadow semantics — forbidden-change checklist
+
+Unchanged: blocker geometry, caster/receiver semantics, the ray occlusion
+test, `maxDistance`, `stepSize`, bias semantics, light direction,
+`angularRadius`, penumbra geometry, contact-hardening, `castsShadow`/
+`receivesShadow`, retained scheduling, partial-recompute semantics. The RAW
+visibility contract is untouched: hard = exact binary {0,1}, soft = dyadic
+k/n (zero tolerance on both; real-WebGPU parity 0/84624 mismatches). The
+changes are the DISPLAY representation only, documented simultaneously in
+the CPU oracle, the WGSL, the policy table and the parity harness.
+
+## 5. Scheduling / retained behavior
+
+- `reconstructionActive` is now true for hard frames too (it was soft-only);
+  the partial-planner halo for hard frames is 1 texel (the ring); the parity
+  retained-scheduling section verifies partial-vs-forced-full byte equality
+  for raw/reconstructed/lighting fields and the canvas (0 problems).
+- `enabled: false` keeps the historical bypass (`reconstructionActive`
+  false, raw bytes everywhere).
+- One extra compute submission per frame when the hard refinement runs
+  (the DOM/React submit-count pins were updated: 5 → 6).
+
+## 6. Visual evidence
+
+`packages/renderer/test-browser/shadow-edge-artifacts/phase1/` (README with
+the tables): raw/recon/presented PPMs + per-row crossing CSVs + summary.json
+for the diagonal/thin/glyph/near/far/rounded/vertical scenarios at DPR
+1/1.5/2/3, samples 4/8/16. Headline: hard staircase → 2-4 texel dyadic ramp
+with the crossing preserved; thin band and glyph strokes preserved by the
+bilateral kernel where the box washed them out.
+
+## 7. Performance (640x360, GPU-timestamp medians, #46/#48 subset; committed `benchmark-results-issue-53-{before,after}.json`)
+
+| case | before | after |
+|---|---|---|
+| stage/reconstruction (radius 2) | 0.0206 ms | 0.0228 ms (+11%) |
+| reconstruction/dpr-1/radius-2 | 0.0345 ms | 0.0365 ms (+6%) |
+| reconstruction/dpr-2/radius-2 | 0.182 ms | 0.204 ms (+12%) |
+| reconstruction/dpr-1/radius-4 | 0.0621 ms | 0.0696 ms (+12%) |
+| stage/shadow (untouched) | 0.389/0.254 ms | 0.256 ms (run noise) |
+| e2e/warmed-full (GPU-timed) | 0.119 ms | 0.086 ms (run noise) |
+| parity bench shadow+reconstruction (soft, host) | — | 3.45 ms |
+| parity bench shadow+reconstruction-HARD (host) | — | 3.60 ms |
+
+The value-bilateral costs ~10% more GPU time than the box at the same
+radius (one `exp` per tap); the hard refinement is a 3x3 postprocess at the
+1-texel halo. `UKIBORI_BENCH_GPU_PASS` (117 cases) and the full-chain
+speedup 127x are unchanged in character. The host-side wall deltas on the
+partial/forced-full e2e rows reflect the extra hard-path submission.
+
+## 8. Tests
+
+- Unit (vitest): `shadow-reconstruct.test.ts` — 9 new `refineHardEdgeVisibility`
+  tests (constants, dyadic/[0,1] pureness, vertical/diagonal ramp values,
+  thin-feature and corner/isolated preservation, uniform fields + frame
+  border, determinism/no-mutation, real-scene end-to-end dyadic + identical
+  below-half area) + the existing #43 suite (25 in the file);
+  `lighting.test.ts` (the hard display field is the refined dyadic field);
+  `gpu/pipeline.test.ts` / `gpu/pipeline-partial.test.ts` (6 encoders,
+  recon dispatch mode 0/1, halo 1 row for hard, uniform valueSigma/mode
+  bytes). Renderer suite: 966 passed / 0 failed (4 pre-existing .mjs
+  collection failures unchanged from master).
+- Real-WebGPU parity (`UKIBORI_WEBGPU_PASS`): 120 fixtures, 0 mismatches —
+  including 4 new hard-refinement fixtures (`shadow-reconstruction-hard-slab-r2`,
+  `-hard-mask-caster`, `-hard-thin-caster`, `-hard-dpr2`, exact zero
+  tolerance via the `visibility-reconstructed-hard` policy) and the new
+  `present-reconstructed-hard` canvas fixture. Soft recon: 0/4800 mismatches
+  (max abs 9.5e-7, max ulp 16 — inside the documented 1e-6).
+- DOM/React: `ukibori-dom` 126/126, `ukibori` 196/196 (submit-count pins
+  updated), `UKIBORI_DOM_GPU_PASS` (real adapter, dpr 1/1.5/2).
+- CPU goldens: present-canvas digests regenerated via
+  `presentationReference` (now mirrors the hard refinement); the compute
+  chain digests are unchanged (the golden lighting oracle consumes the raw
+  field by design).
+
+## 9. Acceptance criteria
+
+- Hard shadow edges: straight/diagonal/curved boundaries show a 1-2 texel
+  dyadic ramp (PPM + CSV evidence); the 50% crossing is preserved
+  (zigzag 0/0); thin casters, mask/glyph casters, near/far cases pinned by
+  the new fixtures. ✓
+- Soft shadows: samples 4/8/16 × angularRadius small/representative/large
+  parity exact; the reconstruction is not the softness source (width within
+  one texel of the box); penumbra geometry unchanged. ✓
+- DPR 1/1.5/2/3: CSS-space invariance held (crossings.csv; the radius maps
+  through the DPR exactly once). ✓
+- Scheduling: fresh/retained/partial/forced-full byte equality (0 problems). ✓
+- Numerical: finite/[0,1] enforced; hard dyadic k/16 exact (zero tolerance);
+  soft within the documented 1e-6. ✓
+- Forbidden changes: none made (§4). ✓
+- Performance: measured before/after (§7); no sample/radius/stepSize
+  increases. ✓
+
+## 10. Remaining limitations
+
+- The hard refinement is a screen-space postprocess: at very shallow
+  boundary angles the ramp texels can extend 2 texels along the boundary
+  (the arcs guard keeps it off thin features; the crossing never moves).
+- The soft bilateral does not remove the dpr1 residual wobble entirely
+  (zig 0.38 texels vs the box's 0.18 — both sub-texel); the accepted
+  trade for narrow-band preservation.
+- `presentationReference` re-runs the refinement on the CPU for every
+  canvas fixture (cheap: binary ring walk).
+- The rejected candidates' PPM artifacts are not committed (metrics only,
+  in summary.json).
