@@ -364,15 +364,16 @@ describe("UkiboriDom — async WebGPU backend (auto/cpu/webgpu)", () => {
     expect(state.gpuFrame!.frame.renderWidth).toBe(288);
     expect(state.gpuFrame!.frame.renderHeight).toBe(172);
     expect(state.gpuFrame!.frame.upload.bytesUploaded).toBeGreaterThan(0);
-    expect(state.gpuFrame!.frame.frame.submissions).toBe(5);
+    expect(state.gpuFrame!.frame.frame.submissions).toBe(6);
     expect(state.gpuFrame!.hostRenderMs).toBeGreaterThanOrEqual(0);
     expect(state.renderSize).toEqual({ width: 288, height: 172 });
 
-    // The full #31 chain ran: 5 queue submissions (height/normal/shadow/
-    // lighting/presentation), the canvas was configured for direct
+    // The full #31/#53 chain ran: 6 queue submissions (height/normal/shadow/
+    // reconstruction/lighting/presentation —the #53 hard frame runs the
+    // ring-rule refinement stage), the canvas was configured for direct
     // presentation, and the backing store matches the render extent.
-    expect(device.encoders).toHaveLength(5);
-    expect(device.submits).toHaveLength(5);
+    expect(device.encoders).toHaveLength(6);
+    expect(device.submits).toHaveLength(6);
     const context = [...stub.contexts.values()][0];
     expect(context.configured).toHaveLength(1);
     expect(context.configured[0].format).toBe("rgba8unorm");

@@ -671,14 +671,19 @@ async function runFixture(device, fixture) {
       result.casterTexels = cpu.rw * cpu.rh;
       result.caster = oracle.compareCasterHeight(fixture, casterOracle.height, casterBytes, cpu.rw);
 
-      // #43 reconstruction stage: fixtures declaring `reconstructionOptions`
+      // #43/#53 reconstruction stage: fixtures declaring `reconstructionOptions`
       // also dispatch the real ReconstructionPass through the public helper
       // and compare its output against the ACTUAL TypeScript
       // reconstructVisibility oracle with the SEPARATE documented tight
-      // tolerance (the gated tap average's quotient is NOT dyadic, so the
+      // tolerance (the value-bilateral quotient is NOT dyadic, so the
       // reconstructed field must not be promised bit-identical across legal
       // WebGPU backends; raw #41 visibility keeps its exact contract above).
+      // Fixtures passing `reconstructionMode` 1 run the #53 HARD kernel (the
+      // ring-rule binomial refinement of the BINARY field) and are compared
+      // against the refineHardEdgeVisibility oracle with the ZERO-tolerance
+      // `visibility-reconstructed-hard` policy (exact dyadic k/16 rationals).
       if (fixture.reconstructionOptions !== undefined) {
+        const hardMode = fixture.reconstructionMode === 1;
         const reconstructionPass = new api.ReconstructionPass(device);
         reconstructionPass.dispatch({
           rawVisibility: {
@@ -693,6 +698,7 @@ async function runFixture(device, fixture) {
           ...shadowInputs,
           options: fixture.reconstructionOptions,
           dpr: fixture.dpr ?? 1,
+          mode: hardMode ? 1 : 0,
         });
         const reconstructionSnapshot = reconstructionPass.getSnapshot();
         const [reconstructedBytes] = await Promise.all([
@@ -716,14 +722,24 @@ async function runFixture(device, fixture) {
           visibilityOracle,
           fixture.dpr ?? 1,
           fixture.reconstructionOptions,
+          hardMode ? 1 : 0,
         );
         result.reconstructionTexels = cpu.rw * cpu.rh;
-        result.reconstruction = oracle.compareReconstructedVisibility(
-          fixture,
-          reconstructionOracle,
-          reconstructed,
-          cpu.rw,
-        );
+        result.reconstruction = hardMode
+          ? oracle.compareReconstructedVisibility(
+              fixture,
+              reconstructionOracle,
+              reconstructed,
+              cpu.rw,
+              0,
+              "visibility-reconstructed-hard",
+            )
+          : oracle.compareReconstructedVisibility(
+              fixture,
+              reconstructionOracle,
+              reconstructed,
+              cpu.rw,
+            );
       }
 
       // #28 lighting stage: consume the #25 materialId, #26 normal and #27
@@ -1343,6 +1359,12 @@ async function runPresentationFixture(device, fixture) {
           reference.visibility,
           reference.objectId,
           frame.compositeOptions,
+          // #53: the HARD refinement consumes exact dyadic values with ZERO
+          // cross-backend tolerance — no legal drift, portable by
+          // construction; the SOFT bilateral keeps the documented 1e-6.
+          reference.reconstructionMode === 1
+            ? 0
+            : oracle.RECONSTRUCTION_VISIBILITY_TOLERANCE,
         );
         detail.push(
           `  quantization margin (${fixture.name}): min=${quantization.minMargin.toExponential(3)} ` +
@@ -1630,7 +1652,16 @@ async function runReconstructionBenchmark(device) {
     });
     for (const radius of RECON_BENCH_RADII) {
       const pass = new api.ReconstructionPass(device);
-      const input = { ...rawVisibilityBinding, ...inputs, options: { radius }, dpr: 1 };
+      // #53 keying fix: the pass input takes named field bindings (the flat
+      // spread of rawVisibilityBinding left `rawVisibility` undefined, so
+      // the reconstruction benchmark never produced rows).
+      const input = {
+        rawVisibility: rawVisibilityBinding,
+        ...inputs,
+        options: { radius },
+        dpr: 1,
+        mode: 0,
+      };
       pass.dispatch(input);
       // the sanitized effective options the pass actually ran
       const snapshot = pass.getSnapshot();
@@ -1654,12 +1685,14 @@ async function runReconstructionBenchmark(device) {
     const combined = async () => {
       shadowPass.dispatch(shadowInput);
       reconPass.dispatch({
-        ...rawVisibilityBinding,
+        rawVisibility: rawVisibilityBinding,
         ...inputs,
         options: { radius: 2 },
         dpr: 1,
+        mode: 0,
       });
     };
+    const combinedMedianMs = await runTimed(combined);
     rows.push({
       stage: "shadow+reconstruction",
       requestedSamples: RECON_BENCH_SAMPLES,
@@ -1667,7 +1700,34 @@ async function runReconstructionBenchmark(device) {
       softActive: true,
       reconstructionActive: true,
       radiusTexels: reconPass.getSnapshot().options.radiusTexels,
-      hostMedianMs: await runTimed(combined),
+      hostMedianMs: combinedMedianMs,
+      warmups: SHADOW_BENCH_WARMUP,
+      samples_taken: SHADOW_BENCH_SAMPLES,
+      width: BENCHMARK_WIDTH,
+      height: BENCHMARK_HEIGHT,
+    });
+    // #53 hard display path: the same chain with kernel mode 1 (the
+    // ring-rule binomial refinement replaces the bilateral for hard frames;
+    // radius is ignored by the fixed 3x3 ring semantics)
+    const hardCombined = async () => {
+      shadowPass.dispatch(shadowInput);
+      reconPass.dispatch({
+        rawVisibility: rawVisibilityBinding,
+        ...inputs,
+        options: { radius: 2 },
+        dpr: 1,
+        mode: 1,
+      });
+    };
+    const hardMedianMs = await runTimed(hardCombined);
+    rows.push({
+      stage: "shadow+reconstruction-hard",
+      requestedSamples: 1,
+      effectiveSamples: 1,
+      softActive: false,
+      reconstructionActive: true,
+      radiusTexels: 1,
+      hostMedianMs: hardMedianMs,
       warmups: SHADOW_BENCH_WARMUP,
       samples_taken: SHADOW_BENCH_SAMPLES,
       width: BENCHMARK_WIDTH,

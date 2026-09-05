@@ -304,8 +304,9 @@ describe("React backend — WebGPU selection", () => {
     expect(state.backend).toBe("webgpu");
     expect(state.gpuFallbackReason).toBeNull();
     expect(state.gpuFrame).not.toBeNull();
-    // Direct GPU presentation: the whole #31 chain submitted, no 2D copy.
-    expect(device.submits.length).toBe(5);
+    // Direct GPU presentation: the whole #31/#53 chain submitted (the hard
+    // frame runs the #53 ring-rule refinement stage), no 2D copy.
+    expect(device.submits.length).toBe(6);
     expect(layer!.debugBuffers()).toBeNull();
 
     // Scene/environment/exposure/shadow options keep flowing on the GPU path:
@@ -313,7 +314,7 @@ describe("React backend — WebGPU selection", () => {
     // height/normal fields stay retained).
     layer!.setEnvironment({ intensity: 0.2 });
     layer!.render();
-    expect(device.submits.length).toBe(7);
+    expect(device.submits.length).toBe(8);
     expect(layer!.debugState().gpuFrame!.frame.invalidation.reasons).toEqual([
       "environment",
     ]);

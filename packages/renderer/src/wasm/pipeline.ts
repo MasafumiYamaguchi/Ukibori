@@ -1,6 +1,6 @@
 import { composeCasterHeightField, composeSdfHeightField } from "../geometry";
 import { computeVisibility } from "../shadow";
-import { reconstructVisibility, sanitizeReconstructionOptions } from "../shadow-reconstruct";
+import { reconstructVisibility, refineHardEdgeVisibility, sanitizeReconstructionOptions } from "../shadow-reconstruct";
 import { sanitizeAngularRadius, sanitizeShadowSamples } from "../shadow-sampling";
 import { shadePreparedFields } from "../lighting";
 import type { LightingBuffers, LightingOptions } from "../lighting";
@@ -160,19 +160,24 @@ export class WasmCpuPipeline {
     });
     throwIfAborted(signal);
 
-    // ---- stage 3b: #43 edge-aware reconstruction (TypeScript oracle) ----
-    // Mirrors lightScene exactly: hard-path frames and disabled options keep
-    // the raw field, soft frames consume the reconstructed one.
+    // ---- stage 3b: #43/#53 display-field reconstruction (TypeScript
+    // oracle) ---- Mirrors lightScene exactly: the soft path consumes the
+    // value-bilateral reconstruction, the hard path the ring-rule binomial
+    // edge refinement (#53), disabled options keep the raw field.
     const softActive =
       sanitizeAngularRadius(
         typeof scene.light.angularRadius === "number" ? scene.light.angularRadius : undefined,
       ) > 0 && sanitizeShadowSamples(shadowOptions.samples) > 1;
-    const reconstructedVisibility =
-      softActive && sanitizeReconstructionOptions(shadowOptions.reconstruction).enabled
+    const reconstructionEnabled = sanitizeReconstructionOptions(
+      shadowOptions.reconstruction,
+    ).enabled;
+    const reconstructedVisibility = !reconstructionEnabled
+      ? visibility
+      : softActive
         ? reconstructVisibility(visibility, composed.height, {
             objectId: composed.objectId,
           }, shadowOptions.reconstruction)
-        : visibility;
+        : refineHardEdgeVisibility(visibility);
     throwIfAborted(signal);
 
     // ---- stage 4: BRDF + environment + exposure (TypeScript oracle) ----

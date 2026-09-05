@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+﻿import { describe, expect, it } from "vitest";
 import { createScene } from "../scene";
 import type { Scene } from "../scene";
 import type {
@@ -293,27 +293,28 @@ function setup() {
 
 // ---------------------------------------------------------------------------
 
-describe("GpuScenePipeline 窶・full-chain orchestrator", () => {
-  it("runs encode -> upload -> height -> normal -> shadow -> lighting -> presentation in order", () => {
+describe("GpuScenePipeline 遯ｶ繝ｻfull-chain orchestrator", () => {
+  it("runs encode -> upload -> height -> normal -> shadow -> reconstruction -> lighting -> presentation in order", () => {
     const { device, context, pipeline } = setup();
     const stats = pipeline.render({ scene: sceneA(), dpr: 1 });
-    // five stage encoders in order: height, normal, shadow, lighting,
-    // presentation (each pass owns one encoder + one submission)
-    expect(device.encoders).toHaveLength(5);
+    // six stage encoders in order: height, normal, shadow, reconstruction
+    // (#53 hard-mode edge refinement), lighting, presentation (each pass
+    // owns one encoder + one submission)
+    expect(device.encoders).toHaveLength(6);
     const heightEnc = device.encoders[0];
     expect(heightEnc.log[0]).toBe("beginComputePass");
     // compute passes run before the render pass of the final stage
     const allPasses: string[] = device.encoders.flatMap((encoder) => encoder.log);
     const renderPasses = allPasses.filter((entry) => entry.startsWith("beginRenderPass")).length;
     expect(renderPasses).toBe(1); // only the presentation stage uses a render pass
-    // the four compute stages each begin with compute passes; the final
+    // the five compute stages each begin with compute passes; the final
     // presentation stage begins with the render pass (height/normal/shadow/
-    // lighting may begin a compute pass several times per dispatch)
-    for (const encoder of device.encoders.slice(0, 4)) {
+    // reconstruction/lighting may begin a compute pass several times per dispatch)
+    for (const encoder of device.encoders.slice(0, 5)) {
       expect(encoder.log[0]).toBe("beginComputePass");
     }
-    expect(device.encoders[4].log[0]).toBe("beginRenderPass(1 attachment)");
-    expect(device.submits).toHaveLength(5); // one queue submission per stage
+    expect(device.encoders[5].log[0]).toBe("beginRenderPass(1 attachment)");
+    expect(device.submits).toHaveLength(6); // one queue submission per stage
     // the canvas backing store exposed by the presentation context was
     // resized to the encoded render extent (same object, no divergence)
     expect(context.canvas.width).toBe(100);
@@ -348,7 +349,7 @@ describe("GpuScenePipeline 窶・full-chain orchestrator", () => {
     expect(second.dpr).toBe(1);
     // the presentation bind group references THIS frame's lighting output
     // with THIS frame's extent (pass-level allocations may be reused across
-    // frames 窶・the caching contract 窶・so the per-frame identity is the
+    // frames 遯ｶ繝ｻthe caching contract 遯ｶ繝ｻso the per-frame identity is the
     // provenance object and the bound byte sizes, not buffer object identity)
     const presentationGroup = device.bindGroups.at(-1)!;
     const colorEntry = presentationGroup.entries[1];
@@ -359,8 +360,11 @@ describe("GpuScenePipeline 窶・full-chain orchestrator", () => {
     expect(objectIdEntry.resource.buffer).toBe(second.heightPass.outputs.objectId.buffer);
     expect(objectIdEntry.resource.size).toBe(second.heightPass.outputs.objectId.byteLength);
     const visibilityEntry = presentationGroup.entries[3];
-    expect(visibilityEntry.resource.buffer).toBe(second.shadowPass.output.buffer);
-    expect(visibilityEntry.resource.size).toBe(second.shadowPass.output.byteLength);
+    // #53: the display field is the reconstruction stage's output (the hard
+    // frame ran the ring-rule refinement; the raw field stays the shadow
+    // snapshot's oracle/debug source)
+    expect(visibilityEntry.resource.buffer).toBe(second.reconstructionPass?.output.buffer);
+    expect(visibilityEntry.resource.size).toBe(second.reconstructionPass?.output.byteLength);
     expect(device.renderPipelineFormats).toEqual(["rgba8unorm"]);
   });
 
@@ -373,7 +377,7 @@ describe("GpuScenePipeline 窶・full-chain orchestrator", () => {
     expect(context.canvas.width).toBe(128);
     expect(context.canvas.height).toBe(96);
     expect(context.configured).toHaveLength(1); // config reused across sizes
-    expect(device.submits).toHaveLength(10);
+    expect(device.submits).toHaveLength(12);
   });
 
   it("forwards composite options and the test-only debug flag to the presentation pass", () => {
@@ -434,7 +438,7 @@ describe("GpuScenePipeline 窶・full-chain orchestrator", () => {
   });
 });
 
-describe("GpuScenePipeline 窶・#31 dirty-pass scheduling and retained resources", () => {
+describe("GpuScenePipeline 遯ｶ繝ｻ#31 dirty-pass scheduling and retained resources", () => {
   const writePayloads = (device: MockFullDevice): number[][] =>
     device.writes.map((write) => Array.from(write.bytes));
 
@@ -453,17 +457,18 @@ describe("GpuScenePipeline 窶・#31 dirty-pass scheduling and retained resource
     ]);
     expect(stats.invalidation.skipped).toEqual([]);
     expect(stats.invalidation.retained).toBe(false);
-    expect(device.submits).toHaveLength(5);
+    expect(device.submits).toHaveLength(6);
     // per-frame profile: one dispatch per compute pass (height = sdf(0) +
-    // compose(5); normal/shadow/lighting = 1 each) and one queue.submit per
-    // stage that actually submits (upload only writeBuffer -> 0)
-    expect(stats.frame.dispatchCount).toBe(8);
-    expect(stats.frame.submissions).toBe(5);
+    // compose(5); normal/shadow/reconstruction/lighting = 1 each) and one
+    // queue.submit per stage that actually submits (upload only
+    // writeBuffer -> 0)
+    expect(stats.frame.dispatchCount).toBe(9);
+    expect(stats.frame.submissions).toBe(6);
     expect(stats.frame.bytesUploaded).toBeGreaterThan(0);
     expect(stats.frame.newAllocations).toBeGreaterThan(0);
     expect(stats.totals.frames).toBe(1);
-    expect(stats.totals.dispatches).toBe(8);
-    expect(stats.totals.submissions).toBe(5);
+    expect(stats.totals.dispatches).toBe(9);
+    expect(stats.totals.submissions).toBe(6);
     // all durations are labeled host (wall-clock) values
     for (const stage of ["upload", "height", "normal", "shadow", "lighting", "presentation"] as const) {
       expect(stats.frame.passDurations[stage]).toBeGreaterThanOrEqual(0);
@@ -544,7 +549,7 @@ describe("GpuScenePipeline 窶・#31 dirty-pass scheduling and retained resource
     expect(stats.invalidation.retained).toBe(false);
     expect(stats.upload.bytesUploaded).toBeGreaterThan(0);
     expect(stats.height.composePasses).toBe(5);
-    expect(device.submits.length).toBe(10);
+    expect(device.submits.length).toBe(12);
   });
 
   it("propagates a normal-options change only to normal, lighting and presentation", () => {
@@ -582,8 +587,9 @@ describe("GpuScenePipeline 窶・#31 dirty-pass scheduling and retained resource
     expect(stats.invalidation.reasons).toEqual(["shadow-options"]);
     expect(stats.invalidation.executed).toEqual(["shadow", "reconstruction", "lighting", "presentation"]);
     expect(stats.invalidation.skipped).toEqual(["upload", "height", "normal"]);
-    // hard-shadow scene: reconstruction stays BYPASSED (3 dispatching stages)
-    expect(device.submits.length).toBe(submits + 3);
+    // hard-shadow scene: the #53 ring-rule edge refinement now runs as the
+    // reconstruction stage (4 dispatching stages)
+    expect(device.submits.length).toBe(submits + 4);
   });
 
   it("propagates a lighting-options (ambient) change only to lighting and presentation", () => {
@@ -643,7 +649,7 @@ describe("GpuScenePipeline 窶・#31 dirty-pass scheduling and retained resource
     expect(replayed.invalidation.reasons).toContain("viewport");
     expect(replayed.invalidation.executed).toHaveLength(7);
     // the replayed upload bytes are byte-identical to frame 1 (deterministic
-    // encode) 窶・the forced recompute produces the same effective payloads
+    // encode) 遯ｶ繝ｻthe forced recompute produces the same effective payloads
     const replayWrites = device.writes.slice(writesBeforeReplay).map((w) => Array.from(w.bytes));
     expect(replayWrites).toEqual(frame1Writes);
     // a fresh height dispatch produced a fresh per-dispatch provenance token
@@ -715,11 +721,11 @@ describe("GpuScenePipeline 窶・#31 dirty-pass scheduling and retained resource
     const second = setup();
     const stats = second.pipeline.render({ scene: sceneA(), dpr: 1 });
     expect(stats.invalidation.retained).toBe(false);
-    expect(second.device.submits).toHaveLength(5);
+    expect(second.device.submits).toHaveLength(6);
   });
 });
 
-describe("GpuScenePipeline 窶・semantic scene invalidation (light/env/material)", () => {
+describe("GpuScenePipeline 遯ｶ繝ｻsemantic scene invalidation (light/env/material)", () => {
   /** sceneA with a different light direction (geometry identical). */
   const withLight = (direction: { x: number; y: number; z: number }, intensity = 1): Scene => {
     const base = sceneA();
@@ -763,20 +769,20 @@ describe("GpuScenePipeline 窶・semantic scene invalidation (light/env/material
     const { device, pipeline } = setup();
     const first = pipeline.render({ scene: sceneA(), dpr: 1 });
     const firstProvenance = pipeline.getSnapshot().heightPass.provenance;
-    const submits = device.submits.length; // 5
+    const submits = device.submits.length; // 6
     const stats = pipeline.render({
       scene: withLight({ x: 0, y: 0, z: 1 }),
       dpr: 1,
     });
     // #43 review: the direction change also moved |light.xy|, which shifts
-    // the context-derived default maxDistance 窶・the effective shadow options
+    // the context-derived default maxDistance 遯ｶ繝ｻthe effective shadow options
     // changed, so shadow-options fires alongside light-direction (never
     // swallowed). The planning stays full with the semantic reason.
     expect(stats.invalidation.reasons).toEqual(["light-direction", "shadow-options"]);
     expect(stats.invalidation.executed).toEqual(["upload", "shadow", "reconstruction", "lighting", "presentation"]);
     expect(stats.invalidation.skipped).toEqual(["height", "normal"]);
-    // exactly four stages submitted: no height/normal work
-    expect(device.submits.length).toBe(submits + 3);
+    // exactly five stages submitted (incl. the #53 hard-mode refinement): no height/normal work
+    expect(device.submits.length).toBe(submits + 4);
     expect(stats.upload.bytesUploaded).toBeGreaterThan(0);
     // the retained height/normal fields keep their provenance and buffers
     const snapshot = pipeline.getSnapshot();
@@ -845,7 +851,7 @@ describe("GpuScenePipeline 窶・semantic scene invalidation (light/env/material
       "shadow-options",
     ]);
     expect(stats.invalidation.executed).toHaveLength(7);
-    expect(device.submits.length).toBe(submits + 5);
+    expect(device.submits.length).toBe(submits + 6);
     const snapshot = pipeline.getSnapshot();
     expect(snapshot.heightPass.provenance).not.toBe(firstProvenance);
     expect(snapshot.normalPass.provenance).toBe(snapshot.heightPass.provenance);
@@ -866,11 +872,11 @@ describe("GpuScenePipeline 窶・semantic scene invalidation (light/env/material
       "shadow-options",
     ]);
     expect(stats.invalidation.executed).toEqual(["upload", "shadow", "reconstruction", "lighting", "presentation"]);
-    expect(device.submits.length).toBe(submits + 3);
+    expect(device.submits.length).toBe(submits + 4);
   });
 });
 
-describe("WebGpuBackend 窶・capabilities.compute stays false until #30", () => {
+describe("WebGpuBackend 遯ｶ繝ｻcapabilities.compute stays false until #30", () => {
   it("still reports compute: false (no public GPU selection before parity)", async () => {
     const { WebGpuBackend } = await import("../backend/webgpu");
     const backend = new WebGpuBackend({ destroy() {} } as never);
@@ -880,7 +886,7 @@ describe("WebGpuBackend 窶・capabilities.compute stays false until #30", () =>
   });
 });
 
-describe("GpuScenePipeline 窶・#43 reconstruction bypass and binding transitions", () => {
+describe("GpuScenePipeline 遯ｶ繝ｻ#43 reconstruction bypass and binding transitions", () => {
   function softScene(angularRadius: number): Scene {
     return createScene({
       // same extent as sceneA so hard<->soft switches are light-direction/
@@ -905,43 +911,54 @@ describe("GpuScenePipeline 窶・#43 reconstruction bypass and binding transitio
     });
   }
 
-  it("never dispatches reconstruction on hard-shadow, samples-1, disabled or radius-0 frames", () => {
-    const cases: Array<{ name: string; scene: Scene; shadowOptions: Record<string, unknown> }> = [
-      { name: "angularRadius 0", scene: sceneA(), shadowOptions: { samples: 8 } },
-      {
-        name: "samples 1",
-        scene: softScene(Math.fround(0.2)),
-        shadowOptions: { samples: 1 },
-      },
-      {
-        name: "enabled false",
-        scene: softScene(Math.fround(0.2)),
-        shadowOptions: { samples: 8, reconstruction: { enabled: false } },
-      },
-      {
-        name: "radius 0",
-        scene: softScene(Math.fround(0.2)),
-        shadowOptions: { samples: 8, reconstruction: { radius: 0 } },
-      },
+  it("runs the reconstruction stage on every shadow path, bypassed only when disabled (or soft radius 0)", () => {
+    // #53: the stage runs BOTH modes 窶・soft frames run the value-bilateral
+    // penumbra reconstruction; hard frames (angularRadius 0 / samples 1) run
+    // the ring-rule binomial edge refinement. `enabled: false` (or a soft
+    // radius 0) bypasses the stage and the raw field flows through.
+    const softSceneA = softScene(Math.fround(0.2));
+    const cases: Array<{
+      name: string;
+      scene: Scene;
+      shadowOptions: Record<string, unknown>;
+      active: boolean;
+      mode: number;
+    }> = [
+      { name: "angularRadius 0 (hard refine)", scene: sceneA(), shadowOptions: { samples: 8 }, active: true, mode: 1 },
+      { name: "samples 1 (hard refine)", scene: softSceneA, shadowOptions: { samples: 1 }, active: true, mode: 1 },
+      { name: "enabled false", scene: softSceneA, shadowOptions: { samples: 8, reconstruction: { enabled: false } }, active: false, mode: 0 },
+      { name: "radius 0 (soft bypass)", scene: softSceneA, shadowOptions: { samples: 8, reconstruction: { radius: 0 } }, active: false, mode: 0 },
     ];
     for (const c of cases) {
       const { device, pipeline } = setup();
       const stats = pipeline.render({ scene: c.scene, dpr: 1, shadowOptions: c.shadowOptions });
-      expect(stats.reconstructionActive, c.name).toBe(false);
-      // zeroed activity: no dispatch, no submission
-      expect(stats.reconstruction.workgroupCountX, c.name).toBe(0);
-      expect(stats.reconstruction.submissions, c.name).toBe(0);
-      // no stale ReconstructionPass snapshot is ever consumed
-      expect(pipeline.getSnapshot().reconstructionPass, c.name).toBeNull();
+      expect(stats.reconstructionActive, c.name).toBe(c.active);
+      if (c.active) {
+        expect(stats.reconstruction.workgroupCountX, c.name).toBeGreaterThan(0);
+        expect(stats.reconstruction.submissions, c.name).toBeGreaterThan(0);
+        const snapshot = pipeline.getSnapshot().reconstructionPass;
+        expect(snapshot, c.name).not.toBeNull();
+        expect(snapshot!.lastDispatch.mode, c.name).toBe(c.mode);
+      } else {
+        // zeroed activity: no dispatch, no submission
+        expect(stats.reconstruction.workgroupCountX, c.name).toBe(0);
+        expect(stats.reconstruction.submissions, c.name).toBe(0);
+        // no stale ReconstructionPass snapshot is ever consumed
+        expect(pipeline.getSnapshot().reconstructionPass, c.name).toBeNull();
+      }
       // the shadow pass still ran the soft/hard path as configured
       expect(stats.shadow.workgroupCountX).toBeGreaterThan(0);
     }
   });
 
-  it("consumes the raw field on hard frames and the reconstructed field on soft frames", () => {
+  it("consumes the refined field on hard frames and the reconstructed field on soft frames", () => {
     const { pipeline } = setup();
+    // #53: the hard frame runs the ring-rule refinement; the display field
+    // is the refined output (the RAW {0,1} bytes stay the oracle source and
+    // are exposed by the shadow snapshot for debugging/parity).
     const hard = pipeline.render({ scene: sceneA(), dpr: 1, shadowOptions: { samples: 8 } });
-    expect(hard.reconstructionActive).toBe(false);
+    expect(hard.reconstructionActive).toBe(true);
+    expect(pipeline.getSnapshot().reconstructionPass!.lastDispatch.mode).toBe(1);
     const soft = pipeline.render({
       scene: softScene(Math.fround(0.2)),
       dpr: 1,
@@ -960,6 +977,7 @@ describe("GpuScenePipeline 窶・#43 reconstruction bypass and binding transitio
     const softSnapshot = pipeline.getSnapshot();
     expect(softSnapshot.reconstructionPass).not.toBeNull();
     expect(softSnapshot.reconstructionPass!.options.radiusTexels).toBe(2);
+    expect(softSnapshot.reconstructionPass!.lastDispatch.mode).toBe(0);
     // a reconstruction-only option change (radius) re-runs reconstruction +
     // lighting + presentation on the SAME retained raw field
     const reconOnly = pipeline.render({
@@ -981,20 +999,22 @@ describe("GpuScenePipeline 窶・#43 reconstruction bypass and binding transitio
 
   it("switching hard <-> soft never consumes a stale reconstruction snapshot", () => {
     const { pipeline } = setup();
-    // soft frame first: reconstruction active
+    // soft frame first: reconstruction active (soft mode)
     const soft = pipeline.render({
       scene: softScene(Math.fround(0.2)),
       dpr: 1,
       shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 2 } },
     });
     expect(soft.reconstructionActive).toBe(true);
-    // back to hard: the angularRadius change re-runs shadow/lighting/
-    // presentation and MUST bind the RAW field (reconstructionActive false),
-    // not the retained reconstructed buffer
+    expect(pipeline.getSnapshot().reconstructionPass!.lastDispatch.mode).toBe(0);
+    // back to hard: the angularRadius change re-runs shadow/reconstruction/
+    // lighting/presentation and MUST re-run the refinement in HARD mode
+    // against the CURRENT raw field (never a stale soft-mode field)
     const hard = pipeline.render({ scene: sceneA(), dpr: 1, shadowOptions: { samples: 8 } });
     expect(hard.invalidation.reasons).toEqual(["light-angular-radius"]);
-    expect(hard.reconstructionActive).toBe(false);
-    expect(pipeline.getSnapshot().reconstructionPass).toBeNull();
+    expect(hard.reconstructionActive).toBe(true);
+    expect(pipeline.getSnapshot().reconstructionPass).not.toBeNull();
+    expect(pipeline.getSnapshot().reconstructionPass!.lastDispatch.mode).toBe(1);
     // soft again: a fresh reconstruction runs against the CURRENT raw field
     const softAgain = pipeline.render({
       scene: softScene(Math.fround(0.2)),
@@ -1003,6 +1023,7 @@ describe("GpuScenePipeline 窶・#43 reconstruction bypass and binding transitio
     });
     expect(softAgain.reconstructionActive).toBe(true);
     expect(pipeline.getSnapshot().reconstructionPass).not.toBeNull();
+    expect(pipeline.getSnapshot().reconstructionPass!.lastDispatch.mode).toBe(0);
   });
 
   it("disabling reconstruction on a soft frame binds the raw field (no stale recon)", () => {

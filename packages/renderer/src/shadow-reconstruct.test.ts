@@ -7,8 +7,12 @@ import {
   MAX_RECONSTRUCTION_RADIUS,
   MAX_RECONSTRUCTION_RADIUS_TEXELS,
   RECONSTRUCTION_HEIGHT_GATE,
+  RECONSTRUCTION_VALUE_SIGMA,
   reconstructVisibility,
+  refineHardEdgeVisibility,
   sanitizeReconstructionOptions,
+  RING_EDGE_MIN_ARC,
+  RING_EDGE_TRANSITIONS,
 } from "./shadow-reconstruct";
 import { createScene } from "./scene";
 import { computeVisibility } from "./shadow";
@@ -714,43 +718,54 @@ describe("#43 DPR-invariant CSS-space contract (height gate + footprint)", () =>
   });
 });
 
-describe("#43 reconstructed-visibility parity policy (tolerance evidence)", () => {
-  // The reconstructed quotient sum/tapCount is NOT dyadic (3/25, 7/49, ...),
-  // so CPU/GPU parity must not be promised bit-exact. This test collects the
-  // ULP evidence: an f32-accumulation simulation of the WGSL path (each add
-  // and the division rounded to f32) against the CPU reference (f64 sum,
-  // f32-rounded quotient once). With dyadic raw visibility the intermediate
-  // sums are exact in BOTH precisions, so the measured delta is 0 ulp — the
-  // documented tolerance (1e-6) covers legal-backend division/rounding
-  // variance, not CPU-vs-GPU math determinism.
+describe("#43/#53 reconstructed-visibility parity policy (tolerance evidence)", () => {
+  // The reconstructed weighted quotient sum(w*v)/sum(w) is NOT dyadic
+  // (3/25, 7/49, ... and non-dyadic Gaussian weights), so CPU/GPU parity
+  // must not be promised bit-exact. This test collects the ULP evidence: an
+  // f32-accumulation simulation of the WGSL path (each weight, add and the
+  // division rounded to f32) against the CPU reference (f64 sums, f32-
+  // rounded quotient once). The measured delta must stay INSIDE the
+  // documented tolerance (1e-6); the max-ULP count is reported as evidence
+  // that the tolerance covers accumulation/rounding variance, not an
+  // algorithmic difference (both paths run the SAME taps and weights).
 
   function f32SimulationPath(
     raw: HostBuffer,
     height: HostBuffer,
     radiusTexels: number,
     heightGate: number,
+    objectId: HostBuffer | null,
   ) {
     const { width, height: h } = raw.spec;
     const out = new HostBuffer(VISIBILITY_SPEC(width, h));
     const gate = Math.fround(heightGate);
+    const sigma = Math.fround(RECONSTRUCTION_VALUE_SIGMA);
+    const twoSigma2 = Math.fround(2 * sigma * sigma);
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < width; x++) {
         const centerY = height.get(x, y, 0);
+        const centerOwner = objectId !== null ? objectId.get(x, y, 0) : NO_OWNER;
+        const centerVis = raw.get(x, y, 0);
         let sum = 0;
-        let taps = 0;
+        let wsum = 0;
         for (let dy = -radiusTexels; dy <= radiusTexels; dy++) {
           const ny = Math.min(h - 1, Math.max(0, y + dy));
           for (let dx = -radiusTexels; dx <= radiusTexels; dx++) {
             const nx = Math.min(width - 1, Math.max(0, x + dx));
+            if (objectId !== null && objectId.get(nx, ny, 0) !== centerOwner) {
+              continue;
+            }
             const nh = height.get(nx, ny, 0);
             if (Math.abs(Math.fround(centerY - nh)) > gate) {
               continue;
             }
-            sum = Math.fround(sum + raw.get(nx, ny, 0)); // f32 accumulate
-            taps += 1;
+            const dv = Math.fround(raw.get(nx, ny, 0) - centerVis);
+            const w = Math.fround(Math.exp(-Math.fround((dv * dv) / twoSigma2)));
+            sum = Math.fround(sum + Math.fround(w * raw.get(nx, ny, 0))); // f32 accumulate
+            wsum = Math.fround(wsum + w);
           }
         }
-        const vis = taps > 0 ? Math.fround(sum / taps) : raw.get(x, y, 0);
+        const vis = wsum > 0 ? Math.fround(sum / wsum) : centerVis;
         out.set(x, y, 0, Math.min(1, Math.max(0, vis)));
       }
     }
@@ -786,9 +801,11 @@ describe("#43 reconstructed-visibility parity policy (tolerance evidence)", () =
       composed.height,
       2,
       RECONSTRUCTION_HEIGHT_GATE,
+      composed.objectId,
     );
     let maxUlp = 0;
     let differing = 0;
+    let maxAbs = 0;
     const { width, height: h } = visibility.spec;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < width; x++) {
@@ -797,16 +814,18 @@ describe("#43 reconstructed-visibility parity policy (tolerance evidence)", () =
         if (a !== b) {
           differing += 1;
         }
-        const ulp = Math.abs(a - b) / f32Ulp(a);
+        const abs = Math.abs(a - b);
+        maxAbs = Math.max(maxAbs, abs);
+        const ulp = abs / f32Ulp(a);
         maxUlp = Math.max(maxUlp, ulp);
       }
     }
-    // Evidence: with dyadic raw inputs both paths produce the SAME f32
-    // quotient (0 differing texels, 0 ulp). The documented tolerance
-    // (1e-6 ≈ 16-30 ulp) therefore covers backend/driver division rounding
-    // variance, not a measurable CPU/GPU algorithmic difference.
-    expect(differing).toBe(0);
-    expect(maxUlp).toBe(0);
+    // Evidence: the f32 path (weights + accumulation + division rounded per
+    // step) stays INSIDE the documented tolerance against the f64 reference
+    // — the 1e-6 tolerance covers real f32 accumulation/rounding variance,
+    // not an algorithmic difference (identical taps and weights).
+    expect(maxAbs).toBeLessThanOrEqual(1e-6);
+    expect(maxUlp).toBeLessThanOrEqual(64);
     // and the quotient really is non-dyadic: verify the reconstructed field
     // contains values whose f32 representation is not a k/16 dyadic
     const reconValues = toArray(reference);

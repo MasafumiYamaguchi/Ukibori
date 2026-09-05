@@ -382,9 +382,12 @@ describe("UkiboriDom — WebGPU canvas lifecycle / DPR contract (blank-frame reg
     layer.register(button, BUTTON_OPTIONS);
     layer.render();
 
-    // Full chain: 4 compute submits + 1 presentation submit; the guarded
-    // backing-store writes sit between them (300x150 default -> 288x172).
+    // Full chain: 5 compute submits (height/normal/shadow/reconstruction/
+    // lighting —the #53 hard frame runs the ring-rule refinement) + 1
+    // presentation submit; the guarded backing-store writes sit between them
+    // (300x150 default -> 288x172).
     expect(timeline).toEqual([
+      "submit",
       "submit",
       "submit",
       "submit",
@@ -478,8 +481,10 @@ describe("UkiboriDom — WebGPU canvas lifecycle / DPR contract (blank-frame reg
     layer.render();
     // Exactly one guarded pair between initial frame and the new present.
     // The pipeline sizes the store right BEFORE its own presentation (after
-    // the four compute submissions of the full chain).
+    // the five compute submissions of the full chain —#53 adds the hard
+    // ring-rule refinement stage).
     expect(timeline.slice(eventsAfterInitial)).toEqual([
+      "submit",
       "submit",
       "submit",
       "submit",
@@ -497,6 +502,7 @@ describe("UkiboriDom — WebGPU canvas lifecycle / DPR contract (blank-frame reg
     layer.setDpr(1.5);
     layer.render();
     expect(timeline.slice(eventsAfterDpr2)).toEqual([
+      "submit",
       "submit",
       "submit",
       "submit",
