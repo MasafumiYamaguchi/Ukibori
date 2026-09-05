@@ -39,7 +39,7 @@ showed no light response at all.
 
 ## Alignment numbers (DOM ink center vs mask ink center, CSS px)
 
-`canDelegate` / `lines` / `inkAttr` = the review-round-2 fidelity evidence:
+`canDelegate` / `lines` / `inkAttr` = the review-round-2/3 fidelity evidence:
 the delegation gate result, the live line-rect count, and the presence of
 the layer-owned `data-ukibori-physical-ink` attribute.
 
@@ -53,11 +53,22 @@ the layer-owned `data-ukibori-physical-ink` attribute.
 | PLAY 700 @64 px, DPR 1.5 | +9.00 px | 0.00 px | true | 1 | present |
 | PLAY 700 @64 px, DPR 2 | +9.00 px | 0.00 px | true | 1 | present |
 | 3-line wrap "PLAY STOP WAIT" 700 @48 px (140 px box), DPR 1 | n/a | n/a | **false** | 3 | **absent** |
+| "play" 700 @64 px + `text-transform: uppercase`, DPR 1 | n/a | n/a | **false** | 1 | **absent** |
+| "PLAY" 700 @64 px + `letter-spacing: 2px`, DPR 1 | n/a | 0.00 px | true | 1 | present |
 
 The multiline row is the fidelity fixture: a constrained box wraps the text
 into three lines, the single-line mask cannot represent it, and the policy
 keeps the DOM ink visible (the mask stays registered as geometry only —
 mask/DOM bounds intentionally diverge there; not an alignment case).
+
+The text-transform row is the review-round-3 typography fixture: the DOM
+paints "PLAY" while the single fillText raster draws the raw "play", so the
+gate keeps the ink delegated-off (no home-grown upper/lower/capitalize).
+The letter-spacing row is the mirror fixture: this Chrome's canvas supports
+`letterSpacing` (the harness probe also reports wordSpacing, fontKerning,
+fontStretch, fontVariantCaps, textRendering and direction as supported),
+the computed value is applied and read back, and the mask ink coincides
+with the DOM ink exactly (dCenter 0.00/0.00).
 
 Horizontal: the DOM ink sat ~1–1.5 px left of the mask ink (center vs left
 anchoring); after the fix the residual is ≤ 0.5 px — the screenshot/mask

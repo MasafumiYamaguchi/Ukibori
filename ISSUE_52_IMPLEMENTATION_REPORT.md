@@ -74,8 +74,8 @@ registration, which only happens in physical mode:
 |---|---|
 | Before mask ready (no shape) / rasterization failure | visible (never registered; a failure for the current value drops the raster entirely — no stale previous glyph) |
 | Physical mask ready + physical backend active (CPU or WebGPU) + faithful raster (`canDelegateInk`) | node/text/selection/aria/layout intact, ink delegated to the relief |
-| Fidelity-degraded raster (multiline / metrics unavailable / typography mismatch) | visible — the mask may stay registered as geometry, but the DOM ink is never suppressed |
-| Props changed since the last raster (identity mismatch) | visible (render-time identity gate — the stale raster is not the visual representation) |
+| Fidelity-degraded raster (multiline / metrics unavailable / typography mismatch or unsupported DOM typography) | visible — the mask may stay registered as geometry, but the DOM ink is never suppressed |
+| Props changed since the last raster (identity mismatch: text/font/typography style/className) | visible (render-time identity gate — the stale raster is not the visual representation) |
 | CSS backend / provider-less / SSR / pre-hydration / high-contrast | visible (no registration in those modes) |
 
 ## Rejected/deferred candidates
@@ -101,6 +101,9 @@ registration, which only happens in physical mode:
   instead the fidelity gate keeps the DOM ink visible there (see below), so
   the fallback is DOM-visible rather than an incorrect physical
   representation.
+- **Typography engine — non-goal (review round 3)**: `text-transform` and
+  other DOM-only typography are NOT re-implemented on the canvas; unsupported
+  typography takes the DOM-visible fallback (see the fidelity gate below).
 
 ## Correctness
 
@@ -135,6 +138,38 @@ registration, which only happens in physical mode:
   metrics-unavailable fallback (mask registered, attr absent, text visible)
   and the explicit-font typography gate (geometry-only) in jsdom; the
   3-line wrap fixture in the real-browser alignment matrix.
+- **DOM typography fidelity (review round 3)**: the gate reads the element's
+  COMPUTED typography and classifies every relevant property:
+  - *fallback (never mirrored)* — `text-transform` (no home-grown
+    upper/lower/capitalize: the DOM paints "PLAY" while fillText draws the
+    raw "play"), vertical writing, text-decoration ink, text-emphasis
+    marks, -webkit-text-stroke ink, sub/super variant position, custom
+    OpenType features/variation axes → `canDelegateInk=false`, DOM ink
+    stays visible (pinned by the React text-transform test and the
+    real-browser fixture);
+  - *mirrored when supported* — letter-spacing, word-spacing, font-kerning,
+    font-stretch, font-variant-caps, text-rendering, direction: applied to
+    the canvas only when the implementation accepts the computed value AND
+    reads it back (set + verified); an unsupported implementation falls
+    back (pinned: letter-spacing supported/unsupported and word-spacing
+    both ways in jsdom; the real-browser letter-spacing fixture delegates
+    with mask ink coinciding with the DOM ink exactly);
+  - the real-browser probe additionally documents which mirrors THIS
+    Chrome's canvas supports (alignment report `typography.canvasSupport`).
+- **Raster identity follows DOM typography (review round 3)**: the raster
+  state is bound to (a) the typography-relevant prop identity — `className`
+  + the typography style fields (font*, fontSize/Weight/Style/Stretch,
+  lineHeight, letterSpacing, wordSpacing, textTransform, direction,
+  writing-mode, features, textRendering, text-decoration/emphasis,
+  -webkit-text-stroke-width) — checked at RENDER time with no DOM access,
+  and (b) the computed typography fingerprint read from the live element at
+  rasterization time, which dedupes effect re-runs that do not change the
+  resolved typography. Pinned: fontSize 32→96, fontWeight 400→900,
+  letter-spacing change and a className change (stylesheet-driven
+  font-size/weight) each re-rasterize while the delegation stands; a
+  typography change whose rasterization FAILS drops the stale raster and
+  reveals the DOM text; recovery re-acquires the delegation exactly once
+  and the structural css release still works (no refcount regression).
 - **Alignment**: real-browser measurement (screenshot round-trip ink
   segmentation vs mask alpha bounds) — the pre-fix DOM ink sat +5/+9/+14 px
   (font 32/64/96) below the mask ink and ~1–1.5 px left; after the
@@ -191,6 +226,15 @@ Committed artifacts: `packages/ukibori-dom/test-browser/glyph-ablation-artifacts
 5. **Explicit `font` prop with typography that differs from the DOM computed
    font**: the fidelity gate keeps the ink delegated-off (geometry only);
    delegation requires normalized raster/computed typography equality.
+6. **Unsupported complex typography** (text-transform, vertical writing,
+   text-decoration/emphasis/stroke ink, custom OpenType
+   features/variation axes): DOM-visible fallback — the mask stays geometry
+   only; no home-grown typography engine.
+7. **Typography changes that React cannot see** (e.g. a CSS variable or
+   media-query change outside the component's props/className): the raster
+   identity tracks the component's typography props and the computed
+   fingerprint at effect time; an externally mutated stylesheet value with
+   no prop change is not observed (documented boundary).
 
 ## Review round (PR #54)
 
@@ -212,12 +256,22 @@ Committed artifacts: `packages/ukibori-dom/test-browser/glyph-ablation-artifacts
   metrics + typography match; multiline/metrics-unavailable/typography-
   mismatched rasters keep the DOM ink visible). Renderer: still zero
   changes (no glyph-specific normal, no supersampling).
+- **Review round 3** — the fidelity gate became DOM-typography-faithful:
+  computed typography is classified into mirrorable (letter/word-spacing,
+  font-kerning/stretch/variant-caps, text-rendering, direction — applied
+  and verified by readback) vs fallback (text-transform, vertical writing,
+  decoration/emphasis/stroke ink, sub/super, custom features — DOM ink
+  stays visible); the raster identity additionally binds to the
+  typography-relevant style/className props (render-time gate) plus a
+  computed typography fingerprint (effect-level dedupe). Real-browser
+  fixtures: text-transform fallback and letter-spacing mirror (ink
+  coincides exactly). Renderer: still zero changes.
 
 ## Verification summary
 
 - `ukibori-renderer` typecheck / tests (incl. the 5 characterization tests) / build: pass
 - `ukibori-dom` typecheck / tests (126, incl. the transition-safe ownership policy tests) / build: pass; real-WebGPU DOM harness: `UKIBORI_DOM_GPU_PASS`
-- `ukibori` typecheck / tests (185, incl. the intent + alignment + generic-mask React tests and the review-round-2 identity/fidelity tests) / build: pass
+- `ukibori` typecheck / tests (196, incl. the intent + alignment + generic-mask React tests, the review-round-2 identity/fidelity tests and the review-round-3 typography-fidelity tests) / build: pass
 - `demo` build: pass
 - Ablation runner (light + alignment modes): OK, artifacts committed
-- Real-Chrome alignment matrix: dCenter 0.00 / ≤ 0.5 px across all cases (see `alignment/after`)
+- Real-Chrome alignment matrix: dCenter 0.00 / ≤ 0.5 px across the faithful cases (see `alignment/after`); the text-transform fixture pins the DOM-visible fallback and the letter-spacing fixture pins the mirror (mask ink coincides with the DOM ink exactly)

@@ -197,7 +197,15 @@ registration actually reflects a faithful raster of the element's own text
 registering component's responsibility — `<UkiboriText>` gates its intent
 through `rasterizeText`'s fidelity result and drops the raster (and the
 delegation) when the current value fails; multi-line/wrapped text keeps its
-DOM ink visible.
+DOM ink visible. The typography fidelity check (review round 3) mirrors
+letter/word-spacing, font-kerning/stretch/variant-caps, text-rendering and
+direction into the canvas only when the implementation accepts the computed
+value and reads it back, and falls back to the DOM-visible ink for
+typography the canvas cannot reproduce (text-transform, vertical writing,
+decoration/emphasis/stroke ink, custom OpenType features). The raster
+identity also binds to the typography-relevant style/className props and a
+computed typography fingerprint, so a style-driven typography change
+re-rasterizes (or falls back) instead of leaving a stale physical glyph.
 
 A registered element that measures to zero / non-positive size (e.g.
 `display: none`, detached, still laying out) is a **temporarily

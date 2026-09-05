@@ -27,6 +27,26 @@
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
+        "typography": {
+          "textTransform": "none",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "fontStretch": "100%",
+          "fontKerning": "auto",
+          "fontVariantCaps": "normal",
+          "textRendering": "auto",
+          "direction": "ltr",
+          "textDecorationLine": "none",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
         "lineBox": {
           "top": 0,
           "height": 43,
@@ -85,6 +105,26 @@
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
+        "typography": {
+          "textTransform": "none",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "fontStretch": "100%",
+          "fontKerning": "auto",
+          "fontVariantCaps": "normal",
+          "textRendering": "auto",
+          "direction": "ltr",
+          "textDecorationLine": "none",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
         "lineBox": {
           "top": 0,
           "height": 85,
@@ -143,6 +183,26 @@
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
+        "typography": {
+          "textTransform": "none",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "fontStretch": "100%",
+          "fontKerning": "auto",
+          "fontVariantCaps": "normal",
+          "textRendering": "auto",
+          "direction": "ltr",
+          "textDecorationLine": "none",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
         "lineBox": {
           "top": 0,
           "height": 128,
@@ -201,6 +261,26 @@
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
+        "typography": {
+          "textTransform": "none",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "fontStretch": "100%",
+          "fontKerning": "auto",
+          "fontVariantCaps": "normal",
+          "textRendering": "auto",
+          "direction": "ltr",
+          "textDecorationLine": "none",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
         "lineBox": {
           "top": 0,
           "height": 85,
@@ -259,6 +339,26 @@
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
+        "typography": {
+          "textTransform": "none",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "fontStretch": "100%",
+          "fontKerning": "auto",
+          "fontVariantCaps": "normal",
+          "textRendering": "auto",
+          "direction": "ltr",
+          "textDecorationLine": "none",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
         "lineBox": {
           "top": 0,
           "height": 85,
@@ -317,6 +417,26 @@
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
+        "typography": {
+          "textTransform": "none",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "fontStretch": "100%",
+          "fontKerning": "auto",
+          "fontVariantCaps": "normal",
+          "textRendering": "auto",
+          "direction": "ltr",
+          "textDecorationLine": "none",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
         "lineBox": {
           "top": 0,
           "height": 85,
@@ -375,6 +495,26 @@
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
+        "typography": {
+          "textTransform": "none",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "fontStretch": "100%",
+          "fontKerning": "auto",
+          "fontVariantCaps": "normal",
+          "textRendering": "auto",
+          "direction": "ltr",
+          "textDecorationLine": "none",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
         "lineBox": {
           "top": 0,
           "height": 85,
@@ -434,6 +574,26 @@
         "canDelegateInk": false,
         "lineRectCount": 3,
         "inkAttrPresent": false,
+        "typography": {
+          "textTransform": "none",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "fontStretch": "100%",
+          "fontKerning": "auto",
+          "fontVariantCaps": "normal",
+          "textRendering": "auto",
+          "direction": "ltr",
+          "textDecorationLine": "none",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
         "lineBox": {
           "top": 0,
           "height": 64,
@@ -462,6 +622,164 @@
           "top": 80,
           "width": 140,
           "height": 192
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "play",
+        "fontWeight": 700,
+        "fontPx": 64,
+        "dpr": 1,
+        "textTransform": "uppercase"
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 160,
+          "height": 85
+        },
+        "maskInk": {
+          "left": 21,
+          "top": 13,
+          "right": 144,
+          "bottom": 76
+        },
+        "maskSize": [
+          160,
+          85
+        ],
+        "canDelegateInk": false,
+        "lineRectCount": 1,
+        "inkAttrPresent": false,
+        "typography": {
+          "textTransform": "uppercase",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "fontStretch": "100%",
+          "fontKerning": "auto",
+          "fontVariantCaps": "normal",
+          "textRendering": "auto",
+          "direction": "ltr",
+          "textDecorationLine": "none",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
+        "lineBox": {
+          "top": 0,
+          "height": 85,
+          "left": 0
+        },
+        "canvas": [
+          508,
+          308
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 65,
+          "top": 104,
+          "right": 219,
+          "bottom": 149
+        },
+        "inBox": {
+          "left": 5,
+          "top": 24,
+          "right": 159,
+          "bottom": 69
+        },
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 160,
+          "height": 85
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "PLAY",
+        "fontWeight": 700,
+        "fontPx": 64,
+        "dpr": 1,
+        "letterSpacing": "2px"
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 160,
+          "height": 85
+        },
+        "maskInk": {
+          "left": 5,
+          "top": 24,
+          "right": 159,
+          "bottom": 69
+        },
+        "maskSize": [
+          160,
+          85
+        ],
+        "canDelegateInk": true,
+        "lineRectCount": 1,
+        "inkAttrPresent": true,
+        "typography": {
+          "textTransform": "none",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "fontStretch": "100%",
+          "fontKerning": "auto",
+          "fontVariantCaps": "normal",
+          "textRendering": "auto",
+          "direction": "ltr",
+          "textDecorationLine": "none",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
+        "lineBox": {
+          "top": 0,
+          "height": 85,
+          "left": 0
+        },
+        "canvas": [
+          508,
+          308
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 65,
+          "top": 104,
+          "right": 219,
+          "bottom": 149
+        },
+        "inBox": {
+          "left": 5,
+          "top": 24,
+          "right": 159,
+          "bottom": 69
+        },
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 160,
+          "height": 85
         }
       }
     }
