@@ -101,9 +101,122 @@ async function stagingReadback(handle) {
 }
 
 /** Rasterize the span's text to a mask exactly like UkiboriText.rasterizeText
- * (including the #52 alignment policy AND the fidelity gate: the result
- * carries canDelegateInk, false for multi-line/unmeasurable text). */
+ * (including the #52 alignment policy AND the fidelity gate — review round 3
+ * typography gate included: the result carries canDelegateInk, false for
+ * multi-line/unmeasurable text or DOM typography the canvas cannot mirror). */
+
+/**
+ * Mirror of UkiboriText's computed-typography read/fingerprint (review
+ * round 3). The fields and the default/mirror/fallback classification must
+ * stay in sync with packages/ukibori/src/components/UkiboriText.tsx.
+ */
+function readComputedTypography(el) {
+  const style = getComputedStyle(el);
+  const read = (prop) => {
+    const value = style[prop];
+    return typeof value === "string" ? value : "";
+  };
+  return {
+    font: read("font"),
+    lineHeight: read("lineHeight"),
+    letterSpacing: read("letterSpacing"),
+    wordSpacing: read("wordSpacing"),
+    textTransform: read("textTransform"),
+    direction: read("direction"),
+    writingMode: read("writingMode"),
+    fontKerning: read("fontKerning"),
+    fontStretch: read("fontStretch"),
+    fontVariantCaps: read("fontVariantCaps"),
+    fontVariantPosition: read("fontVariantPosition"),
+    fontFeatureSettings: read("fontFeatureSettings"),
+    fontVariationSettings: read("fontVariationSettings"),
+    textRendering: read("textRendering"),
+    textDecorationLine: read("textDecorationLine"),
+    textEmphasisStyle: read("textEmphasisStyle"),
+    webkitTextStrokeWidth: read("webkitTextStrokeWidth"),
+  };
+}
+
+function isDefaultValue(value, ...defaults) {
+  return value === "" || defaults.includes(value);
+}
+
+function mirrorCanvasProperty(ctx, property, value) {
+  if (!(property in ctx)) {
+    return false;
+  }
+  try {
+    ctx[property] = value;
+  } catch {
+    return false;
+  }
+  const applied = ctx[property];
+  if (typeof applied !== "string") {
+    return false;
+  }
+  if (applied === value) {
+    return true;
+  }
+  const expected = Number.parseFloat(value);
+  const actual = Number.parseFloat(applied);
+  return Number.isFinite(expected) && Number.isFinite(actual) && Math.abs(expected - actual) < 0.01;
+}
+
+function applyTypographyAndGate(ctx, typography) {
+  // Hard fallbacks: DOM-only ink/metrics the canvas raster cannot mirror.
+  if (!isDefaultValue(typography.textTransform, "none")) return false;
+  if (!isDefaultValue(typography.writingMode, "horizontal-tb")) return false;
+  if (!isDefaultValue(typography.textDecorationLine, "none")) return false;
+  if (!isDefaultValue(typography.textEmphasisStyle, "none")) return false;
+  if (!isDefaultValue(typography.webkitTextStrokeWidth, "0px")) return false;
+  if (!isDefaultValue(typography.fontVariantPosition, "normal")) return false;
+  if (!isDefaultValue(typography.fontFeatureSettings, "normal")) return false;
+  if (!isDefaultValue(typography.fontVariationSettings, "normal")) return false;
+  // Mirrorable drawing state: apply only when supported AND confirmed back.
+  if (!isDefaultValue(typography.letterSpacing, "normal", "0px")) {
+    if (!mirrorCanvasProperty(ctx, "letterSpacing", typography.letterSpacing)) return false;
+  }
+  if (!isDefaultValue(typography.wordSpacing, "normal", "0px")) {
+    if (!mirrorCanvasProperty(ctx, "wordSpacing", typography.wordSpacing)) return false;
+  }
+  if (!isDefaultValue(typography.fontKerning, "auto")) {
+    if (!mirrorCanvasProperty(ctx, "fontKerning", typography.fontKerning)) return false;
+  }
+  if (!isDefaultValue(typography.fontStretch, "normal", "100%")) {
+    if (!mirrorCanvasProperty(ctx, "fontStretch", typography.fontStretch)) return false;
+  }
+  if (!isDefaultValue(typography.fontVariantCaps, "normal")) {
+    if (!mirrorCanvasProperty(ctx, "fontVariantCaps", typography.fontVariantCaps)) return false;
+  }
+  if (!isDefaultValue(typography.textRendering, "auto")) {
+    if (!mirrorCanvasProperty(ctx, "textRendering", typography.textRendering)) return false;
+  }
+  if (!isDefaultValue(typography.direction, "ltr")) {
+    if (!mirrorCanvasProperty(ctx, "direction", typography.direction)) return false;
+  }
+  return true;
+}
+
+/** Canvas typography capability probe (documented in the ablation report:
+ * which spacing mirrors THIS Chrome's canvas actually supports). */
+function probeCanvasTypographySupport() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 1;
+  canvas.height = 1;
+  const ctx = canvas.getContext("2d");
+  return {
+    letterSpacing: ctx !== null && "letterSpacing" in ctx,
+    wordSpacing: ctx !== null && "wordSpacing" in ctx,
+    fontKerning: ctx !== null && "fontKerning" in ctx,
+    fontStretch: ctx !== null && "fontStretch" in ctx,
+    fontVariantCaps: ctx !== null && "fontVariantCaps" in ctx,
+    textRendering: ctx !== null && "textRendering" in ctx,
+    direction: ctx !== null && "direction" in ctx,
+  };
+}
+
 function rasterizeGlyph(span) {
+  const typography = readComputedTypography(span);
   const rect = span.getBoundingClientRect();
   const width = Math.max(1, Math.round(rect.width));
   const height = Math.max(1, Math.round(rect.height));
@@ -112,8 +225,7 @@ function rasterizeGlyph(span) {
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, width, height);
-  const style = getComputedStyle(span);
-  ctx.font = style.font;
+  ctx.font = typography.font;
   // #52 alignment policy + fidelity gate (mirror of UkiboriText.rasterizeText).
   let anchored = false;
   let canDelegateInk = false;
@@ -133,21 +245,17 @@ function rasterizeGlyph(span) {
       Number.isFinite(descent) &&
       ascent + descent > 0
     ) {
-      const halfLeading = (lineBox.height - (ascent + descent)) / 2;
-      const baselineY = lineBox.top - rect.top + halfLeading + ascent;
-      const anchorX = lineBox.left - rect.left;
-      if ("letterSpacing" in ctx) {
-        const letterSpacing = style.letterSpacing;
-        if (typeof letterSpacing === "string" && letterSpacing !== "normal" && letterSpacing.length > 0) {
-          ctx.letterSpacing = letterSpacing;
-        }
+      if (applyTypographyAndGate(ctx, typography)) {
+        const halfLeading = (lineBox.height - (ascent + descent)) / 2;
+        const baselineY = lineBox.top - rect.top + halfLeading + ascent;
+        const anchorX = lineBox.left - rect.left;
+        ctx.textAlign = "left";
+        ctx.textBaseline = "alphabetic";
+        ctx.fillStyle = "#fff";
+        ctx.fillText(span.textContent, anchorX, baselineY);
+        anchored = true;
+        canDelegateInk = true;
       }
-      ctx.textAlign = "left";
-      ctx.textBaseline = "alphabetic";
-      ctx.fillStyle = "#fff";
-      ctx.fillText(span.textContent, anchorX, baselineY);
-      anchored = true;
-      canDelegateInk = true;
     }
   } catch {
     // fall through to the legacy placement (delegation stays off)
@@ -163,7 +271,7 @@ function rasterizeGlyph(span) {
   for (let i = 0; i < alpha.length; i++) {
     alpha[i] = data[i * 4 + 3] / 255;
   }
-  return { mask: { width, height, alpha }, canDelegateInk };
+  return { mask: { width, height, alpha }, canDelegateInk, typography };
 }
 
 async function settle(device) {
@@ -306,7 +414,7 @@ window.__report = () => report;
  * runner's screenshot analysis (window.__measureInk) — real rendered
  * pixels, not line-box estimates.
  */
-window.__configureAlignment = async ({ text, fontWeight, fontPx, dpr, constrainWidth }) => {
+window.__configureAlignment = async ({ text, fontWeight, fontPx, dpr, constrainWidth, textTransform, letterSpacing }) => {
   const span = document.getElementById("glyph");
   const stage = document.getElementById("stage");
   // Reset to the measurement state so the box is measured like a fresh
@@ -315,6 +423,8 @@ window.__configureAlignment = async ({ text, fontWeight, fontPx, dpr, constrainW
   span.style.width = constrainWidth !== undefined ? `${constrainWidth}px` : "";
   span.style.height = "";
   span.style.font = `${fontWeight} ${fontPx}px "Segoe UI", Arial, sans-serif`;
+  span.style.textTransform = textTransform ?? "";
+  span.style.letterSpacing = letterSpacing ?? "";
   span.textContent = text;
   const rect = span.getBoundingClientRect();
   const raster = rasterizeGlyph(span);
@@ -371,6 +481,20 @@ window.__configureAlignment = async ({ text, fontWeight, fontPx, dpr, constrainW
     canDelegateInk: raster.canDelegateInk,
     lineRectCount: lineRectsAfter.length,
     inkAttrPresent: span.getAttribute("data-ukibori-physical-ink") !== null,
+    // #52 review round 3: the computed typography the gate evaluated and
+    // the canvas mirror capabilities of THIS Chrome build.
+    typography: {
+      textTransform: raster.typography.textTransform,
+      letterSpacing: raster.typography.letterSpacing,
+      wordSpacing: raster.typography.wordSpacing,
+      fontStretch: raster.typography.fontStretch,
+      fontKerning: raster.typography.fontKerning,
+      fontVariantCaps: raster.typography.fontVariantCaps,
+      textRendering: raster.typography.textRendering,
+      direction: raster.typography.direction,
+      textDecorationLine: raster.typography.textDecorationLine,
+      canvasSupport: probeCanvasTypographySupport(),
+    },
     lineBox: lineBox
       ? { top: lineBox.top - box.top, height: lineBox.height, left: lineBox.left - box.left }
       : null,

@@ -1,7 +1,7 @@
 import { act } from "react";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { stubCanvas2d, stubElementRects, stubTextLineBox } from "../test/dom";
+import { stubCanvas2d, stubElementRects, stubTextLineBox, canvas2dMirrors } from "../test/dom";
 import { Surface, Ukibori, UkiboriText } from "../index";
 import type { UkiboriDom } from "ukibori-dom";
 
@@ -467,6 +467,364 @@ describe("UkiboriText #52 physical ink compositing policy", () => {
     // ...but it is never the visual source of truth: the DOM ink stays.
     expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
     expect(span.textContent).toBe("PLAY");
+  });
+
+  /**
+   * Deterministic rasterization-failure seam by CANVAS FONT (review round 3):
+   * typography-only changes keep the text constant, so the failure is keyed
+   * on the ctx.font the rasterizer drew with (jsdom's computed `font` for an
+   * inline font-size is that px value). The capability probe always works.
+   */
+  function stubRasterFailuresByFont(failFonts: string[]): void {
+    stubElementRects();
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(
+      (function (
+        this: HTMLCanvasElement,
+      ): CanvasRenderingContext2D | null {
+        const functional = {
+          font: "",
+          textAlign: "left",
+          textBaseline: "alphabetic",
+          fillStyle: "#000",
+          clearRect: () => undefined,
+          fillText: () => undefined,
+          measureText: (text: string) => ({
+            text,
+            width: text.length * 10,
+            fontBoundingBoxAscent: 32,
+            fontBoundingBoxDescent: 8,
+            actualBoundingBoxAscent: 20,
+            actualBoundingBoxDescent: 4,
+          }),
+          getImageData: () => {
+            if (failFonts.includes(functional.font)) {
+              throw new Error("injected raster failure");
+            }
+            return {
+              width: this.width,
+              height: this.height,
+              data: new Uint8ClampedArray(this.width * this.height * 4),
+            };
+          },
+          putImageData: () => undefined,
+          beginPath: () => undefined,
+          moveTo: () => undefined,
+          lineTo: () => undefined,
+          closePath: () => undefined,
+          fill: () => undefined,
+        } as unknown as CanvasRenderingContext2D;
+        return functional;
+      }) as unknown as typeof HTMLCanvasElement.prototype.getContext,
+    );
+  }
+
+  // -- Review round 3, BLOCKER 1: the fidelity gate vs the DOM typography --
+
+  it("keeps the DOM ink delegated-off for text-transform (DOM-only typography the canvas cannot mirror)", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    stubTextLineBox();
+    let layer: UkiboriDom | null = null;
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText
+          sceneId="play"
+          text="play"
+          style={{ textTransform: "uppercase" }}
+          aria-label="label"
+          elevation={3}
+          thickness={0.8}
+        />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("play");
+    // The single-line raster draws the RAW string ("play") while the DOM
+    // paints "PLAY": a home-grown text-transform would not be a typography
+    // engine, so the gate keeps the ink delegated-off.
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(span.textContent).toBe("play");
+    expect(span.style.textTransform).toBe("uppercase");
+    expect(span.getAttribute("aria-label")).toBe("label");
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    expect(range.toString()).toBe("play");
+    // The mask may exist as physical geometry — just never as the visual
+    // source of truth.
+    expect(layer!.registry.get("play")!.options.shape.kind).toBe("mask");
+  });
+
+  it("mirrors non-default letter-spacing into the canvas raster (supported canvas delegates)", async () => {
+    stubElementRects();
+    stubCanvas2d({ letterSpacing: "supported" });
+    stubTextLineBox();
+    render(
+      <Ukibori schedule={(cb) => cb()}>
+        <UkiboriText sceneId="play" text="PLAY" style={{ letterSpacing: "2px" }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY");
+    // The computed letter-spacing was applied to the canvas (and confirmed
+    // by readback), so the faithful delegation stands.
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+    expect(canvas2dMirrors.letterSpacing).toBe("2px");
+  });
+
+  it("keeps the DOM ink delegated-off when the canvas cannot apply letter-spacing", async () => {
+    stubElementRects();
+    stubCanvas2d({ letterSpacing: "unsupported" });
+    stubTextLineBox();
+    let layer: UkiboriDom | null = null;
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="play" text="PLAY" style={{ letterSpacing: "2px" }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY");
+    // No "assume it works": an unsupported canvas letter-spacing means the
+    // raster cannot represent the DOM spacing — DOM-visible fallback.
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(canvas2dMirrors.letterSpacing).toBeNull();
+    expect(span.textContent).toBe("PLAY");
+    expect(layer!.registry.get("play")!.options.shape.kind).toBe("mask");
+  });
+
+  it("keeps the DOM ink delegated-off when word-spacing cannot be mirrored", async () => {
+    stubElementRects();
+    // Default stub: the canvas has no word-spacing support (today's canvas
+    // pipelines generally lack it).
+    stubCanvas2d();
+    stubTextLineBox();
+    let layer: UkiboriDom | null = null;
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="play" text="PLAY STOP" style={{ wordSpacing: "4px" }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY STOP");
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(canvas2dMirrors.wordSpacing).toBeNull();
+    expect(layer!.registry.get("play")!.options.shape.kind).toBe("mask");
+  });
+
+  it("mirrors non-default word-spacing when the canvas supports it", async () => {
+    stubElementRects();
+    stubCanvas2d({ wordSpacing: "supported" });
+    stubTextLineBox();
+    render(
+      <Ukibori schedule={(cb) => cb()}>
+        <UkiboriText sceneId="play" text="PLAY STOP" style={{ wordSpacing: "4px" }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY STOP");
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+    expect(canvas2dMirrors.wordSpacing).toBe("4px");
+  });
+
+  // -- Review round 3, BLOCKER 2: the raster identity vs DOM typography --
+
+  it("re-rasterizes when the style typography changes (fontSize 32 -> 96, same text/font)", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    stubTextLineBox();
+    let layer: UkiboriDom | null = null;
+    const { rerender } = render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="g" text="PLAY" style={{ fontSize: 32 }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+    const shapeBefore = layer!.registry.get("g")!.options.shape;
+    const maskBefore = (shapeBefore as { kind: "mask"; mask: unknown }).mask;
+
+    rerender(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="g" text="PLAY" style={{ fontSize: 96 }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const shapeAfter = layer!.registry.get("g")!.options.shape;
+    const maskAfter = (shapeAfter as { kind: "mask"; mask: unknown }).mask;
+    // The typography-only change re-rasterized: the 32px raster is not the
+    // current visual, the new raster is bound to the new typography and the
+    // delegation stands.
+    expect(maskAfter).not.toBe(maskBefore);
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+    expect(screen.getByText("PLAY").textContent).toBe("PLAY");
+  });
+
+  it("re-rasterizes on a fontWeight change (400 -> 900)", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    stubTextLineBox();
+    let layer: UkiboriDom | null = null;
+    const { rerender } = render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="g" text="PLAY" style={{ fontWeight: 400 }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+    const shapeBefore = layer!.registry.get("g")!.options.shape;
+    const maskBefore = (shapeBefore as { kind: "mask"; mask: unknown }).mask;
+
+    rerender(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="g" text="PLAY" style={{ fontWeight: 900 }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const shapeAfter = layer!.registry.get("g")!.options.shape;
+    const maskAfter = (shapeAfter as { kind: "mask"; mask: unknown }).mask;
+    expect(maskAfter).not.toBe(maskBefore);
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+    expect(screen.getByText("PLAY").textContent).toBe("PLAY");
+  });
+
+  it("re-rasterizes on a letterSpacing change and keeps mirroring", async () => {
+    stubElementRects();
+    stubCanvas2d({ letterSpacing: "supported" });
+    stubTextLineBox();
+    let layer: UkiboriDom | null = null;
+    const { rerender } = render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="g" text="PLAY" style={{ letterSpacing: "0px" }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+    const shapeBefore = layer!.registry.get("g")!.options.shape;
+    const maskBefore = (shapeBefore as { kind: "mask"; mask: unknown }).mask;
+
+    rerender(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="g" text="PLAY" style={{ letterSpacing: "4px" }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const shapeAfter = layer!.registry.get("g")!.options.shape;
+    const maskAfter = (shapeAfter as { kind: "mask"; mask: unknown }).mask;
+    expect(maskAfter).not.toBe(maskBefore);
+    // The mirror followed the computed value.
+    expect(canvas2dMirrors.letterSpacing).toBe("4px");
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+  });
+
+  it("follows computed typography from a className change", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    stubTextLineBox();
+    let layer: UkiboriDom | null = null;
+    const { rerender } = render(
+      <>
+        <style>{".glyph-96{font-size:96px;font-weight:900;}"}</style>
+        <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+          <UkiboriText sceneId="g" text="PLAY" className="glyph-96" elevation={3} thickness={0.8} />
+        </Ukibori>
+      </>,
+    );
+    await flushAsync();
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+    const shapeBefore = layer!.registry.get("g")!.options.shape;
+    const maskBefore = (shapeBefore as { kind: "mask"; mask: unknown }).mask;
+
+    rerender(
+      <>
+        <style>{".glyph-96{font-size:96px;font-weight:900;}"}</style>
+        <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+          <UkiboriText sceneId="g" text="PLAY" elevation={3} thickness={0.8} />
+        </Ukibori>
+      </>,
+    );
+    await flushAsync();
+    const shapeAfter = layer!.registry.get("g")!.options.shape;
+    const maskAfter = (shapeAfter as { kind: "mask"; mask: unknown }).mask;
+    // The className change altered the computed typography (jsdom resolves
+    // the stylesheet font), so the raster was regenerated for it.
+    expect(maskAfter).not.toBe(maskBefore);
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+  });
+
+  it("drops the raster and reveals the DOM text when the new typography fails to rasterize", async () => {
+    const failFonts: string[] = [];
+    stubRasterFailuresByFont(failFonts);
+    stubTextLineBox();
+    let layer: UkiboriDom | null = null;
+    const { rerender } = render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="g" text="PLAY" style={{ fontSize: 32 }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+    expect(layer!.registry.has("g")).toBe(true);
+
+    // The 96px rasterization fails: the 32px raster must not stay active
+    // (no stale glyph over the new typography).
+    failFonts.push("96px");
+    rerender(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="g" text="PLAY" style={{ fontSize: 96 }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY");
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(layer!.registry.has("g")).toBe(false);
+    expect(layer!.registry.size).toBe(0);
+    expect(span.textContent).toBe("PLAY");
+    // The fixed box reverted with the raster (the app style rules again).
+    expect(span.style.width).toBe("");
+  });
+
+  it("re-acquires the delegation exactly once across a typography failure and recovery", async () => {
+    const failFonts: string[] = [];
+    stubRasterFailuresByFont(failFonts);
+    stubTextLineBox();
+    const { rerender } = render(
+      <Ukibori backend="auto" schedule={(cb) => cb()}>
+        <UkiboriText sceneId="g" text="PLAY" style={{ fontSize: 32 }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+
+    // Typography change -> failure: plain DOM fallback.
+    failFonts.push("96px");
+    rerender(
+      <Ukibori backend="auto" schedule={(cb) => cb()}>
+        <UkiboriText sceneId="g" text="PLAY" style={{ fontSize: 96 }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBeNull();
+
+    // A succeeding typography change: the delegation is re-acquired...
+    failFonts.pop();
+    rerender(
+      <Ukibori backend="auto" schedule={(cb) => cb()}>
+        <UkiboriText sceneId="g" text="PLAY" style={{ fontSize: "6rem" }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(screen.getByText("PLAY").getAttribute("data-ukibori-physical-ink")).toBe("");
+
+    // ...and still releasable exactly once (the structural backend switch
+    // would leave the attribute behind on a refcount leak).
+    rerender(
+      <Ukibori backend="css" schedule={(cb) => cb()}>
+        <UkiboriText sceneId="g" text="PLAY" style={{ fontSize: "6rem" }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const spanAfter = screen.getByText("PLAY");
+    expect(spanAfter.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(spanAfter.textContent).toBe("PLAY");
   });
 });
 

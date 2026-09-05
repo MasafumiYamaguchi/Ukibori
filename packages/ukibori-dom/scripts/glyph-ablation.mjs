@@ -293,6 +293,14 @@ async function main() {
         // multiple lines -> canDelegateInk false -> the DOM ink stays
         // visible (the physical mask remains geometry only).
         { text: "PLAY STOP WAIT", fontWeight: 700, fontPx: 48, dpr: 1, constrainWidth: 140 },
+        // #52 review round 3 typography fixtures: text-transform is DOM-only
+        // typography the canvas raster cannot mirror (the raster draws the
+        // raw "play") -> canDelegateInk false -> DOM ink stays visible.
+        { text: "play", fontWeight: 700, fontPx: 64, dpr: 1, textTransform: "uppercase" },
+        // Non-default letter-spacing IS mirrorable (canvas letterSpacing,
+        // set + read-back verified) -> the faithful delegation stands and
+        // the mask ink must still coincide with the DOM ink.
+        { text: "PLAY", fontWeight: 700, fontPx: 64, dpr: 1, letterSpacing: "2px" },
       ];
       const alignment = [];
       for (const alignmentCase of cases) {
