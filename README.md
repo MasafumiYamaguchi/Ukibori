@@ -84,6 +84,8 @@ React層は薄いlifecycle/API層であり、rendererのセマンティクスを
 
 DOM所有のアクセシブルなテキスト(`<span>`)を描画し、その**グリフを#19 mask geometryとして物理sceneへ登録**します(#19 demoのPLAY reliefをReact APIで再現)。ラスタライズ(canvas 2d)はrenderer coreの外、DOMテキストはDOM所有のままです。
 
+**#52 glyph compositing policy**: physical maskの用意が完了し、物理バックエンドが有効な間(= registration成立時)は、**canvas上の物理glyph reliefが視覚表現になります**。DOM textの**インクのみ**を `data-ukibori-physical-ink` 管理属性経由のstylesheetルールで抑制し(color / -webkit-text-fill-color / -webkit-text-stroke-color → transparent、text-shadow → none)、DOM node / textContent / 選択 / コピー / focus / ARIA / layoutは一切変更しません。選択ハイライトはUAの `::selection` 背景が引き続き可視です。CSS backend / provider無し / SSR / rasterize失敗では登録が存在しないため、DOMテキストは通常通り可視のままです。
+
 ## アクセシビリティ / フォールバック
 
 - `:focus-visible`を除去しません(outlineは一切触りません)

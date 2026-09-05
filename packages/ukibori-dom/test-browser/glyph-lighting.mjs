@@ -16,12 +16,16 @@
 //   3. repeats at DPR 1 / 1.5 / 2 (setDpr) to expose the mask-resolution
 //      contract (the mask stays a CSS-px raster; the render grid densifies)
 //   4. exposes `window.__setInk(visible)` so the RUNNER can toggle the DOM
-//      glyph ink (visible vs suppressed) and capture page screenshots  E//      the DOM-side covering evidence. The canvas response is expected to be
-//      unchanged by the DOM ink state (the ink only paints ABOVE the canvas).
+//      glyph ink (visible vs suppressed) and capture page screenshots.
+//      With the #52 production policy live, a registered mask surface owns
+//      the data-ukibori-physical-ink suppression, so the ink-visible state
+//      is a DEBUG OVERRIDE (removing the layer-owned attribute) that
+//      reproduces the pre-fix appearance for comparison.
 //
 // The runner (scripts/glyph-ablation.mjs) drives `window.__prepare` /
-// `window.__report` and screenshots selected conditions. Everything here is
-// evidence collection; production semantics are untouched.
+// `window.__report` and screenshots selected conditions. The page is the
+// evidence-collection tool for #52; production semantics live in
+// src/overlay.ts + src/dom-layer.ts.
 
 import { UkiboriDom } from "../src/index";
 
@@ -202,7 +206,17 @@ async function readFrame() {
 
 window.__setInk = (visible) => {
   const span = document.getElementById("glyph");
-  span.style.color = visible ? "" : "transparent";
+  if (visible) {
+    span.style.color = "";
+    // DEBUG OVERRIDE (#52): with the production policy live, a registered
+    // mask surface owns the data-ukibori-physical-ink suppression, so the
+    // pre-fix "ink visible" state is reproduced here by removing the
+    // layer-owned attribute. Debug evidence tooling only.
+    span.removeAttribute("data-ukibori-physical-ink");
+  } else {
+    span.style.color = "transparent";
+    span.setAttribute("data-ukibori-physical-ink", "");
+  }
 };
 
 window.__prepare = async ({ direction, dpr, ink, readback = true }) => {
