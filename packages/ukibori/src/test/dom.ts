@@ -108,7 +108,7 @@ export function stubTextLineBox(): void {
   // replaceable empty one first, then report exactly one line box.
   if (Range.prototype.getClientRects === undefined) {
     Object.defineProperty(Range.prototype, "getClientRects", {
-      value: () => [] as DOMRectList,
+      value: () => [] as unknown as DOMRectList,
       configurable: true,
       writable: true,
     });
