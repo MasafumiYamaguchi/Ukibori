@@ -172,6 +172,15 @@ export interface SurfaceOwnProps {
    * corner radius measured from the element's CSS. `null` = do not register
    * (plain semantic DOM; used by <UkiboriText> before its mask exists). */
   shape?: DomShape | null;
+  /**
+   * #52 compositing-only intent (NOT scene data — never forwarded to the
+   * renderer): delegate this surface's DOM TEXT INK to its physical glyph,
+   * which then becomes the visual representation. INTERNAL: only
+   * <UkiboriText> sets this, because it rasterizes its own text into the
+   * mask. A generic mask surface (icon silhouette etc.) must NOT set it —
+   * its DOM text stays DOM-owned and visible above the physical relief.
+   */
+  delegateTextInk?: boolean;
   /** Absolute scene z of the surface base (CSS px, #13). */
   elevation?: number;
   /** Profile height range above the base (CSS px). */

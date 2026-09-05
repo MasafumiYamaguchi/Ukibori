@@ -2,7 +2,7 @@ import { act } from "react";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { stubCanvas2d, stubElementRects } from "../test/dom";
-import { Ukibori, UkiboriText } from "../index";
+import { Surface, Ukibori, UkiboriText } from "../index";
 import type { UkiboriDom } from "ukibori-dom";
 
 /**
@@ -176,6 +176,112 @@ describe("UkiboriText #52 physical ink compositing policy", () => {
     expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
     expect(span.getAttribute("data-ukibori-surface")).toBeNull();
     expect(layer!.registry.has("play")).toBe(false);
+  });
+
+  it("keeps a generic roundedRect surface's DOM text DOM-owned", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    render(
+      <Ukibori schedule={(cb) => cb()}>
+        <Surface sceneId="btn" as="button" type="button" elevation={4} thickness={2}>
+          Delete
+        </Surface>
+      </Ukibori>,
+    );
+    await flushAsync();
+    const button = screen.getByText("Delete");
+    expect(button.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(button.getAttribute("data-ukibori-surface")).toBe("");
+  });
+
+  it("keeps a generic mask surface's DOM text DOM-owned (shape alone never delegates)", async () => {
+    stubElementRects({ left: 10, top: 20, width: 40, height: 40 });
+    stubCanvas2d();
+    const errors: unknown[] = [];
+    render(
+      <Ukibori schedule={(cb) => cb()} onError={(e) => errors.push(e)}>
+        <Surface
+          sceneId="icon"
+          shape={{ kind: "mask", mask: { width: 2, height: 2, alpha: new Float32Array([1, 1, 1, 1]) } }}
+          style={{ width: "40px", height: "40px" }}
+          elevation={2}
+          thickness={1}
+        >
+          Delete
+        </Surface>
+      </Ukibori>,
+    );
+    await flushAsync();
+    // A valid scene (isotropic mask box), the mask surface registered, but
+    // the DOM text ink must remain DOM-owned: no delegation attribute.
+    expect(errors).toHaveLength(0);
+    const label = screen.getByText("Delete");
+    expect(label.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(label.getAttribute("data-ukibori-surface")).toBe("");
+  });
+
+  it("keeps nested child text of a generic mask surface visible", async () => {
+    stubElementRects({ left: 10, top: 20, width: 40, height: 40 });
+    stubCanvas2d();
+    const errors: unknown[] = [];
+    render(
+      <Ukibori schedule={(cb) => cb()} onError={(e) => errors.push(e)}>
+        <Surface
+          sceneId="icon"
+          shape={{ kind: "mask", mask: { width: 2, height: 2, alpha: new Float32Array([1, 1, 1, 1]) } }}
+          style={{ width: "40px", height: "40px" }}
+          elevation={2}
+          thickness={1}
+        >
+          <span>Delete</span>
+        </Surface>
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(errors).toHaveLength(0);
+    const surface = screen.getByText("Delete").closest("[data-ukibori-surface]");
+    expect(surface).not.toBeNull();
+    // Neither the surface nor its child carries the ink delegation.
+    expect(surface!.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(screen.getByText("Delete").getAttribute("data-ukibori-physical-ink")).toBeNull();
+  });
+
+  it("removes the ink suppression on the physical -> CSS transition (no refcount leak)", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    const { rerender } = render(
+      <Ukibori backend="auto" schedule={(cb) => cb()}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY");
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+
+    // Repeated delegated retained updates (text/mask object changes).
+    for (const text of ["STOP", "PLAY", "WAIT"]) {
+      rerender(
+        <Ukibori backend="auto" schedule={(cb) => cb()}>
+          <UkiboriText sceneId="play" text={text} elevation={3} thickness={0.8} />
+        </Ukibori>,
+      );
+      await flushAsync();
+      expect(screen.getByText(text).getAttribute("data-ukibori-physical-ink")).toBe("");
+    }
+
+    // physical -> css: the layer lifecycle disposes and every registration
+    // is released — the ink must come back exactly once (a leaked refcount
+    // would leave the attribute behind).
+    rerender(
+      <Ukibori backend="css" schedule={(cb) => cb()}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const spanAfter = screen.getByText("PLAY");
+    expect(spanAfter.getAttribute("data-ukibori-physical-ink")).toBeNull();
+    expect(spanAfter.getAttribute("data-ukibori-surface")).toBeNull();
+    expect(spanAfter.textContent).toBe("PLAY");
   });
 });
 

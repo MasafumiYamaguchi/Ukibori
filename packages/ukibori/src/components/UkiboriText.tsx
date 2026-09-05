@@ -87,6 +87,11 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
         ref={mergeRefs(forwardedRef, innerRef)}
         style={fixedStyle}
         shape={mask !== null ? { kind: "mask", mask } : null}
+        // #52 glyph compositing contract: this component rasterizes ITS OWN
+        // DOM text into the mask, so when the physical glyph is the visual
+        // representation the DOM ink is delegated to it. Generic mask
+        // surfaces never set this and keep their DOM text.
+        delegateTextInk={mask !== null}
       >
         {text}
       </Surface>
@@ -112,10 +117,68 @@ function rasterizeText(
   }
   ctx.clearRect(0, 0, width, height);
   ctx.font = font ?? getComputedStyle(element).font;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "#fff";
-  ctx.fillText(text, width / 2, height / 2);
+
+  // #52 alignment policy: the rasterized ink must land exactly on the DOM
+  // text ink, because the physical glyph becomes the visual representation
+  // once the DOM ink is delegated (#52 compositing policy) — a mismatch
+  // would show as a glyph position jump across the mask-ready transition.
+  //
+  // The DOM ink position is measured from the LIVE layout: a Range over the
+  // text gives the text's line box (its top/height include the CSS
+  // line-height half-leading), and the baseline sits at
+  //
+  //     lineBoxTop + (lineBoxHeight - (ascent + descent)) / 2 + ascent
+  //
+  // with the canvas TextMetrics font bounding ascent/descent (the same font
+  // metrics CSS line layout resolves). The text is drawn with an ALPHABETIC
+  // baseline left-anchored at the line box origin — the same anchor the DOM
+  // inline layout uses — so no magic pixel offsets, no DPR-dependent
+  // correction and no font-specific constants are involved. Computed
+  // letter-spacing is replicated through the canvas property when available.
+  //
+  // When live layout metrics are unavailable (e.g. test environments without
+  // layout or canvas metrics), the rasterization falls back to the legacy
+  // centered/middle placement.
+  let anchored = false;
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    const lineBox = range.getClientRects()[0];
+    const metrics = ctx.measureText(text);
+    const ascent = metrics?.fontBoundingBoxAscent;
+    const descent = metrics?.fontBoundingBoxDescent;
+    if (
+      lineBox !== undefined &&
+      typeof ascent === "number" &&
+      Number.isFinite(ascent) &&
+      typeof descent === "number" &&
+      Number.isFinite(descent) &&
+      ascent + descent > 0
+    ) {
+      const halfLeading = (lineBox.height - (ascent + descent)) / 2;
+      const baselineY = lineBox.top - rect.top + halfLeading + ascent;
+      const anchorX = lineBox.left - rect.left;
+      if ("letterSpacing" in ctx) {
+        const letterSpacing = getComputedStyle(element).letterSpacing;
+        if (typeof letterSpacing === "string" && letterSpacing !== "normal" && letterSpacing.length > 0) {
+          ctx.letterSpacing = letterSpacing;
+        }
+      }
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = "#fff";
+      ctx.fillText(text, anchorX, baselineY);
+      anchored = true;
+    }
+  } catch {
+    // fall through to the legacy placement
+  }
+  if (!anchored) {
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#fff";
+    ctx.fillText(text, width / 2, height / 2);
+  }
   const data = ctx.getImageData(0, 0, width, height).data;
   const alpha = new Float32Array(width * height);
   for (let i = 0; i < alpha.length; i++) {

@@ -100,7 +100,8 @@ async function stagingReadback(handle) {
   }
 }
 
-/** Rasterize the span's text to a mask exactly like UkiboriText.rasterizeText. */
+/** Rasterize the span's text to a mask exactly like UkiboriText.rasterizeText
+ * (including the #52 alignment policy: live-layout baseline anchoring). */
 function rasterizeGlyph(span) {
   const rect = span.getBoundingClientRect();
   const width = Math.max(1, Math.round(rect.width));
@@ -112,10 +113,50 @@ function rasterizeGlyph(span) {
   ctx.clearRect(0, 0, width, height);
   const style = getComputedStyle(span);
   ctx.font = style.font;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = "#fff";
-  ctx.fillText(span.textContent, width / 2, height / 2);
+  // #52 alignment policy (mirror of UkiboriText.rasterizeText): measure the
+  // text's live line box via a Range and place an alphabetic baseline at
+  // lineBoxTop + halfLeading + fontBoundingBoxAscent, left-anchored at the
+  // line box origin, so the rasterized ink lands on the DOM ink.
+  let anchored = false;
+  try {
+    const range = document.createRange();
+    range.selectNodeContents(span);
+    const lineBox = range.getClientRects()[0];
+    const metrics = ctx.measureText(span.textContent);
+    const ascent = metrics && metrics.fontBoundingBoxAscent;
+    const descent = metrics && metrics.fontBoundingBoxDescent;
+    if (
+      lineBox !== undefined &&
+      typeof ascent === "number" &&
+      Number.isFinite(ascent) &&
+      typeof descent === "number" &&
+      Number.isFinite(descent) &&
+      ascent + descent > 0
+    ) {
+      const halfLeading = (lineBox.height - (ascent + descent)) / 2;
+      const baselineY = lineBox.top - rect.top + halfLeading + ascent;
+      const anchorX = lineBox.left - rect.left;
+      if ("letterSpacing" in ctx) {
+        const letterSpacing = style.letterSpacing;
+        if (typeof letterSpacing === "string" && letterSpacing !== "normal" && letterSpacing.length > 0) {
+          ctx.letterSpacing = letterSpacing;
+        }
+      }
+      ctx.textAlign = "left";
+      ctx.textBaseline = "alphabetic";
+      ctx.fillStyle = "#fff";
+      ctx.fillText(span.textContent, anchorX, baselineY);
+      anchored = true;
+    }
+  } catch {
+    // fall through to the legacy placement
+  }
+  if (!anchored) {
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = "#fff";
+    ctx.fillText(span.textContent, width / 2, height / 2);
+  }
   const data = ctx.getImageData(0, 0, width, height).data;
   const alpha = new Float32Array(width * height);
   for (let i = 0; i < alpha.length; i++) {
@@ -255,6 +296,128 @@ window.__prepare = async ({ direction, dpr, ink, readback = true }) => {
 
 window.__report = () => report;
 
+/**
+ * #52 alignment evidence: reconfigure the glyph span (text/weight/size/DPR)
+ * through the UkiboriText lifecycle (measure natural inline box -> rasterize
+ * -> fix box -> retained mask update) and report the MASK ink bounds in box
+ * coordinates. The DOM ink bounds come from the runner's screenshot analysis
+ * (window.__measureInk) — real rendered pixels, not line-box estimates.
+ */
+window.__configureAlignment = async ({ text, fontWeight, fontPx, dpr }) => {
+  const span = document.getElementById("glyph");
+  const stage = document.getElementById("stage");
+  // Reset to the natural inline state so the box is measured like a fresh
+  // UkiboriText mount (the mask size must come from the natural text box).
+  span.style.display = "";
+  span.style.width = "";
+  span.style.height = "";
+  span.style.font = `${fontWeight} ${fontPx}px "Segoe UI", Arial, sans-serif`;
+  span.textContent = text;
+  const rect = span.getBoundingClientRect();
+  const mask = rasterizeGlyph(span);
+  span.style.display = "inline-block";
+  span.style.width = `${mask.width}px`;
+  span.style.height = `${mask.height}px`;
+  glyphRect = { x: rect.left, y: rect.top, w: mask.width, h: mask.height };
+  layer.setDpr(() => dpr);
+  layer.updateSurface("glyph", { shape: { kind: "mask", mask } });
+  flush();
+  await settle(layer.gpuDevice);
+  // Mask ink bounds in box coordinates (the production SDF threshold).
+  let inkTop = Infinity;
+  let inkBottom = -Infinity;
+  let inkLeft = Infinity;
+  let inkRight = -Infinity;
+  for (let y = 0; y < mask.height; y++) {
+    for (let x = 0; x < mask.width; x++) {
+      if (mask.alpha[y * mask.width + x] >= 0.5) {
+        inkTop = Math.min(inkTop, y);
+        inkBottom = Math.max(inkBottom, y + 1);
+        inkLeft = Math.min(inkLeft, x);
+        inkRight = Math.max(inkRight, x + 1);
+      }
+    }
+  }
+  const box = span.getBoundingClientRect();
+  const line = document.createRange();
+  line.selectNodeContents(span);
+  const lineBox = line.getClientRects()[0];
+  return {
+    box: { left: box.left, top: box.top, width: box.width, height: box.height },
+    maskInk: Number.isFinite(inkTop)
+      ? { left: inkLeft, top: inkTop, right: inkRight, bottom: inkBottom }
+      : null,
+    maskSize: [mask.width, mask.height],
+    lineBox: lineBox
+      ? { top: lineBox.top - box.top, height: lineBox.height, left: lineBox.left - box.left }
+      : null,
+    canvas: [gpuCanvas.width, gpuCanvas.height],
+  };
+};
+
+/**
+ * Screenshot round-trip: load the runner-captured PNG into a 2d canvas and
+ * segment the DOM text ink (dark pixels) inside the CURRENT glyph box. The
+ * screenshot is viewport-aligned CSS pixels (headless DPR 1), so the result
+ * is directly comparable with the mask ink bounds (also CSS-px box coords).
+ */
+window.__measureInk = async (dataUrl) => {
+  const span = document.getElementById("glyph");
+  const box = span.getBoundingClientRect();
+  const image = new Image();
+  await new Promise((resolveLoad, rejectLoad) => {
+    image.onload = () => resolveLoad();
+    image.onerror = () => rejectLoad(new Error("screenshot image load failed"));
+    image.src = dataUrl;
+  });
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(image, 0, 0);
+  const margin = 6;
+  const x0 = Math.max(0, Math.floor(box.left) - margin);
+  const y0 = Math.max(0, Math.floor(box.top) - margin);
+  const x1 = Math.min(canvas.width, Math.ceil(box.right) + margin);
+  const y1 = Math.min(canvas.height, Math.ceil(box.bottom) + margin);
+  const data = ctx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
+  let inkTop = Infinity;
+  let inkBottom = -Infinity;
+  let inkLeft = Infinity;
+  let inkRight = -Infinity;
+  for (let y = 0; y < y1 - y0; y++) {
+    for (let x = 0; x < x1 - x0; x++) {
+      const p = (y * (x1 - x0) + x) * 4;
+      const r = data[p];
+      const g = data[p + 1];
+      const b = data[p + 2];
+      const a = data[p + 3];
+      // Ink = dark core pixels (the #222 glyph color); the panel/relief
+      // grays stay above the threshold.
+      if (a === 255 && 0.299 * r + 0.587 * g + 0.114 * b < 128) {
+        inkTop = Math.min(inkTop, y0 + y);
+        inkBottom = Math.max(inkBottom, y0 + y + 1);
+        inkLeft = Math.min(inkLeft, x0 + x);
+        inkRight = Math.max(inkRight, x0 + x + 1);
+      }
+    }
+  }
+  if (!Number.isFinite(inkTop)) {
+    return null;
+  }
+  return {
+    // viewport-absolute bbox and the same bbox relative to the span box
+    absolute: { left: inkLeft, top: inkTop, right: inkRight, bottom: inkBottom },
+    inBox: {
+      left: inkLeft - box.left,
+      top: inkTop - box.top,
+      right: inkRight - box.left,
+      bottom: inkBottom - box.top,
+    },
+    box: { left: box.left, top: box.top, width: box.width, height: box.height },
+  };
+};
+
 async function main() {
   const resultEl = document.getElementById("result");
   const span = document.getElementById("glyph");
@@ -317,6 +480,10 @@ async function main() {
       id: "glyph",
       shape: { kind: "mask", mask },
       ...GLYPH_OPTIONS_BASE,
+      // #52 UkiboriText contract: this page's glyph span rasterizes ITS OWN
+      // text into the mask, so the ink delegation intent is explicit (a
+      // generic mask surface would omit it and keep its DOM text).
+      delegateTextInk: true,
     });
     // A panel under the glyph, matching the demo's glyph-panel context.
     const panel = document.createElement("div");

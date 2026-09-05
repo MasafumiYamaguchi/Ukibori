@@ -124,6 +124,8 @@ async function evaluateAwaitJson(cdp, expression) {
   return response.result?.result?.value;
 }
 
+let ALIGNMENT_MODE = false;
+
 const CONDITIONS = [
   // canvas light-response matrix (DOM ink visible, matching production today)
   ...["left", "right", "top", "bottom"].map((direction) => ({ direction, dpr: 1, ink: true })),
@@ -151,8 +153,13 @@ function screenshotName(condition) {
 }
 
 async function main() {
+  // Modes: "light" (default; light-response matrix + screenshots) and
+  // "alignment" (#52 DOM-ink vs mask-ink measurement matrix).
+  ALIGNMENT_MODE = process.argv.slice(2).includes("alignment");
   const outArg =
-    process.argv.slice(2).find((arg) => !arg.startsWith("--")) ?? process.env.GLYPH_ABLATION_OUT;
+    process.argv
+      .slice(2)
+      .find((arg) => !arg.startsWith("--") && arg !== "alignment") ?? process.env.GLYPH_ABLATION_OUT;
   const outDir = resolve(outArg ?? mkdtempSyncSafe());
   mkdirSync(outDir, { recursive: true });
 
@@ -271,6 +278,48 @@ async function main() {
       writeFileSync(join(outDir, screenshotName(condition)), Buffer.from(data, "base64"));
     }
 
+    if (ALIGNMENT_MODE) {
+      // #52 alignment matrix: real DOM ink bounds (screenshot round-trip)
+      // vs the rasterized mask ink bounds, across glyph shapes / sizes/DPR.
+      const cases = [
+        { text: "PLAY", fontWeight: 700, fontPx: 32, dpr: 1 },
+        { text: "PLAY", fontWeight: 700, fontPx: 64, dpr: 1 },
+        { text: "PLAY", fontWeight: 700, fontPx: 96, dpr: 1 },
+        { text: "illii", fontWeight: 400, fontPx: 64, dpr: 1 },
+        { text: "OM", fontWeight: 900, fontPx: 64, dpr: 1 },
+        { text: "PLAY", fontWeight: 700, fontPx: 64, dpr: 1.5 },
+        { text: "PLAY", fontWeight: 700, fontPx: 64, dpr: 2 },
+      ];
+      const alignment = [];
+      for (const alignmentCase of cases) {
+        const config = await evaluateAwaitJson(
+          cdp,
+          `window.__configureAlignment(${JSON.stringify(alignmentCase)})`,
+        );
+        // The DOM ink must be VISIBLE for the measurement (debug override).
+        await evaluateAwaitJson(cdp, `Promise.resolve(window.__setInk(true))`);
+        await sleep(120);
+        const shot = await cdp.send("Page.captureScreenshot", { format: "png" });
+        const data = shot.result?.data;
+        if (typeof data !== "string") {
+          throw new Error(`alignment capture failed for ${JSON.stringify(alignmentCase)}`);
+        }
+        const domInk = await evaluateAwaitJson(
+          cdp,
+          `window.__measureInk("data:image/png;base64,${data}")`,
+        );
+        alignment.push({
+          case: alignmentCase,
+          mask: config,
+          domInk,
+        });
+      }
+      const jsonPath = join(outDir, "alignment-report.json");
+      writeFileSync(jsonPath, JSON.stringify({ alignment }, null, 2), "utf8");
+      console.log(JSON.stringify({ alignment }, null, 2));
+      console.log(`\nalignment report: ${jsonPath}`);
+    }
+
     const report = await evaluateAwaitJson(cdp, `JSON.stringify({ report: window.__report(), alignment: window.__alignment })`);
     const parsed = JSON.parse(report);
     const jsonPath = join(outDir, "glyph-ablation-report.json");
@@ -320,4 +369,5 @@ if (isMain) {
       process.exit(1);
     });
 }
+
 
