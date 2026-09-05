@@ -19,6 +19,7 @@ function entry(id: string, el: HTMLElement): SurfaceEntry {
     },
     geometry: null,
     dirty: true,
+    inkDelegated: false,
   };
 }
 
@@ -103,3 +104,4 @@ describe("assertValidId", () => {
     expect(() => assertValidId("")).toThrow(TypeError);
   });
 });
+

@@ -26,6 +26,7 @@ function addSurface(
     },
     geometry: { x, y, w, h, radius: options.shape?.kind === "roundedRect" ? 6 : 0 },
     dirty: false,
+    inkDelegated: false,
   });
 }
 
@@ -160,8 +161,10 @@ describe("buildScene", () => {
       },
       geometry: null,
       dirty: true,
+    inkDelegated: false,
     });
     const scene = buildScene({ registry, region: REGION, dpr: 1, light: LIGHT });
     expect(scene.surfaces).toHaveLength(0);
   });
 });
+

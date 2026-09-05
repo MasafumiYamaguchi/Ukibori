@@ -69,6 +69,15 @@ export interface DomSurfaceOptions {
   material: string;
   castsShadow?: boolean;
   receivesShadow?: boolean;
+  /**
+   * #52 compositing-only intent (NOT scene data — never forwarded to the
+   * scene builder or renderer): this surface's DOM TEXT INK is delegated to
+   * its physical glyph. Meaningful only together with a mask shape that the
+   * caller rasterized from that very text (the UkiboriText contract); a
+   * generic mask surface (icon silhouette etc.) must NOT set it, so its DOM
+   * text stays DOM-owned and visible above the physical relief.
+   */
+  delegateTextInk?: boolean;
 }
 
 /** Measured, cached document-space geometry of one registered element. */

@@ -55,6 +55,14 @@ interface SurfaceInnerProps {
   variant?: Variant;
   radius?: number;
   materialOverrides?: MaterialTokensOverride;
+  /**
+   * #52 compositing-only intent (NOT a scene option; not forwarded to the
+   * scene builder): delegate this surface's DOM text ink to its physical
+   * glyph. The UkiboriText glyph contract is the only legitimate user —
+   * a generic mask surface (icon silhouette etc.) must keep its DOM text
+   * DOM-owned and visible, so generic surfaces never set this.
+   */
+  delegateTextInk?: boolean;
 }
 
 export type SurfaceType = <C extends ElementType = "div">(
@@ -71,6 +79,8 @@ interface PhysicalSurfaceOptions {
   material: string;
   castsShadow: boolean;
   receivesShadow: boolean;
+  /** #52 compositing-only intent (never scene data; see SurfaceOwnProps). */
+  delegateTextInk: boolean;
 }
 
 /** Stable identity for MaskSource objects so the options key changes exactly
@@ -92,6 +102,9 @@ function surfaceOptionsKey(options: PhysicalSurfaceOptions): string {
     shape.kind === "mask"
       ? `mask:${maskObjectId(shape.mask)}`
       : `rr:${shape.radius ?? ""}`;
+  // `delegateTextInk` is deliberately NOT part of the key: it is
+  // compositing-only metadata (#52) that never changes for a mounted
+  // surface, and it must not trigger scene invalidation.
   return [
     options.id,
     shapeKey,
@@ -135,6 +148,7 @@ export const Surface = forwardRef<HTMLElement, SurfaceInnerProps>(function Surfa
     variant,
     radius,
     materialOverrides,
+    delegateTextInk,
     children,
     ...rest
   },
@@ -157,6 +171,7 @@ export const Surface = forwardRef<HTMLElement, SurfaceInnerProps>(function Surfa
     material: material ?? "silicone",
     castsShadow: castsShadow ?? true,
     receivesShadow: receivesShadow ?? true,
+    delegateTextInk: delegateTextInk ?? false,
   };
   const optionsKey = surfaceOptionsKey(physicalOptions);
 

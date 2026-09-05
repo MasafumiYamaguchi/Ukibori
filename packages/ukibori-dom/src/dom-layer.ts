@@ -21,7 +21,7 @@ import type {
 import { computeRegion, renderTargetSize, sanitizeDpr, scaleShadowOptions } from "./coords";
 import { compositeSurfaceImage } from "./compositor";
 import { geometriesEqual, measureSurfaceElement } from "./measure";
-import { OverlayCanvas, isManagedMutation, restoreSurface, suppressSurface } from "./overlay";
+import { OverlayCanvas, isManagedMutation, restorePhysicalInk, restoreSurface, suppressPhysicalInk, suppressSurface } from "./overlay";
 import type { Overlay } from "./overlay";
 import { SurfaceRegistry, assertValidId } from "./registry";
 import { buildScene } from "./scene-builder";
@@ -526,9 +526,34 @@ export class UkiboriDom {
   }
 
   /**
+   * #52 compositing intent: does this registration delegate its DOM text ink
+   * to the physical glyph? Only an EXPLICIT `delegateTextInk` intent on a
+   * mask shape qualifies — a generic mask surface (icon silhouette, arbitrary
+   * alpha geometry) keeps its DOM text DOM-owned and visible. Shape alone is
+   * never enough: `MaskSource` is a general renderer contract, and the ink
+   * delegation is the UkiboriText-specific "this DOM text was rasterized into
+   * THIS mask" semantic.
+   */
+  private static delegatesInk(options: DomSurfaceOptions): boolean {
+    return options.delegateTextInk === true && options.shape?.kind === "mask";
+  }
+
+  /**
    * Register a DOM element as a Ukibori surface (mount). The element's own
    * background/shadow are suppressed via the managed `data-ukibori-surface`
    * attribute (stylesheet rule) and revealed again on `unregister`.
+   *
+   * #52 compositing policy: a surface with the EXPLICIT
+   * `delegateTextInk` intent on a mask shape additionally gets the managed
+   * `data-ukibori-physical-ink` attribute — its DOM text ink is delegated to
+   * the physical glyph on the overlay canvas. Registration only happens in
+   * physical mode, so the ink suppression is physical-backend-only by
+   * construction (css mode / provider-less / SSR never register); a failed
+   * mask rasterization means UkiboriText passes no shape at all, and an
+   * unregistered element reveals its ink again. The ownership is
+   * EDGE-TRIGGERED: it is acquired exactly once per delegation transition
+   * (never per property update), so retained updates cannot multiply the
+   * refcount.
    *
    * Atomic: duplicate ids / already-registered elements are rejected BEFORE
    * any attribute is touched, so a failed registration never leaves
@@ -545,6 +570,7 @@ export class UkiboriDom {
       throw new TypeError(`element already registered as "${existing}"`);
     }
     suppressSurface(element);
+    let inkDelegated = false;
     try {
       const entry = {
         id: options.id,
@@ -552,10 +578,19 @@ export class UkiboriDom {
         options: { ...options },
         geometry: null,
         dirty: true,
+        inkDelegated: false,
       };
       this.registry.add(entry);
+      inkDelegated = UkiboriDom.delegatesInk(entry.options);
+      if (inkDelegated) {
+        suppressPhysicalInk(element);
+        entry.inkDelegated = true;
+      }
     } catch (error) {
       restoreSurface(element);
+      if (inkDelegated) {
+        restorePhysicalInk(element);
+      }
       throw error;
     }
     this.resizeObserver?.observe(element);
@@ -577,6 +612,10 @@ export class UkiboriDom {
     }
     this.resizeObserver?.unobserve(entry.element);
     restoreSurface(entry.element);
+    if (entry.inkDelegated) {
+      entry.inkDelegated = false;
+      restorePhysicalInk(entry.element);
+    }
     this.sceneDirty = true;
     this.scheduleRender();
   }
@@ -599,7 +638,21 @@ export class UkiboriDom {
         `surface ids are immutable: "${entry.options.id}" cannot be renamed to "${patch.id}"`,
       );
     }
+    // #52 compositing policy: EDGE-TRIGGERED ownership on the delegation
+    // transition. The old intent is read from the CURRENT options BEFORE the
+    // merge; identical states do nothing, so retained property updates
+    // (text/material/elevation/... changes, mask object swaps) never
+    // multiply the attribute refcount.
+    const wasDelegated = entry.inkDelegated;
     entry.options = { ...entry.options, ...patch, id: entry.options.id };
+    const shouldDelegate = UkiboriDom.delegatesInk(entry.options);
+    if (!wasDelegated && shouldDelegate) {
+      suppressPhysicalInk(entry.element);
+      entry.inkDelegated = true;
+    } else if (wasDelegated && !shouldDelegate) {
+      restorePhysicalInk(entry.element);
+      entry.inkDelegated = false;
+    }
     // Any option change feeds the scene (geometry, elevation, material...).
     this.sceneDirty = true;
     this.registry.markDirty(id);
@@ -1090,6 +1143,10 @@ export class UkiboriDom {
     this.disposeGpuResources();
     for (const entry of this.registry.entries()) {
       restoreSurface(entry.element);
+      if (entry.inkDelegated) {
+        entry.inkDelegated = false;
+        restorePhysicalInk(entry.element);
+      }
     }
     this.registry.clear();
     this.overlay.dispose();
