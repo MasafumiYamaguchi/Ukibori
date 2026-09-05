@@ -65,7 +65,7 @@ const SUITE_QUERY = query.get("suite") ?? "all";
 // per-step marcher accurately; it does not alter production code or timing.
 const SHADOW_BENCHMARK_ALGORITHM = query.get("algorithm") === "baseline"
   ? "baseline-ray-march"
-  : "ray-bound-prefix-binary-search+caster-aabb-empty-space";
+  : "exact-prefix-binary-search+caster-aabb-empty-space";
 
 const cases = [];
 const notes = [];
@@ -307,7 +307,7 @@ function shadowAccelerationMetadata(scene, stepCount) {
     shadowMarchAlgorithm: SHADOW_BENCHMARK_ALGORITHM,
     rayBoundSearch: SHADOW_BENCHMARK_ALGORITHM === "baseline-ray-march"
       ? "per-step-bounds-check"
-      : "monotone-prefix-binary-search",
+      : "exact-combined-prefix-binary-search",
     rayBoundSearchIterationUpperBound: SHADOW_BENCHMARK_ALGORITHM === "baseline-ray-march"
       ? 0
       : searchIterations,

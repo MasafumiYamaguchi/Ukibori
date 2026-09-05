@@ -21,6 +21,8 @@
 // Cleanup is unconditional: the browser and server are terminated and ONLY
 // the exact temporary directory this script created is removed, including
 // on failure.
+// Restricted desktop/CI hosts may opt into WEBGPU_CHROME_NO_SANDBOX=1 for
+// the Chrome launch; the default remains sandboxed.
 
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -71,6 +73,12 @@ const CHROME =
 const CHROME_FLAGS = [
   "--headless=new",
   "--enable-unsafe-webgpu",
+  // Restricted CI/desktop sandboxes can prevent Chrome's GPU process from
+  // creating the isolated profile. Opt in explicitly for those hosts; the
+  // default parity run remains sandboxed.
+  ...(process.env.WEBGPU_CHROME_NO_SANDBOX === "1"
+    ? ["--no-sandbox", "--disable-gpu-sandbox"]
+    : []),
   ...(process.platform === "darwin" ? ["--use-angle=metal"] : []),
   "--no-first-run",
   "--no-default-browser-check",

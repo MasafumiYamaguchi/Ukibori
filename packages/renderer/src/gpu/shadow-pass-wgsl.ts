@@ -62,6 +62,19 @@ import { WGSL_SCENE_BASE } from "./wgsl";
  *   (positive, accepted) subnormal stepSize makes `t` round to a constant
  *   — a value whose f32 rounds to zero is rejected by the host sanitizer
  *   and can never appear here.
+ * - #48 ray-bound clipping: projected XY coordinates are monotone along a
+ *   ray, and an upward ray's historical f32 `rayZ` series is monotone too.
+ *   The last reachable integer step is found with one exact combined-prefix
+ *   binary search using those same f32 expressions. Non-rising rays perform
+ *   the historical step-1 height check, then search only the XY prefix. No
+ *   analytic ratio or magic safety margin is used, so no valid sample is
+ *   skipped and the per-step bounds branch is removed from the normal path.
+ * - #48 empty-space culling: the host packs the union of casting-surface
+ *   footprint AABBs into the otherwise-unused w lanes of the first four
+ *   sample-direction vec4s. Outside that union (with a conservative
+ *   two-texel interpolation pad), the caster field is zero and its four
+ *   storage reads are skipped whenever the zero base plane cannot satisfy the
+ *   strict comparison.
  *
  * ## Conservative early-exit bound (host-derived, no readback)
  *
@@ -77,7 +90,7 @@ import { WGSL_SCENE_BASE } from "./wgsl";
  *
  * | binding | type   | meaning                                        |
  * |---------|--------|------------------------------------------------|
- * | 0       | uniform| ShadowPassParams (80 bytes)                    |
+ * | 0       | uniform| ShadowPassParams (2144 bytes)                 |
  * | 1       | storage| inHeight: array<f32> (#25 full height,         |
  * |         |        | read-only, bound DIRECTLY, never copied)       |
  * | 2       | storage| inCasterHeight: array<f32> (#27 caster height, |
@@ -87,7 +100,7 @@ import { WGSL_SCENE_BASE } from "./wgsl";
  * |         |        | records, read-only, receivesShadow only)       |
  * | 5       | storage| outVisibility: array<f32> (read_write)         |
  *
- * ## ShadowPassParams — 80 bytes, align 16, little-endian host packing
+ * ## ShadowPassParams — 2144 bytes, align 16, little-endian host packing
  *
  * | offset | size | field            | meaning                               |
  * |--------|------|------------------|---------------------------------------|
@@ -127,7 +140,10 @@ import { WGSL_SCENE_BASE } from "./wgsl";
  * | 88     | 8    | _pad3 (vec2<f32>)| 0 (alignment)                         |
  * | 96..   | 2048 | sampleDirs       | #43 KERNEL_VARIANTS x MAX_SAMPLES     |
  * |        |      | (array<vec4<f32>>,| packed cone directions; variant v's   |
- * |        |      | 128 entries)     | sample s lives at index v*16 + s      |
+ * |        |      | 128 entries)     | sample s lives at index v*16 + s.     |
+ * |        |      |                  | The w lanes of entries 0..3 carry the |
+ * |        |      |                  | conservative caster AABB (minX, minY,  |
+ * |        |      |                  | maxX, maxY); direction code reads xyz. |
  *
  * `width`/`height` are host-validated (positive integers, u32-bounded
  * texel count, byte-length-consistent with every bound field), so the
@@ -166,7 +182,8 @@ export const SHADOW_KERNEL_VARIANTS = 8;
 /**
  * ShadowPassParams uniform byte length: 96 bytes of scalars/padding (16-byte
  * aligned) plus SHADOW_KERNEL_VARIANTS * 16 packed vec4 sample directions =
- * 96 + 8 * 256 = 2144 bytes.
+ * 96 + 8 * 256 = 2144 bytes. The first four direction w lanes are reused for
+ * the #48 caster AABB hint; xyz direction values remain byte-identical.
  */
 export const SHADOW_PARAMS_BYTE_LENGTH = 96 + SHADOW_KERNEL_VARIANTS * SHADOW_MAX_SAMPLES * 16;
 
@@ -183,7 +200,7 @@ export const MAX_SHADOW_STEP_COUNT = 1 << 24;
 
 export const SHADOW_PASS_WGSL = /* wgsl */ `
 ${WGSL_SCENE_BASE}
-// #27/#41 shadow pass params (352 bytes, align 16; offsets pinned by
+// #27/#41/#48 shadow pass params (2144 bytes, align 16; offsets pinned by
 // shadow-pass.ts)
 struct ShadowPassParams {
   dpr: f32,             //  0 render DPR (scene units per render texel)
@@ -209,8 +226,10 @@ struct ShadowPassParams {
   // #43 host-computed cone directions around lightDirection for EVERY kernel
   // variant (identical f32 components to the CPU oracle's per-variant
   // arrays; variant v's sample s lives at index v * SHADOW_MAX_SAMPLES + s).
-  // Unused entries are zero-filled and never read because sampleCount bounds
-  // the loop and variant < SHADOW_KERNEL_VARIANTS.
+  // Unused xyz entries are zero-filled and never read because sampleCount
+  // bounds the loop and variant < SHADOW_KERNEL_VARIANTS. The w lanes of the
+  // first four entries carry the #48 caster AABB hint (minX, minY, maxX,
+  // maxY); all direction reads intentionally consume xyz only.
   sampleDirs: array<vec4<f32>, ${SHADOW_KERNEL_VARIANTS * SHADOW_MAX_SAMPLES}>, // 96..
 }                       // size ${SHADOW_PARAMS_BYTE_LENGTH}, align 16
 
@@ -261,6 +280,93 @@ fn sampleCasterHeight(sx: f32, sy: f32) -> f32 {
   return top + (bottom - top) * ty;
 }
 
+// The predicates deliberately use the exact arithmetic from the historical
+// march.  For a fixed direction, t = f32(k) * stepSize is monotone and each
+// projected coordinate is monotone as well, so the set of in-bounds integer
+// steps is a prefix.  The height predicate below uses the very same
+// rayZ = rz0 + dz * (f32(k) * stepSize) expression as the historical loop;
+// it never substitutes an analytic ratio or a rounded safety margin.
+fn rayInBoundsAtStep(px: f32, py: f32, dx: f32, dy: f32, stepIndex: u32) -> bool {
+  let t = f32(stepIndex) * params.stepSize;
+  let sx = px + dx * t;
+  let sy = py + dy * t;
+  return !(sx < 0.5 / params.dpr || sx > (f32(params.width) - 0.5) / params.dpr ||
+      sy < 0.5 / params.dpr || sy > (f32(params.height) - 0.5) / params.dpr);
+}
+
+// Historical ray-Z arithmetic, shared by the prefix predicate and the
+// eventual march.  Keeping this as one expression is correctness by
+// construction for non-dyadic step sizes and all f32 rounding boundaries.
+fn rayZAtStep(rz0: f32, dz: f32, stepIndex: u32) -> f32 {
+  let t = f32(stepIndex) * params.stepSize;
+  return rz0 + dz * t;
+}
+
+// Return the largest march index whose historical step can be reached before
+// either the inclusive XY scene bound or the max-caster-height break.  For
+// dz > 0 the combined predicate is a monotone prefix.  For dz <= 0, height
+// can only stay level/fall, so the historical step-1 check is sufficient; a
+// failed step 1 returns zero and a passing step 1 leaves only the XY prefix.
+// stepCount is host-capped, so the integer search always terminates.
+fn rayBoundsStepLimit(px: f32, py: f32, dx: f32, dy: f32, searchLimit: u32) -> u32 {
+  let limit = searchLimit;
+  if (limit == 0u || (dx == 0.0 && dy == 0.0)) {
+    return limit;
+  }
+  if (rayInBoundsAtStep(px, py, dx, dy, limit)) {
+    return limit;
+  }
+  var lo = 0u;
+  var hi = limit;
+  while (lo < hi) {
+    let mid = (lo + hi + 1u) >> 1u;
+    if (rayInBoundsAtStep(px, py, dx, dy, mid)) {
+      lo = mid;
+    } else {
+      hi = mid - 1u;
+    }
+  }
+  return lo;
+}
+
+fn rayPrefixStepLimit(
+  px: f32,
+  py: f32,
+  rz0: f32,
+  dx: f32,
+  dy: f32,
+  dz: f32,
+) -> u32 {
+  let limit = params.stepCount;
+  if (limit == 0u) {
+    return 0u;
+  }
+  let bound = params.maxCasterHeight + params.bias;
+  if (dz <= 0.0) {
+    // The historical loop checks XY before height.  Only an in-bounds step 1
+    // can therefore expose a height break, and after it passes a non-rising
+    // ray cannot cross the same upper bound on later steps.
+    if (rayInBoundsAtStep(px, py, dx, dy, 1u) && rayZAtStep(rz0, dz, 1u) > bound) {
+      return 0u;
+    }
+    return rayBoundsStepLimit(px, py, dx, dy, limit);
+  }
+  if (rayInBoundsAtStep(px, py, dx, dy, limit) && rayZAtStep(rz0, dz, limit) <= bound) {
+    return limit;
+  }
+  var lo = 0u;
+  var hi = limit;
+  while (lo < hi) {
+    let mid = (lo + hi + 1u) >> 1u;
+    if (rayInBoundsAtStep(px, py, dx, dy, mid) && rayZAtStep(rz0, dz, mid) <= bound) {
+      lo = mid;
+    } else {
+      hi = mid - 1u;
+    }
+  }
+  return lo;
+}
+
 /**
  * One #17/#27/#41 height-field occlusion march along the explicit direction
  * (dx, dy, dz) from receiver P = (px, py, rz0). The single hard ray and
@@ -271,9 +377,16 @@ fn sampleCasterHeight(sx: f32, sy: f32) -> f32 {
  */fn traceOccluded(px: f32, py: f32, rz0: f32, dx: f32, dy: f32, dz: f32) -> bool {
   // Integer step index: the loop terminates on every device (stepCount is
   // host-capped), even when a positive subnormal stepSize makes t round to
-  // a constant in f32.
+  // a constant in f32.  The prefix search uses the historical f32 ray-Z
+  // expression directly, so it cannot trim a valid height-boundary sample.
+  let stepLimit = rayPrefixStepLimit(px, py, rz0, dx, dy, dz);
+  let casterPad = 2.0 / params.dpr;
+  let casterMinX = params.sampleDirs[0].w - casterPad;
+  let casterMinY = params.sampleDirs[1].w - casterPad;
+  let casterMaxX = params.sampleDirs[2].w + casterPad;
+  let casterMaxY = params.sampleDirs[3].w + casterPad;
   var stepIndex = 1u;
-  while (stepIndex <= params.stepCount) {
+  while (stepIndex <= stepLimit) {
     // Explicit f32-multiple march series (shared with the CPU oracle):
     // t = f32(stepIndex) * stepSize is the correctly-rounded f32 of the
     // exact integer multiple k * stepSize (f32(stepIndex) == k for every
@@ -284,27 +397,26 @@ fn sampleCasterHeight(sx: f32, sy: f32) -> f32 {
     let t = f32(stepIndex) * params.stepSize;
     let sx = px + dx * t;
     let sy = py + dy * t;
-    // Inclusive pixel-center rectangle in LOGICAL scene units BEFORE
-    // sampling: render texel (tx, ty) spans logical
-    // [(tx + 0.5) / dpr, (tx + 1.5) / dpr), so the rectangle runs from the
-    // first texel center 0.5 / dpr to the LAST texel center
-    // (extent - 0.5) / dpr (mirrors the CPU oracle bound exactly).
-    // Leaving it stops the ray lit (no wrap, no out-of-bounds element).
-    if (sx < 0.5 / params.dpr || sx > (f32(params.width) - 0.5) / params.dpr ||
-        sy < 0.5 / params.dpr || sy > (f32(params.height) - 0.5) / params.dpr) {
-      break;
-    }
-    let rayZ = rz0 + dz * t;
+    let rayZ = rayZAtStep(rz0, dz, stepIndex);
     // Conservative host-derived bound: beyond maxCasterHeight + bias no
     // sample can exceed rayZ + bias, so this early exit cannot remove a
     // blocker (mirrors the CPU's maxHeight early exit).
     if (rayZ > params.maxCasterHeight + params.bias) {
       break;
     }
+    let threshold = rayZ + params.bias;
+    // Empty-space cull: outside the conservative caster union, the caster
+    // field is exactly zero.  Keep the read for a negative threshold because
+    // the zero base plane can then be a strict occluder.
+    if (!(sx >= casterMinX && sx <= casterMaxX && sy >= casterMinY && sy <= casterMaxY) &&
+        threshold >= 0.0) {
+      stepIndex += 1u;
+      continue;
+    }
     let sample = sampleCasterHeight(sx, sy);
     // Strict f32 comparison: blocks only when sample > f32(rayZ + bias);
     // equality is lit. Mirrors the CPU operation order.
-    if (sample > rayZ + params.bias) {
+    if (sample > threshold) {
       return true;
     }
     stepIndex += 1u;

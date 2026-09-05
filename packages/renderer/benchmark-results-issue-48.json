@@ -1,0 +1,4477 @@
+{
+  "schemaVersion": 1,
+  "issue": 48,
+  "generatedAt": "2026-08-31T15:19:14.270Z",
+  "baselineCommit": "3c315d2b6ca95432e87f5367a10370a0b8b4f399",
+  "optimizedCommit": "3fc2e70b3b0d69c4592a37bf0afb58484a751824",
+  "benchmarkArtifactCommit": "db7d0d8bfe72b309460e069522d671c941f59bb7",
+  "provenance": {
+    "baselineWorkingTreeDirty": false,
+    "optimizedWorkingTreeDirty": false,
+    "baselineGeneratedAt": "2026-08-31T13:47:15.390Z",
+    "optimizedGeneratedAt": "2026-08-31T15:19:14.270Z"
+  },
+  "environment": {
+    "baseline": {
+      "timestamp": "2026-08-31T13:47:15.389Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+      "browser": "chrome",
+      "browserVersion": "151.0",
+      "headless": true,
+      "devicePixelRatio": 1,
+      "webgpuAvailable": true,
+      "adapterName": "",
+      "adapterArchitecture": "blackwell",
+      "adapterBackend": "unknown",
+      "adapterDevice": "",
+      "adapterVendor": "nvidia",
+      "timestampQuerySupported": true,
+      "canvasPreferredFormat": "bgra8unorm",
+      "maxStorageBufferBindingSize": 134217728,
+      "maxComputeWorkgroupsPerDimension": 65535
+    },
+    "optimized": {
+      "timestamp": "2026-08-31T15:19:14.270Z",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/151.0.0.0 Safari/537.36",
+      "browser": "chrome",
+      "browserVersion": "151.0",
+      "headless": true,
+      "devicePixelRatio": 1,
+      "webgpuAvailable": true,
+      "adapterName": "",
+      "adapterArchitecture": "blackwell",
+      "adapterBackend": "unknown",
+      "adapterDevice": "",
+      "adapterVendor": "nvidia",
+      "timestampQuerySupported": true,
+      "canvasPreferredFormat": "bgra8unorm",
+      "maxStorageBufferBindingSize": 134217728,
+      "maxComputeWorkgroupsPerDimension": 65535
+    }
+  },
+  "conditions": {
+    "resolution": "640x360",
+    "dpr": 1,
+    "warmups": 5,
+    "samples": 20,
+    "stepSize": 0.5,
+    "bias": 0.5
+  },
+  "algorithm": {
+    "baseline": "baseline-ray-march",
+    "optimized": "exact-prefix-binary-search+caster-aabb-empty-space",
+    "optimizedRayBoundSearch": "exact-combined-prefix-binary-search"
+  },
+  "resourceContract": {
+    "extraShadowPasses": 0,
+    "extraShadowDispatches": 0,
+    "extraShadowUploads": 0,
+    "extraShadowStorageBytes": 0
+  },
+  "cases": [
+    {
+      "id": "stage/upload",
+      "parameters": {
+        "suite": "stage",
+        "stage": "upload",
+        "resolution": "640x360",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.10000002384185791
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": null
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0,
+            "p95": 0.09999999403953552,
+            "min": 0,
+            "max": 0.09999999403953552
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": null
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": null,
+        "frameGpuTimestampMs": null,
+        "wallMs": null,
+        "hostMs": null
+      }
+    },
+    {
+      "id": "stage/height",
+      "parameters": {
+        "suite": "stage",
+        "stage": "height",
+        "resolution": "640x360",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.3999999761581421,
+            "min": 0,
+            "max": 0.4000000059604645
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": null
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": null
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": null,
+        "frameGpuTimestampMs": null,
+        "wallMs": null,
+        "hostMs": {
+          "milliseconds": 0,
+          "percent": 0,
+          "regression": false
+        }
+      }
+    },
+    {
+      "id": "stage/normal",
+      "parameters": {
+        "suite": "stage",
+        "stage": "normal",
+        "resolution": "640x360",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0,
+            "p95": 0.09999999403953552,
+            "min": 0,
+            "max": 0.09999999403953552
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": null
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0,
+            "p95": 0.09999999403953552,
+            "min": 0,
+            "max": 0.09999999403953552
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": null
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": null,
+        "frameGpuTimestampMs": null,
+        "wallMs": null,
+        "hostMs": null
+      }
+    },
+    {
+      "id": "stage/shadow",
+      "parameters": {
+        "suite": "stage",
+        "stage": "shadow",
+        "resolution": "640x360",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.20000001788139343,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.38972799999999996,
+            "p95": 0.403904,
+            "min": 0.387296,
+            "max": 0.571616
+          },
+          "frameGpuTimestampMs": null
+        },
+        "workload": {
+          "shadowSteps": null,
+          "shadowSampleCount": null,
+          "shadowAngularRadius": null,
+          "renderExtent": "640x360",
+          "texels": null,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 160,
+            "minY": 72,
+            "maxX": 420,
+            "maxY": 216
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 37440,
+          "casterAabbCoverageRatio": 0.1625
+        },
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.254384,
+            "p95": 0.256192,
+            "min": 0.250784,
+            "max": 0.256352
+          },
+          "frameGpuTimestampMs": null
+        },
+        "workload": {
+          "shadowSteps": null,
+          "shadowSampleCount": null,
+          "shadowAngularRadius": null,
+          "renderExtent": "640x360",
+          "texels": null,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 160,
+            "minY": 72,
+            "maxX": 420,
+            "maxY": 216
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 37440,
+          "casterAabbCoverageRatio": 0.1625
+        },
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.135344,
+          "percent": -34.728,
+          "regression": false
+        },
+        "frameGpuTimestampMs": null,
+        "wallMs": null,
+        "hostMs": {
+          "milliseconds": 0,
+          "percent": 0,
+          "regression": false
+        }
+      }
+    },
+    {
+      "id": "stage/reconstruction",
+      "parameters": {
+        "suite": "stage",
+        "stage": "reconstruction",
+        "resolution": "640x360",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": null
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0,
+            "p95": 0.09999999403953552,
+            "min": 0,
+            "max": 0.10000002384185791
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": null
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": null,
+        "frameGpuTimestampMs": null,
+        "wallMs": null,
+        "hostMs": null
+      }
+    },
+    {
+      "id": "stage/lighting",
+      "parameters": {
+        "suite": "stage",
+        "stage": "lighting",
+        "resolution": "640x360",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": null
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.09999999403953552,
+            "min": 0,
+            "max": 0.10000002384185791
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": null
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": null,
+        "frameGpuTimestampMs": null,
+        "wallMs": null,
+        "hostMs": {
+          "milliseconds": 0,
+          "percent": 0,
+          "regression": false
+        }
+      }
+    },
+    {
+      "id": "stage/presentation",
+      "parameters": {
+        "suite": "stage",
+        "stage": "presentation",
+        "resolution": "640x360",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": null
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": null,
+          "hostMs": {
+            "samples": 20,
+            "median": 0,
+            "p95": 0.09999999403953552,
+            "min": 0,
+            "max": 0.09999999403953552
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": null
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": 704,
+          "newAllocations": 0,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": null,
+        "frameGpuTimestampMs": null,
+        "wallMs": null,
+        "hostMs": null
+      }
+    },
+    {
+      "id": "stage/frame-total",
+      "parameters": {
+        "suite": "stage",
+        "resolution": "640x360",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.700000002980232,
+            "p95": 6.0999999940395355,
+            "min": 1.2000000178813934,
+            "max": 6.9000000059604645
+          },
+          "hostMs": {
+            "samples": 20,
+            "median": 0.30000001192092896,
+            "p95": 0.7000000178813934,
+            "min": 0.19999998807907104,
+            "max": 1.100000023841858
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.453616,
+            "p95": 0.602976,
+            "min": 0.451104,
+            "max": 0.6360319999999999
+          }
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.4500000029802322,
+            "p95": 5,
+            "min": 0.9000000059604645,
+            "max": 5.5
+          },
+          "hostMs": {
+            "samples": 20,
+            "median": 0.29999999701976776,
+            "p95": 0.4000000059604645,
+            "min": 0.09999999403953552,
+            "max": 0.4000000059604645
+          },
+          "shadowHostMs": null,
+          "shadowGpuTimestampMs": null,
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.31798399999999993,
+            "p95": 0.320448,
+            "min": 0.31504,
+            "max": 0.3219840000000001
+          }
+        },
+        "workload": null,
+        "resources": {
+          "submissions": 6,
+          "dispatches": 9,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": null,
+          "extraShadowDispatches": null,
+          "extraShadowUploads": null,
+          "extraShadowStorageBytes": null
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": null,
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.135632,
+          "percent": -29.9,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": -1.25,
+          "percent": -26.596,
+          "regression": false
+        },
+        "hostMs": {
+          "milliseconds": 0,
+          "percent": 0,
+          "regression": false
+        }
+      }
+    },
+    {
+      "id": "shadow/samples-1/radius-0",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 1,
+        "angularRadius": 0,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.950000002980232,
+            "p95": 5.5999999940395355,
+            "min": 1.5999999940395355,
+            "max": 6.199999988079071
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.10073599999999999,
+            "p95": 0.106016,
+            "min": 0.09904,
+            "max": 0.107104
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.114672,
+            "p95": 0.119872,
+            "min": 0.11292800000000001,
+            "max": 0.121248
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 1,
+          "shadowAngularRadius": 0,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4,
+            "p95": 6,
+            "min": 0.800000011920929,
+            "max": 6.200000017881393
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.042208,
+            "p95": 0.042624,
+            "min": 0.04176,
+            "max": 0.047776
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.056176000000000004,
+            "p95": 0.057056,
+            "min": 0.055263999999999994,
+            "max": 0.06204799999999999
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 1,
+          "shadowAngularRadius": 0,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.058528,
+          "percent": -58.1,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.058496,
+          "percent": -51.012,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": -0.95,
+          "percent": -19.192,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-4/radius-0",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 4,
+        "angularRadius": 0,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.649999991059303,
+            "p95": 6.0999999940395355,
+            "min": 0.9000000059604645,
+            "max": 6.199999988079071
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.20000001788139343,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.100912,
+            "p95": 0.106976,
+            "min": 0.099072,
+            "max": 0.24448
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.114944,
+            "p95": 0.121088,
+            "min": 0.112768,
+            "max": 0.258848
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 4,
+          "shadowAngularRadius": 0,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.7000000029802322,
+            "p95": 5.300000011920929,
+            "min": 0.699999988079071,
+            "max": 6.0999999940395355
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.042128,
+            "p95": 0.047584,
+            "min": 0.041888,
+            "max": 0.048864
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.056112,
+            "p95": 0.061152,
+            "min": 0.055424,
+            "max": 0.06319999999999999
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 4,
+          "shadowAngularRadius": 0,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.058784,
+          "percent": -58.253,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.058832,
+          "percent": -51.183,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": -0.95,
+          "percent": -20.43,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-8/radius-0",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 8,
+        "angularRadius": 0,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 5.399999991059303,
+            "p95": 6.0999999940395355,
+            "min": 1.2000000178813934,
+            "max": 6.4000000059604645
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.09976,
+            "p95": 0.10112,
+            "min": 0.098784,
+            "max": 0.101888
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.113728,
+            "p95": 0.115392,
+            "min": 0.11248,
+            "max": 0.11552
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 8,
+          "shadowAngularRadius": 0,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4,
+            "p95": 5.5999999940395355,
+            "min": 0.7000000178813934,
+            "max": 6.0999999940395355
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.04999999701976776,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.10000002384185791
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.042256,
+            "p95": 0.045248,
+            "min": 0.041856,
+            "max": 0.04576
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.05609599999999999,
+            "p95": 0.05923200000000001,
+            "min": 0.055232,
+            "max": 0.060224
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 8,
+          "shadowAngularRadius": 0,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.057504,
+          "percent": -57.642,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.057632,
+          "percent": -50.675,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": -1.4,
+          "percent": -25.926,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-16/radius-0",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 16,
+        "angularRadius": 0,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.149999991059303,
+            "p95": 6.299999982118607,
+            "min": 0.6000000238418579,
+            "max": 7
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.09992000000000001,
+            "p95": 0.104416,
+            "min": 0.09904,
+            "max": 0.106272
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.114016,
+            "p95": 0.11871999999999999,
+            "min": 0.112032,
+            "max": 0.12000000000000001
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 16,
+          "shadowAngularRadius": 0,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.2999999970197678,
+            "p95": 5.100000023841858,
+            "min": 0.9000000059604645,
+            "max": 5.5999999940395355
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.20000001788139343,
+            "min": 0,
+            "max": 0.3999999761581421
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.042112,
+            "p95": 0.046432,
+            "min": 0.041664,
+            "max": 0.048704
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.056064,
+            "p95": 0.060224,
+            "min": 0.055392,
+            "max": 0.063008
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 16,
+          "shadowAngularRadius": 0,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.057808,
+          "percent": -57.854,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.057952,
+          "percent": -50.828,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": -0.85,
+          "percent": -20.482,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-1/radius-0.05",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 1,
+        "angularRadius": 0.05,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.5999999940395355,
+            "p95": 6.100000023841858,
+            "min": 0.699999988079071,
+            "max": 6.5999999940395355
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.10088,
+            "p95": 0.108416,
+            "min": 0.099264,
+            "max": 0.109024
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.114608,
+            "p95": 0.122432,
+            "min": 0.11296,
+            "max": 0.122496
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 1,
+          "shadowAngularRadius": 0.05,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4,
+            "p95": 5,
+            "min": 0.7000000178813934,
+            "max": 5.5
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.042048,
+            "p95": 0.043648,
+            "min": 0.04176,
+            "max": 0.046336
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.055968000000000004,
+            "p95": 0.0576,
+            "min": 0.054880000000000005,
+            "max": 0.060576000000000005
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 1,
+          "shadowAngularRadius": 0.05,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.058832,
+          "percent": -58.319,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.05864,
+          "percent": -51.166,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": 0.4,
+          "percent": 11.111,
+          "regression": true
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-4/radius-0.05",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 4,
+        "angularRadius": 0.05,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.699999988079071,
+            "p95": 9.900000005960464,
+            "min": 1.199999988079071,
+            "max": 12.199999988079071
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.20000001788139343,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.407104,
+            "p95": 0.40944,
+            "min": 0.401664,
+            "max": 0.41296
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.44192,
+            "p95": 0.444736,
+            "min": 0.43708800000000003,
+            "max": 0.44784
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 4,
+          "shadowAngularRadius": 0.05,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.4500000029802322,
+            "p95": 5.200000017881393,
+            "min": 0.800000011920929,
+            "max": 6.0999999940395355
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.10000002384185791
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.157968,
+            "p95": 0.16528,
+            "min": 0.15616,
+            "max": 0.167392
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.192432,
+            "p95": 0.19952,
+            "min": 0.19040000000000004,
+            "max": 0.20268800000000003
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 4,
+          "shadowAngularRadius": 0.05,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.249136,
+          "percent": -61.197,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.249488,
+          "percent": -56.455,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": -0.25,
+          "percent": -6.757,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-8/radius-0.05",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 8,
+        "angularRadius": 0.05,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 5.0999999940395355,
+            "p95": 6.100000023841858,
+            "min": 2.5999999940395355,
+            "max": 6.800000011920929
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.10000002384185791,
+            "p95": 0.30000001192092896,
+            "min": 0,
+            "max": 0.30000001192092896
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.8089759999999999,
+            "p95": 0.814464,
+            "min": 0.794976,
+            "max": 0.938848
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.843712,
+            "p95": 0.8493120000000001,
+            "min": 0.829152,
+            "max": 0.973536
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 8,
+          "shadowAngularRadius": 0.05,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 1.7500000149011612,
+            "p95": 4.200000017881393,
+            "min": 0.9000000059604645,
+            "max": 5.199999988079071
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.315488,
+            "p95": 0.321408,
+            "min": 0.311808,
+            "max": 0.49584
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.349888,
+            "p95": 0.35596800000000006,
+            "min": 0.34608,
+            "max": 0.530624
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 8,
+          "shadowAngularRadius": 0.05,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.493488,
+          "percent": -61.002,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.493824,
+          "percent": -58.53,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": -3.35,
+          "percent": -65.686,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-16/radius-0.05",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 16,
+        "angularRadius": 0.05,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.9000000059604645,
+            "p95": 6.200000017881393,
+            "min": 3.5,
+            "max": 6.4000000059604645
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.20000001788139343,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 1.6051199999999999,
+            "p95": 1.721568,
+            "min": 1.598272,
+            "max": 2.440768
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 1.6396959999999998,
+            "p95": 1.756224,
+            "min": 1.6327359999999997,
+            "max": 2.4751039999999995
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 16,
+          "shadowAngularRadius": 0.05,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.449999988079071,
+            "p95": 5.5999999940395355,
+            "min": 3.0999999940395355,
+            "max": 6.699999988079071
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.621632,
+            "p95": 0.633248,
+            "min": 0.61376,
+            "max": 0.838048
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.655824,
+            "p95": 0.667456,
+            "min": 0.648256,
+            "max": 0.8725440000000001
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 16,
+          "shadowAngularRadius": 0.05,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.983488,
+          "percent": -61.272,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.983872,
+          "percent": -60.003,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": -0.45,
+          "percent": -9.184,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-1/radius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 1,
+        "angularRadius": 0.15,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.5,
+            "p95": 5.5,
+            "min": 0.699999988079071,
+            "max": 5.700000017881393
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.101136,
+            "p95": 0.102048,
+            "min": 0.099232,
+            "max": 0.102176
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.114864,
+            "p95": 0.115744,
+            "min": 0.11296,
+            "max": 0.115936
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 1,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4,
+            "p95": 6.0999999940395355,
+            "min": 0.8999999761581421,
+            "max": 6.300000011920929
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.10000002384185791
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.042112,
+            "p95": 0.045824,
+            "min": 0.041824,
+            "max": 0.048288
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.056048,
+            "p95": 0.060031999999999995,
+            "min": 0.055104,
+            "max": 0.062048
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 1,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.059024,
+          "percent": -58.361,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.058816,
+          "percent": -51.205,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": 0.5,
+          "percent": 14.286,
+          "regression": true
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-4/radius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 4,
+        "angularRadius": 0.15,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.850000008940697,
+            "p95": 5.5999999940395355,
+            "min": 1.300000011920929,
+            "max": 6.5
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.460432,
+            "p95": 0.478144,
+            "min": 0.454752,
+            "max": 0.586336
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.4952,
+            "p95": 0.6205119999999998,
+            "min": 0.489568,
+            "max": 0.6376959999999999
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 4,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.299999997019768,
+            "p95": 6.199999988079071,
+            "min": 0.699999988079071,
+            "max": 6.699999988079071
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.174048,
+            "p95": 0.175392,
+            "min": 0.172544,
+            "max": 0.332096
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.208416,
+            "p95": 0.20998399999999998,
+            "min": 0.206784,
+            "max": 0.36691199999999996
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 4,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.286384,
+          "percent": -62.199,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.286784,
+          "percent": -57.913,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": -0.55,
+          "percent": -11.34,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-8/radius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 8,
+        "angularRadius": 0.15,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.700000002980232,
+            "p95": 6.0999999940395355,
+            "min": 2.5999999940395355,
+            "max": 6.299999982118607
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.91056,
+            "p95": 1.047136,
+            "min": 0.904288,
+            "max": 1.228384
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.945536,
+            "p95": 1.0825280000000002,
+            "min": 0.939008,
+            "max": 1.263392
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 8,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.9500000029802322,
+            "p95": 6.5999999940395355,
+            "min": 1.0999999940395355,
+            "max": 6.800000011920929
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.29999998211860657
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.3448,
+            "p95": 0.362112,
+            "min": 0.340352,
+            "max": 0.503328
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.379552,
+            "p95": 0.398144,
+            "min": 0.37385599999999997,
+            "max": 0.5369599999999999
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 8,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.56576,
+          "percent": -62.133,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.565984,
+          "percent": -59.859,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": -0.75,
+          "percent": -15.957,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-16/radius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 16,
+        "angularRadius": 0.15,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.8499999791383743,
+            "p95": 6,
+            "min": 2.800000011920929,
+            "max": 6.5
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.20000001788139343,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 1.808336,
+            "p95": 1.828768,
+            "min": 1.801792,
+            "max": 1.919904
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 1.8429440000000001,
+            "p95": 1.8631039999999999,
+            "min": 1.836512,
+            "max": 1.954368
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 16,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 5.050000011920929,
+            "p95": 6.399999976158142,
+            "min": 3.0999999940395355,
+            "max": 6.5999999940395355
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.20000001788139343,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.68632,
+            "p95": 0.841664,
+            "min": 0.675904,
+            "max": 0.852768
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.7210559999999999,
+            "p95": 0.876544,
+            "min": 0.7107519999999999,
+            "max": 0.886656
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 16,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -1.122016,
+          "percent": -62.047,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -1.121888,
+          "percent": -60.875,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": 1.2,
+          "percent": 31.169,
+          "regression": true
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-1/radius-0.3",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 1,
+        "angularRadius": 0.3,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.550000011920929,
+            "p95": 5.5,
+            "min": 0.5999999940395355,
+            "max": 5.5
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.04999999701976776,
+            "p95": 0.09999999403953552,
+            "min": 0,
+            "max": 0.09999999403953552
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.100992,
+            "p95": 0.113984,
+            "min": 0.099264,
+            "max": 0.164544
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.11512,
+            "p95": 0.127584,
+            "min": 0.11296,
+            "max": 0.17872
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 1,
+          "shadowAngularRadius": 0.3,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.8500000089406967,
+            "p95": 6,
+            "min": 0.7999999821186066,
+            "max": 6.0999999940395355
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.09999999403953552,
+            "min": 0,
+            "max": 0.10000002384185791
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.042144,
+            "p95": 0.042496,
+            "min": 0.041728,
+            "max": 0.042624
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.056128000000000004,
+            "p95": 0.05648,
+            "min": 0.05488,
+            "max": 0.05664
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 1,
+          "shadowAngularRadius": 0.3,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.058848,
+          "percent": -58.27,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.058992,
+          "percent": -51.244,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": 0.3,
+          "percent": 8.451,
+          "regression": true
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-4/radius-0.3",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 4,
+        "angularRadius": 0.3,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.6500000059604645,
+            "p95": 5.899999976158142,
+            "min": 2.9000000059604645,
+            "max": 6.100000023841858
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.30000001192092896
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.56488,
+            "p95": 0.570048,
+            "min": 0.5592,
+            "max": 0.57328
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.5993280000000001,
+            "p95": 0.6040960000000001,
+            "min": 0.593952,
+            "max": 0.607936
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 4,
+          "shadowAngularRadius": 0.3,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 1.0499999970197678,
+            "p95": 5.5999999940395355,
+            "min": 0.5999999940395355,
+            "max": 6.699999988079071
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.206304,
+            "p95": 0.207104,
+            "min": 0.203264,
+            "max": 0.207456
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.24087999999999998,
+            "p95": 0.241856,
+            "min": 0.237536,
+            "max": 0.241888
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 4,
+          "shadowAngularRadius": 0.3,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.358576,
+          "percent": -63.478,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.358448,
+          "percent": -59.808,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": -3.6,
+          "percent": -77.419,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-8/radius-0.3",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 8,
+        "angularRadius": 0.3,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.549999997019768,
+            "p95": 6.299999982118607,
+            "min": 3,
+            "max": 6.600000023841858
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 1.126576,
+            "p95": 1.300288,
+            "min": 1.119616,
+            "max": 1.311904
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 1.1610719999999999,
+            "p95": 1.3345280000000002,
+            "min": 1.15376,
+            "max": 1.346304
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 8,
+          "shadowAngularRadius": 0.3,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.7000000178813934,
+            "p95": 5.5,
+            "min": 1.300000011920929,
+            "max": 5.700000017881393
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.411312,
+            "p95": 0.423904,
+            "min": 0.405248,
+            "max": 0.455072
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.44612799999999997,
+            "p95": 0.458368,
+            "min": 0.439424,
+            "max": 0.490496
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 8,
+          "shadowAngularRadius": 0.3,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.715264,
+          "percent": -63.49,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.714944,
+          "percent": -61.576,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": -0.85,
+          "percent": -18.681,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/samples-16/radius-0.3",
+      "parameters": {
+        "suite": "shadow",
+        "shadowSamples": 16,
+        "angularRadius": 0.3,
+        "travel": "medium",
+        "resolution": "640x360",
+        "scene": "soft-shadow",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.449999988079071,
+            "p95": 6.0999999940395355,
+            "min": 3.0999999940395355,
+            "max": 6.4000000059604645
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.20000001788139343,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 2.2374400000000003,
+            "p95": 2.263328,
+            "min": 2.2232,
+            "max": 2.36208
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 2.27184,
+            "p95": 2.297824,
+            "min": 2.2582079999999998,
+            "max": 2.39664
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 16,
+          "shadowAngularRadius": 0.3,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.250000014901161,
+            "p95": 6,
+            "min": 1.2999999821186066,
+            "max": 6
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.82376,
+            "p95": 0.84128,
+            "min": 0.80864,
+            "max": 1.1048
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.8588799999999999,
+            "p95": 0.8760640000000001,
+            "min": 0.8427520000000001,
+            "max": 1.140288
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 16,
+          "shadowAngularRadius": 0.3,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -1.41368,
+          "percent": -63.183,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -1.41296,
+          "percent": -62.195,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": -0.2,
+          "percent": -4.494,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/travel-short",
+      "parameters": {
+        "suite": "shadow",
+        "travel": "short",
+        "maxDistance": 40,
+        "stepSize": 0.5,
+        "theoreticalMaxSteps": 80,
+        "shadowSamples": 8,
+        "angularRadius": 0.15,
+        "resolution": "640x360",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 5.25,
+            "p95": 6.0999999940395355,
+            "min": 1.699999988079071,
+            "max": 6.300000011920929
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.7289760000000001,
+            "p95": 0.860736,
+            "min": 0.726112,
+            "max": 0.871808
+          },
+          "frameGpuTimestampMs": null
+        },
+        "workload": {
+          "shadowSteps": 80,
+          "shadowSampleCount": null,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": null,
+          "texels": null,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 2.25,
+            "p95": 6,
+            "min": 0.699999988079071,
+            "max": 6.0999999940395355
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.279424,
+            "p95": 0.29504,
+            "min": 0.275744,
+            "max": 0.297984
+          },
+          "frameGpuTimestampMs": null
+        },
+        "workload": {
+          "shadowSteps": 80,
+          "shadowSampleCount": null,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": null,
+          "texels": null,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 7,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.449552,
+          "percent": -61.669,
+          "regression": false
+        },
+        "frameGpuTimestampMs": null,
+        "wallMs": {
+          "milliseconds": -3,
+          "percent": -57.143,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/travel-medium",
+      "parameters": {
+        "suite": "shadow",
+        "travel": "medium",
+        "maxDistance": 120,
+        "stepSize": 0.5,
+        "theoreticalMaxSteps": 240,
+        "shadowSamples": 8,
+        "angularRadius": 0.15,
+        "resolution": "640x360",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 5,
+            "p95": 7,
+            "min": 2.5,
+            "max": 7
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.909232,
+            "p95": 0.929312,
+            "min": 0.902784,
+            "max": 1.063712
+          },
+          "frameGpuTimestampMs": null
+        },
+        "workload": {
+          "shadowSteps": 240,
+          "shadowSampleCount": null,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": null,
+          "texels": null,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.25,
+            "p95": 6.5,
+            "min": 0.800000011920929,
+            "max": 6.600000023841858
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.10000002384185791
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.3416,
+            "p95": 0.348736,
+            "min": 0.33568,
+            "max": 0.356032
+          },
+          "frameGpuTimestampMs": null
+        },
+        "workload": {
+          "shadowSteps": 240,
+          "shadowSampleCount": null,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": null,
+          "texels": null,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 8,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.567632,
+          "percent": -62.43,
+          "regression": false
+        },
+        "frameGpuTimestampMs": null,
+        "wallMs": {
+          "milliseconds": -0.75,
+          "percent": -15,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/travel-long",
+      "parameters": {
+        "suite": "shadow",
+        "travel": "long",
+        "maxDistance": 300,
+        "stepSize": 0.5,
+        "theoreticalMaxSteps": 600,
+        "shadowSamples": 8,
+        "angularRadius": 0.15,
+        "resolution": "640x360",
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.699999988079071,
+            "p95": 6.5,
+            "min": 3,
+            "max": 6.5
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.910624,
+            "p95": 0.931168,
+            "min": 0.9056,
+            "max": 1.044064
+          },
+          "frameGpuTimestampMs": null
+        },
+        "workload": {
+          "shadowSteps": 600,
+          "shadowSampleCount": null,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": null,
+          "texels": null,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.199999988079071,
+            "p95": 5.300000011920929,
+            "min": 1.0999999940395355,
+            "max": 6.0999999940395355
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.10000002384185791
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.348864,
+            "p95": 0.365888,
+            "min": 0.344608,
+            "max": 0.370208
+          },
+          "frameGpuTimestampMs": null
+        },
+        "workload": {
+          "shadowSteps": 600,
+          "shadowSampleCount": null,
+          "shadowAngularRadius": 0.15,
+          "renderExtent": null,
+          "texels": null,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 10,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 192,
+            "minY": 90,
+            "maxX": 262,
+            "maxY": 130
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 2800,
+          "casterAabbCoverageRatio": 0.012152777777777778
+        },
+        "resources": {
+          "submissions": null,
+          "dispatches": null,
+          "bytesUploaded": null,
+          "newAllocations": null,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.56176,
+          "percent": -61.69,
+          "regression": false
+        },
+        "frameGpuTimestampMs": null,
+        "wallMs": {
+          "milliseconds": -0.5,
+          "percent": -10.638,
+          "regression": false
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/worst/dense-caster",
+      "parameters": {
+        "suite": "shadow",
+        "scenario": "dense-caster",
+        "scene": "shadow-worst-dense-caster",
+        "resolution": "640x360",
+        "shadowSamples": 8,
+        "angularRadius": 0.15,
+        "maxDistance": 200,
+        "stepSize": 0.5,
+        "bias": 0.5,
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 1.2000000178813934,
+            "p95": 5.5,
+            "min": 0.5999999940395355,
+            "max": 6.199999988079071
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.04999999701976776,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.10000002384185791
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.107216,
+            "p95": 0.130656,
+            "min": 0.097536,
+            "max": 0.135264
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.14163199999999998,
+            "p95": 0.16384,
+            "min": 0.13168,
+            "max": 0.16966399999999998
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 8,
+          "shadowAngularRadius": 0.15000000596046448,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 6,
+            "minY": 3,
+            "maxX": 634,
+            "maxY": 357
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 222312,
+          "casterAabbCoverageRatio": 0.9648958333333333
+        },
+        "resources": {
+          "submissions": 4,
+          "dispatches": 3,
+          "bytesUploaded": 512,
+          "newAllocations": 0,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 2.8999999910593033,
+            "p95": 4.699999988079071,
+            "min": 0.699999988079071,
+            "max": 5.199999988079071
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.20000001788139343
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.11097599999999999,
+            "p95": 0.124288,
+            "min": 0.104064,
+            "max": 0.132672
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.145312,
+            "p95": 0.15884800000000002,
+            "min": 0.13859200000000002,
+            "max": 0.16768000000000002
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 8,
+          "shadowAngularRadius": 0.15000000596046448,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 6,
+            "minY": 3,
+            "maxX": 634,
+            "maxY": 357
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 222312,
+          "casterAabbCoverageRatio": 0.9648958333333333
+        },
+        "resources": {
+          "submissions": 4,
+          "dispatches": 3,
+          "bytesUploaded": 512,
+          "newAllocations": 0,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": 0.00376,
+          "percent": 3.507,
+          "regression": true
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": 0.00368,
+          "percent": 2.598,
+          "regression": true
+        },
+        "wallMs": {
+          "milliseconds": 1.7,
+          "percent": 141.667,
+          "regression": true
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/worst/near-blocker",
+      "parameters": {
+        "suite": "shadow",
+        "scenario": "near-blocker",
+        "scene": "shadow-worst-near-blocker",
+        "resolution": "640x360",
+        "shadowSamples": 1,
+        "angularRadius": 0,
+        "maxDistance": 200,
+        "stepSize": 0.5,
+        "bias": 0.5,
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.0499999970197678,
+            "p95": 4.9000000059604645,
+            "min": 0.5999999940395355,
+            "max": 5.5999999940395355
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.092144,
+            "p95": 0.111296,
+            "min": 0.088672,
+            "max": 0.11248
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.106016,
+            "p95": 0.125536,
+            "min": 0.101088,
+            "max": 0.126304
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 1,
+          "shadowAngularRadius": 0,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 1,
+            "minY": 180,
+            "maxX": 639,
+            "maxY": 189
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 5742,
+          "casterAabbCoverageRatio": 0.024921875
+        },
+        "resources": {
+          "submissions": 3,
+          "dispatches": 2,
+          "bytesUploaded": 512,
+          "newAllocations": 0,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 3.4000000059604645,
+            "p95": 5.9000000059604645,
+            "min": 0.5999999940395355,
+            "max": 6.5
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.038592,
+            "p95": 0.049984,
+            "min": 0.036992,
+            "max": 0.05328
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.052719999999999996,
+            "p95": 0.063776,
+            "min": 0.050688,
+            "max": 0.067584
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 1,
+          "shadowAngularRadius": 0,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 1,
+            "minY": 180,
+            "maxX": 639,
+            "maxY": 189
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 5742,
+          "casterAabbCoverageRatio": 0.024921875
+        },
+        "resources": {
+          "submissions": 3,
+          "dispatches": 2,
+          "bytesUploaded": 512,
+          "newAllocations": 0,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": -0.053552,
+          "percent": -58.118,
+          "regression": false
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": -0.053296,
+          "percent": -50.272,
+          "regression": false
+        },
+        "wallMs": {
+          "milliseconds": 0.35,
+          "percent": 11.475,
+          "regression": true
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/worst/max-height-fast-exit",
+      "parameters": {
+        "suite": "shadow",
+        "scenario": "max-height-fast-exit",
+        "scene": "shadow-worst-max-height-fast-exit",
+        "resolution": "640x360",
+        "shadowSamples": 1,
+        "angularRadius": 0,
+        "maxDistance": 300,
+        "stepSize": 0.5,
+        "bias": 0.5,
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.350000008940697,
+            "p95": 5.5,
+            "min": 0.5999999940395355,
+            "max": 6
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.10000002384185791
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.004672,
+            "p95": 0.004864,
+            "min": 0.004576,
+            "max": 0.00496
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.018848,
+            "p95": 0.019136,
+            "min": 0.018304,
+            "max": 0.019456
+          }
+        },
+        "workload": {
+          "shadowSteps": 600,
+          "shadowSampleCount": 1,
+          "shadowAngularRadius": 0,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 1,
+            "minY": 1,
+            "maxX": 639,
+            "maxY": 359
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 228404,
+          "casterAabbCoverageRatio": 0.9913368055555556
+        },
+        "resources": {
+          "submissions": 3,
+          "dispatches": 2,
+          "bytesUploaded": 512,
+          "newAllocations": 0,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 4.5999999940395355,
+            "p95": 6.5,
+            "min": 0.7999999821186066,
+            "max": 6.5999999940395355
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.19999998807907104,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.010176,
+            "p95": 0.017056,
+            "min": 0.00992,
+            "max": 0.02
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.024304,
+            "p95": 0.03136,
+            "min": 0.022560000000000004,
+            "max": 0.034048
+          }
+        },
+        "workload": {
+          "shadowSteps": 600,
+          "shadowSampleCount": 1,
+          "shadowAngularRadius": 0,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 10,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 1,
+            "minY": 1,
+            "maxX": 639,
+            "maxY": 359
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 228404,
+          "casterAabbCoverageRatio": 0.9913368055555556
+        },
+        "resources": {
+          "submissions": 3,
+          "dispatches": 2,
+          "bytesUploaded": 512,
+          "newAllocations": 0,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": 0.005504,
+          "percent": 117.808,
+          "regression": true
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": 0.005456,
+          "percent": 28.947,
+          "regression": true
+        },
+        "wallMs": {
+          "milliseconds": 0.25,
+          "percent": 5.747,
+          "regression": true
+        },
+        "hostMs": null
+      }
+    },
+    {
+      "id": "shadow/worst/dense-overlap",
+      "parameters": {
+        "suite": "shadow",
+        "scenario": "dense-overlap",
+        "scene": "shadow-worst-dense-overlap",
+        "resolution": "640x360",
+        "shadowSamples": 8,
+        "angularRadius": 0.15,
+        "maxDistance": 200,
+        "stepSize": 0.5,
+        "bias": 0.5,
+        "warmups": 5,
+        "samples": 20
+      },
+      "before": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 1.0999999940395355,
+            "p95": 5.9000000059604645,
+            "min": 0.7999999821186066,
+            "max": 6.5
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.09999999403953552,
+            "p95": 0.10000002384185791,
+            "min": 0,
+            "max": 0.19999998807907104
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.039055999999999993,
+            "p95": 0.056128,
+            "min": 0.033664,
+            "max": 0.05632
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.072768,
+            "p95": 0.090656,
+            "min": 0.067968,
+            "max": 0.090848
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 8,
+          "shadowAngularRadius": 0.15000000596046448,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "per-step-bounds-check",
+          "rayBoundSearchIterationUpperBound": 0,
+          "casterAabbCulling": false,
+          "casterAabbPadTexels": 0,
+          "casterAabb": {
+            "minX": 2,
+            "minY": 2,
+            "maxX": 641,
+            "maxY": 361
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 228404,
+          "casterAabbCoverageRatio": 0.9913368055555556
+        },
+        "resources": {
+          "submissions": 4,
+          "dispatches": 3,
+          "bytesUploaded": 1920,
+          "newAllocations": 0,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "after": {
+        "warmups": 5,
+        "samples": 20,
+        "timing": {
+          "wallMs": {
+            "samples": 20,
+            "median": 1.7999999970197678,
+            "p95": 6.0999999940395355,
+            "min": 1,
+            "max": 7.300000011920929
+          },
+          "hostMs": null,
+          "shadowHostMs": {
+            "samples": 20,
+            "median": 0.10000002384185791,
+            "p95": 0.30000001192092896,
+            "min": 0,
+            "max": 0.30000001192092896
+          },
+          "shadowGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.061056,
+            "p95": 0.06304,
+            "min": 0.058528,
+            "max": 0.075136
+          },
+          "frameGpuTimestampMs": {
+            "samples": 20,
+            "median": 0.095584,
+            "p95": 0.09712,
+            "min": 0.09264,
+            "max": 0.10944000000000001
+          }
+        },
+        "workload": {
+          "shadowSteps": 400,
+          "shadowSampleCount": 8,
+          "shadowAngularRadius": 0.15000000596046448,
+          "renderExtent": "640x360",
+          "texels": 230400,
+          "rayBoundSearch": "exact-combined-prefix-binary-search",
+          "rayBoundSearchIterationUpperBound": 9,
+          "casterAabbCulling": true,
+          "casterAabbPadTexels": 2,
+          "casterAabb": {
+            "minX": 2,
+            "minY": 2,
+            "maxX": 641,
+            "maxY": 361
+          },
+          "frameLogicalArea": 230400,
+          "unionCasterAabbArea": 228404,
+          "casterAabbCoverageRatio": 0.9913368055555556
+        },
+        "resources": {
+          "submissions": 4,
+          "dispatches": 3,
+          "bytesUploaded": 1920,
+          "newAllocations": 0,
+          "extraShadowPasses": 0,
+          "extraShadowDispatches": 0,
+          "extraShadowUploads": 0,
+          "extraShadowStorageBytes": 0
+        }
+      },
+      "delta": {
+        "shadowGpuTimestampMs": {
+          "milliseconds": 0.022,
+          "percent": 56.329,
+          "regression": true
+        },
+        "frameGpuTimestampMs": {
+          "milliseconds": 0.022816,
+          "percent": 31.354,
+          "regression": true
+        },
+        "wallMs": {
+          "milliseconds": 0.7,
+          "percent": 63.636,
+          "regression": true
+        },
+        "hostMs": null
+      }
+    }
+  ],
+  "regressions": {
+    "shadowGpuTimestampMs": [
+      {
+        "id": "shadow/worst/dense-caster",
+        "delta": {
+          "milliseconds": 0.00376,
+          "percent": 3.507,
+          "regression": true
+        }
+      },
+      {
+        "id": "shadow/worst/max-height-fast-exit",
+        "delta": {
+          "milliseconds": 0.005504,
+          "percent": 117.808,
+          "regression": true
+        }
+      },
+      {
+        "id": "shadow/worst/dense-overlap",
+        "delta": {
+          "milliseconds": 0.022,
+          "percent": 56.329,
+          "regression": true
+        }
+      }
+    ],
+    "frameGpuTimestampMs": [
+      {
+        "id": "shadow/worst/dense-caster",
+        "delta": {
+          "milliseconds": 0.00368,
+          "percent": 2.598,
+          "regression": true
+        }
+      },
+      {
+        "id": "shadow/worst/max-height-fast-exit",
+        "delta": {
+          "milliseconds": 0.005456,
+          "percent": 28.947,
+          "regression": true
+        }
+      },
+      {
+        "id": "shadow/worst/dense-overlap",
+        "delta": {
+          "milliseconds": 0.022816,
+          "percent": 31.354,
+          "regression": true
+        }
+      }
+    ]
+  }
+}

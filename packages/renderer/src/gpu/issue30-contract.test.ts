@@ -9,7 +9,7 @@ import { ciOutcome, parseSummaryLines } from "../../scripts/summarize-webgpu.mjs
 // @ts-expect-error - scripts/test-webgpu.mjs has no type declarations
 import { parseResultMarker } from "../../scripts/test-webgpu.mjs";
 // @ts-expect-error - test-browser modules are plain ESM without declarations
-import { createCatalog, CATALOG_VERSION, POLICY_TABLE, REQUIRED_COVERAGE, policyFor } from "../../test-browser/catalog.mjs";
+import { createCatalog, CATALOG_VERSION, ISSUE_48_ADVERSARIAL_FIXTURE_IDS, POLICY_TABLE, REQUIRED_COVERAGE, policyFor } from "../../test-browser/catalog.mjs";
 // @ts-expect-error - test-browser modules are plain ESM without declarations
 import { createOracle } from "../../test-browser/oracle.mjs";
 import * as api from "../index";
@@ -56,7 +56,12 @@ interface FixtureLike {
   logical: { width: number; height: number };
   render: { width: number; height: number };
   dpr: number;
-  params: { dpr: number; scene: unknown; render: unknown };
+  params: {
+    dpr: number;
+    scene: unknown;
+    render: unknown;
+    options?: { shadow?: { samples?: number } };
+  };
   buffers: string[];
   golden: boolean;
   scene?: unknown;
@@ -75,10 +80,26 @@ interface PolicyEntry {
 const policyEntries = POLICY_TABLE as PolicyEntry[];
 
 describe("#30 catalog — every fixture has explicit metadata", () => {
-  it("pins the catalog version and fixture totals (99 compute + 21 presentation)", () => {
-    expect(CATALOG_VERSION).toBe(7);
-    expect(catalog.computeFixtures.length).toBe(99);
+  it("pins the catalog version and fixture totals (116 compute + 21 presentation)", () => {
+    expect(CATALOG_VERSION).toBe(9);
+    expect(catalog.computeFixtures.length).toBe(116);
     expect(catalog.presentationFixtures.length).toBe(21);
+  });
+
+  it("registers every #48 adversarial fixture, including hard and soft dense-frame paths", () => {
+    const byId = new Map((catalog.computeFixtures as FixtureLike[]).map((fixture) => [fixture.id, fixture]));
+    for (const id of ISSUE_48_ADVERSARIAL_FIXTURE_IDS) {
+      const fixture = byId.get(id);
+      expect(fixture, `missing #48 fixture ${id}`).toBeTruthy();
+      expect(fixture?.buffers).toContain("visibility");
+    }
+    const hard = byId.get("shadow-dense-full-frame-hard");
+    const soft = byId.get("shadow-dense-full-frame-soft");
+    expect(hard?.params.options?.shadow?.samples).toBe(1);
+    expect(soft?.params.options?.shadow?.samples).toBe(4);
+    const softScene = soft?.scene as { light?: { angularRadius?: number } } | undefined;
+    expect(softScene?.light?.angularRadius).toBeGreaterThan(0);
+    expect(paritySource).toContain("ISSUE_48_ADVERSARIAL_FIXTURE_IDS");
   });
 
   it("gives every fixture a stable id, categories, dimensions, dpr, params and buffers", () => {
