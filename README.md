@@ -84,7 +84,7 @@ React層は薄いlifecycle/API層であり、rendererのセマンティクスを
 
 DOM所有のアクセシブルなテキスト(`<span>`)を描画し、その**グリフを#19 mask geometryとして物理sceneへ登録**します(#19 demoのPLAY reliefをReact APIで再現)。ラスタライズ(canvas 2d)はrenderer coreの外、DOMテキストはDOM所有のままです。
 
-**#52 glyph compositing policy**: physical maskの用意が完了し、物理バックエンドが有効な間(= registration成立時)は、**canvas上の物理glyph reliefが視覚表現になります**。DOM textの**インクのみ**を `data-ukibori-physical-ink` 管理属性経由のstylesheetルールで抑制し(color / -webkit-text-fill-color / -webkit-text-stroke-color → transparent、text-shadow → none)、DOM node / textContent / 選択 / コピー / focus / ARIA / layoutは一切変更しません。選択ハイライトはUAの `::selection` 背景が引き続き可視です。CSS backend / provider無し / SSR / rasterize失敗では登録が存在しないため、DOMテキストは通常通り可視のままです。
+**#52 glyph compositing policy (UkiboriText固有)**: physical maskの用意が完了し、物理バックエンドが有効な間(= registration成立時)は、**canvas上の物理glyph reliefが視覚表現になります**。`<UkiboriText>` は自分のテキストをmaskへラスタライズしたglyphであるため、明示的な `delegateTextInk` intent付きで登録され、**そのDOM textのインクのみ**を `data-ukibori-physical-ink` 管理属性経由のstylesheetルールで抑制します(color / -webkit-text-fill-color / -webkit-text-stroke-color → transparent、text-shadow → none)。DOM node / textContent / 選択 / コピー / focus / ARIA / layoutは一切変更せず、選択ハイライトはUAの `::selection` 背景が引き続き可視です。**一般の `<Surface>` が `shape={{kind:"mask"}}`(icon silhouette等)を持っていても、そのDOM textはDOM所有のまま可視です** — ink delegationはshapeから推測されず、`<UkiboriText>` の明示的intentでのみ発動します。CSS backend / provider無し / SSR / rasterize失敗では登録が存在しないため、DOMテキストは通常通り可視のままです。rasterizationはライブlayoutのRange line boxからbaselineを測定して配置するため、mask-ready遷移の前後でglyph位置はジャンプしません(#52 alignment)。
 
 ## アクセシビリティ / フォールバック
 

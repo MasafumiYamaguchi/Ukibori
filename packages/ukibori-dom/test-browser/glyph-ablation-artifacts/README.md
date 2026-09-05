@@ -9,25 +9,46 @@ real WebGPU adapter, headless Chrome).
 - `before/` — captured BEFORE the #52 production compositing policy (the
   DOM glyph ink was visible and covered the physical relief). The
   `*-ink.png` / `*-noink.png` pairs toggle the DOM ink manually.
-- `after/` — captured AFTER the policy (registered mask surfaces own the
-  `data-ukibori-physical-ink` suppression). `*-ink.png` here reproduces the
-  pre-fix appearance through the harness's documented DEBUG OVERRIDE
-  (removing the layer-owned attribute); `*-noink.png` is the live policy
-  state: the physical glyph relief on the canvas is the visual
-  representation and its highlight flips with the light direction.
+- `after/` — captured AFTER the policy (registered glyph surfaces own the
+  `data-ukibori-physical-ink` suppression through the explicit
+  `delegateTextInk` intent). `*-ink.png` here reproduces the pre-fix
+  appearance through the harness's documented DEBUG OVERRIDE (removing the
+  layer-owned attribute); `*-noink.png` is the live policy state: the
+  physical glyph relief on the canvas is the visual representation and its
+  highlight flips with the light direction. The relief now sits exactly on
+  the DOM ink position (see `alignment/`).
+- `alignment/` — #52 review alignment matrix (DOM ink bounds measured from
+  real screenshot pixels vs the rasterized mask ink bounds):
+  `before/` = centered/middle rasterization, `after/` = live-layout
+  baseline anchoring (UkiboriText.rasterizeText).
 
-## Key numbers (glyph-region |delta| between opposite lights, u8 units)
+## Light-response numbers (glyph-region |delta| between opposite lights, u8)
 
 | group | left vs right | top vs bottom |
 |---|---:|---:|
-| DPR 1 | mean 2.65 / max 75.3 | mean 1.24 / max 75.3 |
-| DPR 1.5 | mean 1.83 / max 75.3 | mean 0.78 / max 75.3 |
-| DPR 2 | mean 1.32 / max 75.3 | mean 0.36 / max 75.3 |
+| DPR 1 | mean 2.43 / max 75.3 | mean 0.88 / max 75.3 |
+| DPR 1.5 | mean 1.69 / max 75.3 | mean 0.53 / max 75.3 |
+| DPR 2 | mean 1.23 / max 75.3 | mean 0.25 / max 75.3 |
 
 The canvas pixels are identical with the DOM ink visible vs suppressed —
 the ink only paints ABOVE the canvas, which is why the pre-fix appearance
-showed no light response at all. The report JSONs also record the
-pre-existing vertical alignment offset between the DOM ink and the canvas
-relief (mask ink rows 15–59 of an 85 px box vs the DOM line box 0–85; the
-relief sits higher than the DOM ink by a few px at 64 px font) — a
-pre-existing rasterization-baseline observation, not introduced by #52.
+showed no light response at all.
+
+## Alignment numbers (DOM ink center vs mask ink center, CSS px)
+
+| case | before (centered/middle) | after (live-layout baseline) |
+|---|---:|---:|
+| PLAY 700 @32 px, DPR 1 | +5.00 px | 0.00 px |
+| PLAY 700 @64 px, DPR 1 | +9.00 px | 0.00 px |
+| PLAY 700 @96 px, DPR 1 | +14.00 px | 0.00 px |
+| thin "illii" 400 @64 px, DPR 1 | +9.00 px | 0.00 px |
+| thick "OM" 900 @64 px, DPR 1 | +9.00 px | 0.00 px |
+| PLAY 700 @64 px, DPR 1.5 | +9.00 px | 0.00 px |
+| PLAY 700 @64 px, DPR 2 | +9.00 px | 0.00 px |
+
+Horizontal: the DOM ink sat ~1–1.5 px left of the mask ink (center vs left
+anchoring); after the fix the residual is ≤ 0.5 px — the screenshot/mask
+threshold quantization floor (DOM AA + mask `alpha >= 0.5` sampling), not a
+layout offset. The positive before-values mean the DOM ink sat BELOW the
+mask ink: the pre-fix ghost sliver above the glyphs in `before/` and the
+post-fix coincidence in `after/`.

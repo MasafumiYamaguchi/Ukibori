@@ -10,7 +10,7 @@ Branch: `feat/issue-52-glyph-lighting` (base: master `52fa1bd`)
 | **DOM text compositing (PRIMARY)** | The visible DOM glyph paints 100% of the physical glyph silhouette (the mask raster IS the ink silhouette), so the physical relief on the overlay canvas — the only thing that responds to light — was completely covered. | Real-Chrome ablation (`packages/ukibori-dom/test-browser/glyph-lighting.mjs`): canvas pixels are IDENTICAL with the DOM ink visible vs suppressed (`before/` vs `after/` report groups); with ink suppressed the relief's highlight flips with the light direction. Pre-fix screenshots show flat dark text; the canvas's `|Δ|` between opposite lights reaches ~75/255 u8 at glyph bevels. |
 | **Mask resolution (SECONDARY, pre-existing)** | `UkiboriText.rasterizeText` rasterizes at the rounded CSS-pixel box (no DPR multiplication) and the #19/#20 scene contract keeps that mask raster at every DPR, so the silhouette is a CSS-px staircase; thin strokes (≈1 mask px) have almost no bevel band left to shade. | Node characterization (`packages/renderer/src/glyph-lighting.test.ts`): thin-stroke mean directional response ≈ 7% of the thick-stroke one; the bevel band's mask-px width is DPR-invariant by contract (pinned test). Browser ablation: the response max (~75 u8) persists at DPR 1/1.5/2 (mean dilutes with panel pixels in the measured box). |
 | **Height profile / normal (NOT significant for this issue)** | The glyph height is the GENERIC SDF + smoothstep bevel: the interior is a flat plateau (zero gradient, `(0,0,1)` normals — physically no directional response) and the response lives on the bevel band. The generic central-difference normal + Cook-Torrance respond correctly there. | Characterization: interior flat-normal ≈ 95% on large glyphs; final-color response mean 34.5 u8 / max 75 u8 (panel + glyph scene, ±x light); response flips sign with the direction. No renderer change is needed to satisfy the issue. |
-| Vertical alignment (PRE-EXISTING, deferred) | The DOM ink and the canvas relief are vertically offset (measured: mask ink rows 15–59 of an 85 px box vs the DOM line box 0–85 at 64 px font — the relief sits a few px higher). Pre-existing (visible as a "ghost" sliver above the ink even pre-fix); the policy change does not move either. | Ablation report JSON `alignment` field + before/after screenshots. |
+| Vertical alignment (was PRE-EXISTING — **fixed in the review round**) | The DOM ink and the canvas relief were vertically offset (measured: +5/+9/+14 px at font 32/64/96 — line-height half-leading + baseline-vs-middle anchoring — plus ~1–1.5 px horizontal from center-vs-left anchoring). Once the ink was suppressed the offset became user-visible. Fixed by anchoring the rasterization baseline to the live DOM line box (`alignment/` artifacts). | Ablation report JSON `alignment` field + before/after screenshots. |
 
 ## Ablation results
 
@@ -22,26 +22,53 @@ Branch: `feat/issue-52-glyph-lighting` (base: master `52fa1bd`)
 
 ## Adopted solution
 
-**Production compositing policy (ukibori-dom only; zero renderer/React API changes):**
+**Production compositing policy (ukibori-dom + the UkiboriText intent; zero
+renderer changes):**
 
-- A registered MASK surface additionally receives the managed, refcounted
-  `data-ukibori-physical-ink` attribute; the injected stylesheet rule suppresses
-  the DOM text ink (`color`, `-webkit-text-fill-color`,
+- The delegation is **explicit, not shape-inferred**: `UkiboriText` registers
+  its glyph with the compositing-only `delegateTextInk` intent (never
+  forwarded to the scene builder or renderer) plus its mask shape. Only that
+  combination acquires the managed, refcounted
+  `data-ukibori-physical-ink` attribute; the injected stylesheet rule
+  suppresses the DOM text ink (`color`, `-webkit-text-fill-color`,
   `-webkit-text-stroke-color` → `transparent`, `text-shadow` → `none`, all
   `!important`) while the physical glyph relief on the overlay canvas is the
   visual representation.
+- **Generic mask surfaces keep their DOM text DOM-owned**: a public
+  `<Surface shape={{ kind: "mask" }}>` (icon silhouette, arbitrary alpha
+  geometry) never sets the intent, so its text/content stays visible above
+  the physical relief. The shape kind alone delegates nothing.
 - The mechanism is the SAME ownership-safe pattern as the existing
   `data-ukibori-surface` background suppression: no inline style is saved or
-  restored (app/React inline updates keep working), unregistration reveals the
-  app's latest styles, pre-existing application-owned attributes are never
-  removed, and a failed registration leaves nothing behind.
-- `register` / `unregister` / `updateSurface` (shape-kind transitions) /
-  `dispose` all follow the policy.
+  restored (app/React inline updates keep working), unregistration reveals
+  the app's latest styles, pre-existing application-owned attributes are
+  never removed, and a failed registration leaves nothing behind.
+- The ownership is **EDGE-TRIGGERED**: acquired exactly once on the
+  delegation false→true transition, released exactly once on the true→false
+  transition (unregister / dispose / intent or shape transitions). Retained
+  property updates (text/material/elevation/thickness/bevel/mask-object
+  swaps — including the React mount sequence, where the updateSurface effect
+  follows registration) never re-acquire, so the refcount tracks "who owns
+  the attribute now", not the number of option updates.
+- `register` / `unregister` / `updateSurface` / `dispose` all follow the
+  policy through the single `delegatesInk()` decision point.
+
+**Alignment policy (ukibori rasterization):** `UkiboriText.rasterizeText` no
+longer centers the text at the box middle. The DOM ink position is measured
+from the LIVE layout (a `Range` over the text gives the line box) and the
+rasterization places an **alphabetic baseline** at
+`lineBoxTop + (lineBoxHeight − (ascent + descent)) / 2 + fontBoundingBoxAscent`,
+left-anchored at the line box origin, with the computed letter-spacing
+replicated through the canvas property. No magic pixel offsets, no
+font-specific constants, no DPR-dependent correction; environments without
+live layout metrics (jsdom-style tests) fall back to the legacy centered
+placement.
 
 Why this shape: the physical renderer was already light-responsive (evidence
-above); the missing piece was exclusively what paints on top. State selection
-is by construction — suppression can only be acquired through registration,
-which only happens in physical mode:
+above); the missing piece was exclusively what paints on top — plus the
+alignment that makes the ink→relief transition visually seamless. State
+selection is by construction — suppression can only be acquired through
+registration, which only happens in physical mode:
 
 | State | DOM text |
 |---|---|
@@ -83,12 +110,30 @@ which only happens in physical mode:
   SSR output is unchanged (pinned).
 - **CSS backend / provider-less / none**: no registration → no suppression
   (pinned).
+- **Physical → CSS fallback**: the structural backend switch disposes the
+  layer, which releases the ink suppression exactly once — pinned by a React
+  test that also exercises repeated delegated updates first (a refcount leak
+  would leave the attribute behind).
+- **Repeated update ownership lifecycle**: pinned at the dom-layer level
+  (register + 10 delegated updates → unregister/dispose releases exactly
+  once; non-mask → delegated → delegated → non-mask transitions; cross-layer
+  shared-attribute refcount preserved).
+- **Generic mask preservation**: a generic `Surface` with `shape={{kind:"mask"}}`
+  — including nested child text — keeps its DOM text DOM-owned (React tests).
+- **Alignment**: real-browser measurement (screenshot round-trip ink
+  segmentation vs mask alpha bounds) — the pre-fix DOM ink sat +5/+9/+14 px
+  (font 32/64/96) below the mask ink and ~1–1.5 px left; after the
+  live-layout baseline anchoring, all seven measured cases (PLAY 32/64/96,
+  thin "illii", thick "OM", DPR 1/1.5/2) match with dCenter 0.00 / ≤ 0.5 px
+  (the measurement's own AA quantization floor). The mask-ready transition
+  no longer moves the visual glyph.
 - **CPU/WebGPU**: no renderer semantic change (zero diffs in
   `packages/renderer`); the real-Chrome DOM GPU harness passes
   (`UKIBORI_DOM_GPU_PASS`), and the ablation staging reads confirm the
   presented GPU frames carry the responsive relief.
 - **Layout**: mask/footprint contract untouched (`UkiboriText` sizing policy
-  tests still pass).
+  tests still pass; the alignment change only affects WHERE the text is
+  drawn INTO the same-size mask raster, never the box).
 
 ## Visual verification
 
@@ -96,9 +141,10 @@ Committed artifacts: `packages/ukibori-dom/test-browser/glyph-ablation-artifacts
 (`README.md` explains labels; `before/` = pre-fix, `after/` = post-fix build).
 
 - Light directions: left / right / top / bottom screenshots in both ink states (DPR 1), plus left at DPR 2.
-- Glyph families / font sizes: structural characterization in Node (thin stroke "L", thick stroke "H", counter "P" at small/medium/large grids); the real-font browser harness uses "PLAY" (counter + mixed stroke widths).
-- DPR: 1 / 1.5 / 2 in the ablation matrix (canvas response persists; silhouette stays CSS-px).
+- Glyph families / font sizes: structural characterization in Node (thin stroke "L", thick stroke "H", counter "P" at small/medium/large grids); the real-font browser harness uses "PLAY" (counter + mixed stroke widths) plus the alignment matrix's thin "illii" and thick "OM" at 32/64/96 px.
+- DPR: 1 / 1.5 / 2 in the ablation matrix (canvas response persists; silhouette stays CSS-px) and in the alignment matrix (CSS-space alignment is DPR-invariant, verified).
 - Direction flip: highlight moves with the light direction (artifacts `*-noink.png` left vs right).
+- Alignment: mask-ready transition visual position (DOM ink vs relief) — `alignment/` artifacts.
 
 ## Performance
 
@@ -110,23 +156,38 @@ harness's own renders are evidence-only.
 
 ## Remaining limitations
 
-1. **Pre-existing vertical offset** between the DOM ink and the canvas relief
-   (measured above). Visible once the ink is suppressed; fixing it means
-   reworking `rasterizeText`'s baseline policy (DOM line-box baseline vs
-   canvas `middle`) — follow-up candidate.
-2. **CSS-px silhouette staircase**: glyph edges keep the mask raster's CSS-px
+1. **CSS-px silhouette staircase**: glyph edges keep the mask raster's CSS-px
    quantization at every DPR (crisper DOM text vs slightly coarser relief).
    Follow-up candidate together with raster-scale metadata (supersampling).
-3. **Thin strokes** respond weakly (≈1 mask px strokes leave almost no bevel
+2. **Thin strokes** respond weakly (≈1 mask px strokes leave almost no bevel
    band); improving them ties into the same resolution follow-up.
-4. **Interior plateau** has no directional shading — physically correct for a
+3. **Interior plateau** has no directional shading — physically correct for a
    flat plateau; a stronger relief impression can be tuned via user-supplied
    `thickness`/`bevelWidth` (e.g. the demo's PLAY glyph parameters).
+4. **Multi-line DOM text** (wrapping spans) rasterizes only its first line
+   box into the single-line mask — pre-existing; the alignment anchoring uses
+   the first line box and documents this.
+
+## Review round (PR #54)
+
+- **BLOCKER 1 (ownership refcount)** — fixed edge-triggered ownership with
+  per-entry state; repeated delegated updates can no longer leak the
+  attribute after one release (6 new lifecycle tests).
+- **BLOCKER 2 (over-broad mask policy)** — delegation now requires the
+  explicit `delegateTextInk` intent + mask shape; generic mask surfaces
+  (including nested child text) keep their DOM text (ukibori-dom decision
+  point + React tests A–D, G–I from the review list).
+- **BLOCKER 3 (visible alignment offset)** — measured in a real browser
+  (screenshot pixel analysis vs mask alpha bounds), then fixed by anchoring
+  the rasterization baseline to the live DOM line box; all measured cases
+  align at the quantization floor (artifacts `alignment/before|after`).
+- Renderer: still zero changes (no glyph-specific normal, no supersampling).
 
 ## Verification summary
 
-- `ukibori-renderer` typecheck / tests (incl. the 5 new characterization tests) / build: pass
-- `ukibori-dom` typecheck / tests (121, incl. 6 new policy tests) / build: pass; real-WebGPU DOM harness: `UKIBORI_DOM_GPU_PASS`
-- `ukibori` typecheck / tests (177, incl. 4 new React policy tests) / build: pass
+- `ukibori-renderer` typecheck / tests (incl. the 5 characterization tests) / build: pass
+- `ukibori-dom` typecheck / tests (126, incl. the transition-safe ownership policy tests) / build: pass; real-WebGPU DOM harness: `UKIBORI_DOM_GPU_PASS`
+- `ukibori` typecheck / tests (181, incl. the intent + alignment + generic-mask React tests) / build: pass
 - `demo` build: pass
-- Ablation runner (`npm run ablation:glyph -w ukibori-dom`): OK, artifacts committed
+- Ablation runner (light + alignment modes): OK, artifacts committed
+- Real-Chrome alignment matrix: dCenter 0.00 / ≤ 0.5 px across all cases (see `alignment/after`)

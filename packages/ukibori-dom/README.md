@@ -168,6 +168,29 @@ DOM text is **not** moved to the canvas; a glyph relief participates in the
 physical scene as a separate `mask` surface (#19) whose rasterization stays
 on the application side.
 
+### #52 physical glyph ink delegation (explicit intent only)
+
+One narrow exception, scoped to the **`delegateTextInk` registration
+intent** (a compositing-only `DomSurfaceOptions` field — never forwarded to
+the scene builder or renderer): when a surface registers with
+`delegateTextInk: true` AND a mask shape, the layer owns the managed
+`data-ukibori-physical-ink` attribute and the injected stylesheet suppresses
+that element's text ink (`color`, `-webkit-text-fill-color`,
+`-webkit-text-stroke-color` → transparent, `text-shadow` → none) while the
+physical glyph relief is the visual representation. The node, textContent,
+selection (the UA `::selection` background stays visible), focus, ARIA and
+layout are untouched, and unregistration / `dispose()` / an intent or shape
+transition reveals the ink again.
+
+This is the `<UkiboriText>` glyph contract (the component rasterizes ITS OWN
+text into the mask). A **generic mask surface — `shape={{kind:"mask"}}` with
+an icon silhouette or arbitrary alpha geometry — must NOT set the intent and
+keeps its DOM text DOM-owned and visible**; the shape kind alone never
+delegates anything. Ownership is edge-triggered: retained property updates
+(text/material/elevation/... changes, mask object swaps) never re-acquire
+the attribute, so the refcount tracks "who owns the attribute now", not the
+number of option updates.
+
 A registered element that measures to zero / non-positive size (e.g.
 `display: none`, detached, still laying out) is a **temporarily
 non-renderable scene node**: it is excluded from the scene and region while

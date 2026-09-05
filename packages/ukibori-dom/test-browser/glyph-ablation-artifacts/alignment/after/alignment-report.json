@@ -1,0 +1,389 @@
+{
+  "alignment": [
+    {
+      "case": {
+        "text": "PLAY",
+        "fontWeight": 700,
+        "fontPx": 32,
+        "dpr": 1
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 84,
+          "height": 43
+        },
+        "maskInk": {
+          "left": 2,
+          "top": 12,
+          "right": 82,
+          "bottom": 35
+        },
+        "maskSize": [
+          84,
+          43
+        ],
+        "lineBox": {
+          "top": 0,
+          "height": 43,
+          "left": 0
+        },
+        "canvas": [
+          508,
+          308
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 62,
+          "top": 92,
+          "right": 142,
+          "bottom": 115
+        },
+        "inBox": {
+          "left": 2,
+          "top": 12,
+          "right": 82,
+          "bottom": 35
+        },
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 84,
+          "height": 43
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "PLAY",
+        "fontWeight": 700,
+        "fontPx": 64,
+        "dpr": 1
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 160,
+          "height": 85
+        },
+        "maskInk": {
+          "left": 5,
+          "top": 24,
+          "right": 159,
+          "bottom": 69
+        },
+        "maskSize": [
+          160,
+          85
+        ],
+        "lineBox": {
+          "top": 0,
+          "height": 85,
+          "left": 0
+        },
+        "canvas": [
+          508,
+          308
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 65,
+          "top": 104,
+          "right": 219,
+          "bottom": 149
+        },
+        "inBox": {
+          "left": 5,
+          "top": 24,
+          "right": 159,
+          "bottom": 69
+        },
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 160,
+          "height": 85
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "PLAY",
+        "fontWeight": 700,
+        "fontPx": 96,
+        "dpr": 1
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 237,
+          "height": 128
+        },
+        "maskInk": {
+          "left": 7,
+          "top": 37,
+          "right": 235,
+          "bottom": 104
+        },
+        "maskSize": [
+          237,
+          128
+        ],
+        "lineBox": {
+          "top": 0,
+          "height": 128,
+          "left": 0
+        },
+        "canvas": [
+          508,
+          308
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 68,
+          "top": 117,
+          "right": 295,
+          "bottom": 184
+        },
+        "inBox": {
+          "left": 8,
+          "top": 37,
+          "right": 235,
+          "bottom": 104
+        },
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 237,
+          "height": 128
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "illii",
+        "fontWeight": 400,
+        "fontPx": 64,
+        "dpr": 1
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 88,
+          "height": 85
+        },
+        "maskInk": {
+          "left": 4,
+          "top": 22,
+          "right": 81,
+          "bottom": 69
+        },
+        "maskSize": [
+          88,
+          85
+        ],
+        "lineBox": {
+          "top": 0,
+          "height": 85,
+          "left": 0
+        },
+        "canvas": [
+          508,
+          308
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 64,
+          "top": 102,
+          "right": 141,
+          "bottom": 149
+        },
+        "inBox": {
+          "left": 4,
+          "top": 22,
+          "right": 81,
+          "bottom": 69
+        },
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 88,
+          "height": 85
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "OM",
+        "fontWeight": 900,
+        "fontPx": 64,
+        "dpr": 1
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 116,
+          "height": 85
+        },
+        "maskInk": {
+          "left": 2,
+          "top": 23,
+          "right": 110,
+          "bottom": 70
+        },
+        "maskSize": [
+          116,
+          85
+        ],
+        "lineBox": {
+          "top": 0,
+          "height": 85,
+          "left": 0
+        },
+        "canvas": [
+          508,
+          308
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 62,
+          "top": 103,
+          "right": 170,
+          "bottom": 150
+        },
+        "inBox": {
+          "left": 2,
+          "top": 23,
+          "right": 110,
+          "bottom": 70
+        },
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 116,
+          "height": 85
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "PLAY",
+        "fontWeight": 700,
+        "fontPx": 64,
+        "dpr": 1.5
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 160,
+          "height": 85
+        },
+        "maskInk": {
+          "left": 5,
+          "top": 24,
+          "right": 159,
+          "bottom": 69
+        },
+        "maskSize": [
+          160,
+          85
+        ],
+        "lineBox": {
+          "top": 0,
+          "height": 85,
+          "left": 0
+        },
+        "canvas": [
+          762,
+          462
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 65,
+          "top": 104,
+          "right": 219,
+          "bottom": 149
+        },
+        "inBox": {
+          "left": 5,
+          "top": 24,
+          "right": 159,
+          "bottom": 69
+        },
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 160,
+          "height": 85
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "PLAY",
+        "fontWeight": 700,
+        "fontPx": 64,
+        "dpr": 2
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 160,
+          "height": 85
+        },
+        "maskInk": {
+          "left": 5,
+          "top": 24,
+          "right": 159,
+          "bottom": 69
+        },
+        "maskSize": [
+          160,
+          85
+        ],
+        "lineBox": {
+          "top": 0,
+          "height": 85,
+          "left": 0
+        },
+        "canvas": [
+          1016,
+          616
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 65,
+          "top": 104,
+          "right": 219,
+          "bottom": 149
+        },
+        "inBox": {
+          "left": 5,
+          "top": 24,
+          "right": 159,
+          "bottom": 69
+        },
+        "box": {
+          "left": 60,
+          "top": 80,
+          "width": 160,
+          "height": 85
+        }
+      }
+    }
+  ]
+}
