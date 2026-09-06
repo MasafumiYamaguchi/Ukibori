@@ -22,7 +22,7 @@ import { computeRegion, renderTargetSize, sanitizeDpr, scaleShadowOptions } from
 import { linearRgbEqual, readOpaqueComputedTextColor } from "./computed-text-color";
 import { compositeSurfaceImage } from "./compositor";
 import { geometriesEqual, measureSurfaceElement } from "./measure";
-import { OverlayCanvas, PHYSICAL_INK_ATTR, isManagedMutation, restorePhysicalInk, restoreSurface, suppressPhysicalInk, suppressSurface } from "./overlay";
+import { OverlayCanvas, isManagedMutation, restorePhysicalInk, restoreSurface, suppressPhysicalInk, suppressSurface } from "./overlay";
 import type { Overlay } from "./overlay";
 import { SurfaceRegistry, assertValidId } from "./registry";
 import type { SurfaceEntry } from "./registry";
@@ -540,29 +540,17 @@ export class UkiboriDom {
     return options.delegateTextInk === true && options.shape?.kind === "mask";
   }
 
-  /**
-   * #56 synchronize live CSS color and #52 ink ownership. The managed
-   * suppression rule itself makes computed `color` transparent, so the
-   * attribute is removed only for the synchronous style read and restored
-   * before returning; no browser paint can observe the temporary state.
-   */
+  /** #56 synchronize live CSS color, visual participation and #52 ownership. */
   private syncPhysicalInk(entry: SurfaceEntry): boolean {
     const requested = UkiboriDom.requestsInkDelegation(entry.options);
-    // Another UkiboriDom instance may already own the shared attribute, so
-    // inspect the actual element rather than only this entry's ownership bit.
-    const hadAttribute = entry.element.hasAttribute(PHYSICAL_INK_ATTR);
-    if (hadAttribute) {
-      entry.element.removeAttribute(PHYSICAL_INK_ATTR);
-    }
     const nextColor = requested ? readOpaqueComputedTextColor(entry.element) : null;
-    if (hadAttribute) {
-      entry.element.setAttribute(PHYSICAL_INK_ATTR, "");
-    }
 
     const previousColor = entry.computedTextColor;
     entry.computedTextColor = nextColor ?? undefined;
     const shouldDelegate = requested && nextColor !== null;
-    const ownershipChanged = shouldDelegate !== entry.inkDelegated;
+    const stateChanged =
+      shouldDelegate !== entry.inkDelegated || shouldDelegate !== entry.visualGlyphDelegated;
+    entry.visualGlyphDelegated = shouldDelegate;
     if (!entry.inkDelegated && shouldDelegate) {
       suppressPhysicalInk(entry.element);
       entry.inkDelegated = true;
@@ -570,7 +558,7 @@ export class UkiboriDom {
       restorePhysicalInk(entry.element);
       entry.inkDelegated = false;
     }
-    return ownershipChanged || !linearRgbEqual(previousColor, entry.computedTextColor);
+    return stateChanged || !linearRgbEqual(previousColor, entry.computedTextColor);
   }
 
   /**
@@ -614,6 +602,7 @@ export class UkiboriDom {
         geometry: null,
         dirty: true,
         inkDelegated: false,
+        visualGlyphDelegated: false,
       };
       this.registry.add(entry);
       this.syncPhysicalInk(entry);

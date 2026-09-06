@@ -84,9 +84,10 @@ export const OVERLAY_ATTR = "data-ukibori-overlay";
  * rather than a stale mount-time snapshot.
  *
  * `PHYSICAL_INK_ATTR` (#52) extends the same pattern to the TEXT INK of
- * registered mask surfaces: the rule suppresses every ink-painting property
- * (`color`, the WebKit fill/stroke colors and `text-shadow`) with
- * `!important` so app inline styles cannot double-paint either. Text
+ * registered mask surfaces: the rule suppresses the actual WebKit text fill,
+ * stroke and shadow without overriding `color`. This keeps the author's
+ * computed CSS color readable for #56 while preventing double-paint in the
+ * supported Chromium path. Text
  * selection stays visible through the UA's `::selection` background
  * highlight, which is independent of the ink color.
  */
@@ -102,7 +103,6 @@ export function ensureOverlayStylesheet(doc: Document = document): HTMLStyleElem
     `[${STAGE_ATTR}] { isolation: isolate; }`,
     [
       `[${PHYSICAL_INK_ATTR}] {`,
-      "  color: transparent !important;",
       "  -webkit-text-fill-color: transparent !important;",
       "  -webkit-text-stroke-color: transparent !important;",
       "  text-shadow: none !important;",

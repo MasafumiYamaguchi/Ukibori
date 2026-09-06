@@ -78,7 +78,8 @@ export interface DomSurfaceOptions {
    * text stays DOM-owned and visible above the physical relief. #56 further
    * requires a supported opaque computed CSS color: the DOM layer reads it
    * live and uses it as the glyph material baseColor; transparent or
-   * unsupported colors keep the DOM ink visible.
+   * unsupported colors keep the DOM ink visible and exclude this explicit
+   * glyph from the physical scene entirely.
    */
   delegateTextInk?: boolean;
 }

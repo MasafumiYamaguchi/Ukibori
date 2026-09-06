@@ -64,8 +64,18 @@ export function buildScene(input: BuildSceneInput): Scene {
       continue;
     }
     const options = entry.options;
+    // #56 faithful DOM fallback: an explicit UkiboriText glyph whose color
+    // cannot be represented is wholly absent from the physical scene. This
+    // also removes object-id ownership and any cast/receive shadow effects.
+    if (
+      options.delegateTextInk === true &&
+      options.shape.kind === "mask" &&
+      !entry.visualGlyphDelegated
+    ) {
+      continue;
+    }
     let material = options.material;
-    if (entry.inkDelegated && entry.computedTextColor !== undefined) {
+    if (entry.visualGlyphDelegated && entry.computedTextColor !== undefined) {
       // #56: compose CSS pigment over the resolved preset/custom material.
       // Roughness, metallic and IOR remain owned by the material. A generated
       // scene-local ref feeds the existing CPU resolver and GPU material ABI,

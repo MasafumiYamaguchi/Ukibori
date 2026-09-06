@@ -222,7 +222,18 @@ The color is refreshed before the unchanged-geometry retained-render exit,
 covering inline/class/inherited/custom-property/theme mutations through the
 existing invalidation observer. Since renderer materials and the presented
 color buffer are RGB-only/opaque, a partially transparent or unsupported
-computed color releases ink delegation and leaves the DOM text visible.
+computed color releases ink delegation, excludes that explicit glyph from
+the physical scene (including object-id/shadow participation), and leaves the
+DOM text as the sole visual source. DOM attribute/class/style mutations,
+including inherited custom-property theme changes, refresh automatically.
+Pure CSSOM edits (`insertRule()` or direct `cssRules[].style` mutation) do not
+reliably emit MutationObserver records and therefore require
+`layer.invalidate(id)`; there is deliberately no polling style scan.
+
+Chromium ink suppression uses transparent `-webkit-text-fill-color` and
+`-webkit-text-stroke-color` plus no `text-shadow`, while leaving `color`
+untouched and readable. This mechanism is currently browser-specific to the
+supported Chromium path.
 
 A registered element that measures to zero / non-positive size (e.g.
 `display: none`, detached, still laying out) is a **temporarily

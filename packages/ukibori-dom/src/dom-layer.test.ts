@@ -374,14 +374,44 @@ describe("UkiboriDom — DOM integration", () => {
       expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
     });
 
-    it("never removes a pre-existing application-owned ink attribute", () => {
+    it("never removes a pre-existing application-owned ink attribute, even transiently", async () => {
       const span = maskElement();
       span.setAttribute("data-ukibori-physical-ink", "");
+      const mutations: MutationRecord[] = [];
+      const observer = new MutationObserver((records) => mutations.push(...records));
+      observer.observe(span, { attributes: true, attributeOldValue: true });
       const layer = makeLayer();
       layer.register(span, MASK_OPTIONS);
+      layer.invalidate("glyph");
+      layer.invalidate("glyph");
+      await Promise.resolve();
+      expect(mutations.filter((record) => record.attributeName === "data-ukibori-physical-ink")).toEqual([]);
       layer.unregister("glyph");
       // The layer only owns what it created.
       expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      layer.dispose();
+      observer.disconnect();
+    });
+
+    it("does not cycle the managed ink attribute while refreshing computed color", async () => {
+      const span = maskElement();
+      const layer = makeLayer();
+      const mutations: MutationRecord[] = [];
+      const observer = new MutationObserver((records) => mutations.push(...records));
+      observer.observe(span, { attributes: true, attributeOldValue: true });
+      layer.register(span, MASK_OPTIONS);
+      await Promise.resolve();
+      mutations.length = 0;
+
+      span.style.color = "rgb(255, 0, 0)";
+      layer.invalidate("glyph");
+      span.style.color = "rgb(0, 0, 255)";
+      layer.invalidate("glyph");
+      await Promise.resolve();
+
+      expect(mutations.filter((record) => record.attributeName === "data-ukibori-physical-ink")).toEqual([]);
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      observer.disconnect();
       layer.dispose();
     });
 
@@ -453,9 +483,8 @@ describe("UkiboriDom — DOM integration", () => {
       const redBlue = first.get(sample!.x, sample!.y, 2);
       expect(red).toBeGreaterThan(redBlue);
 
-      // The managed suppression attribute is temporarily removed inside the
-      // synchronous computed-style read, so this sees the updated author color
-      // rather than the rule's own transparent value.
+      // The suppression rule leaves computed `color` intact, so live author
+      // color is readable without touching the managed attribute.
       span.style.color = "rgb(0, 0, 255)";
       layer.invalidate("glyph");
       const blueField = layer.debugBuffers()!.color;
@@ -467,10 +496,21 @@ describe("UkiboriDom — DOM integration", () => {
       span.style.color = "rgba(0, 0, 255, 0.5)";
       layer.invalidate("glyph");
       expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      const fallbackObjectId = layer.debugObjectId()!;
+      for (let y = 0; y < fallbackObjectId.spec.height; y++) {
+        for (let x = 0; x < fallbackObjectId.spec.width; x++) {
+          expect(fallbackObjectId.get(x, y, 0)).toBe(0xffffffff);
+        }
+      }
 
       span.style.color = "rgb(17, 17, 17)";
       layer.invalidate("glyph");
       expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      const recoveredObjectId = layer.debugObjectId()!;
+      expect(recoveredObjectId.get(sample!.x, sample!.y, 0)).toBe(0);
+      const recovered = layer.debugBuffers()!.color;
+      const blackish = recovered.get(sample!.x, sample!.y, 0);
+      expect(blackish).toBeLessThan(red);
       layer.dispose();
     });
   });

@@ -27,6 +27,12 @@ export interface SurfaceEntry {
    */
   inkDelegated: boolean;
   /**
+   * #56 visual-scene gate for explicit UkiboriText glyphs. False means the
+   * DOM is the visual source of truth and the physical mask must be excluded
+   * completely (including object-id and shadow participation).
+   */
+  visualGlyphDelegated: boolean;
+  /**
    * #56 live opaque computed CSS text color, converted once to linear RGB.
    * Present only while this entry can faithfully delegate its DOM text ink.
    * The scene builder composes it over the resolved material's baseColor.
