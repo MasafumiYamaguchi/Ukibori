@@ -233,7 +233,12 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       }
     }
     let arcB = 8 - arcA;
-    if (transitions == RING_EDGE_TRANSITIONS && min(arcA, arcB) >= RING_EDGE_MIN_ARC) {
+    let centerSide = inRawVisibility[g] >= 0.5;
+    let centerArc = select(arcB, arcA, centerSide == ringSide[start]);
+    // 4/4 refines either side. For 3/5, only a center on the majority arc
+    // refines; a center on the minority arc is a one-texel tip/spur.
+    if (transitions == RING_EDGE_TRANSITIONS &&
+        min(arcA, arcB) >= RING_EDGE_MIN_ARC && centerArc >= 8 - centerArc) {
       outReconstructed[g] = clamp(hardBinomial(tx, ty), 0.0, 1.0);
     } else {
       outReconstructed[g] = clamp(inRawVisibility[g], 0.0, 1.0);

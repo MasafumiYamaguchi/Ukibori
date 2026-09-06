@@ -304,8 +304,9 @@ height -> per-pixel ray march toward the light -> hard 0/1 visibility mask
   - hard path — the #53 ring-rule binomial edge refinement
     (`refineHardEdgeVisibility`): a texel is refined only when its
     8-neighbor ring shows exactly two value transitions with both arcs at
-    least `RING_EDGE_MIN_ARC` elements (a single straight-ish boundary
-    through the 3x3 window); the refinement value is the separable
+    least `RING_EDGE_MIN_ARC` elements, and a 3/5 split is refined only when
+    the center belongs to the majority arc (a single straight-ish boundary,
+    not a one-texel tip/spur); the refinement value is the separable
     (1,2,1)²/16 binomial — an exact dyadic k/16 rational — producing a
     1-2 texel antialiasing ramp centered on the same occlusion boundary.
     Narrow features, corners, speckle and the 1-texel frame border keep

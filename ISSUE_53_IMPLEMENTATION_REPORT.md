@@ -35,7 +35,8 @@ shadow path, zero new options:**
   POSTPROCESS of the binary field (no extra rays): a texel is refined only
   when its 8-neighbor ring shows exactly two visibility-side transitions with
   both same-side arcs ≥ `RING_EDGE_MIN_ARC = 3` ring texels (exactly one
-  locally straight boundary through the 3x3 window); the refinement value is
+  locally straight boundary through the 3x3 window), and a 3/5 split is
+  accepted only when the center belongs to the majority arc; the refinement value is
   the separable (1,2,1)²/16 binomial — an exact dyadic k/16 rational
   (f32-exact integer sums) producing a 1-2 texel ramp centered on the same
   boundary. Thin features, corners, speckle and the 1-texel frame border stay
@@ -238,3 +239,89 @@ Changed source/test files were rechecked as UTF-8 without BOM and without the re
 ### H. PR metadata
 
 The PR body uses `Implements #53`; `Closes #53` was removed. The issue is not closed and the PR is not merged.
+
+## PR #55 final hard-tip review (2026-09-06)
+
+### A. Root cause and concrete regression
+
+- The cyclic-arc fix correctly made a 3/5 ring eligible, but that topology is
+  ambiguous unless the center side is considered. For the local pattern
+  `000 / 101 / 111`, the center is the three-neighbor minority side: it is a
+  one-pixel tapered tip, not a straight boundary sample.
+- The previous ring-only rule refined that center from raw `0` to `0.5`,
+  deleting the tip at the hard-shadow threshold. The final rule preserves it
+  at `0`. The inverted pattern is protected symmetrically.
+
+### B. Final hard ring rule
+
+| Ring split | Center side | Result |
+| --- | --- | --- |
+| 4/4 | either side | refine |
+| 3/5 | five-neighbor majority side | refine |
+| 3/5 | three-neighbor minority side | preserve raw |
+| 2/6 | either side | preserve raw |
+| any other topology | either side | preserve raw |
+
+The CPU and WGSL implementations apply the same transition count, canonical
+cyclic arcs, minimum-arc test, and center-majority test. Radius-zero bypass,
+CPU/WASM consumption, GPU scheduling, and retained-resource behavior are
+unchanged.
+
+### C. Exhaustive local invariants
+
+All 512 binary 3x3 neighborhoods are enumerated. Every refined center is
+finite, remains in `[0, 1]`, is an exact dyadic `k/16`, and stays on the same
+side of the hard `0.5` threshold as the raw center. The classifier is also
+checked under all eight cyclic rotations and their reflections. Violations:
+range 0, non-dyadic 0, side flips 0, D4 classifier mismatches 0.
+
+### D. CPU/WGSL and real-GPU parity
+
+- CPU and WGSL use the same 4/4 and center-aware 3/5 classification.
+- Local NVIDIA/Chrome real-WebGPU: PASS, 121 fixtures / 85,533 scene texels,
+  0 mismatches. Hard visibility and hard reconstruction remain exact.
+- The new `shadow-reconstruction-hard-thin-tip` fixture passed 400/400 texels
+  with zero mismatches.
+- Reconstructed soft visibility passed 5,200 texels with max absolute error
+  `9.537e-7` and max ULP 16 under the documented `2e-6` tolerance. This is a
+  measurement from the current local NVIDIA/Chrome backend, not a portability
+  guarantee; additional backend coverage remains desirable.
+- DOM real-WebGPU lifecycle coverage also passed at DPR 1, 1.5, and 2.
+
+### E. Added regression coverage
+
+- Direct and inverted one-pixel tips across rotations and reflections.
+- Explicit 3/5 center-majority acceptance and center-minority rejection.
+- Exhaustive 512-pattern range, dyadic, side-preservation, and D4 invariants.
+- Thin glyph-like stem, tapered end, T-junction, L-corner, isolated texel, and
+  short-line footprint preservation.
+- A real-WebGPU tapered mask-caster fixture; existing vertical and diagonal
+  hard-edge ramp tests continue to verify intended refinement.
+
+### F. Numerical contract documentation
+
+Remaining stale `1e-6` reconstructed-soft comments in source, tests, and the
+catalog safety-factor note were corrected to `2e-6`. Raw visibility and hard
+reconstructed visibility retain zero-tolerance comparison.
+
+### G. Clean benchmark provenance
+
+The dedicated artifact is
+`packages/renderer/benchmark-results-issue-53-review.json`. It is regenerated
+from the clean source commit after this review, without `--allow-dirty`; the
+artifact's embedded `commit` and `workingTreeDirty=false` are the authoritative
+provenance. The measured hard-ring reconstruction and total-GPU median/p95
+values are recorded in that artifact and summarized in the PR body.
+
+### H. Known limitation
+
+The classifier protects hard-shadow side topology only within a local 3x3
+window. It prevents a refined texel from crossing the hard threshold and
+preserves common thin tips/strokes, but it does not infer or reconstruct
+subtexel geometry beyond that neighborhood.
+
+Final verification: 972 renderer tests pass; the same four pre-existing `.mjs`
+collection failures remain. Renderer typecheck/build, package tests/builds,
+CPU goldens (31 fixtures / 258 digests), renderer real-WebGPU, and DOM
+real-WebGPU pass. The demo TS2366 failure remains untouched. The PR is not
+merged and issue #53 is not closed.

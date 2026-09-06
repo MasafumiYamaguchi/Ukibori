@@ -27,7 +27,7 @@
 // supported by the scene contract —there is NO rotation/skew support, and
 // the catalog never claims any.
 
-export const CATALOG_VERSION = 10;
+export const CATALOG_VERSION = 11;
 
 // #48 adversarial ShadowPass fixtures.  The real-WebGPU parity harness uses
 // this explicit set as a runtime gate (rather than relying on fixture names
@@ -672,7 +672,7 @@ export function createCatalog(api) {
    * VISIBILITY value) instead of the #43 plain gated average, so the swept
    * values changed; the re-swept configuration keeps the original geometry,
    * samples and composite options and raises the radius 3 -> 4, measuring a
-   * min margin of ~0.107 byte units (safety factor ~1444x over the 1e-6
+   * min margin of ~0.107 byte units (safety factor ~722x over the 2e-6
    * reconstruction-tolerance drift).
    */
   function portableReconstructedScene(lightOverrides = {}) {
@@ -792,6 +792,21 @@ export function createCatalog(api) {
         size: { x: 8, y: 8 },
         elevation: 4,
         shape: { kind: "mask", mask: { width: 4, height: 4, alpha: new Float32Array(16).fill(1) } },
+      }),
+    ], LIGHT_FROM_RIGHT);
+  }
+
+  /** A tapered one-texel mask tip for exact hard reconstruction parity. */
+  function taperedTipMaskCasterScene() {
+    const rows = ["00100", "01110", "11111", "01110", "00100"];
+    const alpha = new Float32Array(rows.flatMap((row) => [...row].map(Number)));
+    return shadowScene(20, 20, [
+      shadowSurface({
+        id: "tapered-tip",
+        position: { x: 7, y: 7 },
+        size: { x: 5, y: 5 },
+        elevation: 4,
+        shape: { kind: "mask", mask: { width: 5, height: 5, alpha } },
       }),
     ], LIGHT_FROM_RIGHT);
   }
@@ -1259,6 +1274,13 @@ export function createCatalog(api) {
     {
       ...thinCasterAabbEdgeScene(),
       name: "shadow-reconstruction-hard-thin-caster",
+      dpr: 1,
+      reconstructionOptions: { enabled: true, radius: 2 },
+      reconstructionMode: 1,
+    },
+    {
+      ...taperedTipMaskCasterScene(),
+      name: "shadow-reconstruction-hard-thin-tip",
       dpr: 1,
       reconstructionOptions: { enabled: true, radius: 2 },
       reconstructionMode: 1,
@@ -2092,6 +2114,7 @@ export function createCatalog(api) {
     "shadow-reconstruction-hard-slab-r2": ["shadow-visibility", "reconstruction"],
     "shadow-reconstruction-hard-mask-caster": ["shadow-visibility", "reconstruction", "mask-shape", "glyph-shape"],
     "shadow-reconstruction-hard-thin-caster": ["shadow-visibility", "reconstruction", "sampling-boundary", "clipping"],
+    "shadow-reconstruction-hard-thin-tip": ["shadow-visibility", "reconstruction", "mask-shape", "glyph-shape"],
     "shadow-reconstruction-hard-dpr2": ["shadow-visibility", "reconstruction", "dpr-2"],
     "shadow-non-binary-step-0.1": ["shadow-visibility", "shadow-options"],
     "shadow-f32-vs-f64-equality": ["shadow-visibility", "threshold-equality"],

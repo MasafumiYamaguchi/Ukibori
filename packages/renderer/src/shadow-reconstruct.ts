@@ -58,11 +58,14 @@ import { VISIBILITY_SPEC } from "./types";
  * - a texel is refined ONLY when its 8-neighbor ring shows EXACTLY TWO
  *   visibility-side transitions with BOTH same-side arcs spanning at least
  *   `RING_EDGE_MIN_ARC` ring texels — i.e. exactly one (locally straight)
- *   shadow boundary passes through the 3x3 window;
+ *   shadow boundary passes through the 3x3 window; for a 3/5 split the
+ *   center must belong to the majority arc, preserving a minority-side
+ *   one-texel tip/spur verbatim;
  * - the refined value is the separable binomial `(1,2,1)/2 (x) (1,2,1)/2`
  *   over the 3x3 raw window — a ~1-2 texel ramp whose 50% crossing stays on
  *   the binary boundary (symmetric kernel, edge position preserved);
- * - everything else is copied VERBATIM: narrow features (arcs < 3 — a
+ * - everything else is copied VERBATIM: narrow features (arcs < 3 or a
+ *   minority-side center on a 3/5 split — a tapered one-texel tip), a
  *   1-2 texel line's texels see a 1-element arc), isolated texels, corners
  *   (4+ ring transitions) and the 1-texel frame border keep the raw value,
  *   so thin blockers and glyph strokes cannot be diluted and silhouette
@@ -82,7 +85,7 @@ import { VISIBILITY_SPEC } from "./types";
  * while the GPU accumulates and divides in f32. Bit-identity must therefore
  * NOT be promised across legal WebGPU backends — the browser parity harness
  * compares the reconstructed field with the SEPARATE documented tight
- * tolerance (`compareReconstructedVisibility`, |diff| <= 1e-6, plus
+ * tolerance (`compareReconstructedVisibility`, |diff| <= 2e-6, plus
  * max-abs/max-ULP evidence reporting). RAW #41 visibility keeps its exact
  * dyadic zero-tolerance contract; this stage never weakens it. The #53 hard
  * mode is dyadic and keeps a zero-tolerance contract of its own.
@@ -214,6 +217,29 @@ export function hardRingArcLengths(ringSide: readonly boolean[]): [number, numbe
     arcA += 1;
   }
   return [arcA, 8 - arcA];
+}
+
+/**
+ * Classify a hard-shadow 3x3 neighborhood for refinement. A 4/4 ring split
+ * is always eligible. For a 3/5 split, the center must belong to the
+ * majority-side arc; a minority-side center is a one-texel tip/spur and is
+ * preserved. All narrower or non-two-transition topologies are preserved.
+ */
+export function isHardRingEdgeLike(
+  ringSide: readonly boolean[],
+  centerSide: boolean,
+): boolean {
+  const arcs = hardRingArcLengths(ringSide);
+  if (arcs === null || Math.min(arcs[0], arcs[1]) < RING_EDGE_MIN_ARC) {
+    return false;
+  }
+  let centerArc = 0;
+  for (const side of ringSide) {
+    if (side === centerSide) {
+      centerArc += 1;
+    }
+  }
+  return centerArc >= 8 - centerArc;
 }
 
 /** Public reconstruction controls (#43): deliberately minimal. */
@@ -420,10 +446,7 @@ export function refineHardEdgeVisibility(rawVisibility: HostBuffer): HostBuffer 
       for (let i = 0; i < 8; i++) {
         ringSide.push(rawVisibility.get(x + ringDX[i], y + ringDY[i], 0) >= 0.5);
       }
-      const arcs = hardRingArcLengths(ringSide);
-      const edgeLike =
-        arcs !== null &&
-        Math.min(arcs[0], arcs[1]) >= RING_EDGE_MIN_ARC;
+      const edgeLike = isHardRingEdgeLike(ringSide, raw >= 0.5);
       if (!edgeLike) {
         out.set(x, y, 0, raw);
         continue;

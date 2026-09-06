@@ -11,6 +11,7 @@ import {
   reconstructVisibility,
   refineHardEdgeVisibility,
   hardRingArcLengths,
+  isHardRingEdgeLike,
   sanitizeReconstructionOptions,
   RING_EDGE_MIN_ARC,
   RING_EDGE_TRANSITIONS,
@@ -726,7 +727,7 @@ describe("#43/#53 reconstructed-visibility parity policy (tolerance evidence)", 
   // f32-accumulation simulation of the WGSL path (each weight, add and the
   // division rounded to f32) against the CPU reference (f64 sums, f32-
   // rounded quotient once). The measured delta must stay INSIDE the
-  // documented tolerance (1e-6); the max-ULP count is reported as evidence
+  // documented tolerance (2e-6); the max-ULP count is reported as evidence
   // that the tolerance covers accumulation/rounding variance, not an
   // algorithmic difference (both paths run the SAME taps and weights).
 
@@ -823,9 +824,9 @@ describe("#43/#53 reconstructed-visibility parity policy (tolerance evidence)", 
     }
     // Evidence: the f32 path (weights + accumulation + division rounded per
     // step) stays INSIDE the documented tolerance against the f64 reference
-    // — the 1e-6 tolerance covers real f32 accumulation/rounding variance,
+    // — the 2e-6 parity tolerance covers backend exp()/f32 variance,
     // not an algorithmic difference (identical taps and weights).
-    expect(maxAbs).toBeLessThanOrEqual(1e-6);
+    expect(maxAbs).toBeLessThanOrEqual(2e-6);
     expect(maxUlp).toBeLessThanOrEqual(64);
     // and the quotient really is non-dyadic: verify the reconstructed field
     // contains values whose f32 representation is not a k/16 dyadic
@@ -891,6 +892,88 @@ describe("refineHardEdgeVisibility — #53 hard edge quality (ring-rule binomial
           expected,
         );
       }
+    }
+  });
+
+  it("preserves one-pixel tips and their inversions across all rotations and reflections", () => {
+    const rotate = (mask: string[]) =>
+      mask[0]!.split("").map((_, x) => mask.map((row) => row[x]!).reverse().join(""));
+    const reflect = (mask: string[]) => mask.map((row) => [...row].reverse().join(""));
+    for (const initial of [
+      ["###", "#.#", "..."], // 000 / 101 / 111, shadow tip at center
+      ["...", ".#.", "###"], // 111 / 010 / 000, lit tip at center
+    ]) {
+      let mask = initial;
+      for (let rotation = 0; rotation < 4; rotation++) {
+        for (const variant of [mask, reflect(mask)]) {
+          const raw = binaryField(variant);
+          const refined = refineHardEdgeVisibility(raw);
+          expect(refined.get(1, 1, 0), `${variant.join("/")}`).toBe(raw.get(1, 1, 0));
+        }
+        mask = rotate(mask);
+      }
+    }
+  });
+
+  it("distinguishes 3/5 center-majority edges from center-minority tips", () => {
+    const ring = [..."FTTTFFFF"].map((side) => side === "T");
+    expect(hardRingArcLengths(ring)!.sort()).toEqual([3, 5]);
+    expect(isHardRingEdgeLike(ring, false)).toBe(true);
+    expect(isHardRingEdgeLike(ring, true)).toBe(false);
+  });
+
+  it("exhaustively preserves hard side and dyadic range for all 512 binary 3x3 patterns", () => {
+    const ringIndices = [3, 0, 1, 2, 5, 8, 7, 6];
+    const transformRing = (ring: boolean[], rotation: number, reflected: boolean) => {
+      const oriented = reflected ? [...ring].reverse() : ring;
+      return oriented.map((_, i) => oriented[(i + rotation) % 8]!);
+    };
+    for (let bits = 0; bits < 512; bits++) {
+      const field = new HostBuffer(VISIBILITY_SPEC(3, 3));
+      for (let i = 0; i < 9; i++) {
+        field.set(i % 3, Math.floor(i / 3), 0, (bits >> i) & 1);
+      }
+      const refined = refineHardEdgeVisibility(field).get(1, 1, 0);
+      const center = field.get(1, 1, 0);
+      expect(Number.isFinite(refined), `bits=${bits}`).toBe(true);
+      expect(refined, `bits=${bits}`).toBeGreaterThanOrEqual(0);
+      expect(refined, `bits=${bits}`).toBeLessThanOrEqual(1);
+      expect(Number.isInteger(refined * 16), `bits=${bits}`).toBe(true);
+      expect(refined < 0.5, `bits=${bits}`).toBe(center < 0.5);
+
+      const ring = ringIndices.map((index) => ((bits >> index) & 1) === 1);
+      const expected = isHardRingEdgeLike(ring, center >= 0.5);
+      for (let rotation = 0; rotation < 8; rotation++) {
+        expect(isHardRingEdgeLike(transformRing(ring, rotation, false), center >= 0.5)).toBe(
+          expected,
+        );
+        expect(isHardRingEdgeLike(transformRing(ring, rotation, true), center >= 0.5)).toBe(
+          expected,
+        );
+      }
+    }
+  });
+
+  it("preserves the shadow footprint of thin glyph-like local shapes", () => {
+    const shapes = {
+      stem: [".....", "..#..", "..#..", "..#..", "....."],
+      taperedEnd: [".....", "..#..", ".###.", "#####", "....."],
+      tJunction: [".....", ".###.", "..#..", "..#..", "....."],
+      lCorner: [".....", ".#...", ".#...", ".###.", "....."],
+      isolated: [".....", ".....", "..#..", ".....", "....."],
+      shortLine: [".....", ".....", ".###.", ".....", "....."],
+    };
+    for (const [name, mask] of Object.entries(shapes)) {
+      const raw = binaryField(mask);
+      const refined = refineHardEdgeVisibility(raw);
+      for (let y = 0; y < mask.length; y++) {
+        for (let x = 0; x < mask[0]!.length; x++) {
+          expect(refined.get(x, y, 0) < 0.5, `${name} @ ${x},${y}`).toBe(
+            raw.get(x, y, 0) < 0.5,
+          );
+        }
+      }
+      expect(Math.min(...toArray(refined)), name).toBe(0);
     }
   });
 
