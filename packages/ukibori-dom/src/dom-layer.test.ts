@@ -1262,7 +1262,17 @@ describe("UkiboriDom — DOM integration", () => {
         restoredValues.push(restoredVis.get(x, y, 0));
       }
     }
-    expect(restoredValues.every((v) => v === 0 || v === 1)).toBe(true);
+    // #53: the DOM display field for a HARD frame is the ring-rule binomial
+    // refinement (the visible edge-quality change) — an exact dyadic k/16
+    // rational at edge texels, binary {0,1} everywhere else. The soft
+    // k/n speckle field is gone; the restore must reproduce exactly the
+    // refined hard field (the equality check with the never-soft reference
+    // below pins it value-for-value).
+    expect(
+      restoredValues.every(
+        (v) => (v === 0 || v === 1 || (v * 16 === Math.round(v * 16) && v > 0 && v < 1)),
+      ),
+    ).toBe(true);
 
     // ...and the restored field equals an independent never-soft instance
     const refFake = makeFakeOverlay();

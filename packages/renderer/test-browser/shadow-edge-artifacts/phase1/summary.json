@@ -1,0 +1,4793 @@
+{
+  "meta": {
+    "note": "#53 phase 1 shadow-edge evidence (CPU oracle, raw = bit-exact GPU)"
+  },
+  "cases": {
+    "diagonal/hard/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 79,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": null,
+      "presented": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 79,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.047,
+      "ms": 55.9,
+      "ringRule": {
+        "shipped": true,
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 79.227,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 2,
+          "transitionTexelsMax": 2,
+          "levels": 1
+        }
+      },
+      "coverage4": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 81,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 2,
+          "transitionTexelsMax": 2,
+          "levels": 1
+        },
+        "refinedTexels": 559,
+        "refinedFraction": 0.045
+      },
+      "coverage9": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 81,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 3,
+          "transitionTexelsMax": 3,
+          "levels": 3
+        },
+        "refinedTexels": 559,
+        "refinedFraction": 0.045
+      }
+    },
+    "diagonal/soft4/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 4,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 48,
+        "zigzagMaxTexels": 1.614,
+        "zigzagRmsTexels": 0.749,
+        "meanCrossing": 77.462,
+        "meanRunTexels": 1.143,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 2.5,
+        "transitionTexelsMax": 4,
+        "levels": 3
+      },
+      "reconstructed": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0.682,
+        "zigzagRmsTexels": 0.293,
+        "meanCrossing": 78.469,
+        "meanRunTexels": 1.263,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 5.771,
+        "transitionTexelsMax": 7,
+        "levels": 151
+      },
+      "presented": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0.682,
+        "zigzagRmsTexels": 0.293,
+        "meanCrossing": 78.469,
+        "meanRunTexels": 1.263,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 5.771,
+        "transitionTexelsMax": 7,
+        "levels": 151
+      },
+      "boundaryTexelFractionRaw": 0.06,
+      "ms": 55.1,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 46,
+          "zigzagMaxTexels": 0.336,
+          "zigzagRmsTexels": 0.165,
+          "meanCrossing": 77.63,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 6.435,
+          "transitionTexelsMax": 8,
+          "levels": 42
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 1.324,
+          "zigzagRmsTexels": 0.372,
+          "meanCrossing": 78.432,
+          "meanRunTexels": 1.231,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 5.917,
+          "transitionTexelsMax": 7,
+          "levels": 88
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.507,
+          "zigzagRmsTexels": 0.227,
+          "meanCrossing": 78.375,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 6.438,
+          "transitionTexelsMax": 8,
+          "levels": 75
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.756,
+          "zigzagRmsTexels": 0.329,
+          "meanCrossing": 78.434,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 7.417,
+          "transitionTexelsMax": 9,
+          "levels": 135
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.682,
+          "zigzagRmsTexels": 0.293,
+          "meanCrossing": 78.469,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 5.771,
+          "transitionTexelsMax": 7,
+          "levels": 151
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.575,
+          "zigzagRmsTexels": 0.259,
+          "meanCrossing": 78.419,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 6.313,
+          "transitionTexelsMax": 8,
+          "levels": 157
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.682,
+          "zigzagRmsTexels": 0.293,
+          "meanCrossing": 78.469,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 6,
+          "transitionTexelsMax": 7,
+          "levels": 162
+        }
+      }
+    },
+    "diagonal/soft8/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 48,
+        "zigzagMaxTexels": 1.531,
+        "zigzagRmsTexels": 0.932,
+        "meanCrossing": 77.698,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 3.354,
+        "transitionTexelsMax": 4,
+        "levels": 5
+      },
+      "reconstructed": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0.377,
+        "zigzagRmsTexels": 0.17,
+        "meanCrossing": 78.522,
+        "meanRunTexels": 1.333,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 6.292,
+        "transitionTexelsMax": 7,
+        "levels": 177
+      },
+      "presented": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0.377,
+        "zigzagRmsTexels": 0.17,
+        "meanCrossing": 78.522,
+        "meanRunTexels": 1.333,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 6.292,
+        "transitionTexelsMax": 7,
+        "levels": 177
+      },
+      "boundaryTexelFractionRaw": 0.065,
+      "ms": 61.5,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.18,
+          "zigzagRmsTexels": 0.082,
+          "meanCrossing": 78.144,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 6.979,
+          "transitionTexelsMax": 7,
+          "levels": 45
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 1.477,
+          "zigzagRmsTexels": 0.323,
+          "meanCrossing": 78.614,
+          "meanRunTexels": 1.231,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 5.188,
+          "transitionTexelsMax": 6,
+          "levels": 59
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 1.309,
+          "zigzagRmsTexels": 0.45,
+          "meanCrossing": 78.309,
+          "meanRunTexels": 1.091,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 5.271,
+          "transitionTexelsMax": 6,
+          "levels": 68
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 1.581,
+          "zigzagRmsTexels": 0.406,
+          "meanCrossing": 78.571,
+          "meanRunTexels": 1.333,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 4.625,
+          "transitionTexelsMax": 5,
+          "levels": 77
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.377,
+          "zigzagRmsTexels": 0.17,
+          "meanCrossing": 78.522,
+          "meanRunTexels": 1.333,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 6.292,
+          "transitionTexelsMax": 7,
+          "levels": 177
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.284,
+          "zigzagRmsTexels": 0.142,
+          "meanCrossing": 78.468,
+          "meanRunTexels": 1.333,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 6.75,
+          "transitionTexelsMax": 7,
+          "levels": 180
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.377,
+          "zigzagRmsTexels": 0.17,
+          "meanCrossing": 78.522,
+          "meanRunTexels": 1.333,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 6.708,
+          "transitionTexelsMax": 8,
+          "levels": 195
+        }
+      }
+    },
+    "diagonal/soft16/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 16,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 48,
+        "zigzagMaxTexels": 1.668,
+        "zigzagRmsTexels": 0.492,
+        "meanCrossing": 78.628,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 3.188,
+        "transitionTexelsMax": 4,
+        "levels": 8
+      },
+      "reconstructed": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0.096,
+        "zigzagRmsTexels": 0.029,
+        "meanCrossing": 78.465,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 6.188,
+        "transitionTexelsMax": 7,
+        "levels": 218
+      },
+      "presented": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0.096,
+        "zigzagRmsTexels": 0.029,
+        "meanCrossing": 78.465,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 6.188,
+        "transitionTexelsMax": 7,
+        "levels": 218
+      },
+      "boundaryTexelFractionRaw": 0.064,
+      "ms": 92.4,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.125,
+          "zigzagRmsTexels": 0.05,
+          "meanCrossing": 78.094,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 7,
+          "transitionTexelsMax": 7,
+          "levels": 51
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.081,
+          "zigzagRmsTexels": 0.033,
+          "meanCrossing": 78.748,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 3.125,
+          "transitionTexelsMax": 4,
+          "levels": 33
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 1.621,
+          "zigzagRmsTexels": 0.247,
+          "meanCrossing": 78.686,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 3.5,
+          "transitionTexelsMax": 5,
+          "levels": 60
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.071,
+          "zigzagRmsTexels": 0.026,
+          "meanCrossing": 78.746,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 3,
+          "transitionTexelsMax": 3,
+          "levels": 43
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.096,
+          "zigzagRmsTexels": 0.029,
+          "meanCrossing": 78.465,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 6.188,
+          "transitionTexelsMax": 7,
+          "levels": 218
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.096,
+          "zigzagRmsTexels": 0.029,
+          "meanCrossing": 78.43,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 6.792,
+          "transitionTexelsMax": 7,
+          "levels": 226
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.096,
+          "zigzagRmsTexels": 0.029,
+          "meanCrossing": 78.465,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 6.188,
+          "transitionTexelsMax": 7,
+          "levels": 218
+        }
+      }
+    },
+    "diagonal/hard/dpr1.5": {
+      "dpr": 1.5,
+      "renderExtent": [
+        192,
+        144
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": {
+        "crossings": 72,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 119,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": null,
+      "presented": {
+        "crossings": 72,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 119,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.036,
+      "ms": 32.7,
+      "ringRule": {
+        "shipped": true,
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 119,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 4,
+          "transitionTexelsMax": 4,
+          "levels": 2
+        }
+      },
+      "coverage4": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 121,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 2,
+          "transitionTexelsMax": 2,
+          "levels": 1
+        },
+        "refinedTexels": 984,
+        "refinedFraction": 0.036
+      },
+      "coverage9": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 121,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 4,
+          "transitionTexelsMax": 4,
+          "levels": 3
+        },
+        "refinedTexels": 984,
+        "refinedFraction": 0.036
+      }
+    },
+    "diagonal/soft4/dpr1.5": {
+      "dpr": 1.5,
+      "renderExtent": [
+        192,
+        144
+      ],
+      "samples": 4,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 72,
+        "zigzagMaxTexels": 3.274,
+        "zigzagRmsTexels": 1.431,
+        "meanCrossing": 116.882,
+        "meanRunTexels": 1.014,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 4.514,
+        "transitionTexelsMax": 6,
+        "levels": 3
+      },
+      "reconstructed": {
+        "crossings": 72,
+        "zigzagMaxTexels": 1.265,
+        "zigzagRmsTexels": 0.492,
+        "meanCrossing": 118.735,
+        "meanRunTexels": 1.22,
+        "maxRunTexels": 3,
+        "transitionTexelsMean": 8.194,
+        "transitionTexelsMax": 9,
+        "levels": 355
+      },
+      "presented": {
+        "crossings": 72,
+        "zigzagMaxTexels": 1.265,
+        "zigzagRmsTexels": 0.492,
+        "meanCrossing": 118.735,
+        "meanRunTexels": 1.22,
+        "maxRunTexels": 3,
+        "transitionTexelsMean": 8.194,
+        "transitionTexelsMax": 9,
+        "levels": 355
+      },
+      "boundaryTexelFractionRaw": 0.051,
+      "ms": 73.4,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 1.724,
+          "zigzagRmsTexels": 0.253,
+          "meanCrossing": 118.02,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 10.25,
+          "transitionTexelsMax": 11,
+          "levels": 94
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 2.669,
+          "zigzagRmsTexels": 0.612,
+          "meanCrossing": 118.63,
+          "meanRunTexels": 1.143,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 10.083,
+          "transitionTexelsMax": 11,
+          "levels": 225
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 2.331,
+          "zigzagRmsTexels": 0.526,
+          "meanCrossing": 118.468,
+          "meanRunTexels": 1.161,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 10.222,
+          "transitionTexelsMax": 11,
+          "levels": 226
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 1.367,
+          "zigzagRmsTexels": 0.541,
+          "meanCrossing": 118.624,
+          "meanRunTexels": 1.161,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 11.903,
+          "transitionTexelsMax": 13,
+          "levels": 364
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 1.326,
+          "zigzagRmsTexels": 0.507,
+          "meanCrossing": 118.647,
+          "meanRunTexels": 1.161,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 9.069,
+          "transitionTexelsMax": 10,
+          "levels": 492
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 1.271,
+          "zigzagRmsTexels": 0.472,
+          "meanCrossing": 118.588,
+          "meanRunTexels": 1.161,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 9.792,
+          "transitionTexelsMax": 10,
+          "levels": 502
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 1.188,
+          "zigzagRmsTexels": 0.441,
+          "meanCrossing": 118.844,
+          "meanRunTexels": 1.18,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 9.194,
+          "transitionTexelsMax": 10,
+          "levels": 437
+        }
+      }
+    },
+    "diagonal/soft8/dpr1.5": {
+      "dpr": 1.5,
+      "renderExtent": [
+        192,
+        144
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 72,
+        "zigzagMaxTexels": 2.761,
+        "zigzagRmsTexels": 0.829,
+        "meanCrossing": 116.25,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 5.181,
+        "transitionTexelsMax": 6,
+        "levels": 7
+      },
+      "reconstructed": {
+        "crossings": 72,
+        "zigzagMaxTexels": 0.523,
+        "zigzagRmsTexels": 0.287,
+        "meanCrossing": 118.825,
+        "meanRunTexels": 1.091,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 8.083,
+        "transitionTexelsMax": 9,
+        "levels": 357
+      },
+      "presented": {
+        "crossings": 72,
+        "zigzagMaxTexels": 0.523,
+        "zigzagRmsTexels": 0.287,
+        "meanCrossing": 118.825,
+        "meanRunTexels": 1.091,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 8.083,
+        "transitionTexelsMax": 9,
+        "levels": 357
+      },
+      "boundaryTexelFractionRaw": 0.053,
+      "ms": 113.5,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0.256,
+          "zigzagRmsTexels": 0.114,
+          "meanCrossing": 118.012,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 10,
+          "transitionTexelsMax": 10,
+          "levels": 92
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 2.174,
+          "zigzagRmsTexels": 1.487,
+          "meanCrossing": 118.166,
+          "meanRunTexels": 1.059,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 6.819,
+          "transitionTexelsMax": 9,
+          "levels": 115
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 2.439,
+          "zigzagRmsTexels": 0.984,
+          "meanCrossing": 118.48,
+          "meanRunTexels": 1.18,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 9.528,
+          "transitionTexelsMax": 10,
+          "levels": 181
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 2.832,
+          "zigzagRmsTexels": 0.989,
+          "meanCrossing": 118.774,
+          "meanRunTexels": 1.18,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 5.764,
+          "transitionTexelsMax": 7,
+          "levels": 151
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0.586,
+          "zigzagRmsTexels": 0.315,
+          "meanCrossing": 118.631,
+          "meanRunTexels": 1.385,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 9.097,
+          "transitionTexelsMax": 10,
+          "levels": 531
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0.436,
+          "zigzagRmsTexels": 0.25,
+          "meanCrossing": 118.51,
+          "meanRunTexels": 1.385,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 9.569,
+          "transitionTexelsMax": 10,
+          "levels": 539
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0.467,
+          "zigzagRmsTexels": 0.256,
+          "meanCrossing": 118.937,
+          "meanRunTexels": 1.029,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 9.083,
+          "transitionTexelsMax": 10,
+          "levels": 429
+        }
+      }
+    },
+    "diagonal/soft16/dpr1.5": {
+      "dpr": 1.5,
+      "renderExtent": [
+        192,
+        144
+      ],
+      "samples": 16,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 72,
+        "zigzagMaxTexels": 0.188,
+        "zigzagRmsTexels": 0.106,
+        "meanCrossing": 119.014,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 5.472,
+        "transitionTexelsMax": 6,
+        "levels": 11
+      },
+      "reconstructed": {
+        "crossings": 72,
+        "zigzagMaxTexels": 0.191,
+        "zigzagRmsTexels": 0.096,
+        "meanCrossing": 118.855,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 8.667,
+        "transitionTexelsMax": 9,
+        "levels": 540
+      },
+      "presented": {
+        "crossings": 72,
+        "zigzagMaxTexels": 0.191,
+        "zigzagRmsTexels": 0.096,
+        "meanCrossing": 118.855,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 8.667,
+        "transitionTexelsMax": 9,
+        "levels": 540
+      },
+      "boundaryTexelFractionRaw": 0.054,
+      "ms": 187.9,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0.14,
+          "zigzagRmsTexels": 0.053,
+          "meanCrossing": 117.984,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 10.014,
+          "transitionTexelsMax": 11,
+          "levels": 116
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0.167,
+          "zigzagRmsTexels": 0.067,
+          "meanCrossing": 119.025,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 5.208,
+          "transitionTexelsMax": 6,
+          "levels": 115
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0.435,
+          "zigzagRmsTexels": 0.187,
+          "meanCrossing": 119.076,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 5.694,
+          "transitionTexelsMax": 7,
+          "levels": 200
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0.146,
+          "zigzagRmsTexels": 0.056,
+          "meanCrossing": 119.029,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 5.097,
+          "transitionTexelsMax": 6,
+          "levels": 142
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0.21,
+          "zigzagRmsTexels": 0.106,
+          "meanCrossing": 118.745,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 9.403,
+          "transitionTexelsMax": 10,
+          "levels": 650
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0.211,
+          "zigzagRmsTexels": 0.105,
+          "meanCrossing": 118.59,
+          "meanRunTexels": 1.059,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 10,
+          "transitionTexelsMax": 10,
+          "levels": 680
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 72,
+          "zigzagMaxTexels": 0.167,
+          "zigzagRmsTexels": 0.069,
+          "meanCrossing": 118.849,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 9.667,
+          "transitionTexelsMax": 10,
+          "levels": 613
+        }
+      }
+    },
+    "diagonal/hard/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": {
+        "crossings": 96,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 159,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": null,
+      "presented": {
+        "crossings": 96,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 159,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.031,
+      "ms": 57.1,
+      "ringRule": {
+        "shipped": true,
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 159,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 3,
+          "transitionTexelsMax": 3,
+          "levels": 4
+        }
+      },
+      "coverage4": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 161,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 3,
+          "transitionTexelsMax": 4,
+          "levels": 3
+        },
+        "refinedTexels": 1509,
+        "refinedFraction": 0.031
+      },
+      "coverage9": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 161,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 3.5,
+          "transitionTexelsMax": 5,
+          "levels": 6
+        },
+        "refinedTexels": 1509,
+        "refinedFraction": 0.031
+      }
+    },
+    "diagonal/soft4/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 4,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 96,
+        "zigzagMaxTexels": 4.593,
+        "zigzagRmsTexels": 1.956,
+        "meanCrossing": 155.563,
+        "meanRunTexels": 1.433,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 6.51,
+        "transitionTexelsMax": 8,
+        "levels": 3
+      },
+      "reconstructed": {
+        "crossings": 96,
+        "zigzagMaxTexels": 3.894,
+        "zigzagRmsTexels": 0.694,
+        "meanCrossing": 158.837,
+        "meanRunTexels": 1.215,
+        "maxRunTexels": 3,
+        "transitionTexelsMean": 10.729,
+        "transitionTexelsMax": 12,
+        "levels": 594
+      },
+      "presented": {
+        "crossings": 96,
+        "zigzagMaxTexels": 3.894,
+        "zigzagRmsTexels": 0.694,
+        "meanCrossing": 158.837,
+        "meanRunTexels": 1.215,
+        "maxRunTexels": 3,
+        "transitionTexelsMean": 10.729,
+        "transitionTexelsMax": 12,
+        "levels": 594
+      },
+      "boundaryTexelFractionRaw": 0.049,
+      "ms": 128.4,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 3.824,
+          "zigzagRmsTexels": 0.596,
+          "meanCrossing": 158.004,
+          "meanRunTexels": 1.021,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 13.802,
+          "transitionTexelsMax": 15,
+          "levels": 256
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 4.536,
+          "zigzagRmsTexels": 1.022,
+          "meanCrossing": 158.51,
+          "meanRunTexels": 1.247,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 13.563,
+          "transitionTexelsMax": 15,
+          "levels": 558
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 3.557,
+          "zigzagRmsTexels": 0.701,
+          "meanCrossing": 158.456,
+          "meanRunTexels": 1.247,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 13.802,
+          "transitionTexelsMax": 15,
+          "levels": 576
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 1.889,
+          "zigzagRmsTexels": 0.796,
+          "meanCrossing": 158.573,
+          "meanRunTexels": 1.231,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 16.5,
+          "transitionTexelsMax": 18,
+          "levels": 919
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 3.646,
+          "zigzagRmsTexels": 0.803,
+          "meanCrossing": 158.593,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 12.615,
+          "transitionTexelsMax": 14,
+          "levels": 1049
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 3.6,
+          "zigzagRmsTexels": 0.716,
+          "meanCrossing": 158.58,
+          "meanRunTexels": 1.28,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 13.26,
+          "transitionTexelsMax": 15,
+          "levels": 1065
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 3.922,
+          "zigzagRmsTexels": 0.603,
+          "meanCrossing": 158.918,
+          "meanRunTexels": 1.116,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 10.729,
+          "transitionTexelsMax": 12,
+          "levels": 636
+        }
+      }
+    },
+    "diagonal/soft8/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 96,
+        "zigzagMaxTexels": 4.273,
+        "zigzagRmsTexels": 1.113,
+        "meanCrossing": 154.729,
+        "meanRunTexels": 1.811,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 7.563,
+        "transitionTexelsMax": 9,
+        "levels": 7
+      },
+      "reconstructed": {
+        "crossings": 96,
+        "zigzagMaxTexels": 0.877,
+        "zigzagRmsTexels": 0.257,
+        "meanCrossing": 158.91,
+        "meanRunTexels": 1.021,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 11.115,
+        "transitionTexelsMax": 12,
+        "levels": 832
+      },
+      "presented": {
+        "crossings": 96,
+        "zigzagMaxTexels": 0.877,
+        "zigzagRmsTexels": 0.257,
+        "meanCrossing": 158.91,
+        "meanRunTexels": 1.021,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 11.115,
+        "transitionTexelsMax": 12,
+        "levels": 832
+      },
+      "boundaryTexelFractionRaw": 0.051,
+      "ms": 195.7,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 3.846,
+          "zigzagRmsTexels": 0.41,
+          "meanCrossing": 158.09,
+          "meanRunTexels": 1.011,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 13.688,
+          "transitionTexelsMax": 15,
+          "levels": 252
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 4.223,
+          "zigzagRmsTexels": 1.735,
+          "meanCrossing": 158.024,
+          "meanRunTexels": 1.247,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 11.458,
+          "transitionTexelsMax": 13,
+          "levels": 413
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 4.202,
+          "zigzagRmsTexels": 1.596,
+          "meanCrossing": 158.137,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 13.021,
+          "transitionTexelsMax": 14,
+          "levels": 532
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 4.249,
+          "zigzagRmsTexels": 1.636,
+          "meanCrossing": 158.034,
+          "meanRunTexels": 1.315,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 10.021,
+          "transitionTexelsMax": 12,
+          "levels": 458
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0.993,
+          "zigzagRmsTexels": 0.337,
+          "meanCrossing": 158.552,
+          "meanRunTexels": 1.28,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 12.917,
+          "transitionTexelsMax": 14,
+          "levels": 1194
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0.551,
+          "zigzagRmsTexels": 0.267,
+          "meanCrossing": 158.481,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 13.5,
+          "transitionTexelsMax": 14,
+          "levels": 1227
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0.444,
+          "zigzagRmsTexels": 0.206,
+          "meanCrossing": 159.035,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 11.115,
+          "transitionTexelsMax": 12,
+          "levels": 859
+        }
+      }
+    },
+    "diagonal/soft16/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 16,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 96,
+        "zigzagMaxTexels": 2.882,
+        "zigzagRmsTexels": 2.287,
+        "meanCrossing": 156.835,
+        "meanRunTexels": 1.091,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 7.771,
+        "transitionTexelsMax": 9,
+        "levels": 13
+      },
+      "reconstructed": {
+        "crossings": 96,
+        "zigzagMaxTexels": 0.335,
+        "zigzagRmsTexels": 0.162,
+        "meanCrossing": 158.923,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 11.177,
+        "transitionTexelsMax": 12,
+        "levels": 946
+      },
+      "presented": {
+        "crossings": 96,
+        "zigzagMaxTexels": 0.335,
+        "zigzagRmsTexels": 0.162,
+        "meanCrossing": 158.923,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 11.177,
+        "transitionTexelsMax": 12,
+        "levels": 946
+      },
+      "boundaryTexelFractionRaw": 0.052,
+      "ms": 331,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0.139,
+          "zigzagRmsTexels": 0.053,
+          "meanCrossing": 158.039,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 13.51,
+          "transitionTexelsMax": 14,
+          "levels": 244
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 4.474,
+          "zigzagRmsTexels": 1.455,
+          "meanCrossing": 158.474,
+          "meanRunTexels": 1.2,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 7.74,
+          "transitionTexelsMax": 9,
+          "levels": 327
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 4.769,
+          "zigzagRmsTexels": 0.995,
+          "meanCrossing": 158.733,
+          "meanRunTexels": 1.247,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 8.979,
+          "transitionTexelsMax": 10,
+          "levels": 410
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 3.932,
+          "zigzagRmsTexels": 0.902,
+          "meanCrossing": 158.722,
+          "meanRunTexels": 1.2,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 7.188,
+          "transitionTexelsMax": 8,
+          "levels": 334
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0.329,
+          "zigzagRmsTexels": 0.211,
+          "meanCrossing": 158.711,
+          "meanRunTexels": 1.247,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 12.885,
+          "transitionTexelsMax": 14,
+          "levels": 1222
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0.321,
+          "zigzagRmsTexels": 0.153,
+          "meanCrossing": 158.569,
+          "meanRunTexels": 1.247,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 13.49,
+          "transitionTexelsMax": 14,
+          "levels": 1270
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0.285,
+          "zigzagRmsTexels": 0.116,
+          "meanCrossing": 158.974,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 11.177,
+          "transitionTexelsMax": 12,
+          "levels": 967
+        }
+      }
+    },
+    "diagonal/hard/dpr3": {
+      "dpr": 3,
+      "renderExtent": [
+        384,
+        288
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": {
+        "crossings": 144,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 239,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": null,
+      "presented": {
+        "crossings": 144,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 239,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.021,
+      "ms": 112,
+      "ringRule": {
+        "shipped": true,
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 239,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 4,
+          "transitionTexelsMax": 4,
+          "levels": 2
+        }
+      },
+      "coverage4": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 241,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 2,
+          "transitionTexelsMax": 2,
+          "levels": 2
+        },
+        "refinedTexels": 2276,
+        "refinedFraction": 0.021
+      },
+      "coverage9": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 241,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 3,
+          "transitionTexelsMax": 3,
+          "levels": 3
+        },
+        "refinedTexels": 2276,
+        "refinedFraction": 0.021
+      }
+    },
+    "diagonal/soft4/dpr3": {
+      "dpr": 3,
+      "renderExtent": [
+        384,
+        288
+      ],
+      "samples": 4,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 144,
+        "zigzagMaxTexels": 6.523,
+        "zigzagRmsTexels": 3.098,
+        "meanCrossing": 234.139,
+        "meanRunTexels": 1.021,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 10.542,
+        "transitionTexelsMax": 13,
+        "levels": 3
+      },
+      "reconstructed": {
+        "crossings": 144,
+        "zigzagMaxTexels": 6.305,
+        "zigzagRmsTexels": 1.501,
+        "meanCrossing": 238.217,
+        "meanRunTexels": 1.252,
+        "maxRunTexels": 3,
+        "transitionTexelsMean": 14.924,
+        "transitionTexelsMax": 17,
+        "levels": 893
+      },
+      "presented": {
+        "crossings": 144,
+        "zigzagMaxTexels": 6.305,
+        "zigzagRmsTexels": 1.501,
+        "meanCrossing": 238.217,
+        "meanRunTexels": 1.252,
+        "maxRunTexels": 3,
+        "transitionTexelsMean": 14.924,
+        "transitionTexelsMax": 17,
+        "levels": 893
+      },
+      "boundaryTexelFractionRaw": 0.043,
+      "ms": 279,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 4.692,
+          "zigzagRmsTexels": 1.138,
+          "meanCrossing": 236.663,
+          "meanRunTexels": 1.014,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 20.319,
+          "transitionTexelsMax": 21,
+          "levels": 450
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 6.096,
+          "zigzagRmsTexels": 2.129,
+          "meanCrossing": 237.579,
+          "meanRunTexels": 1.19,
+          "maxRunTexels": 4,
+          "transitionTexelsMean": 20.007,
+          "transitionTexelsMax": 21,
+          "levels": 1534
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 5.293,
+          "zigzagRmsTexels": 1.259,
+          "meanCrossing": 237.683,
+          "meanRunTexels": 1.241,
+          "maxRunTexels": 4,
+          "transitionTexelsMean": 20.319,
+          "transitionTexelsMax": 21,
+          "levels": 1474
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 2.789,
+          "zigzagRmsTexels": 1.297,
+          "meanCrossing": 237.894,
+          "meanRunTexels": 1.19,
+          "maxRunTexels": 4,
+          "transitionTexelsMean": 24.396,
+          "transitionTexelsMax": 27,
+          "levels": 2407
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 5.646,
+          "zigzagRmsTexels": 1.265,
+          "meanCrossing": 237.991,
+          "meanRunTexels": 1.21,
+          "maxRunTexels": 4,
+          "transitionTexelsMean": 18.528,
+          "transitionTexelsMax": 20,
+          "levels": 2479
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 5.551,
+          "zigzagRmsTexels": 1.208,
+          "meanCrossing": 237.909,
+          "meanRunTexels": 1.22,
+          "maxRunTexels": 4,
+          "transitionTexelsMean": 19.396,
+          "transitionTexelsMax": 20,
+          "levels": 2528
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 6.609,
+          "zigzagRmsTexels": 1.071,
+          "meanCrossing": 238.372,
+          "meanRunTexels": 1.252,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 15.924,
+          "transitionTexelsMax": 18,
+          "levels": 1077
+        }
+      }
+    },
+    "diagonal/soft8/dpr3": {
+      "dpr": 3,
+      "renderExtent": [
+        384,
+        288
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 144,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 232,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 12.201,
+        "transitionTexelsMax": 14,
+        "levels": 7
+      },
+      "reconstructed": {
+        "crossings": 144,
+        "zigzagMaxTexels": 6.371,
+        "zigzagRmsTexels": 0.856,
+        "meanCrossing": 238.365,
+        "meanRunTexels": 1.108,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 15.396,
+        "transitionTexelsMax": 17,
+        "levels": 1532
+      },
+      "presented": {
+        "crossings": 144,
+        "zigzagMaxTexels": 6.371,
+        "zigzagRmsTexels": 0.856,
+        "meanCrossing": 238.365,
+        "meanRunTexels": 1.108,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 15.396,
+        "transitionTexelsMax": 17,
+        "levels": 1532
+      },
+      "boundaryTexelFractionRaw": 0.045,
+      "ms": 581.6,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 237,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 20.028,
+          "transitionTexelsMax": 21,
+          "levels": 509
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 5.167,
+          "zigzagRmsTexels": 2.541,
+          "meanCrossing": 237.088,
+          "meanRunTexels": 1.152,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 16.972,
+          "transitionTexelsMax": 19,
+          "levels": 1071
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 5.99,
+          "zigzagRmsTexels": 2.079,
+          "meanCrossing": 237.494,
+          "meanRunTexels": 1.099,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 18.931,
+          "transitionTexelsMax": 20,
+          "levels": 1488
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 5.896,
+          "zigzagRmsTexels": 2.106,
+          "meanCrossing": 237.443,
+          "meanRunTexels": 1.171,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 14.889,
+          "transitionTexelsMax": 16,
+          "levels": 1218
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 0.851,
+          "zigzagRmsTexels": 0.41,
+          "meanCrossing": 237.802,
+          "meanRunTexels": 1.134,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 19.007,
+          "transitionTexelsMax": 20,
+          "levels": 2665
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 0.667,
+          "zigzagRmsTexels": 0.361,
+          "meanCrossing": 237.622,
+          "meanRunTexels": 1.18,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 19.556,
+          "transitionTexelsMax": 20,
+          "levels": 2736
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 6.67,
+          "zigzagRmsTexels": 0.635,
+          "meanCrossing": 238.539,
+          "meanRunTexels": 1.108,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 16.396,
+          "transitionTexelsMax": 18,
+          "levels": 1679
+        }
+      }
+    },
+    "diagonal/soft16/dpr3": {
+      "dpr": 3,
+      "renderExtent": [
+        384,
+        288
+      ],
+      "samples": 16,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 144,
+        "zigzagMaxTexels": 4.364,
+        "zigzagRmsTexels": 3.106,
+        "meanCrossing": 236.166,
+        "meanRunTexels": 1.099,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 12.979,
+        "transitionTexelsMax": 14,
+        "levels": 15
+      },
+      "reconstructed": {
+        "crossings": 144,
+        "zigzagMaxTexels": 6.343,
+        "zigzagRmsTexels": 0.571,
+        "meanCrossing": 238.462,
+        "meanRunTexels": 1.21,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 15.799,
+        "transitionTexelsMax": 16,
+        "levels": 1893
+      },
+      "presented": {
+        "crossings": 144,
+        "zigzagMaxTexels": 6.343,
+        "zigzagRmsTexels": 0.571,
+        "meanCrossing": 238.462,
+        "meanRunTexels": 1.21,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 15.799,
+        "transitionTexelsMax": 16,
+        "levels": 1892
+      },
+      "boundaryTexelFractionRaw": 0.046,
+      "ms": 1070.7,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 237,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 20.035,
+          "transitionTexelsMax": 21,
+          "levels": 432
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 6.214,
+          "zigzagRmsTexels": 1.339,
+          "meanCrossing": 238.172,
+          "meanRunTexels": 1.252,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 13.396,
+          "transitionTexelsMax": 15,
+          "levels": 740
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 6.323,
+          "zigzagRmsTexels": 1.002,
+          "meanCrossing": 238.329,
+          "meanRunTexels": 1.274,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 15.792,
+          "transitionTexelsMax": 17,
+          "levels": 1166
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 0.61,
+          "zigzagRmsTexels": 0.38,
+          "meanCrossing": 238.439,
+          "meanRunTexels": 1.274,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 12.84,
+          "transitionTexelsMax": 14,
+          "levels": 860
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 0.543,
+          "zigzagRmsTexels": 0.318,
+          "meanCrossing": 238.234,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 19.139,
+          "transitionTexelsMax": 20,
+          "levels": 2723
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 0.54,
+          "zigzagRmsTexels": 0.154,
+          "meanCrossing": 237.912,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 20,
+          "transitionTexelsMax": 20,
+          "levels": 2847
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 144,
+          "zigzagMaxTexels": 0.374,
+          "zigzagRmsTexels": 0.151,
+          "meanCrossing": 238.515,
+          "meanRunTexels": 1.108,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 16.799,
+          "transitionTexelsMax": 17,
+          "levels": 2034
+        }
+      }
+    },
+    "diagonalTall/hard/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 84,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": null,
+      "presented": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 84,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.061,
+      "ms": 29.8,
+      "ringRule": {
+        "shipped": true,
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 84,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 4,
+          "transitionTexelsMax": 4,
+          "levels": 2
+        }
+      },
+      "coverage4": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 86,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 3,
+          "transitionTexelsMax": 3,
+          "levels": 2
+        },
+        "refinedTexels": 728,
+        "refinedFraction": 0.059
+      },
+      "coverage9": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 86,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 4,
+          "transitionTexelsMax": 4,
+          "levels": 3
+        },
+        "refinedTexels": 728,
+        "refinedFraction": 0.059
+      }
+    },
+    "diagonalTall/soft4/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 4,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 48,
+        "zigzagMaxTexels": 6.01,
+        "zigzagRmsTexels": 3.5,
+        "meanCrossing": 80,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 10.896,
+        "transitionTexelsMax": 14,
+        "levels": 3
+      },
+      "reconstructed": {
+        "crossings": 48,
+        "zigzagMaxTexels": 6.472,
+        "zigzagRmsTexels": 1.862,
+        "meanCrossing": 83.823,
+        "meanRunTexels": 1.333,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 15.729,
+        "transitionTexelsMax": 17,
+        "levels": 490
+      },
+      "presented": {
+        "crossings": 48,
+        "zigzagMaxTexels": 6.472,
+        "zigzagRmsTexels": 1.862,
+        "meanCrossing": 83.823,
+        "meanRunTexels": 1.333,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 15.729,
+        "transitionTexelsMax": 17,
+        "levels": 490
+      },
+      "boundaryTexelFractionRaw": 0.127,
+      "ms": 79.8,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 6.012,
+          "zigzagRmsTexels": 2.633,
+          "meanCrossing": 82.902,
+          "meanRunTexels": 1.067,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 16.208,
+          "transitionTexelsMax": 17,
+          "levels": 101
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 6.465,
+          "zigzagRmsTexels": 2.823,
+          "meanCrossing": 83.107,
+          "meanRunTexels": 1.231,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 16.208,
+          "transitionTexelsMax": 17,
+          "levels": 283
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 5.559,
+          "zigzagRmsTexels": 2.864,
+          "meanCrossing": 82.606,
+          "meanRunTexels": 1.067,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 16.208,
+          "transitionTexelsMax": 17,
+          "levels": 132
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 6.799,
+          "zigzagRmsTexels": 2.004,
+          "meanCrossing": 83.709,
+          "meanRunTexels": 1.297,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 18.583,
+          "transitionTexelsMax": 20,
+          "levels": 582
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 6.472,
+          "zigzagRmsTexels": 1.862,
+          "meanCrossing": 83.823,
+          "meanRunTexels": 1.333,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 15.729,
+          "transitionTexelsMax": 17,
+          "levels": 490
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 6.237,
+          "zigzagRmsTexels": 1.71,
+          "meanCrossing": 83.643,
+          "meanRunTexels": 1.371,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 16.208,
+          "transitionTexelsMax": 17,
+          "levels": 491
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 6.811,
+          "zigzagRmsTexels": 1.31,
+          "meanCrossing": 84.131,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 16.729,
+          "transitionTexelsMax": 18,
+          "levels": 540
+        }
+      }
+    },
+    "diagonalTall/soft8/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 48,
+        "zigzagMaxTexels": 6.688,
+        "zigzagRmsTexels": 1.386,
+        "meanCrossing": 77.292,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 13.104,
+        "transitionTexelsMax": 15,
+        "levels": 7
+      },
+      "reconstructed": {
+        "crossings": 48,
+        "zigzagMaxTexels": 6.623,
+        "zigzagRmsTexels": 0.996,
+        "meanCrossing": 83.787,
+        "meanRunTexels": 1.021,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 16.375,
+        "transitionTexelsMax": 18,
+        "levels": 666
+      },
+      "presented": {
+        "crossings": 48,
+        "zigzagMaxTexels": 6.623,
+        "zigzagRmsTexels": 0.996,
+        "meanCrossing": 83.787,
+        "meanRunTexels": 1.021,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 16.375,
+        "transitionTexelsMax": 18,
+        "levels": 666
+      },
+      "boundaryTexelFractionRaw": 0.131,
+      "ms": 130.9,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 6.774,
+          "zigzagRmsTexels": 1.409,
+          "meanCrossing": 83.766,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 16.396,
+          "transitionTexelsMax": 18,
+          "levels": 170
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 5.236,
+          "zigzagRmsTexels": 2.855,
+          "meanCrossing": 82.187,
+          "meanRunTexels": 1.171,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 16.375,
+          "transitionTexelsMax": 18,
+          "levels": 374
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 5.809,
+          "zigzagRmsTexels": 1.57,
+          "meanCrossing": 83.427,
+          "meanRunTexels": 1.171,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 16.396,
+          "transitionTexelsMax": 18,
+          "levels": 352
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 5.633,
+          "zigzagRmsTexels": 2.552,
+          "meanCrossing": 82.224,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 17.604,
+          "transitionTexelsMax": 19,
+          "levels": 537
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 6.623,
+          "zigzagRmsTexels": 0.996,
+          "meanCrossing": 83.787,
+          "meanRunTexels": 1.021,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 16.375,
+          "transitionTexelsMax": 18,
+          "levels": 666
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 6.654,
+          "zigzagRmsTexels": 0.996,
+          "meanCrossing": 83.841,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 16.396,
+          "transitionTexelsMax": 18,
+          "levels": 667
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.966,
+          "zigzagRmsTexels": 0.238,
+          "meanCrossing": 83.946,
+          "meanRunTexels": 1.021,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 17.375,
+          "transitionTexelsMax": 19,
+          "levels": 715
+        }
+      }
+    },
+    "diagonalTall/soft16/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 16,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 48,
+        "zigzagMaxTexels": 5.679,
+        "zigzagRmsTexels": 3.021,
+        "meanCrossing": 78.75,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 13.729,
+        "transitionTexelsMax": 15,
+        "levels": 15
+      },
+      "reconstructed": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0.296,
+        "zigzagRmsTexels": 0.112,
+        "meanCrossing": 84.092,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 16.271,
+        "transitionTexelsMax": 17,
+        "levels": 735
+      },
+      "presented": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0.296,
+        "zigzagRmsTexels": 0.112,
+        "meanCrossing": 84.092,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 16.271,
+        "transitionTexelsMax": 17,
+        "levels": 735
+      },
+      "boundaryTexelFractionRaw": 0.133,
+      "ms": 234.7,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.197,
+          "zigzagRmsTexels": 0.092,
+          "meanCrossing": 84.116,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 16.313,
+          "transitionTexelsMax": 17,
+          "levels": 176
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 6.143,
+          "zigzagRmsTexels": 2.471,
+          "meanCrossing": 82.937,
+          "meanRunTexels": 1.143,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 14.521,
+          "transitionTexelsMax": 16,
+          "levels": 315
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 5.982,
+          "zigzagRmsTexels": 1.628,
+          "meanCrossing": 83.575,
+          "meanRunTexels": 1.143,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 16.063,
+          "transitionTexelsMax": 17,
+          "levels": 420
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 6.568,
+          "zigzagRmsTexels": 1.694,
+          "meanCrossing": 83.443,
+          "meanRunTexels": 1.333,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 14.479,
+          "transitionTexelsMax": 16,
+          "levels": 373
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.296,
+          "zigzagRmsTexels": 0.112,
+          "meanCrossing": 84.092,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 16.271,
+          "transitionTexelsMax": 17,
+          "levels": 735
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.258,
+          "zigzagRmsTexels": 0.096,
+          "meanCrossing": 84.106,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 16.313,
+          "transitionTexelsMax": 17,
+          "levels": 735
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.246,
+          "zigzagRmsTexels": 0.105,
+          "meanCrossing": 84.122,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 17.271,
+          "transitionTexelsMax": 18,
+          "levels": 782
+        }
+      }
+    },
+    "diagonalTall/hard/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": {
+        "crossings": 96,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 170,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": null,
+      "presented": {
+        "crossings": 96,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 170,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.031,
+      "ms": 94.6,
+      "ringRule": {
+        "shipped": true,
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 170,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 3,
+          "transitionTexelsMax": 3,
+          "levels": 4
+        }
+      },
+      "coverage4": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 172,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 3,
+          "transitionTexelsMax": 4,
+          "levels": 3
+        },
+        "refinedTexels": 1492,
+        "refinedFraction": 0.03
+      },
+      "coverage9": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 172,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 3,
+          "transitionTexelsMax": 4,
+          "levels": 5
+        },
+        "refinedTexels": 1492,
+        "refinedFraction": 0.03
+      }
+    },
+    "diagonalTall/soft4/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 4,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 96,
+        "zigzagMaxTexels": 11.592,
+        "zigzagRmsTexels": 7.748,
+        "meanCrossing": 161.917,
+        "meanRunTexels": 1.215,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 20.438,
+        "transitionTexelsMax": 26,
+        "levels": 3
+      },
+      "reconstructed": {
+        "crossings": 96,
+        "zigzagMaxTexels": 14.807,
+        "zigzagRmsTexels": 4.525,
+        "meanCrossing": 168.807,
+        "meanRunTexels": 1.2,
+        "maxRunTexels": 3,
+        "transitionTexelsMean": 29.927,
+        "transitionTexelsMax": 33,
+        "levels": 776
+      },
+      "presented": {
+        "crossings": 96,
+        "zigzagMaxTexels": 14.807,
+        "zigzagRmsTexels": 4.525,
+        "meanCrossing": 168.807,
+        "meanRunTexels": 1.2,
+        "maxRunTexels": 3,
+        "transitionTexelsMean": 29.927,
+        "transitionTexelsMax": 33,
+        "levels": 776
+      },
+      "boundaryTexelFractionRaw": 0.113,
+      "ms": 302,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 13.451,
+          "zigzagRmsTexels": 5.274,
+          "meanCrossing": 167.447,
+          "meanRunTexels": 1.103,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 32.219,
+          "transitionTexelsMax": 35,
+          "levels": 438
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 15.818,
+          "zigzagRmsTexels": 3.29,
+          "meanCrossing": 169.349,
+          "meanRunTexels": 1.171,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 33.135,
+          "transitionTexelsMax": 35,
+          "levels": 1426
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 13.985,
+          "zigzagRmsTexels": 4.744,
+          "meanCrossing": 167.868,
+          "meanRunTexels": 1.116,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 32.521,
+          "transitionTexelsMax": 35,
+          "levels": 550
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 15.34,
+          "zigzagRmsTexels": 2.16,
+          "meanCrossing": 169.781,
+          "meanRunTexels": 1.215,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 37.333,
+          "transitionTexelsMax": 39,
+          "levels": 2830
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 14.697,
+          "zigzagRmsTexels": 1.996,
+          "meanCrossing": 169.836,
+          "meanRunTexels": 1.185,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 32.146,
+          "transitionTexelsMax": 34,
+          "levels": 2284
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 14.466,
+          "zigzagRmsTexels": 1.862,
+          "meanCrossing": 169.644,
+          "meanRunTexels": 1.2,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 32.74,
+          "transitionTexelsMax": 35,
+          "levels": 2289
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 14.897,
+          "zigzagRmsTexels": 3.667,
+          "meanCrossing": 169.258,
+          "meanRunTexels": 1.247,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 30.292,
+          "transitionTexelsMax": 33,
+          "levels": 864
+        }
+      }
+    },
+    "diagonalTall/soft8/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 96,
+        "zigzagMaxTexels": 0.515,
+        "zigzagRmsTexels": 0.5,
+        "meanCrossing": 154.5,
+        "meanRunTexels": 2,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 21.5,
+        "transitionTexelsMax": 23,
+        "levels": 7
+      },
+      "reconstructed": {
+        "crossings": 96,
+        "zigzagMaxTexels": 13.495,
+        "zigzagRmsTexels": 5.65,
+        "meanCrossing": 166.732,
+        "meanRunTexels": 1.116,
+        "maxRunTexels": 3,
+        "transitionTexelsMean": 30.594,
+        "transitionTexelsMax": 34,
+        "levels": 1671
+      },
+      "presented": {
+        "crossings": 96,
+        "zigzagMaxTexels": 13.495,
+        "zigzagRmsTexels": 5.65,
+        "meanCrossing": 166.732,
+        "meanRunTexels": 1.116,
+        "maxRunTexels": 3,
+        "transitionTexelsMean": 30.594,
+        "transitionTexelsMax": 34,
+        "levels": 1671
+      },
+      "boundaryTexelFractionRaw": 0.116,
+      "ms": 511.4,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 14.248,
+          "zigzagRmsTexels": 4.733,
+          "meanCrossing": 168.171,
+          "meanRunTexels": 1.067,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 32.833,
+          "transitionTexelsMax": 35,
+          "levels": 612
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 13.412,
+          "zigzagRmsTexels": 4.708,
+          "meanCrossing": 167.161,
+          "meanRunTexels": 1.129,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 32.604,
+          "transitionTexelsMax": 35,
+          "levels": 1868
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 14.2,
+          "zigzagRmsTexels": 4.04,
+          "meanCrossing": 168.236,
+          "meanRunTexels": 1.067,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 33.094,
+          "transitionTexelsMax": 35,
+          "levels": 1580
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 13.446,
+          "zigzagRmsTexels": 4.12,
+          "meanCrossing": 166.93,
+          "meanRunTexels": 1.2,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 35.021,
+          "transitionTexelsMax": 38,
+          "levels": 2510
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0.78,
+          "zigzagRmsTexels": 0.443,
+          "meanCrossing": 169.424,
+          "meanRunTexels": 1.103,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 33.5,
+          "transitionTexelsMax": 35,
+          "levels": 2884
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0.886,
+          "zigzagRmsTexels": 0.455,
+          "meanCrossing": 169.603,
+          "meanRunTexels": 1.091,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 33.667,
+          "transitionTexelsMax": 35,
+          "levels": 2883
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 13.79,
+          "zigzagRmsTexels": 3.797,
+          "meanCrossing": 168.37,
+          "meanRunTexels": 1.116,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 31.5,
+          "transitionTexelsMax": 34,
+          "levels": 1779
+        }
+      }
+    },
+    "diagonalTall/soft16/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 16,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 96,
+        "zigzagMaxTexels": 13.66,
+        "zigzagRmsTexels": 4.581,
+        "meanCrossing": 156.167,
+        "meanRunTexels": 1.655,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 22.823,
+        "transitionTexelsMax": 30,
+        "levels": 15
+      },
+      "reconstructed": {
+        "crossings": 96,
+        "zigzagMaxTexels": 15.07,
+        "zigzagRmsTexels": 1.596,
+        "meanCrossing": 169.698,
+        "meanRunTexels": 1.021,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 31.813,
+        "transitionTexelsMax": 33,
+        "levels": 2735
+      },
+      "presented": {
+        "crossings": 96,
+        "zigzagMaxTexels": 15.07,
+        "zigzagRmsTexels": 1.596,
+        "meanCrossing": 169.698,
+        "meanRunTexels": 1.021,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 31.813,
+        "transitionTexelsMax": 33,
+        "levels": 2735
+      },
+      "boundaryTexelFractionRaw": 0.122,
+      "ms": 994.2,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0.752,
+          "zigzagRmsTexels": 0.232,
+          "meanCrossing": 169.927,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 33.573,
+          "transitionTexelsMax": 35,
+          "levels": 765
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 13.064,
+          "zigzagRmsTexels": 6.011,
+          "meanCrossing": 166.555,
+          "meanRunTexels": 1.171,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 29.51,
+          "transitionTexelsMax": 33,
+          "levels": 1581
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 14.54,
+          "zigzagRmsTexels": 4.345,
+          "meanCrossing": 167.955,
+          "meanRunTexels": 1.143,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 32.542,
+          "transitionTexelsMax": 35,
+          "levels": 2164
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 14.939,
+          "zigzagRmsTexels": 2.701,
+          "meanCrossing": 168.942,
+          "meanRunTexels": 1.171,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 30.323,
+          "transitionTexelsMax": 32,
+          "levels": 1925
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 1.027,
+          "zigzagRmsTexels": 0.296,
+          "meanCrossing": 169.862,
+          "meanRunTexels": 1.067,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 33.479,
+          "transitionTexelsMax": 34,
+          "levels": 3174
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0.839,
+          "zigzagRmsTexels": 0.285,
+          "meanCrossing": 169.88,
+          "meanRunTexels": 1.043,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 33.51,
+          "transitionTexelsMax": 35,
+          "levels": 3172
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 14.692,
+          "zigzagRmsTexels": 1.549,
+          "meanCrossing": 169.734,
+          "meanRunTexels": 1.011,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 31.885,
+          "transitionTexelsMax": 33,
+          "levels": 2779
+        }
+      }
+    },
+    "thin/hard/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 81,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": null,
+      "presented": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 81,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.079,
+      "ms": 28.9,
+      "thin": {
+        "rawMinVis": 0,
+        "rawAreaBelowHalf": 144,
+        "reconMinVis": null,
+        "reconAreaBelowHalf": null
+      },
+      "ringRule": {
+        "shipped": true,
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 81.227,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 2,
+          "transitionTexelsMax": 2,
+          "levels": 1
+        },
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 144
+        }
+      },
+      "coverage4": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 80.833,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 2,
+          "transitionTexelsMax": 2,
+          "levels": 1
+        },
+        "refinedTexels": 930,
+        "refinedFraction": 0.076,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 336
+        }
+      },
+      "coverage9": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 80.857,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 5,
+          "transitionTexelsMax": 5,
+          "levels": 3
+        },
+        "refinedTexels": 930,
+        "refinedFraction": 0.076,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 336
+        }
+      }
+    },
+    "thin/soft8/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 48,
+        "zigzagMaxTexels": 1.545,
+        "zigzagRmsTexels": 0.89,
+        "meanCrossing": 79.573,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 3.188,
+        "transitionTexelsMax": 4,
+        "levels": 5
+      },
+      "reconstructed": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0.376,
+        "zigzagRmsTexels": 0.145,
+        "meanCrossing": 80.477,
+        "meanRunTexels": 1.263,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 6.063,
+        "transitionTexelsMax": 7,
+        "levels": 157
+      },
+      "presented": {
+        "crossings": 48,
+        "zigzagMaxTexels": 0.376,
+        "zigzagRmsTexels": 0.145,
+        "meanCrossing": 80.477,
+        "meanRunTexels": 1.263,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 6.063,
+        "transitionTexelsMax": 7,
+        "levels": 157
+      },
+      "boundaryTexelFractionRaw": 0.095,
+      "ms": 133.7,
+      "thin": {
+        "rawMinVis": 0,
+        "rawAreaBelowHalf": 111,
+        "reconMinVis": 0.0005587919731624424,
+        "reconAreaBelowHalf": 111
+      },
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.156,
+          "zigzagRmsTexels": 0.063,
+          "meanCrossing": 80.157,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 11.896,
+          "transitionTexelsMax": 12,
+          "levels": 51
+        },
+        "thin": {
+          "minVis": 0.3828125,
+          "areaBelowHalf": 48
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 1.376,
+          "zigzagRmsTexels": 0.543,
+          "meanCrossing": 80.37,
+          "meanRunTexels": 1.171,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 4.667,
+          "transitionTexelsMax": 6,
+          "levels": 48
+        },
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 112
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 1.287,
+          "zigzagRmsTexels": 0.389,
+          "meanCrossing": 80.319,
+          "meanRunTexels": 1.116,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 4.958,
+          "transitionTexelsMax": 6,
+          "levels": 63
+        },
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 98
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 1.447,
+          "zigzagRmsTexels": 0.417,
+          "meanCrossing": 80.474,
+          "meanRunTexels": 1.333,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 4.083,
+          "transitionTexelsMax": 5,
+          "levels": 77
+        },
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 111
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.376,
+          "zigzagRmsTexels": 0.145,
+          "meanCrossing": 80.477,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 6.063,
+          "transitionTexelsMax": 7,
+          "levels": 157
+        },
+        "thin": {
+          "minVis": 0.0005587919731624424,
+          "areaBelowHalf": 111
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.239,
+          "zigzagRmsTexels": 0.117,
+          "meanCrossing": 80.429,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 7.5,
+          "transitionTexelsMax": 8,
+          "levels": 161
+        },
+        "thin": {
+          "minVis": 0.027363324537873268,
+          "areaBelowHalf": 111
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 48,
+          "zigzagMaxTexels": 0.376,
+          "zigzagRmsTexels": 0.145,
+          "meanCrossing": 80.477,
+          "meanRunTexels": 1.263,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 6.375,
+          "transitionTexelsMax": 8,
+          "levels": 167
+        },
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 207
+        }
+      }
+    },
+    "thin/hard/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": {
+        "crossings": 96,
+        "zigzagMaxTexels": 2.061,
+        "zigzagRmsTexels": 2,
+        "meanCrossing": 161,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": null,
+      "presented": {
+        "crossings": 96,
+        "zigzagMaxTexels": 2.061,
+        "zigzagRmsTexels": 2,
+        "meanCrossing": 161,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.051,
+      "ms": 101.8,
+      "thin": {
+        "rawMinVis": 0,
+        "rawAreaBelowHalf": 528,
+        "reconMinVis": null,
+        "reconAreaBelowHalf": null
+      },
+      "ringRule": {
+        "shipped": true,
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 163,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 3,
+          "transitionTexelsMax": 3,
+          "levels": 4
+        },
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 528
+        }
+      },
+      "coverage4": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0.944,
+          "zigzagRmsTexels": 0.917,
+          "meanCrossing": 161.917,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 4.5,
+          "transitionTexelsMax": 6,
+          "levels": 3
+        },
+        "refinedTexels": 2444,
+        "refinedFraction": 0.05,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 624
+        }
+      },
+      "coverage9": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 0.957,
+          "zigzagRmsTexels": 0.928,
+          "meanCrossing": 161.929,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 6,
+          "transitionTexelsMax": 7,
+          "levels": 7
+        },
+        "refinedTexels": 2444,
+        "refinedFraction": 0.05,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 816
+        }
+      }
+    },
+    "thin/soft8/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 96,
+        "zigzagMaxTexels": 4.184,
+        "zigzagRmsTexels": 1.255,
+        "meanCrossing": 158.865,
+        "meanRunTexels": 1.745,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 7.938,
+        "transitionTexelsMax": 10,
+        "levels": 7
+      },
+      "reconstructed": {
+        "crossings": 96,
+        "zigzagMaxTexels": 2.268,
+        "zigzagRmsTexels": 1.897,
+        "meanCrossing": 161.28,
+        "meanRunTexels": 1.021,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 11.833,
+        "transitionTexelsMax": 14,
+        "levels": 844
+      },
+      "presented": {
+        "crossings": 96,
+        "zigzagMaxTexels": 2.268,
+        "zigzagRmsTexels": 1.897,
+        "meanCrossing": 161.28,
+        "meanRunTexels": 1.021,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 11.833,
+        "transitionTexelsMax": 14,
+        "levels": 844
+      },
+      "boundaryTexelFractionRaw": 0.071,
+      "ms": 537.3,
+      "thin": {
+        "rawMinVis": 0,
+        "rawAreaBelowHalf": 458,
+        "reconMinVis": 0.00053645228035748,
+        "reconAreaBelowHalf": 524
+      },
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 3.801,
+          "zigzagRmsTexels": 0.582,
+          "meanCrossing": 162.101,
+          "meanRunTexels": 1.011,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 21.854,
+          "transitionTexelsMax": 23,
+          "levels": 381
+        },
+        "thin": {
+          "minVis": 0.2916666567325592,
+          "areaBelowHalf": 337
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 3.246,
+          "zigzagRmsTexels": 1.984,
+          "meanCrossing": 161.069,
+          "meanRunTexels": 1.157,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 11.802,
+          "transitionTexelsMax": 14,
+          "levels": 419
+        },
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 504
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 3.45,
+          "zigzagRmsTexels": 1.877,
+          "meanCrossing": 161.239,
+          "meanRunTexels": 1.171,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 13.563,
+          "transitionTexelsMax": 15,
+          "levels": 579
+        },
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 504
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 3.444,
+          "zigzagRmsTexels": 1.829,
+          "meanCrossing": 161.471,
+          "meanRunTexels": 1.171,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 11.104,
+          "transitionTexelsMax": 13,
+          "levels": 483
+        },
+        "thin": {
+          "minVis": 0.014705882407724857,
+          "areaBelowHalf": 494
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 3.024,
+          "zigzagRmsTexels": 1.256,
+          "meanCrossing": 162.018,
+          "meanRunTexels": 1.157,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 13.469,
+          "transitionTexelsMax": 15,
+          "levels": 1221
+        },
+        "thin": {
+          "minVis": 0.0013614824274554849,
+          "areaBelowHalf": 463
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 2.917,
+          "zigzagRmsTexels": 1.211,
+          "meanCrossing": 161.972,
+          "meanRunTexels": 1.129,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 14.542,
+          "transitionTexelsMax": 15,
+          "levels": 1265
+        },
+        "thin": {
+          "minVis": 0.05027594417333603,
+          "areaBelowHalf": 463
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 96,
+          "zigzagMaxTexels": 2.592,
+          "zigzagRmsTexels": 1.984,
+          "meanCrossing": 161.059,
+          "meanRunTexels": 1.021,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 11.833,
+          "transitionTexelsMax": 14,
+          "levels": 873
+        },
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 716
+        }
+      }
+    },
+    "rounded/hard/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": {
+        "crossings": 3,
+        "zigzagMaxTexels": 0.308,
+        "zigzagRmsTexels": 0.226,
+        "meanCrossing": 38.5,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": null,
+      "presented": {
+        "crossings": 3,
+        "zigzagMaxTexels": 0.308,
+        "zigzagRmsTexels": 0.226,
+        "meanCrossing": 38.5,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.046,
+      "ms": 37.1,
+      "ringRule": {
+        "shipped": true,
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 0.308,
+          "zigzagRmsTexels": 0.226,
+          "meanCrossing": 38.5,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      },
+      "coverage4": {
+        "metrics": {
+          "crossings": 6,
+          "zigzagMaxTexels": 0.371,
+          "zigzagRmsTexels": 0.239,
+          "meanCrossing": 37,
+          "meanRunTexels": 3,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 1.333,
+          "transitionTexelsMax": 2,
+          "levels": 1
+        },
+        "refinedTexels": 543,
+        "refinedFraction": 0.044
+      },
+      "coverage9": {
+        "metrics": {
+          "crossings": 6,
+          "zigzagMaxTexels": 0.371,
+          "zigzagRmsTexels": 0.239,
+          "meanCrossing": 37,
+          "meanRunTexels": 3,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 1.833,
+          "transitionTexelsMax": 3,
+          "levels": 2
+        },
+        "refinedTexels": 543,
+        "refinedFraction": 0.044
+      }
+    },
+    "rounded/soft8/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 3,
+        "zigzagMaxTexels": 0.308,
+        "zigzagRmsTexels": 0.226,
+        "meanCrossing": 38.5,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": {
+        "crossings": 3,
+        "zigzagMaxTexels": 0.308,
+        "zigzagRmsTexels": 0.226,
+        "meanCrossing": 39.499,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "presented": {
+        "crossings": 3,
+        "zigzagMaxTexels": 0.308,
+        "zigzagRmsTexels": 0.226,
+        "meanCrossing": 39.499,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.139,
+      "ms": 191,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 0,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 0,
+          "meanRunTexels": 0,
+          "maxRunTexels": 0,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 0.308,
+          "zigzagRmsTexels": 0.226,
+          "meanCrossing": 38.5,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 0.308,
+          "zigzagRmsTexels": 0.226,
+          "meanCrossing": 38.5,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 0.308,
+          "zigzagRmsTexels": 0.226,
+          "meanCrossing": 38.5,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 0.308,
+          "zigzagRmsTexels": 0.226,
+          "meanCrossing": 39.499,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 0.304,
+          "zigzagRmsTexels": 0.224,
+          "meanCrossing": 39.446,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 1,
+          "transitionTexelsMax": 1,
+          "levels": 3
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 0.308,
+          "zigzagRmsTexels": 0.226,
+          "meanCrossing": 39.499,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      }
+    },
+    "rounded/hard/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": {
+        "crossings": 6,
+        "zigzagMaxTexels": 0.581,
+        "zigzagRmsTexels": 0.341,
+        "meanCrossing": 78,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": null,
+      "presented": {
+        "crossings": 6,
+        "zigzagMaxTexels": 0.581,
+        "zigzagRmsTexels": 0.341,
+        "meanCrossing": 78,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.023,
+      "ms": 137.5,
+      "ringRule": {
+        "shipped": true,
+        "metrics": {
+          "crossings": 6,
+          "zigzagMaxTexels": 0.581,
+          "zigzagRmsTexels": 0.341,
+          "meanCrossing": 78,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      },
+      "coverage4": {
+        "metrics": {
+          "crossings": 12,
+          "zigzagMaxTexels": 0.628,
+          "zigzagRmsTexels": 0.355,
+          "meanCrossing": 76.167,
+          "meanRunTexels": 2.4,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 0.583,
+          "transitionTexelsMax": 1,
+          "levels": 1
+        },
+        "refinedTexels": 1103,
+        "refinedFraction": 0.022
+      },
+      "coverage9": {
+        "metrics": {
+          "crossings": 12,
+          "zigzagMaxTexels": 0.628,
+          "zigzagRmsTexels": 0.355,
+          "meanCrossing": 76.167,
+          "meanRunTexels": 2.4,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 1.083,
+          "transitionTexelsMax": 2,
+          "levels": 2
+        },
+        "refinedTexels": 1103,
+        "refinedFraction": 0.022
+      }
+    },
+    "rounded/soft8/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 6,
+        "zigzagMaxTexels": 0.581,
+        "zigzagRmsTexels": 0.341,
+        "meanCrossing": 78,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": {
+        "crossings": 6,
+        "zigzagMaxTexels": 0.581,
+        "zigzagRmsTexels": 0.341,
+        "meanCrossing": 78.999,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "presented": {
+        "crossings": 6,
+        "zigzagMaxTexels": 0.581,
+        "zigzagRmsTexels": 0.341,
+        "meanCrossing": 78.999,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.116,
+      "ms": 779.5,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 0,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 0,
+          "meanRunTexels": 0,
+          "maxRunTexels": 0,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 6,
+          "zigzagMaxTexels": 0.581,
+          "zigzagRmsTexels": 0.341,
+          "meanCrossing": 78,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 6,
+          "zigzagMaxTexels": 0.581,
+          "zigzagRmsTexels": 0.341,
+          "meanCrossing": 78,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 6,
+          "zigzagMaxTexels": 0.581,
+          "zigzagRmsTexels": 0.341,
+          "meanCrossing": 78,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 6,
+          "zigzagMaxTexels": 0.581,
+          "zigzagRmsTexels": 0.34,
+          "meanCrossing": 78.998,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 6,
+          "zigzagMaxTexels": 0.576,
+          "zigzagRmsTexels": 0.33,
+          "meanCrossing": 78.922,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 1,
+          "transitionTexelsMax": 1,
+          "levels": 6
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 6,
+          "zigzagMaxTexels": 0.581,
+          "zigzagRmsTexels": 0.341,
+          "meanCrossing": 78.999,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 0,
+          "transitionTexelsMax": 0,
+          "levels": 0
+        }
+      }
+    },
+    "near/hard/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": {
+        "crossings": 2,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 0,
+        "meanRunTexels": 2,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": null,
+      "presented": {
+        "crossings": 2,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 0,
+        "meanRunTexels": 2,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.028,
+      "ms": 19,
+      "ringRule": {
+        "shipped": true,
+        "metrics": {
+          "crossings": 2,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 0,
+          "meanRunTexels": 2,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 23.5,
+          "transitionTexelsMax": 24,
+          "levels": 3
+        }
+      },
+      "coverage4": {
+        "metrics": {
+          "crossings": 1,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 0,
+          "meanRunTexels": 0,
+          "maxRunTexels": 0,
+          "transitionTexelsMean": 24,
+          "transitionTexelsMax": 24,
+          "levels": 2
+        },
+        "refinedTexels": 336,
+        "refinedFraction": 0.027
+      },
+      "coverage9": {
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 0.063,
+          "zigzagRmsTexels": 0.044,
+          "meanCrossing": 21.688,
+          "meanRunTexels": 3,
+          "maxRunTexels": 3,
+          "transitionTexelsMean": 8.667,
+          "transitionTexelsMax": 24,
+          "levels": 2
+        },
+        "refinedTexels": 336,
+        "refinedFraction": 0.027
+      }
+    },
+    "near/soft8/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 1,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 0,
+        "meanRunTexels": 0,
+        "maxRunTexels": 0,
+        "transitionTexelsMean": 1,
+        "transitionTexelsMax": 1,
+        "levels": 1
+      },
+      "reconstructed": {
+        "crossings": 2,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 0,
+        "meanRunTexels": 2,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 8,
+        "transitionTexelsMax": 8,
+        "levels": 10
+      },
+      "presented": {
+        "crossings": 2,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 0,
+        "meanRunTexels": 2,
+        "maxRunTexels": 2,
+        "transitionTexelsMean": 8,
+        "transitionTexelsMax": 8,
+        "levels": 10
+      },
+      "boundaryTexelFractionRaw": 0.036,
+      "ms": 70,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 2,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 0,
+          "meanRunTexels": 2,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 28,
+          "transitionTexelsMax": 28,
+          "levels": 17
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 2,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 0,
+          "meanRunTexels": 2,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 1,
+          "transitionTexelsMax": 1,
+          "levels": 1
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 2,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 0,
+          "meanRunTexels": 2,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 1,
+          "transitionTexelsMax": 1,
+          "levels": 2
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 2,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 0,
+          "meanRunTexels": 2,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 1,
+          "transitionTexelsMax": 1,
+          "levels": 1
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 2,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 0,
+          "meanRunTexels": 2,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 8,
+          "transitionTexelsMax": 8,
+          "levels": 10
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 2,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 0,
+          "meanRunTexels": 2,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 27,
+          "transitionTexelsMax": 27,
+          "levels": 17
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 2,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 0,
+          "meanRunTexels": 2,
+          "maxRunTexels": 2,
+          "transitionTexelsMean": 26,
+          "transitionTexelsMax": 26,
+          "levels": 27
+        }
+      }
+    },
+    "far/hard/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": {
+        "crossings": 3,
+        "zigzagMaxTexels": 0.333,
+        "zigzagRmsTexels": 0.236,
+        "meanCrossing": 27.833,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "reconstructed": null,
+      "presented": {
+        "crossings": 3,
+        "zigzagMaxTexels": 0.333,
+        "zigzagRmsTexels": 0.236,
+        "meanCrossing": 27.833,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 0,
+        "transitionTexelsMax": 0,
+        "levels": 0
+      },
+      "boundaryTexelFractionRaw": 0.025,
+      "ms": 28.6,
+      "ringRule": {
+        "shipped": true,
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 0.233,
+          "zigzagRmsTexels": 0.165,
+          "meanCrossing": 27.833,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 9.667,
+          "transitionTexelsMax": 25,
+          "levels": 6
+        }
+      },
+      "coverage4": {
+        "metrics": {
+          "crossings": 6,
+          "zigzagMaxTexels": 1.629,
+          "zigzagRmsTexels": 1.179,
+          "meanCrossing": 27,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 1,
+          "transitionTexelsMax": 2,
+          "levels": 3
+        },
+        "refinedTexels": 297,
+        "refinedFraction": 0.024
+      },
+      "coverage9": {
+        "metrics": {
+          "crossings": 6,
+          "zigzagMaxTexels": 1.629,
+          "zigzagRmsTexels": 1.179,
+          "meanCrossing": 27,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 1.333,
+          "transitionTexelsMax": 2,
+          "levels": 7
+        },
+        "refinedTexels": 297,
+        "refinedFraction": 0.024
+      }
+    },
+    "far/soft8/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": {
+        "crossings": 1,
+        "zigzagMaxTexels": 0,
+        "zigzagRmsTexels": 0,
+        "meanCrossing": 0,
+        "meanRunTexels": 0,
+        "maxRunTexels": 0,
+        "transitionTexelsMean": 30,
+        "transitionTexelsMax": 30,
+        "levels": 6
+      },
+      "reconstructed": {
+        "crossings": 3,
+        "zigzagMaxTexels": 0.03,
+        "zigzagRmsTexels": 0.021,
+        "meanCrossing": 29.485,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 32,
+        "transitionTexelsMax": 34,
+        "levels": 94
+      },
+      "presented": {
+        "crossings": 3,
+        "zigzagMaxTexels": 0.03,
+        "zigzagRmsTexels": 0.021,
+        "meanCrossing": 29.485,
+        "meanRunTexels": 1,
+        "maxRunTexels": 1,
+        "transitionTexelsMean": 32,
+        "transitionTexelsMax": 34,
+        "levels": 94
+      },
+      "boundaryTexelFractionRaw": 0.084,
+      "ms": 230.5,
+      "legacyBoxRecon": {
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 0.04,
+          "zigzagRmsTexels": 0.028,
+          "meanCrossing": 28.949,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 31.667,
+          "transitionTexelsMax": 33,
+          "levels": 55
+        }
+      },
+      "gated1": {
+        "metrics": {
+          "crossings": 1,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 0,
+          "meanRunTexels": 0,
+          "maxRunTexels": 0,
+          "transitionTexelsMean": 34,
+          "transitionTexelsMax": 34,
+          "levels": 29
+        }
+      },
+      "gated2": {
+        "metrics": {
+          "crossings": 1,
+          "zigzagMaxTexels": 0,
+          "zigzagRmsTexels": 0,
+          "meanCrossing": 0,
+          "meanRunTexels": 0,
+          "maxRunTexels": 0,
+          "transitionTexelsMean": 32,
+          "transitionTexelsMax": 32,
+          "levels": 29
+        }
+      },
+      "gated1r4": {
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 2.848,
+          "zigzagRmsTexels": 2.014,
+          "meanCrossing": 39.225,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 38.667,
+          "transitionTexelsMax": 42,
+          "levels": 100
+        }
+      },
+      "bil25": {
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 0.03,
+          "zigzagRmsTexels": 0.021,
+          "meanCrossing": 29.485,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 32,
+          "transitionTexelsMax": 34,
+          "levels": 94
+        }
+      },
+      "bil35": {
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 0.124,
+          "zigzagRmsTexels": 0.088,
+          "meanCrossing": 29.259,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 32,
+          "transitionTexelsMax": 33,
+          "levels": 94
+        }
+      },
+      "ringOnRecon": {
+        "metrics": {
+          "crossings": 3,
+          "zigzagMaxTexels": 0.345,
+          "zigzagRmsTexels": 0.244,
+          "meanCrossing": 29.33,
+          "meanRunTexels": 1,
+          "maxRunTexels": 1,
+          "transitionTexelsMean": 31.667,
+          "transitionTexelsMax": 34,
+          "levels": 94
+        }
+      }
+    },
+    "glyph/hard/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": null,
+      "reconstructed": null,
+      "presented": null,
+      "boundaryTexelFractionRaw": 0.036,
+      "ms": 24.3,
+      "thin": {
+        "rawMinVis": 0,
+        "rawAreaBelowHalf": 152,
+        "reconMinVis": null,
+        "reconAreaBelowHalf": null
+      },
+      "ringRule": {
+        "shipped": true,
+        "metrics": null,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 152
+        }
+      },
+      "coverage4": {
+        "metrics": null,
+        "refinedTexels": 430,
+        "refinedFraction": 0.035,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 205
+        }
+      },
+      "coverage9": {
+        "metrics": null,
+        "refinedTexels": 430,
+        "refinedFraction": 0.035,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 282
+        }
+      }
+    },
+    "glyph/soft4/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 4,
+      "angularRadius": 0.15,
+      "raw": null,
+      "reconstructed": null,
+      "presented": null,
+      "boundaryTexelFractionRaw": 0.046,
+      "ms": 72.1,
+      "thin": {
+        "rawMinVis": 0,
+        "rawAreaBelowHalf": 123,
+        "reconMinVis": 0.052780672907829285,
+        "reconAreaBelowHalf": 136
+      },
+      "legacyBoxRecon": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.1818181872367859,
+          "areaBelowHalf": 91
+        }
+      },
+      "gated1": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 148
+        }
+      },
+      "gated2": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.125,
+          "areaBelowHalf": 134
+        }
+      },
+      "gated1r4": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.03846153989434242,
+          "areaBelowHalf": 148
+        }
+      },
+      "bil25": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.052780672907829285,
+          "areaBelowHalf": 136
+        }
+      },
+      "bil35": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.09835678339004517,
+          "areaBelowHalf": 132
+        }
+      },
+      "ringOnRecon": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 584
+        }
+      }
+    },
+    "glyph/soft8/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": null,
+      "reconstructed": null,
+      "presented": null,
+      "boundaryTexelFractionRaw": 0.048,
+      "ms": 125.1,
+      "thin": {
+        "rawMinVis": 0,
+        "rawAreaBelowHalf": 133,
+        "reconMinVis": 0.09873116761445999,
+        "reconAreaBelowHalf": 141
+      },
+      "legacyBoxRecon": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.21590909361839294,
+          "areaBelowHalf": 85
+        }
+      },
+      "gated1": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 143
+        }
+      },
+      "gated2": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.05000000074505806,
+          "areaBelowHalf": 144
+        }
+      },
+      "gated1r4": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.05000000074505806,
+          "areaBelowHalf": 143
+        }
+      },
+      "bil25": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.09873116761445999,
+          "areaBelowHalf": 141
+        }
+      },
+      "bil35": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.1388082206249237,
+          "areaBelowHalf": 128
+        }
+      },
+      "ringOnRecon": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 580
+        }
+      }
+    },
+    "glyph/soft16/dpr1": {
+      "dpr": 1,
+      "renderExtent": [
+        128,
+        96
+      ],
+      "samples": 16,
+      "angularRadius": 0.15,
+      "raw": null,
+      "reconstructed": null,
+      "presented": null,
+      "boundaryTexelFractionRaw": 0.049,
+      "ms": 226.2,
+      "thin": {
+        "rawMinVis": 0,
+        "rawAreaBelowHalf": 152,
+        "reconMinVis": 0.08771834522485733,
+        "reconAreaBelowHalf": 155
+      },
+      "legacyBoxRecon": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.19886364042758942,
+          "areaBelowHalf": 89
+        }
+      },
+      "gated1": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 154
+        }
+      },
+      "gated2": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.03125,
+          "areaBelowHalf": 156
+        }
+      },
+      "gated1r4": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.02083333395421505,
+          "areaBelowHalf": 154
+        }
+      },
+      "bil25": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.08771834522485733,
+          "areaBelowHalf": 155
+        }
+      },
+      "bil35": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.11913161724805832,
+          "areaBelowHalf": 149
+        }
+      },
+      "ringOnRecon": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 585
+        }
+      }
+    },
+    "glyph/hard/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 1,
+      "angularRadius": 0,
+      "raw": null,
+      "reconstructed": null,
+      "presented": null,
+      "boundaryTexelFractionRaw": 0.02,
+      "ms": 98.1,
+      "thin": {
+        "rawMinVis": 0,
+        "rawAreaBelowHalf": 651,
+        "reconMinVis": null,
+        "reconAreaBelowHalf": null
+      },
+      "ringRule": {
+        "shipped": true,
+        "metrics": null,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 650
+        }
+      },
+      "coverage4": {
+        "metrics": null,
+        "refinedTexels": 982,
+        "refinedFraction": 0.02,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 663
+        }
+      },
+      "coverage9": {
+        "metrics": null,
+        "refinedTexels": 982,
+        "refinedFraction": 0.02,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 822
+        }
+      }
+    },
+    "glyph/soft4/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 4,
+      "angularRadius": 0.15,
+      "raw": null,
+      "reconstructed": null,
+      "presented": null,
+      "boundaryTexelFractionRaw": 0.035,
+      "ms": 275.9,
+      "thin": {
+        "rawMinVis": 0,
+        "rawAreaBelowHalf": 546,
+        "reconMinVis": 0.013064426369965076,
+        "reconAreaBelowHalf": 628
+      },
+      "legacyBoxRecon": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.1034482792019844,
+          "areaBelowHalf": 492
+        }
+      },
+      "gated1": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.057692307978868484,
+          "areaBelowHalf": 638
+        }
+      },
+      "gated2": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.1034482792019844,
+          "areaBelowHalf": 589
+        }
+      },
+      "gated1r4": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.10000000149011612,
+          "areaBelowHalf": 627
+        }
+      },
+      "bil25": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.046279482543468475,
+          "areaBelowHalf": 612
+        }
+      },
+      "bil35": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.06618358194828033,
+          "areaBelowHalf": 595
+        }
+      },
+      "ringOnRecon": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 1503
+        }
+      }
+    },
+    "glyph/soft8/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 8,
+      "angularRadius": 0.15,
+      "raw": null,
+      "reconstructed": null,
+      "presented": null,
+      "boundaryTexelFractionRaw": 0.036,
+      "ms": 480.8,
+      "thin": {
+        "rawMinVis": 0,
+        "rawAreaBelowHalf": 574,
+        "reconMinVis": 0,
+        "reconAreaBelowHalf": 623
+      },
+      "legacyBoxRecon": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.09482758492231369,
+          "areaBelowHalf": 509
+        }
+      },
+      "gated1": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.01785714365541935,
+          "areaBelowHalf": 601
+        }
+      },
+      "gated2": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.0357142873108387,
+          "areaBelowHalf": 607
+        }
+      },
+      "gated1r4": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.03030303120613098,
+          "areaBelowHalf": 598
+        }
+      },
+      "bil25": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.045547470450401306,
+          "areaBelowHalf": 604
+        }
+      },
+      "bil35": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.06269347667694092,
+          "areaBelowHalf": 589
+        }
+      },
+      "ringOnRecon": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 1514
+        }
+      }
+    },
+    "glyph/soft16/dpr2": {
+      "dpr": 2,
+      "renderExtent": [
+        256,
+        192
+      ],
+      "samples": 16,
+      "angularRadius": 0.15,
+      "raw": null,
+      "reconstructed": null,
+      "presented": null,
+      "boundaryTexelFractionRaw": 0.037,
+      "ms": 921.6,
+      "thin": {
+        "rawMinVis": 0,
+        "rawAreaBelowHalf": 614,
+        "reconMinVis": 0.011075972579419613,
+        "reconAreaBelowHalf": 629
+      },
+      "legacyBoxRecon": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.11206896603107452,
+          "areaBelowHalf": 503
+        }
+      },
+      "gated1": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.010416666977107525,
+          "areaBelowHalf": 627
+        }
+      },
+      "gated2": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.02678571455180645,
+          "areaBelowHalf": 618
+        }
+      },
+      "gated1r4": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.013888888992369175,
+          "areaBelowHalf": 622
+        }
+      },
+      "bil25": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.06599985063076019,
+          "areaBelowHalf": 614
+        }
+      },
+      "bil35": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0.08446270227432251,
+          "areaBelowHalf": 588
+        }
+      },
+      "ringOnRecon": {
+        "metrics": null,
+        "thin": {
+          "minVis": 0,
+          "areaBelowHalf": 1516
+        }
+      }
+    }
+  }
+}

@@ -290,25 +290,43 @@ height -> per-pixel ray march toward the light -> hard 0/1 visibility mask
   hash of their render texel coordinates (mirrored exactly in CPU and WGSL),
   so the sampled shadow silhouettes become spatially decorrelated sampling
   error instead of layered hard shadows.
-- Edge-aware reconstruction (#43): on the soft path the raw visibility field
-  passes through a small gated box filter (`reconstructVisibility` /
-  `ReconstructionPass`) before lighting/presentation. The filter uses fixed
-  uniform weights with height and ownership edge gates — it never creates
-  the penumbra shape (the #41 ray geometry does) and never enlarges the
-  footprint beyond its radius. Hard-path frames (and `enabled: false`)
-  bypass it, preserving every historical {0, 1} byte. The raw field stays
-  available for debugging and parity (`reconstructionActive` on the pipeline
-  frame stats reports which field lighting consumed). `radius` and
-  `heightGate` are SCENE-UNIT lengths; the DOM layer owns the CSS-space
-  policy (defaults, [0, 4] clamp) and maps them through the display DPR
-  exactly once, so the footprint and edge preservation are DPR-invariant in
-  CSS space.
+- Reconstruction (#43/#53): the raw visibility field passes through the
+  reconstruction stage (`reconstructVisibility` / `ReconstructionPass`)
+  before lighting/presentation, with ONE kernel per shadow path selected
+  automatically:
+  - soft path — a small VALUE-BILATERAL box filter (a Gaussian weight in
+    visibility value, sigma `RECONSTRUCTION_VALUE_SIGMA = 0.25`, on top of
+    the fixed height and ownership edge gates). The value weight keeps
+    narrow dark bands and glyph strokes at full strength (a plain box
+    average washes them out) while smoothing the sampling salt-and-pepper;
+    it never creates the penumbra shape (the #41 ray geometry does) and
+    never enlarges the footprint beyond its radius.
+  - hard path — the #53 ring-rule binomial edge refinement
+    (`refineHardEdgeVisibility`): a texel is refined only when its
+    8-neighbor ring shows exactly two value transitions with both arcs at
+    least `RING_EDGE_MIN_ARC` elements, and a 3/5 split is refined only when
+    the center belongs to the majority arc (a single straight-ish boundary,
+    not a one-texel tip/spur); the refinement value is the separable
+    (1,2,1)²/16 binomial — an exact dyadic k/16 rational — producing a
+    1-2 texel antialiasing ramp centered on the same occlusion boundary.
+    Narrow features, corners, speckle and the 1-texel frame border keep
+    the raw {0, 1} value verbatim.
+  - `enabled: false` bypasses BOTH kernels (the raw field is displayed
+    and the historical bytes are preserved). The raw field stays available
+    for debugging and parity (`reconstructionActive` on the pipeline frame
+    stats reports which field lighting consumed). `radius` and
+    `heightGate` are SCENE-UNIT lengths; the DOM layer owns the CSS-space
+    policy (defaults, [0, 4] clamp) and maps them through the display DPR
+    exactly once, so the footprint and edge preservation are DPR-invariant
+    in CSS space.
 - Cross-backend parity: RAW #41 visibility keeps its exact dyadic
-  zero-tolerance contract on both backends. RECONSTRUCTED visibility uses a
-  SEPARATE documented tight tolerance (|diff| <= 1e-6, finite, [0, 1]) —
-  the gated tap average `sum / tapCount` is not dyadic, so bit-identity is
-  never promised for it (the browser harness reports measured max abs/ULP
-  errors).
+  zero-tolerance contract on both backends. SOFT reconstructed visibility
+  uses a SEPARATE documented portable tolerance (|diff| <= 2e-6, finite,
+  [0, 1]) — the value-weighted quotient `sum(w*v) / sum(w)` is not dyadic,
+  so bit-identity is never promised for it (the browser harness reports
+  measured max abs/ULP errors). HARD refined visibility is exact dyadic
+  k/16 of integer f32 sums, so it keeps the zero-tolerance contract
+  (`visibility-reconstructed-hard` policy).
 
 ### Resolution / devicePixelRatio contract
 

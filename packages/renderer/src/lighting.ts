@@ -2,7 +2,7 @@ import { HostBuffer } from "./buffer";
 import { clamp, saturatingAdd, saturatingMulF32 } from "./math";
 import { composeCasterHeightField, composeSdfHeightField } from "./geometry";
 import { computeVisibility } from "./shadow";
-import { reconstructVisibility, sanitizeReconstructionOptions } from "./shadow-reconstruct";
+import { reconstructVisibility, refineHardEdgeVisibility, sanitizeReconstructionOptions } from "./shadow-reconstruct";
 import { sanitizeAngularRadius, sanitizeShadowSamples } from "./shadow-sampling";
 import { brdfDirect } from "./brdf";
 import type { BrdfResult } from "./brdf";
@@ -177,7 +177,7 @@ export function computeNormals(height: HostBuffer, options: NormalOptions = {}):
  *   use the base-plane material
  * - cast-shadow visibility (#17) scales the DIRECT terms (diffuse +
  *   specular + the final direct contribution); the ambient fill and the
- *   #22 environment are unaffected — a fully shadowed pixel keeps its
+ *   #22 environment are unaffected —a fully shadowed pixel keeps its
  *   ambient + environment response
  * - `scene.light.intensity` scales the direct terms as well; intensity 0
  *   leaves ambient + environment only
@@ -193,9 +193,9 @@ export function computeNormals(height: HostBuffer, options: NormalOptions = {}):
  *   encoded to sRGB8 (#45: lightColor is the linear-RGB per-channel
  *   multiplier of the DIRECT contribution only; white keeps the historical
  *   bytes; #45 review: the per-channel product is evaluated in the SAME
- *   factor order and with the SAME f32 saturation as the WGSL pass — small
+ *   factor order and with the SAME f32 saturation as the WGSL pass —small
  *   factors first (BRDF sum, NdotL, visibility), then intensity, then
- *   lightColor — so a huge lightColor * intensity can never prematurely
+ *   lightColor —so a huge lightColor * intensity can never prematurely
  *   saturate an intermediate the BRDF would bring back into range)
  */
 export function shadeHeightField(
@@ -212,7 +212,7 @@ export function shadeHeightField(
 
 /**
  * Shade a PREPARED normal/ownership/visibility triple into the diffuse,
- * specular and final sRGB color buffers — the exact per-texel evaluation
+ * specular and final sRGB color buffers —the exact per-texel evaluation
  * `shadeHeightField` runs after its internal normal pass (mirrored 1:1 by
  * the #28 GPU lighting shader). The normal field is consumed as-is (never
  * recomputed), ownership resolves the material table (`NO_OWNER` = base
@@ -225,7 +225,7 @@ export function shadeHeightField(
  *   use the base-plane material
  * - cast-shadow visibility (#17) scales the DIRECT terms (diffuse +
  *   specular + the final direct contribution); the ambient fill and the
- *   #22 environment are unaffected — a fully shadowed pixel keeps its
+ *   #22 environment are unaffected —a fully shadowed pixel keeps its
  *   ambient + environment response
  * - `scene.light.intensity` scales the direct terms as well; intensity 0
  *   leaves ambient + environment only
@@ -237,7 +237,7 @@ export function shadeHeightField(
  * - the degenerate half-vector `L = -V` (direction `{0, 0, -1}`) yields no
  *   half vector; specular resolves safely to 0 (no NaN)
  * - color = (baseColor * ambient + directContribution + environment) *
- *   exposure, encoded to sRGB8 — the per-channel directContribution is
+ *   exposure, encoded to sRGB8 —the per-channel directContribution is
  *   `directLightContribution` (#45 factor order + f32 saturation, the
  *   exact CPU twin of the WGSL chain)
  */
@@ -303,7 +303,7 @@ export function shadePreparedFields(
       specular.set(x, y, 0, Math.min(luminance(brdf.specular) * cosine * vis, 1));
 
       const base = material.baseColor;
-      // #45: the DIRECT contribution is per-channel — the directional light
+      // #45: the DIRECT contribution is per-channel —the directional light
       // color (linear RGB) times the scalar light-power intensity, NdotL and
       // visibility. Ambient and environment are never multiplied by the
       // light color. White light reproduces the historical scalar formula
@@ -337,23 +337,29 @@ export function lightScene(scene: Scene, options: LightingOptions = {}): Lightin
     objectId: composed.objectId,
     casterHeight: needsCasterField ? composeCasterHeightField(scene) : undefined,
   });
-  // #43 edge-aware penumbra reconstruction of the SOFT visibility field.
-  // Hard-path frames (angularRadius 0 / single sample) bypass the filter so
-  // the historical {0,1} field — and therefore every historical byte — stays
-  // unchanged; a disabled option bypasses identically.
+  // #43/#53 display-field reconstruction of the RAW visibility field.
+  // SOFT path (area light active): the value-bilateral penumbra
+  // reconstruction. HARD path (#53): the ring-rule binomial edge refinement
+  // (a pure display postprocess —the raw {0,1} bytes stay the oracle; the
+  // refined field is what lighting/presentation consume). A disabled
+  // reconstruction option bypasses BOTH (the raw field flows through, the
+  // historical presentation bytes).
   const softActive =
     sanitizeAngularRadius(
       typeof scene.light.angularRadius === "number" ? scene.light.angularRadius : undefined,
     ) > 0 && sanitizeShadowSamples(shadowOptions.samples) > 1;
-  const reconstructed =
-    softActive && sanitizeReconstructionOptions(shadowOptions.reconstruction).enabled
+  const reconstruction = sanitizeReconstructionOptions(shadowOptions.reconstruction);
+  const reconstructionActive = reconstruction.enabled && reconstruction.radiusTexels > 0;
+  const displayVisibility = !reconstructionActive
+    ? visibility
+    : softActive
       ? reconstructVisibility(visibility, composed.height, {
           objectId: composed.objectId,
         }, shadowOptions.reconstruction)
-      : visibility;
+      : refineHardEdgeVisibility(visibility);
   return shadeHeightField(
     scene,
-    { height: composed.height, objectId: composed.objectId, visibility: reconstructed },
+    { height: composed.height, objectId: composed.objectId, visibility: displayVisibility },
     options,
   );
 }
@@ -361,7 +367,7 @@ export function lightScene(scene: Scene, options: LightingOptions = {}): Lightin
 const ZERO_RGB: LinearRgb = { r: 0, g: 0, b: 0 };
 
 /**
- * #45 review: per-channel DIRECT-light contribution — the single canonical
+ * #45 review: per-channel DIRECT-light contribution —the single canonical
  * factor order shared with the WGSL lighting pass (`lighting-pass-wgsl.ts`):
  *
  *     brdfSum = satAdd(brdfDiffuse, brdfSpecular)
@@ -395,7 +401,7 @@ export function directLightContributionChannel(
  * #45 review: the per-channel DIRECT contribution of the directional light
  * for all three channels (see `directLightContributionChannel` for the
  * canonical factor order and saturation policy). Ambient and environment are
- * deliberately not involved — they are accumulated independently.
+ * deliberately not involved —they are accumulated independently.
  */
 export function directLightContribution(
   lightColor: LinearRgb,

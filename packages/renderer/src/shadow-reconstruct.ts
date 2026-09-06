@@ -14,8 +14,11 @@ import { VISIBILITY_SPEC } from "./types";
  * turns that coherence into spatially decorrelated sampling error — and
  * THIS stage reconstructs a smooth penumbra from it.
  *
- * The filter is a small cross-bilateral-like box kernel over the RAW field
- * with two deterministic edge gates guided by existing scene geometry:
+ * The stage runs in TWO modes over the same raw field (#53 edge quality):
+ *
+ * ## Soft mode (area-light path) — value-bilateral box kernel
+ *
+ * A small box kernel over the RAW field with three deterministic gates:
  *
  * - **height gate** — a neighbor contributes only when its FULL visible
  *   height differs from the center's by at most `RECONSTRUCTION_HEIGHT_GATE`
@@ -25,32 +28,67 @@ import { VISIBILITY_SPEC } from "./types";
  * - **ownership gate** — a neighbor contributes only when its object id
  *   equals the center's (NO_OWNER matches only NO_OWNER), so shadows never
  *   leak through unrelated foreground receivers and receiver/object
- *   boundaries are preserved.
+ *   boundaries are preserved;
+ * - **value weight** (#53) — each tap is weighted by
+ *   `exp(-(dv * dv) / (2 * sigma^2))` with `dv` the visibility difference to
+ *   the center and `sigma = RECONSTRUCTION_VALUE_SIGMA` visibility units.
+ *   #53 measured the previous uniform-weight box on real shadow edges: it
+ *   averaged ACROSS narrow shadow bands (a 3-texel dark band lost ~62% of
+ *   its depth — thin blockers effectively vanished) while a hard value gate
+ *   stopped smoothing the decorrelated sampling salt-and-pepper entirely.
+ *   The Gaussian weight resolves both: full-range jumps (0 <-> 1, the thin
+ *   band edges) get weight ~3e-4 (excluded, bands keep their depth), while
+ *   one-to-two sample-level differences (the sampling noise) keep weight
+ *   >= 0.6 (the penumbra still smooths). The physical penumbra WIDTH stays
+ *   owned by the #41 ray geometry — the measured transition width of the
+ *   filtered field stays within one texel of the uniform box (no new
+ *   softness).
  *
- * All taps share ONE fixed weight; the output is the gated tap average in
- * declaration order, clamped into [0, 1] — finite by construction. The
- * physical penumbra WIDTH stays owned by the #41 ray geometry (caster/
- * receiver separation × angularRadius): this stage is a reconstructor of the
- * sampled field, never the source of the softness, and it never enlarges
- * the footprint beyond `radius` texels.
+ * All tap weights are non-negative and the output is the weighted average in
+ * declaration order, clamped into [0, 1] — finite by construction.
  *
- * ## Cross-backend parity policy (NOT bit-exact)
+ * ## Hard mode (single-ray path) — ring-rule binomial edge refinement
  *
- * The reconstruction quotient `sum / tapCount` is NOT dyadic (3/25, 7/49,
- * ...): the CPU reference accumulates in f64 and rounds the quotient to f32
- * once, while the GPU accumulates and divides in f32. Bit-identity must
- * therefore NOT be promised across legal WebGPU backends — the browser
- * parity harness compares the reconstructed field with the SEPARATE
- * documented tight tolerance (`compareReconstructedVisibility`, |diff| <=
- * 1e-6, plus max-abs/max-ULP evidence reporting). RAW #41 visibility keeps
- * its exact dyadic zero-tolerance contract; this stage never weakens it.
+ * The historical hard path writes an EXACT binary {0, 1} field and bypassed
+ * reconstruction entirely, so diagonal/curved shadow boundaries displayed as
+ * a raw texel staircase (#53 primary cause, measured: transition width 0,
+ * zero partial levels at every DPR). The hard mode is a PURE POSTPROCESS of
+ * the raw field (no extra ray marching, no shadow semantics touched):
  *
- * ## Hard-shadow compatibility
+ * - a texel is refined ONLY when its 8-neighbor ring shows EXACTLY TWO
+ *   visibility-side transitions with BOTH same-side arcs spanning at least
+ *   `RING_EDGE_MIN_ARC` ring texels — i.e. exactly one (locally straight)
+ *   shadow boundary passes through the 3x3 window; for a 3/5 split the
+ *   center must belong to the majority arc, preserving a minority-side
+ *   one-texel tip/spur verbatim;
+ * - the refined value is the separable binomial `(1,2,1)/2 (x) (1,2,1)/2`
+ *   over the 3x3 raw window — a ~1-2 texel ramp whose 50% crossing stays on
+ *   the binary boundary (symmetric kernel, edge position preserved);
+ * - everything else is copied VERBATIM: narrow features (arcs < 3 or a
+ *   minority-side center on a 3/5 split — a tapered one-texel tip), a
+ *   1-2 texel line's texels see a 1-element arc), isolated texels, corners
+ *   (4+ ring transitions) and the 1-texel frame border keep the raw value,
+ *   so thin blockers and glyph strokes cannot be diluted and silhouette
+ *   corners stay crisp.
  *
- * Callers bypass reconstruction entirely when the shadow pass ran the hard
- * path (`angularRadius <= 0` or `samples <= 1`) or when
- * `ShadowReconstructionOptions.enabled === false`: the historical {0, 1}
- * visibility flows to lighting/presentation unchanged.
+ * The binomial of binary values is a dyadic k/16 rational, so CPU and GPU
+ * refine BIT-IDENTICALLY (zero-tolerance parity, like the raw field) —
+ * see the policy table entry added with #53. The raw {0, 1} contract is
+ * NOT weakened: the refined field is the DISPLAY representation consumed by
+ * lighting/presentation, while the raw field stays available verbatim as
+ * the oracle/debug source (pass snapshot + `enabled: false` bypass).
+ *
+ * ## Cross-backend parity policy (NOT bit-exact in soft mode)
+ *
+ * The soft-mode weighted quotient `sum(w * v) / sum(w)` is NOT dyadic: the
+ * CPU reference accumulates in f64 and rounds the quotient to f32 once,
+ * while the GPU accumulates and divides in f32. Bit-identity must therefore
+ * NOT be promised across legal WebGPU backends — the browser parity harness
+ * compares the reconstructed field with the SEPARATE documented tight
+ * tolerance (`compareReconstructedVisibility`, |diff| <= 2e-6, plus
+ * max-abs/max-ULP evidence reporting). RAW #41 visibility keeps its exact
+ * dyadic zero-tolerance contract; this stage never weakens it. The #53 hard
+ * mode is dyadic and keeps a zero-tolerance contract of its own.
  *
  * ## Units / DPR contract (single conversion point)
  *
@@ -69,7 +107,9 @@ import { VISIBILITY_SPEC } from "./types";
  * maximum keeps its footprint across that whole range — see the cap's own
  * doc for the documented beyond-range degradation). The height gate is
  * scaled the same way (0.5 CSS px -> 0.5 * dpr scene units), so
- * edge-preservation is DPR-invariant in CSS space.
+ * edge-preservation is DPR-invariant in CSS space. The #53 hard mode reads
+ * only the 3x3 raw neighborhood (1-texel halo, DPR-independent by
+ * construction).
  *
  * Direct (non-DOM) renderer callers pass scene-unit lengths; the documented
  * defaults (radius 2 scene units, gate 0.5 scene units) equal the CSS-space
@@ -120,13 +160,94 @@ export const SUPPORTED_DISPLAY_DPR_MAX = 4;
  */
 export const RECONSTRUCTION_HEIGHT_GATE = 0.5;
 
+/**
+ * #53 value-space bilateral sigma (VISIBILITY units, soft mode): a tap's
+ * weight is `exp(-(dv)^2 / (2 * sigma^2))` for the visibility difference
+ * `dv` to the center. Rationale: the decorrelated per-texel sampling noise
+ * is mostly within one-to-two sample levels (weight >= 0.6 at sigma 0.25 —
+ * still averaged), while a full 0 <-> 1 jump (a thin shadow band's edge)
+ * gets weight exp(-8) ~ 3e-4 (effectively excluded — narrow bands keep
+ * their depth instead of being averaged away by the uniform box). Constant
+ * in samples/DPR/space — the same f32 value is packed into the WGSL
+ * params (`valueSigma`) so both backends weigh identically.
+ */
+export const RECONSTRUCTION_VALUE_SIGMA = 0.25;
+
+/**
+ * #53 hard mode: number of visibility-side transitions around the 8-neighbor
+ * ring for a texel to be treated as crossing a single (locally straight)
+ * shadow boundary. Two transitions = exactly one boundary through the 3x3
+ * window; 0 (interior/empty), 4+ (corners, speckle, crossing features) keep
+ * the raw value verbatim.
+ */
+export const RING_EDGE_TRANSITIONS = 2;
+
+/**
+ * #53 hard mode: the minimum span (in ring texels) BOTH same-side arcs must
+ * have for the boundary to count as a wide-region edge worth refining.
+ * Narrower arcs mean a narrow feature (a 1-2 texel line's texels see a
+ * 1-2 element arc) — those keep the raw value verbatim so thin blockers
+ * cannot be diluted by the binomial ramp.
+ */
+export const RING_EDGE_MIN_ARC = 3;
+
+/**
+ * Return the two run lengths of a binary 8-element cyclic ring when it has
+ * exactly two transitions. The scan starts immediately after a transition,
+ * so each ring element is counted exactly once and no wrap edge is counted
+ * as an additional element. Other ring topologies return `null`.
+ */
+export function hardRingArcLengths(ringSide: readonly boolean[]): [number, number] | null {
+  if (ringSide.length !== 8) {
+    return null;
+  }
+  let transitions = 0;
+  let start = 0;
+  for (let i = 0; i < 8; i++) {
+    if (ringSide[i] !== ringSide[(i + 7) % 8]) {
+      transitions += 1;
+      start = i;
+    }
+  }
+  if (transitions !== RING_EDGE_TRANSITIONS) {
+    return null;
+  }
+  let arcA = 1;
+  while (arcA < 8 && ringSide[(start + arcA) % 8] === ringSide[start]) {
+    arcA += 1;
+  }
+  return [arcA, 8 - arcA];
+}
+
+/**
+ * Classify a hard-shadow 3x3 neighborhood for refinement. A 4/4 ring split
+ * is always eligible. For a 3/5 split, the center must belong to the
+ * majority-side arc; a minority-side center is a one-texel tip/spur and is
+ * preserved. All narrower or non-two-transition topologies are preserved.
+ */
+export function isHardRingEdgeLike(
+  ringSide: readonly boolean[],
+  centerSide: boolean,
+): boolean {
+  const arcs = hardRingArcLengths(ringSide);
+  if (arcs === null || Math.min(arcs[0], arcs[1]) < RING_EDGE_MIN_ARC) {
+    return false;
+  }
+  let centerArc = 0;
+  for (const side of ringSide) {
+    if (side === centerSide) {
+      centerArc += 1;
+    }
+  }
+  return centerArc >= 8 - centerArc;
+}
+
 /** Public reconstruction controls (#43): deliberately minimal. */
 export interface ShadowReconstructionOptions {
   /**
-   * Master switch (default TRUE): the reconstructed field is consumed by
-   * lighting/presentation whenever the shadow pass ran the SOFT path.
-   * `false` (or a hard-path frame) bypasses the stage — the raw #41 field is
-   * consumed directly and presentation bytes stay the unfiltered #41 ones.
+   * Master switch (default TRUE). When enabled with an effective radius above
+   * zero, soft shadows use bilateral reconstruction and hard shadows use ring
+   * refinement. `false` bypasses both and consumes raw visibility directly.
    */
   enabled?: boolean;
   /**
@@ -213,7 +334,7 @@ export function sanitizeReconstructionOptions(
 /**
  * Edge-aware reconstruction of the raw #41 visibility field (CPU reference).
  * For every texel the gated box average over the `(2r+1)^2` neighborhood
- * runs in FIXED row-major declaration order with uniform weights, mirroring
+ * runs in FIXED row-major declaration order with value-bilateral weights, mirroring
  * the WGSL loop tap-for-tap (same taps, same gate comparisons, same f32
  * sum order). The CPU accumulates in f64 and rounds the final quotient to
  * f32 once; the GPU accumulates/divides in f32 — see the module doc for the
@@ -245,14 +366,20 @@ export function reconstructVisibility(
   }
   const objectId = options.objectId ?? null;
   const gate = Math.fround(heightGate);
+  // #53 value-bilateral sigma (f32-packed once; the WGSL weighs identically
+  // from the same packed params value).
+  const sigma = Math.fround(RECONSTRUCTION_VALUE_SIGMA);
+  const twoSigma2 = Math.fround(2 * sigma * sigma);
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < width; x++) {
       const centerY = height.get(x, y, 0);
       const centerOwner = objectId !== null ? objectId.get(x, y, 0) : NO_OWNER;
-      // Uniform-weight gated box average in fixed row-major order; the f32
-      // sum order mirrors the WGSL accumulation exactly.
+      const centerVis = rawVisibility.get(x, y, 0);
+      // Value-weighted gated box average in fixed row-major order; the f64
+      // accumulators are rounded once at the quotient (the documented
+      // tolerance policy).
       let sum = 0;
-      let taps = 0;
+      let wsum = 0;
       for (let dy = -radiusTexels; dy <= radiusTexels; dy++) {
         const ny = Math.min(h - 1, Math.max(0, y + dy));
         for (let dx = -radiusTexels; dx <= radiusTexels; dx++) {
@@ -264,12 +391,77 @@ export function reconstructVisibility(
           if (Math.abs(Math.fround(centerY - nh)) > gate) {
             continue;
           }
-          sum += rawVisibility.get(nx, ny, 0);
-          taps += 1;
+          const dv = rawVisibility.get(nx, ny, 0) - centerVis;
+          // exp(-(dv^2) / (2 sigma^2)) in f64; weights are in (0, 1] and the
+          // center's own weight is exactly 1, so wsum >= 1 whenever the loop
+          // runs at all — no zero-division fallback is needed beyond the
+          // radiusTexels <= 0 bypass above.
+          const w = Math.exp(-(dv * dv) / twoSigma2);
+          sum += w * rawVisibility.get(nx, ny, 0);
+          wsum += w;
         }
       }
-      const vis = taps > 0 ? sum / taps : rawVisibility.get(x, y, 0);
+      const vis = wsum > 0 ? sum / wsum : centerVis;
       out.set(x, y, 0, Math.min(1, Math.max(0, vis)));
+    }
+  }
+  return out;
+}
+
+/**
+ * #53 hard-mode edge refinement (CPU reference for the same-named WGSL
+ * kernel): a PURE postprocess of the raw binary {0, 1} visibility field.
+ *
+ * A texel whose 8-neighbor ring shows exactly `RING_EDGE_TRANSITIONS`
+ * visibility-side transitions with both same-side arcs spanning at least
+ * `RING_EDGE_MIN_ARC` ring texels (exactly one locally-straight shadow
+ * boundary through the 3x3 window) is refined to the separable binomial
+ * `(1,2,1)/2 (x) (1,2,1)/2` of its 3x3 raw window — a ~1-2 texel coverage
+ * ramp whose 50% crossing stays on the binary boundary. Every other texel
+ * (interiors, narrow features, isolated texels, corners, the 1-texel frame
+ * border) keeps the raw value verbatim.
+ *
+ * The result is a dyadic k/16 rational computed with exact f32 arithmetic
+ * (integer sums of 0/1 values) — CPU and GPU agree BIT-IDENTICALLY. The
+ * input is consumed verbatim (no in-place mutation); the output is a fresh
+ * `VISIBILITY_SPEC` buffer clamped into [0, 1].
+ */
+export function refineHardEdgeVisibility(rawVisibility: HostBuffer): HostBuffer {
+  const { width, height: h } = rawVisibility.spec;
+  const out = new HostBuffer(VISIBILITY_SPEC(width, h));
+  // Ring walk order: W, NW, N, NE, E, SE, S, SW (clockwise from west).
+  const ringDX = [-1, -1, 0, 1, 1, 1, 0, -1];
+  const ringDY = [0, -1, -1, -1, 0, 1, 1, 1];
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < width; x++) {
+      const raw = rawVisibility.get(x, y, 0);
+      // The 1-texel frame border keeps the raw value (no full ring).
+      if (x === 0 || y === 0 || x === width - 1 || y === h - 1) {
+        out.set(x, y, 0, raw);
+        continue;
+      }
+      // Collect the 8 ring sides (clockwise from west), then count ring
+      // transitions and the same-side arc lengths on the CYCLIC ring.
+      const ringSide: boolean[] = [];
+      for (let i = 0; i < 8; i++) {
+        ringSide.push(rawVisibility.get(x + ringDX[i], y + ringDY[i], 0) >= 0.5);
+      }
+      const edgeLike = isHardRingEdgeLike(ringSide, raw >= 0.5);
+      if (!edgeLike) {
+        out.set(x, y, 0, raw);
+        continue;
+      }
+      // Separable binomial (1,2,1)/2 per axis — exact dyadic k/16 in f32.
+      const wx = rawVisibility.get(x - 1, y, 0) + 2 * raw + rawVisibility.get(x + 1, y, 0);
+      const wxN =
+        rawVisibility.get(x - 1, y - 1, 0) +
+        2 * rawVisibility.get(x, y - 1, 0) +
+        rawVisibility.get(x + 1, y - 1, 0);
+      const wxS =
+        rawVisibility.get(x - 1, y + 1, 0) +
+        2 * rawVisibility.get(x, y + 1, 0) +
+        rawVisibility.get(x + 1, y + 1, 0);
+      out.set(x, y, 0, Math.min(1, Math.max(0, (wxN + 2 * wx + wxS) / 16)));
     }
   }
   return out;

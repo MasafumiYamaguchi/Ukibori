@@ -314,8 +314,12 @@ export {
   MAX_RECONSTRUCTION_RADIUS,
   MAX_RECONSTRUCTION_RADIUS_TEXELS,
   RECONSTRUCTION_HEIGHT_GATE,
+  RECONSTRUCTION_VALUE_SIGMA,
+  RING_EDGE_MIN_ARC,
+  RING_EDGE_TRANSITIONS,
   SUPPORTED_DISPLAY_DPR_MAX,
   reconstructVisibility,
+  refineHardEdgeVisibility,
   sanitizeReconstructionOptions,
 } from "./shadow-reconstruct";
 export type {

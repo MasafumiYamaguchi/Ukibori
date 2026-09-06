@@ -7,7 +7,7 @@ import { createScene } from "./scene";
 import type { Scene, SurfaceNode } from "./scene";
 import { composeCasterHeightField, composeSdfHeightField } from "./geometry";
 import { computeVisibility } from "./shadow";
-import { reconstructVisibility } from "./shadow-reconstruct";
+import { reconstructVisibility, refineHardEdgeVisibility } from "./shadow-reconstruct";
 import { brdfDirect } from "./brdf";
 
 function heightFrom(values: number[][], width: number, height: number): HostBuffer {
@@ -519,15 +519,33 @@ describe("#43 lightScene reconstruction consumption (CPU oracle semantics)", () 
     expect(differsFromRaw).toBeGreaterThan(0);
     expect(differsFromRecon).toBe(0);
 
-    // hard path: visibility stays the raw field of the HARD scene (no filter)
+    // hard path (#53): visibility is the RING-RULE REFINED field — a pure
+    // display postprocess of the raw {0,1} bytes (interiors verbatim,
+    // single-boundary texels ramped); `enabled: false` restores the raw.
     const hardScene = sceneWith(0);
     const hard = lightScene(hardScene, {
       shadow: { samples: 8, reconstruction: { enabled: true, radius: 2 } },
     });
     const hardRaw = rawFor(hardScene);
+    const hardRefined = refineHardEdgeVisibility(hardRaw.raw);
+    let hardDiffersFromRaw = 0;
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
-        expect(hard.visibility!.get(x, y, 0)).toBe(hardRaw.raw.get(x, y, 0));
+        const expected = hardRefined.get(x, y, 0);
+        if (expected !== hardRaw.raw.get(x, y, 0)) {
+          hardDiffersFromRaw += 1;
+        }
+        expect(hard.visibility!.get(x, y, 0)).toBe(expected);
+      }
+    }
+    // the hard refinement genuinely runs (some boundary texels ramped)...
+    expect(hardDiffersFromRaw).toBeGreaterThan(0);
+    // ...but stays a dyadic k/16 refinement of the raw field
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const v = hard.visibility!.get(x, y, 0);
+        const k16 = v * 16;
+        expect(Math.abs(k16 - Math.round(k16))).toBeLessThan(1e-9);
       }
     }
 
@@ -538,6 +556,20 @@ describe("#43 lightScene reconstruction consumption (CPU oracle semantics)", () 
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         expect(disabled.visibility!.get(x, y, 0)).toBe(softRaw.raw.get(x, y, 0));
+      }
+    }
+    for (const [scene, raw, samples] of [
+      [hardScene, hardRaw.raw, 1],
+      [hardScene, hardRaw.raw, 8],
+      [softScene, softRaw.raw, 8],
+    ] as const) {
+      const radiusZero = lightScene(scene, {
+        shadow: { samples, reconstruction: { enabled: true, radius: 0 } },
+      });
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          expect(radiusZero.visibility!.get(x, y, 0)).toBe(raw.get(x, y, 0));
+        }
       }
     }
   });

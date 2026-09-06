@@ -1,4 +1,4 @@
-﻿// #30 golden fixture catalog.
+// #30 golden fixture catalog.
 //
 // The single source of truth for the parity fixture set. Every fixture has a
 // STABLE ID and explicit metadata:
@@ -27,7 +27,7 @@
 // supported by the scene contract —there is NO rotation/skew support, and
 // the catalog never claims any.
 
-export const CATALOG_VERSION = 9;
+export const CATALOG_VERSION = 11;
 
 // #48 adversarial ShadowPass fixtures.  The real-WebGPU parity harness uses
 // this explicit set as a runtime gate (rather than relying on fixture names
@@ -95,17 +95,31 @@ export const POLICY_TABLE = Object.freeze([
   {
     buffer: "visibility-reconstructed",
     policy: "reconstructed-abs-tolerance",
-    tolerance: 1e-6,
+    tolerance: 2e-6,
     description:
-      "#43 reconstructed visibility: SEPARATE tight policy from raw #41. " +
-      "The gated tap average sum/tapCount is NOT dyadic (3/25, 7/49, ...), " +
-      "so the CPU's exact f64 quotient rounded to f32 once and the GPU's " +
-      "f32 accumulation must NOT be promised bit-identical across legal " +
-      "WebGPU backends. Every value must be finite and inside [0,1] with " +
-      "|gpu - cpu| <= 1e-6 (~16-30 f32 ulp —evidence-driven; the ULP " +
-      "simulation measures 0 ulp for the exact dyadic accumulation and the " +
+      "#43/#53 SOFT-mode reconstructed visibility: SEPARATE tight policy from " +
+      "raw #41. The value-bilateral weighted quotient sum(w*v)/sum(w) is NOT " +
+      "dyadic (3/25, 7/49, ... and non-dyadic Gaussian weights), so the " +
+      "CPU's exact f64 quotient rounded to f32 once and the GPU's f32 " +
+      "accumulation must NOT be promised bit-identical across legal WebGPU " +
+      "backends. Every value must be finite and inside [0,1] with " +
+      "|gpu - cpu| <= 2e-6 (portable exp() variance margin; measured max " +
+      "9.537e-7 / 16 ULP on the local real adapter; the ULP " +
+      "simulation measures the true f32-vs-f64 rounding delta and the " +
       "headroom covers backend division rounding); max abs/ULP errors are " +
       "reported so regressions surface even under the tolerance.",
+  },
+  {
+    buffer: "visibility-reconstructed-hard",
+    policy: "exact",
+    tolerance: 0,
+    description:
+      "#53 HARD-mode edge refinement (the ring-rule binomial display field): " +
+      "the refinement of BINARY {0,1} taps is an exact dyadic k/16 rational " +
+      "computed with f32-exact integer sums, so CPU and GPU agree " +
+      "BIT-IDENTICALLY (zero tolerance, like the raw field). The RAW {0,1} " +
+      "contract itself is unchanged — the refined field is the DISPLAY " +
+      "representation; the raw field stays the oracle/debug source.",
   },
   {
     buffer: "height",
@@ -642,7 +656,7 @@ export function createCatalog(api) {
 
   /**
    * #43 PORTABLE reconstructed-canvas presentation scene (only used by the
-   * `present-reconstructed-soft-shadow` canvas fixture).
+   * `present-reconstructed-soft-shadow` canvas fixtures).
    *
    * Reconstructed visibility is a NON-DYADIC tap average, so the
    * premultiplied canvas products (shadowAlpha x strength, tint x strength)
@@ -650,9 +664,16 @@ export function createCatalog(api) {
    * byte under the small unorm8 encode variance legal backends exhibit. This
    * scene + the fixture's composite options were chosen by sweeping
    * geometry/samples/radius/tint so that the measured minimum quantization
-   * margin (see oracle.reconstructedCanvasQuantizationReport) is ~0.122 byte
-   * units —comfortably above the observed ~0.057 flip envelope —while the
-   * soft path, reconstruction (radius 3) and a visible shadow remain real.
+   * margin (see oracle.reconstructedCanvasQuantizationReport) is comfortably
+   * above the observed ~0.057 flip envelope —while the soft path,
+   * reconstruction and a visible shadow remain real.
+   *
+   * #53: the kernel is the value-bilateral box (a Gaussian weight in
+   * VISIBILITY value) instead of the #43 plain gated average, so the swept
+   * values changed; the re-swept configuration keeps the original geometry,
+   * samples and composite options and raises the radius 3 -> 4, measuring a
+   * min margin of ~0.107 byte units (safety factor ~722x over the 2e-6
+   * reconstruction-tolerance drift).
    */
   function portableReconstructedScene(lightOverrides = {}) {
     return {
@@ -675,7 +696,7 @@ export function createCatalog(api) {
           ...lightOverrides,
         },
       }),
-      shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 3 } },
+      shadowOptions: { samples: 8, reconstruction: { enabled: true, radius: 4 } },
     };
   }
 
@@ -771,6 +792,21 @@ export function createCatalog(api) {
         size: { x: 8, y: 8 },
         elevation: 4,
         shape: { kind: "mask", mask: { width: 4, height: 4, alpha: new Float32Array(16).fill(1) } },
+      }),
+    ], LIGHT_FROM_RIGHT);
+  }
+
+  /** A tapered one-texel mask tip for exact hard reconstruction parity. */
+  function taperedTipMaskCasterScene() {
+    const rows = ["00100", "01110", "11111", "01110", "00100"];
+    const alpha = new Float32Array(rows.flatMap((row) => [...row].map(Number)));
+    return shadowScene(20, 20, [
+      shadowSurface({
+        id: "tapered-tip",
+        position: { x: 7, y: 7 },
+        size: { x: 5, y: 5 },
+        elevation: 4,
+        shape: { kind: "mask", mask: { width: 5, height: 5, alpha } },
       }),
     ], LIGHT_FROM_RIGHT);
   }
@@ -1212,6 +1248,49 @@ export function createCatalog(api) {
       ...softShadowReconstructionScene(Math.fround(0.25), 4, 6, 1),
       name: "shadow-reconstruction-nondyadic-9-tap-r1",
       dpr: 1,
+    },
+    // #53 HARD-mode ring-rule edge refinement: the reconstruction pass runs
+    // the kernel mode 1 (the ring-rule binomial refinement of the BINARY
+    // {0,1} raw field) and must match the refineHardEdgeVisibility oracle
+    // BIT-EXACTLY (the zero-tolerance `visibility-reconstructed-hard`
+    // policy) while the raw {0,1} contract above stays unchanged. The slab
+    // scene provides diagonal-adjacent edges; the thin caster and the mask
+    // glyph pin narrow-feature preservation; the DPR-2 variant pins the
+    // texel-space behavior.
+    {
+      ...twoLevelScene(LIGHT_FROM_RIGHT),
+      name: "shadow-reconstruction-hard-slab-r2",
+      dpr: 1,
+      reconstructionOptions: { enabled: true, radius: 2 },
+      reconstructionMode: 1,
+    },
+    {
+      ...maskCasterScene(),
+      name: "shadow-reconstruction-hard-mask-caster",
+      dpr: 1,
+      reconstructionOptions: { enabled: true, radius: 2 },
+      reconstructionMode: 1,
+    },
+    {
+      ...thinCasterAabbEdgeScene(),
+      name: "shadow-reconstruction-hard-thin-caster",
+      dpr: 1,
+      reconstructionOptions: { enabled: true, radius: 2 },
+      reconstructionMode: 1,
+    },
+    {
+      ...taperedTipMaskCasterScene(),
+      name: "shadow-reconstruction-hard-thin-tip",
+      dpr: 1,
+      reconstructionOptions: { enabled: true, radius: 2 },
+      reconstructionMode: 1,
+    },
+    {
+      ...twoLevelScene(LIGHT_FROM_RIGHT),
+      name: "shadow-reconstruction-hard-dpr2",
+      dpr: 2,
+      reconstructionOptions: { enabled: true, radius: 2 },
+      reconstructionMode: 1,
     },
     // non-dyadic step: pins the explicit f32-multiple march series
     // (t = f32(k * stepSize)) end-to-end on the real GPU
@@ -1720,9 +1799,19 @@ export function createCatalog(api) {
     // shadowed and lit background, custom shadow tint/alpha, alpha 0 and 1
     { name: "present-shadow-default", scene: twoLevelScene(LIGHT_FROM_RIGHT).scene, dpr: 1 },
     {
+      // pins the CUSTOM tint/alpha composition semantics end-to-end on the
+      // historical RAW hard field: the #53 hard refinement (default-enabled)
+      // would change the hard-edge canvas bytes (fractional k/16 visibility
+      // inputs round near tone-map boundaries in more than one channel on a
+      // few texels, which the exact-ish at-most-one-channel-by-one canvas
+      // policy rejects); this fixture tests the composite-option contract,
+      // not the refinement, so it explicitly disables reconstruction —the
+      // #53 refined hard canvas is covered by present-reconstructed-hard
+      // below (same #43 precedent as present-soft-shadow-custom-tint-alpha).
       name: "present-shadow-custom-tint-alpha",
       scene: twoLevelScene(LIGHT_FROM_RIGHT).scene,
       dpr: 1,
+      shadowOptions: { reconstruction: { enabled: false } },
       compositeOptions: { shadowColor: [200, 40, 220], shadowAlpha: 0.6 },
     },
     {
@@ -1761,7 +1850,7 @@ export function createCatalog(api) {
       dpr: 1,
       compositeOptions: { shadowColor: [200, 40, 220], shadowAlpha: 0.5 },
     },
-    // #43 reconstructed soft shadow reaching the CANVAS: the presentation
+    // #43/#53 reconstructed soft shadow reaching the CANVAS: the presentation
     // pipeline consumes the RECONSTRUCTED visibility (default-enabled on the
     // soft path), so the canvas bytes must equal the reconstructVisibility
     // oracle composed with the same tint/alpha. The explicit radius pins the
@@ -1773,9 +1862,10 @@ export function createCatalog(api) {
     // small margin across legal backends (the parity harness verifies this
     // fixture's minimum quantization margin via
     // reconstructedCanvasQuantizationReport). This configuration (low slab,
-    // samples 8, radius 3, shadowAlpha ~0.29, tint [160,70,180]) measures a
-    // min margin of ~0.122 byte units —comfortably above the ~0.057
-    // backend flip envelope observed in the parity sweep.
+    // samples 8, radius 4, shadowAlpha ~0.29, tint [160,70,180]) measures a
+    // min margin of ~0.107 byte units —comfortably above the ~0.057
+    // backend flip envelope observed in the parity sweep (#53 re-sweep: the
+    // value-bilateral kernel changed the reconstructed values).
     {
       name: "present-reconstructed-soft-shadow",
       ...portableReconstructedScene(),
@@ -1791,6 +1881,23 @@ export function createCatalog(api) {
       ...portableReconstructedScene({ color: { r: 1, g: 0.55, b: 0.25 } }),
       dpr: 1,
       compositeOptions: { shadowColor: [160, 70, 180], shadowAlpha: Math.fround(74 / 255) },
+    },
+    // #53 refined HARD shadow reaching the CANVAS: the presentation pipeline
+    // consumes the ring-rule binomial refinement of the binary {0,1} field
+    // (default-enabled on the hard path), so the canvas bytes must equal the
+    // refineHardEdgeVisibility oracle composed with the same composite
+    // options. The refined values are exact dyadic k/16 rationals with ZERO
+    // cross-backend tolerance, so the quantization-margin guard runs with
+    // value tolerance 0 (portable by construction; see
+    // reconstructedCanvasQuantizationReport). The explicit enabled:true pins
+    // the option forwarding end-to-end (the default-composite variant of
+    // present-shadow-default would also exercise this path, but an explicit
+    // fixture names the behavior).
+    {
+      name: "present-reconstructed-hard",
+      scene: twoLevelScene(LIGHT_FROM_RIGHT).scene,
+      dpr: 1,
+      shadowOptions: { reconstruction: { enabled: true } },
     },
     // #45 review: the EXTREME-HDR scene reaching the final CANVAS — the same
     // canonical factor order / f32 saturation contract is compared end-to-end
@@ -2004,6 +2111,11 @@ export function createCatalog(api) {
     "shadow-reconstruction-dpr1.5": ["shadow-visibility", "soft-shadow", "reconstruction", "dpr-1.5", "fractional-extent"],
     "shadow-reconstruction-dpr2": ["shadow-visibility", "soft-shadow", "reconstruction", "dpr-2"],
     "shadow-reconstruction-nondyadic-9-tap-r1": ["shadow-visibility", "soft-shadow", "reconstruction"],
+    "shadow-reconstruction-hard-slab-r2": ["shadow-visibility", "reconstruction"],
+    "shadow-reconstruction-hard-mask-caster": ["shadow-visibility", "reconstruction", "mask-shape", "glyph-shape"],
+    "shadow-reconstruction-hard-thin-caster": ["shadow-visibility", "reconstruction", "sampling-boundary", "clipping"],
+    "shadow-reconstruction-hard-thin-tip": ["shadow-visibility", "reconstruction", "mask-shape", "glyph-shape"],
+    "shadow-reconstruction-hard-dpr2": ["shadow-visibility", "reconstruction", "dpr-2"],
     "shadow-non-binary-step-0.1": ["shadow-visibility", "shadow-options"],
     "shadow-f32-vs-f64-equality": ["shadow-visibility", "threshold-equality"],
     "shadow-frac-dpr1": ["shadow-visibility", "dpr-1", "fractional-extent"],
@@ -2077,6 +2189,12 @@ export function createCatalog(api) {
       "reconstruction",
       "light-color",
     ],
+    "present-reconstructed-hard": [
+      "canvas-composition",
+      "canvas-format-normalization",
+      "canvas-transparency",
+      "reconstruction",
+    ],
     "present-color-hdr-extreme": [
       "canvas-composition",
       "canvas-format-normalization",
@@ -2107,6 +2225,10 @@ export function createCatalog(api) {
     "synth-x-ramp-sign",
     "synth-extreme-f32-diff-scale",
     "shadow-two-level-light-right",
+    "shadow-reconstruction-hard-slab-r2",
+    "shadow-reconstruction-hard-mask-caster",
+    "shadow-reconstruction-hard-thin-caster",
+    "shadow-reconstruction-hard-dpr2",
     "shadow-short-max-distance",
     "shadow-frac-dpr2",
     "lighting-silicone",

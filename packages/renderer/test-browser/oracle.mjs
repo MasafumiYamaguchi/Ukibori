@@ -43,6 +43,7 @@ export function createOracle(api) {
     computeNormals,
     computeVisibility,
     reconstructVisibility,
+    refineHardEdgeVisibility,
     sanitizeReconstructionOptions,
     shadePreparedFields,
     resolveMaterial,
@@ -258,16 +259,22 @@ export function createOracle(api) {
   }
 
   /**
-   * #43 reconstructed-visibility CPU oracle: the ACTUAL TypeScript
+   * #43/#53 reconstructed-visibility CPU oracle: the ACTUAL TypeScript
    * `reconstructVisibility` (the semantic reference for the GPU
-   * ReconstructionPass) applied to the raw #41 visibility oracle field.
+   * ReconstructionPass SOFT kernel) applied to the raw #41 visibility oracle
+   * field, or —for fixtures passing `mode` 1 (HARD)— the ACTUAL
+   * `refineHardEdgeVisibility` ring-rule refinement of the BINARY raw field
+   * (kernel mode 1), which is the #53 display representation.
    *
    * The comparison policy for the reconstructed field is a SEPARATE,
-   * documented tight tolerance (`compareReconstructedVisibility`): the gated
-   * tap average's quotient is not dyadic (3/25, 7/49, ...), so the CPU's
-   * exact f64 quotient rounded to f32 once and the GPU's f32 accumulation
-   * must NOT be assumed bit-identical across legal WebGPU backends. Raw
-   * #41 visibility keeps its EXACT (zero-tolerance) contract.
+   * documented tight tolerance (`compareReconstructedVisibility`): the soft
+   * weighted quotient is not dyadic (Gaussian weights over 3/25, 7/49, ...),
+   * so the CPU's exact f64 quotient rounded to f32 once and the GPU's f32
+   * accumulation must NOT be assumed bit-identical across legal WebGPU
+   * backends. The HARD refinement is an exact dyadic k/16 rational of
+   * integer f32 sums, so it keeps the EXACT (zero-tolerance) contract via
+   * `visibility-reconstructed-hard`. Raw #41 visibility also keeps its
+   * EXACT (zero-tolerance) contract.
    */
   function reconstructionOracle(
     scene,
@@ -278,6 +285,7 @@ export function createOracle(api) {
     rawVisibility,
     dpr,
     reconOptions,
+    mode,
   ) {
     if (!scene.surfaces.some((surface) => surface.castsShadow)) {
       return rawVisibility;
@@ -291,6 +299,14 @@ export function createOracle(api) {
       }
       return buf;
     };
+    if (mode === 1) {
+      const recon = refineHardEdgeVisibility(load(VISIBILITY_SPEC, rawVisibility, 1));
+      const out = new Float32Array(rw * rh);
+      for (let g = 0; g < rw * rh; g++) {
+        out[g] = recon.get(g % rw, Math.floor(g / rw), 0);
+      }
+      return out;
+    }
     const recon = reconstructVisibility(
       load(VISIBILITY_SPEC, rawVisibility, 1),
       load(HEIGHT_SPEC, height, 1),
@@ -592,7 +608,7 @@ export function createOracle(api) {
    * a TIGHT NUMERIC TOLERANCE plus a strict domain audit:
    *
    * - every GPU value must be finite and inside [0, 1]
-   * - `abs(gpu - oracle) <= RECONSTRUCTION_VISIBILITY_TOLERANCE` (1e-6,
+   * - `abs(gpu - oracle) <= RECONSTRUCTION_VISIBILITY_TOLERANCE` (2e-6,
    *   roughly 16-30 f32 ulp of the [0,1] range — far below any perceptual
    *   threshold, chosen after the ULP evidence of the f32-accumulation
    *   simulation in shadow-reconstruct.test.ts, which measures 0 ulp for the
@@ -602,7 +618,7 @@ export function createOracle(api) {
    *   fixture result so regressions surface even when they stay under the
    *   tolerance.
    */
-  const RECONSTRUCTION_VISIBILITY_TOLERANCE = 1e-6;
+  const RECONSTRUCTION_VISIBILITY_TOLERANCE = 2e-6;
 
   /** IEEE f32 ULP of a normalized value (all reconstruction values are in
    * [0, 1], so the exponent-based definition is exact for them). */
@@ -617,7 +633,14 @@ export function createOracle(api) {
     return Math.pow(2, Math.floor(Math.log2(v)) - 23);
   }
 
-  function compareReconstructedVisibility(fixture, oracle, gpu, width) {
+  function compareReconstructedVisibility(
+    fixture,
+    oracle,
+    gpu,
+    width,
+    tolerance = RECONSTRUCTION_VISIBILITY_TOLERANCE,
+    policyName = "visibility-reconstructed",
+  ) {
     const texels = oracle.length;
     let mismatches = 0;
     let maxAbsError = 0;
@@ -637,8 +660,8 @@ export function createOracle(api) {
           ? `non-finite ${v}`
           : v < 0 || v > 1
             ? `out of [0,1]: ${v}`
-            : !(absError <= RECONSTRUCTION_VISIBILITY_TOLERANCE)
-              ? `|recon diff| ${absError.toExponential(3)} > ${RECONSTRUCTION_VISIBILITY_TOLERANCE}`
+            : !(absError <= tolerance)
+              ? `|recon diff| ${absError.toExponential(3)} > ${tolerance}`
               : null;
       if (bad !== null) {
         mismatches += 1;
@@ -649,14 +672,14 @@ export function createOracle(api) {
           // tolerance is a PRECISION divergence.
           samples.push(mismatchReport(
             fixture,
-            "visibility-reconstructed",
+            policyName,
             g,
             width,
             o,
             v,
             absError,
             {
-              tolerance: RECONSTRUCTION_VISIBILITY_TOLERANCE,
+              tolerance,
               classification:
                 !Number.isFinite(v) || v < 0 || v > 1
                   ? "contract"
@@ -1039,27 +1062,32 @@ export function createOracle(api) {
       dpr,
       effectiveShadowOptions,
     );
-    // #43: the GPU pipeline reconstructs the soft visibility field before
-    // lighting/presentation whenever the soft path is active and
+    // #43/#53: the GPU pipeline reconstructs the SOFT visibility field with
+    // the value-bilateral kernel —and refines the HARD binary field with the
+    // ring-rule binomial kernel— before lighting/presentation whenever
     // reconstruction is enabled (default). The reference must mirror that
-    // decision exactly; hard-path frames keep the raw {0,1} bytes.
+    // decision exactly (kernel mode 0 soft / mode 1 hard); frames with
+    // reconstruction bypassed keep the raw bytes.
     const softActive =
       Math.fround(scene.light.angularRadius ?? 0) > 0 &&
       (effectiveShadowOptions.samples ?? 8) > 1;
     const reconOptions = sanitizeReconstructionOptions(reconstructionOptions ?? {}, Math.fround(dpr));
-    const visibility =
-      softActive && reconOptions.enabled && reconOptions.radiusTexels > 0
-        ? reconstructionOracle(
-            scene,
-            oracle.rw,
-            oracle.rh,
-            oracle.height,
-            oracle.objectId,
-            rawVisibility,
-            dpr,
-            reconstructionOptions,
-          )
-        : rawVisibility;
+    // enabled=false or an effective configured radius of zero bypasses both
+    // modes. Once active, the soft halo uses that radius and hard uses 1.
+    const reconActive = reconOptions.enabled && reconOptions.radiusTexels > 0;
+    const visibility = !reconActive
+      ? rawVisibility
+      : reconstructionOracle(
+          scene,
+          oracle.rw,
+          oracle.rh,
+          oracle.height,
+          oracle.objectId,
+          rawVisibility,
+          dpr,
+          reconstructionOptions,
+          softActive ? 0 : 1,
+        );
     const lighting = lightingOracleCPU(
       scene,
       oracle.rw,
@@ -1099,13 +1127,14 @@ export function createOracle(api) {
       texels: oracle.rw * oracle.rh,
       rw: oracle.rw,
       rh: oracle.rh,
-      // #43 quantization-margin diagnostics: the exact visibility field and
-      // ownership the reference bytes were composed from, plus whether that
-      // field went through the reconstruction stage.
+      // #43/#53 quantization-margin diagnostics: the exact visibility field
+      // and ownership the reference bytes were composed from, plus whether
+      // that field went through the reconstruction stage (soft bilateral
+      // mode 0 / #53 hard ring refinement mode 1 / null when bypassed).
       visibility,
       objectId: oracle.objectId,
-      reconstructed:
-        softActive && reconOptions.enabled && reconOptions.radiusTexels > 0,
+      reconstructed: reconActive,
+      reconstructionMode: reconActive ? (softActive ? 0 : 1) : null,
     };
   }
 
@@ -1114,7 +1143,7 @@ export function createOracle(api) {
    * shadows.
    *
    * The reconstructed visibility is NOT dyadic and carries a documented
-   * cross-backend tolerance (`RECONSTRUCTION_VISIBILITY_TOLERANCE`, 1e-6),
+   * cross-backend tolerance (`RECONSTRUCTION_VISIBILITY_TOLERANCE`, 2e-6),
    * so every byte it feeds through the premultiplied compositor must sit
    * FAR enough from an 8-bit rounding boundary (.5 in byte space), or two
    * legal backends legitimately land one byte apart and the exact-alpha
@@ -1134,7 +1163,7 @@ export function createOracle(api) {
    * A fixture is PORTABLE only when `minMargin` exceeds the legal drift by
    * `REQUIRED_SAFETY_FACTOR` (16x) AND stays above the absolute floor
    * `MARGIN_FLOOR` (1e-3 byte units). The factor is evidence-based, not
-   * arbitrary: the drift bound already scales the f32-level tolerance (1e-6
+   * arbitrary: the drift bound already scales the f32-level tolerance (2e-6
    * ~= 16-30 ulp of [0,1]) linearly into byte space, and the 16x headroom
    * guarantees that even a worst-case legal-backend deviation (bounded by
    * the tolerance) can never cross a rounding boundary while remaining far
@@ -1145,7 +1174,12 @@ export function createOracle(api) {
    */
   const REQUIRED_SAFETY_FACTOR = 16;
 
-  function reconstructedCanvasQuantizationReport(visibility, objectId, compositeOptions) {
+  function reconstructedCanvasQuantizationReport(
+    visibility,
+    objectId,
+    compositeOptions,
+    valueTolerance = RECONSTRUCTION_VISIBILITY_TOLERANCE,
+  ) {
     const opts = sanitizeCompositeOptions(compositeOptions ?? {});
     const saByte = Math.round(opts.shadowAlpha * 255);
     const [cr, cg, cb] = opts.shadowColor;
@@ -1178,22 +1212,34 @@ export function createOracle(api) {
         }
       }
     }
-    const maxAlphaDrift = saByte * RECONSTRUCTION_VISIBILITY_TOLERANCE;
+    // #53: the HARD refinement is an exact dyadic k/16 rational computed
+    // identically on both sides (zero tolerance), so there is NO legal
+    // cross-backend drift in the consumed values: the drift bounds are zero
+    // and the field is portable by construction even when a product sits
+    // exactly on a rounding boundary (both sides round the same exact
+    // rational the same way). The drift/floor guard only applies to the
+    // non-dyadic SOFT reconstruction.
+    const maxAlphaDrift = saByte * valueTolerance;
     const maxRgbDrift =
-      (Math.max(cr, cg, cb) * saByte) / 255 * RECONSTRUCTION_VISIBILITY_TOLERANCE;
+      (Math.max(cr, cg, cb) * saByte) / 255 * valueTolerance;
     const maxLegalDrift = Math.max(maxAlphaDrift, maxRgbDrift);
     const MARGIN_FLOOR = 1e-3;
     const actualSafetyFactor =
       Number.isFinite(minMargin) && maxLegalDrift > 0
         ? minMargin / maxLegalDrift
         : Number.POSITIVE_INFINITY;
+    // #53: with ZERO value tolerance (the hard refinement) the field is
+    // portable by construction — no legal drift exists, so the drift/floor
+    // guard is bypassed entirely (an exact-boundary product is safe: both
+    // sides round the same exact rational identically).
     // #43 review: the guard uses BOTH bounds the comment promises — the
     // absolute floor AND the legal-drift safety factor (never just the
     // floor).
     const portable =
-      Number.isFinite(minMargin) &&
-      minMargin >= MARGIN_FLOOR &&
-      actualSafetyFactor > REQUIRED_SAFETY_FACTOR;
+      valueTolerance === 0 ||
+      (Number.isFinite(minMargin) &&
+        minMargin >= MARGIN_FLOOR &&
+        actualSafetyFactor > REQUIRED_SAFETY_FACTOR);
     return {
       minMargin,
       worstTexel,

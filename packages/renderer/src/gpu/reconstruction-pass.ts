@@ -26,9 +26,12 @@ import type { LightingFieldBinding } from "./lighting-pass";
 import type { PresentationInputBinding } from "./presentation-pass";
 import {
   sanitizeReconstructionOptions,
+  RECONSTRUCTION_VALUE_SIGMA,
 } from "../shadow-reconstruct";
 import type { ShadowReconstructionOptions } from "../shadow-reconstruct";
 import {
+  RECONSTRUCTION_MODE_HARD,
+  RECONSTRUCTION_MODE_SOFT,
   RECONSTRUCTION_OUTPUT_BYTES_PER_TEXEL,
   RECONSTRUCTION_PARAMS_BYTE_LENGTH,
   RECONSTRUCTION_PASS_WGSL,
@@ -36,11 +39,22 @@ import {
 } from "./reconstruction-pass-wgsl";
 
 /**
- * #43 GPU shadow-visibility reconstruction stage — a retained compute pass
- * between the #41 ShadowPass and the LightingPass that turns the
- * decorrelated RAW visibility field into a smooth penumbra through a small
- * edge-aware gated box filter (see `reconstruction-pass-wgsl.ts` for the
- * fixed semantics; the oracle is `shadow-reconstruct.ts`).
+ * #43/#53 GPU shadow-visibility reconstruction stage — a retained compute
+ * pass between the #41 ShadowPass and the LightingPass with TWO kernels
+ * (see `reconstruction-pass-wgsl.ts` for the fixed semantics; the oracles
+ * are `shadow-reconstruct.ts`):
+ *
+ * - mode 0 (SOFT, default): turns the decorrelated RAW area-light visibility
+ *   field into a smooth penumbra through the #43 value-bilateral box filter
+ *   (a Gaussian weight in VISIBILITY value keeps narrow bands and edges —
+ *   replacing the plain gated box average did not change the soft path's
+ *   radius, sample or scheduling semantics);
+ * - mode 1 (HARD): the #53 ring-rule binomial edge refinement of the BINARY
+ *   {0,1} raw hard field (a 1-texel display antialiasing ramp, bit-exact
+ *   dyadic k/16 values; raw bytes keep the historical contract).
+ *
+ * The pipeline selects the mode from the shadow path (soft vs hard); the
+ * pass itself never inspects the shadow options.
  *
  * ## Inputs bound DIRECTLY (never copied)
  *
@@ -60,13 +74,13 @@ import {
  *
  * ## Region dispatch (#32/#43 halo)
  *
- * The dispatched band is provided by the caller — the pipeline expands the
- * shared band by the sanitized texel radius on each side (clipped to the
- * frame), because the filter reads raw visibility of neighbors while every
- * CONSUMED output row (the lighting band) must be written this frame.
- * Out-of-band reads hit retained raw texels that the #32 planner's shadow
- * halo proves unchanged; the shader never reads its own output, so no
- * cross-band feedback exists.
+ * The dispatched band is provided by the caller —the pipeline expands the
+ * shared band by the mode's halo (soft: the sanitized texel radius; hard: 1
+ * texel for the 3x3 ring) on each side (clipped to the frame), because the
+ * filter reads raw visibility of neighbors while every CONSUMED output row
+ * (the lighting band) must be written this frame. Out-of-band reads hit
+ * retained raw texels that the #32 planner's shadow halo proves unchanged;
+ * the shader never reads its own output, so no cross-band feedback exists.
  */
 
 export const RECONSTRUCTION_PASS_OUTPUT_USAGE =
@@ -93,6 +107,13 @@ export interface ReconstructionPassInput {
   readonly objectId: ShadowFieldBinding;
   /** raw reconstruction options; sanitized exactly like the CPU oracle */
   readonly options?: ShadowReconstructionOptions;
+  /**
+   * #53 reconstruction mode: 0 = soft value-bilateral penumbra
+   * reconstruction (the area-light path, default), 1 = hard ring-rule
+   * binomial edge refinement (the single-ray path). The mode selects the
+   * WGSL kernel; both mirror the CPU oracle in `shadow-reconstruct.ts`.
+   */
+  readonly mode?: number;
   /**
    * Render DPR used for the single scene-unit radius -> texel conversion
    * (the DOM already mapped its CSS-px radius through the display DPR once).
@@ -124,8 +145,10 @@ export interface ReconstructionPassLastDispatch {
   readonly renderWidth: number;
   readonly renderHeight: number;
   readonly workgroupCountX: number;
-  /** sanitized integer filter radius actually run */
+  /** sanitized integer filter radius actually run (soft mode) */
   readonly radiusTexels: number;
+  /** #53 kernel mode actually run: 0 = soft bilateral, 1 = hard refinement */
+  readonly mode: number;
 }
 
 export interface ReconstructionPassSnapshot {
@@ -252,9 +275,13 @@ export class ReconstructionPass {
     if (!options.enabled || options.radiusTexels <= 0) {
       throw new Error(
         "reconstruction pass dispatched with the filter bypassed: callers must skip " +
-          "the stage instead (hard-path frames keep the historical raw bytes)",
+          "the stage instead (the raw field keeps the historical bytes)",
       );
     }
+    // #53 mode: 0 = soft bilateral (default), 1 = hard ring-binomial. The
+    // hard mode ignores radiusTexels/heightGate (fixed 3x3 ring semantics).
+    const mode =
+      input.mode === RECONSTRUCTION_MODE_HARD ? RECONSTRUCTION_MODE_HARD : RECONSTRUCTION_MODE_SOFT;
     const region = assertBandRegion(input.region, h);
     const bandRows = region === null ? h : region.y1 - region.y0 + 1;
     const bandTexels = width * bandRows;
@@ -314,7 +341,7 @@ export class ReconstructionPass {
 
     let submissions = 0;
     if (chunks === null) {
-      this.packUniform(width, h, options, yOffset, regionEnd);
+      this.packUniform(width, h, options, yOffset, regionEnd, mode);
       this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
       const encoder = this.device.createCommandEncoder({ label: "ukibori-reconstruction-pass" });
       const pass = encoder.beginComputePass(
@@ -332,7 +359,7 @@ export class ReconstructionPass {
       for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
         const chunk = chunks[chunkIndex];
         const chunkYOffset = chunk.y0 * width;
-        this.packUniform(width, h, options, chunkYOffset, chunkYOffset + chunk.texels);
+        this.packUniform(width, h, options, chunkYOffset, chunkYOffset + chunk.texels, mode);
         this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
         const encoder = this.device.createCommandEncoder({ label: "ukibori-reconstruction-pass" });
         const pass = encoder.beginComputePass(
@@ -352,6 +379,7 @@ export class ReconstructionPass {
       renderHeight: h,
       workgroupCountX: dispatchCountX,
       radiusTexels: options.radiusTexels,
+      mode,
     };
     this.lastOptions = options;
     this.lastDpr = dpr;
@@ -362,8 +390,8 @@ export class ReconstructionPass {
       allocationCount: this.allocations.size,
       totalAllocationBytes: sumOf(this.allocationSizes),
       // #43 review: report the workgroup count THIS invocation actually
-      // dispatched — ceil(bandTexels / WORKGROUP_SIZE) on a partial band,
-      // ceil(fullTexels / WORKGROUP_SIZE) on a full frame — matching
+      // dispatched —ceil(bandTexels / WORKGROUP_SIZE) on a partial band,
+      // ceil(fullTexels / WORKGROUP_SIZE) on a full frame —matching
       // `lastDispatch.workgroupCountX` and the other field passes'
       // semantics (the LOGICAL total for a band; on a limit-split chunked
       // frame the chunks tile the band and this is the documented total,
@@ -544,6 +572,7 @@ export class ReconstructionPass {
     options: ReturnType<typeof sanitizeReconstructionOptions>,
     yOffset: number,
     regionEnd: number,
+    mode: number,
   ): void {
     const view = new DataView(this.uniformBytes.buffer);
     view.setUint32(0, width, true);
@@ -555,13 +584,17 @@ export class ReconstructionPass {
     // length sanitized from the options (the DOM scales its CSS default by
     // the display DPR once, so edge-preservation is identical in CSS space).
     view.setFloat32(20, Math.fround(options.heightGate), true);
-    view.setUint32(24, 0, true);
-    view.setUint32(28, 0, true);
+    // #53 value-bilateral sigma (soft mode only; the CPU oracle weighs from
+    // the same f32 constant).
+    view.setFloat32(24, Math.fround(RECONSTRUCTION_VALUE_SIGMA), true);
+    // #53 mode: 0 = soft bilateral, 1 = hard ring-rule binomial refinement.
+    view.setUint32(28, mode, true);
   }
 
   // -- pipeline -------------------------------------------------------------
 
-  private ensurePipeline(): CachedReconstructionPipeline {    if (this.cached !== null) {
+  private ensurePipeline(): CachedReconstructionPipeline {
+    if (this.cached !== null) {
       return this.cached;
     }
     // Explicit layouts only (never layout: "auto"). Storage count: 3
@@ -626,7 +659,7 @@ export class ReconstructionPass {
 
 /**
  * Build the narrow visibility binding consumed by `LightingPass` from the
- * reconstruction snapshot — the exact reconstructed buffer with the
+ * reconstruction snapshot —the exact reconstructed buffer with the
  * propagated per-HeightPass-dispatch provenance token. The pipeline uses
  * this builder exactly when reconstruction is ACTIVE for the frame; a
  * bypassed frame keeps consuming the raw shadow output through

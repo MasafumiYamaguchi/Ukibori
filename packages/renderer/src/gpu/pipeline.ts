@@ -46,6 +46,10 @@ import {
   sanitizeReconstructionOptions,
 } from "../shadow-reconstruct";
 import type { ShadowReconstructionOptions } from "../shadow-reconstruct";
+import {
+  RECONSTRUCTION_MODE_HARD,
+  RECONSTRUCTION_MODE_SOFT,
+} from "./reconstruction-pass-wgsl";
 import { computeFrameKey, reportInvalidations, ALL_STAGES } from "./dirty";
 import type { FrameKey, InvalidationReport, PipelineStage } from "./dirty";
 import { GpuPipelineProfiler } from "./profiler";
@@ -596,11 +600,14 @@ export class GpuScenePipeline {
     // the reconstruction filter reads a radius of neighbors, so on a partial
     // frame the filter's WRITE region and every downstream consumer of its
     // output (normal / reconstruction / lighting) must be EXPANDED by the
-    // texel radius. The filter runs ONLY on soft-shadow frames
-    // (angularRadius > 0 && sanitized samples > 1) with a positive effective
-    // radius and `enabled !== false`. Hard-path frames bypass the stage so
-    // the historical {0,1} field — and therefore every downstream byte — is
-    // preserved; lighting/presentation then consume the RAW shadow output.
+    // read radius. #53: the stage now runs on BOTH shadow paths — soft
+    // frames (angularRadius > 0 && sanitized samples > 1) run the
+    // value-bilateral penumbra reconstruction (read radius = radiusTexels);
+    // hard frames run the ring-rule binomial edge refinement (read radius =
+    // the fixed 1-texel ring). Both require `enabled !== false`; a disabled
+    // option bypasses the stage so the RAW field — and therefore every
+    // downstream byte — flows through unchanged (historical presentation
+    // bytes); lighting/presentation then consume the RAW shadow output.
     const parsedFrameHeader = parseHeader(scene.bytes);
     const softShadowActive =
       sanitizeAngularRadius(parsedFrameHeader.lightAngularRadius) > 0 &&
@@ -609,8 +616,12 @@ export class GpuScenePipeline {
       input.shadowOptions?.reconstruction,
       heightSnapshot.dpr,
     );
-    const reconstructionActive =
-      softShadowActive && reconEffective.enabled && reconEffective.radiusTexels > 0;
+    // #53 effective read radius of the display-field stage (halo + partial
+    // region expansion): the soft bilateral filter's texel radius, or the
+    // hard refinement's fixed 1-texel ring. A zero effective configured
+    // radius bypasses either mode before this mode-specific read radius is used.
+    const reconstructionActive = reconEffective.enabled && reconEffective.radiusTexels > 0;
+    const reconReadRadiusTexels = softShadowActive ? reconEffective.radiusTexels : 1;
     // #43 partial-recompute halo: when the reconstruction filter is active on
     // a PARTIAL frame, its output — and therefore the shading that consumes
     // it — must be recomputed for the band EXPANDED by the texel radius on
@@ -623,7 +634,7 @@ export class GpuScenePipeline {
     // the shadow and height passes keep their historical band.
     const reconRegion: BandRegion | undefined =
       reconstructionActive && region !== undefined
-        ? (expandBandRows(region, reconEffective.radiusTexels, heightSnapshot.height) ??
+        ? (expandBandRows(region, reconReadRadiusTexels, heightSnapshot.height) ??
           undefined)
         : undefined;
     const lightingRegion = reconRegion ?? region;
@@ -696,6 +707,10 @@ export class GpuScenePipeline {
         },
         ...shadowHeightBindingsFromHeightPass(heightSnapshot),
         options: input.shadowOptions?.reconstruction,
+        // #53: the kernel mode follows the shadow path — soft frames run the
+        // value-bilateral penumbra reconstruction, hard frames the ring-rule
+        // binomial edge refinement.
+        mode: softShadowActive ? RECONSTRUCTION_MODE_SOFT : RECONSTRUCTION_MODE_HARD,
         dpr: heightSnapshot.dpr,
         region: reconRegion,
         timestampWrites: timestampFrame.getTimestampWrites("reconstruction"),

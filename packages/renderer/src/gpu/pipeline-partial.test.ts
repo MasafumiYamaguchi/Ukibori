@@ -326,18 +326,19 @@ function uniformWrites(device: MockFullDevice) {
     // #43: 2144 bytes — 96 scalar/pad bytes + 8 kernel variants x 16 packed
     // vec4 cone directions
     shadow: all.filter((w) => w.bytes.byteLength === 96 + 8 * 16 * 16),
-    // #43 reconstruction: 32 bytes, width 100 at 0, height 200 at 4, the f32
-// height gate 0.5 at 20 and zeroed pads (distinct from the 32-byte
-// presentation uniform whose shadowAlphaByte sits at 20; the normal
-// uniform carries the render width at 12 instead)
+    // #43/#53 reconstruction: 32 bytes, width 100 at 0, height 200 at 4, the
+    // f32 height gate 0.5 at 20, the #53 value sigma 0.25 at 24 and the
+    // #53 kernel mode (0 soft / 1 hard) at 28 (distinct from the 32-byte
+    // presentation uniform whose shadowAlphaByte sits at 20; the normal
+    // uniform carries the render width at 12 instead)
     reconstruction: all.filter(
       (w) =>
         w.bytes.byteLength === 32 &&
         view(w).getUint32(0, true) === RENDER_WIDTH &&
         view(w).getUint32(4, true) === RENDER_HEIGHT &&
         view(w).getFloat32(20, true) === Math.fround(0.5) &&
-        view(w).getUint32(24, true) === 0 &&
-        view(w).getUint32(28, true) === 0,
+        view(w).getFloat32(24, true) === Math.fround(0.25) &&
+        (view(w).getUint32(28, true) === 0 || view(w).getUint32(28, true) === 1),
     ),
     // 16 bytes with the ambient f32 at 0 and workgroupSize 64 at 4
     lighting: all.filter(
@@ -422,35 +423,54 @@ describe("GpuScenePipeline — #32 partial/full planning and band dispatch", () 
     const bandWorkgroups = Math.ceil(bandTexels / WORKGROUP);
     expect(bandWorkgroups).toBeLessThan(fullWorkgroups);
     expect(pipeline.getSnapshot().heightPass.lastDispatch.workgroupCountX).toBe(bandWorkgroups);
-    expect(pipeline.getSnapshot().normalPass.lastDispatch.workgroupCountX).toBe(bandWorkgroups);
-    expect(pipeline.getSnapshot().shadowPass.lastDispatch.workgroupCountX).toBe(bandWorkgroups);
-    expect(pipeline.getSnapshot().lightingPass.lastDispatch.workgroupCountX).toBe(bandWorkgroups);
+    // #53: the hard-path ring-rule refinement runs on partial frames too —
+    // its 1-texel ring halo expands the reconstruction/normal/lighting band
+    // by one row per side (the same #43 propagation with radius 1).
+    const haloY0 = Math.max(0, y0 - 1);
+    const haloY1 = Math.min(RENDER_HEIGHT - 1, y1 + 1);
+    const haloTexels = RENDER_WIDTH * (haloY1 - haloY0 + 1);
+    const haloWorkgroups = Math.ceil(haloTexels / WORKGROUP);
+    const snapshotAfter = pipeline.getSnapshot();
+    expect(snapshotAfter.normalPass.lastDispatch.workgroupCountX).toBe(haloWorkgroups);
+    expect(snapshotAfter.shadowPass.lastDispatch.workgroupCountX).toBe(bandWorkgroups);
+    expect(snapshotAfter.reconstructionPass?.lastDispatch.workgroupCountX).toBe(haloWorkgroups);
+    expect(snapshotAfter.reconstructionPass?.lastDispatch.mode).toBe(1);
+    expect(snapshotAfter.lightingPass.lastDispatch.workgroupCountX).toBe(haloWorkgroups);
     // the dispatch CALL count is unchanged (one call per pass) but every
-    // call submits the SMALLER band workgroup count, provable on the mock
-    expect(stats.frame.dispatchCount).toBe(8);
-    const bandDispatches = device.encoders
-      .slice(encodersBefore)
-      .slice(0, 4) // height, normal, shadow, lighting (presentation has none)
-      .flatMap((encoder) => encoder.log)
-      .filter((entry) => entry.startsWith("dispatch("));
-    expect(bandDispatches).toHaveLength(8);
-    for (const entry of bandDispatches) {
+    // call submits the SMALLER band workgroup count, provable on the mock.
+    // #53: normal/reconstruction/lighting submit the halo-expanded count.
+    expect(stats.frame.dispatchCount).toBe(9);
+    const enc = device.encoders.slice(encodersBefore).slice(0, 5);
+    const dispatchesOf = (index: number) =>
+      enc[index].log.filter((entry) => entry.startsWith("dispatch("));
+    // height: 5 compose dispatches on the original band
+    expect(dispatchesOf(0)).toHaveLength(5);
+    for (const entry of dispatchesOf(0)) {
       expect(entry).toBe(`dispatch(${bandWorkgroups})`);
     }
+    expect(dispatchesOf(1)).toEqual([`dispatch(${haloWorkgroups})`]); // normal
+    expect(dispatchesOf(2)).toEqual([`dispatch(${bandWorkgroups})`]); // shadow
+    expect(dispatchesOf(3)).toEqual([`dispatch(${haloWorkgroups})`]); // #53 recon
+    expect(dispatchesOf(4)).toEqual([`dispatch(${haloWorkgroups})`]); // lighting
     // the band is threaded into every packed uniform
     const uniforms = uniformWrites(device);
     const heightView = new DataView(uniforms.height.at(-1)!.bytes.buffer);
     expect(heightView.getUint32(8, true)).toBe(y0 * RENDER_WIDTH);
     expect(heightView.getUint32(12, true)).toBe((y1 + 1) * RENDER_WIDTH);
+    // #53: the normal field is fresh across the halo-expanded region...
     const normalView = new DataView(uniforms.normal.at(-1)!.bytes.buffer);
-    expect(normalView.getUint32(24, true)).toBe(y0 * RENDER_WIDTH);
-    expect(normalView.getUint32(28, true)).toBe((y1 + 1) * RENDER_WIDTH);
+    expect(normalView.getUint32(24, true)).toBe(haloY0 * RENDER_WIDTH);
+    expect(normalView.getUint32(28, true)).toBe((haloY1 + 1) * RENDER_WIDTH);
     const shadowView = new DataView(uniforms.shadow.at(-1)!.bytes.buffer);
     expect(shadowView.getUint32(72, true)).toBe(y0 * RENDER_WIDTH);
     expect(shadowView.getUint32(76, true)).toBe((y1 + 1) * RENDER_WIDTH);
+    // ...and the #53 hard-mode refinement + lighting recompute the halo band
+    const reconView = new DataView(uniforms.reconstruction.at(-1)!.bytes.buffer);
+    expect(reconView.getUint32(12, true)).toBe(haloY0 * RENDER_WIDTH);
+    expect(reconView.getUint32(16, true)).toBe((haloY1 + 1) * RENDER_WIDTH);
     const lightingView = new DataView(uniforms.lighting.at(-1)!.bytes.buffer);
-    expect(lightingView.getUint32(8, true)).toBe(y0 * RENDER_WIDTH);
-    expect(lightingView.getUint32(12, true)).toBe((y1 + 1) * RENDER_WIDTH);
+    expect(lightingView.getUint32(8, true)).toBe(haloY0 * RENDER_WIDTH);
+    expect(lightingView.getUint32(12, true)).toBe((haloY1 + 1) * RENDER_WIDTH);
     // the partial frame still executes the full stage chain and shares ONE
     // fresh per-dispatch provenance token across every pass
     expect(stats.invalidation.executed).toHaveLength(7);
@@ -948,7 +968,9 @@ describe("GpuScenePipeline — #43 geometry + global option change is NEVER part
       expect(stats.invalidation.reasons).toContain("scene");
       expect(stats.invalidation.reasons).toContain("light-angular-radius");
       expect(stats.planning.mode).toBe("full");
-      expect(stats.reconstructionActive).toBe(false);
+      // #53: the hard frame runs the ring-rule refinement (mode 1)
+      expect(stats.reconstructionActive).toBe(true);
+      expect(pipeline.getSnapshot().reconstructionPass!.lastDispatch.mode).toBe(1);
     }
     // hard -> soft (samples 1 -> 8 with geometry)
     {

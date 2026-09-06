@@ -1,0 +1,1086 @@
+{
+  "schemaVersion": 1,
+  "commit": "7ec046841d2ed5551b07d88fc18705c507a337bd",
+  "generatedAt": "2026-09-06T07:43:26.773Z",
+  "environment": {
+    "timestamp": "2026-09-06T07:43:26.772Z",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+    "browser": "chrome",
+    "browserVersion": "152.0",
+    "headless": true,
+    "devicePixelRatio": 1,
+    "webgpuAvailable": true,
+    "adapterName": "",
+    "adapterArchitecture": "blackwell",
+    "adapterBackend": "unknown",
+    "adapterDevice": "",
+    "adapterVendor": "nvidia",
+    "timestampQuerySupported": true,
+    "canvasPreferredFormat": "bgra8unorm",
+    "maxStorageBufferBindingSize": 134217728,
+    "maxComputeWorkgroupsPerDimension": 65535
+  },
+  "cases": [
+    {
+      "id": "reconstruction/dpr-1/radius-0",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 1,
+        "radius": 0,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 4.450000002980232,
+          "p95": 5.600000001490116,
+          "min": 0.6000000014901161,
+          "max": 5.600000001490116
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.012832,
+          "p95": 0.016672,
+          "min": 0.01248,
+          "max": 0.016672
+        },
+        "reconstructionActive": false,
+        "radiusTexels": 0,
+        "tapsPerTexel": 0,
+        "totalReconstructedTaps": 0,
+        "renderExtent": "640x360",
+        "texels": 230400,
+        "reconstructionWorkgroups": null,
+        "reconstructionRatio": 0
+      }
+    },
+    {
+      "id": "reconstruction/dpr-1/radius-1",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 1,
+        "radius": 1,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 3.7499999962747097,
+          "p95": 6.100000001490116,
+          "min": 0.8999999985098839,
+          "max": 6.100000001490116
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0.09999999403953552,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.012128,
+          "p95": 0.012704,
+          "min": 0.011744,
+          "max": 0.012704
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.025504000000000002,
+          "p95": 0.02704,
+          "min": 0.024128,
+          "max": 0.02704
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 1,
+        "tapsPerTexel": 9,
+        "totalReconstructedTaps": 2073600,
+        "renderExtent": "640x360",
+        "texels": 230400,
+        "reconstructionWorkgroups": 3600,
+        "reconstructionRatio": 0.4613496932515337
+      }
+    },
+    {
+      "id": "reconstruction/dpr-1/radius-2",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 1,
+        "radius": 2,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 3.4999999962747097,
+          "p95": 5.899999998509884,
+          "min": 0.7999999970197678,
+          "max": 5.899999998509884
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0.04999999701976776,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.022848,
+          "p95": 0.024032,
+          "min": 0.02224,
+          "max": 0.024032
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.03576,
+          "p95": 0.04057600000000001,
+          "min": 0.034752,
+          "max": 0.04057600000000001
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 2,
+        "tapsPerTexel": 25,
+        "totalReconstructedTaps": 5760000,
+        "renderExtent": "640x360",
+        "texels": 230400,
+        "reconstructionWorkgroups": 3600,
+        "reconstructionRatio": 0.6398916967509026
+      }
+    },
+    {
+      "id": "reconstruction/dpr-1/radius-4",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 1,
+        "radius": 4,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 4.949999999254942,
+          "p95": 7.100000001490116,
+          "min": 0.8000000044703484,
+          "max": 7.100000001490116
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.055824,
+          "p95": 0.061536,
+          "min": 0.054848,
+          "max": 0.061536
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.06961600000000001,
+          "p95": 0.074496,
+          "min": 0.06844800000000001,
+          "max": 0.074496
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 4,
+        "tapsPerTexel": 81,
+        "totalReconstructedTaps": 18662400,
+        "renderExtent": "640x360",
+        "texels": 230400,
+        "reconstructionWorkgroups": 3600,
+        "reconstructionRatio": 0.8197945845004669
+      }
+    },
+    {
+      "id": "reconstruction/dpr-1.5/radius-0",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 1.5,
+        "radius": 0,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 3.949999999254942,
+          "p95": 5.199999995529652,
+          "min": 0.5999999940395355,
+          "max": 5.199999995529652
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.019583999999999997,
+          "p95": 0.023744,
+          "min": 0.018368,
+          "max": 0.023744
+        },
+        "reconstructionActive": false,
+        "radiusTexels": 0,
+        "tapsPerTexel": 0,
+        "totalReconstructedTaps": 0,
+        "renderExtent": "960x540",
+        "texels": 518400,
+        "reconstructionWorkgroups": null,
+        "reconstructionRatio": 0
+      }
+    },
+    {
+      "id": "reconstruction/dpr-1.5/radius-1",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 1.5,
+        "radius": 1,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 2.3000000044703484,
+          "p95": 6.100000001490116,
+          "min": 0.7000000029802322,
+          "max": 6.100000001490116
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0.10000000149011612,
+          "p95": 0.20000000298023224,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.04032,
+          "p95": 0.043552,
+          "min": 0.039392,
+          "max": 0.043552
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.060128,
+          "p95": 0.06406400000000001,
+          "min": 0.058528,
+          "max": 0.06406400000000001
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 2,
+        "tapsPerTexel": 25,
+        "totalReconstructedTaps": 12960000,
+        "renderExtent": "960x540",
+        "texels": 518400,
+        "reconstructionWorkgroups": 8100,
+        "reconstructionRatio": 0.6827027027027027
+      }
+    },
+    {
+      "id": "reconstruction/dpr-1.5/radius-2",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 1.5,
+        "radius": 2,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 3.199999999254942,
+          "p95": 5,
+          "min": 0.8999999985098839,
+          "max": 5
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0.10000000149011612,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.066624,
+          "p95": 0.070816,
+          "min": 0.066208,
+          "max": 0.070816
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.086112,
+          "p95": 0.091072,
+          "min": 0.085216,
+          "max": 0.091072
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 3,
+        "tapsPerTexel": 49,
+        "totalReconstructedTaps": 25401600,
+        "renderExtent": "960x540",
+        "texels": 518400,
+        "reconstructionWorkgroups": 8100,
+        "reconstructionRatio": 0.779571911378145
+      }
+    },
+    {
+      "id": "reconstruction/dpr-1.5/radius-4",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 1.5,
+        "radius": 4,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 3,
+          "p95": 5.5,
+          "min": 0.7000000029802322,
+          "max": 5.5
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0.10000000149011612,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.19456,
+          "p95": 0.199136,
+          "min": 0.194176,
+          "max": 0.199136
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.214336,
+          "p95": 0.217792,
+          "min": 0.213088,
+          "max": 0.217792
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 6,
+        "tapsPerTexel": 169,
+        "totalReconstructedTaps": 87609600,
+        "renderExtent": "960x540",
+        "texels": 518400,
+        "reconstructionWorkgroups": 8100,
+        "reconstructionRatio": 0.9114208633093525
+      }
+    },
+    {
+      "id": "reconstruction/dpr-2/radius-0",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 2,
+        "radius": 0,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 1.3500000014901161,
+          "p95": 5.299999997019768,
+          "min": 0.7000000029802322,
+          "max": 5.299999997019768
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.030608,
+          "p95": 0.034528,
+          "min": 0.029824,
+          "max": 0.034528
+        },
+        "reconstructionActive": false,
+        "radiusTexels": 0,
+        "tapsPerTexel": 0,
+        "totalReconstructedTaps": 0,
+        "renderExtent": "1280x720",
+        "texels": 921600,
+        "reconstructionWorkgroups": null,
+        "reconstructionRatio": 0
+      }
+    },
+    {
+      "id": "reconstruction/dpr-2/radius-1",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 2,
+        "radius": 1,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 4.199999999254942,
+          "p95": 14.699999995529652,
+          "min": 1,
+          "max": 14.699999995529652
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0.10000000149011612,
+          "p95": 0.19999999552965164,
+          "min": 0,
+          "max": 0.19999999552965164
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.067712,
+          "p95": 0.072864,
+          "min": 0.066272,
+          "max": 0.072864
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.09889600000000001,
+          "p95": 0.101248,
+          "min": 0.09584,
+          "max": 0.101248
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 2,
+        "tapsPerTexel": 25,
+        "totalReconstructedTaps": 23040000,
+        "renderExtent": "1280x720",
+        "texels": 921600,
+        "reconstructionWorkgroups": 14400,
+        "reconstructionRatio": 0.683944374209861
+      }
+    },
+    {
+      "id": "reconstruction/dpr-2/radius-2",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 2,
+        "radius": 2,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 1.3999999985098839,
+          "p95": 6.0999999940395355,
+          "min": 0.8999999985098839,
+          "max": 6.0999999940395355
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0.09999999776482582,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.17048,
+          "p95": 0.177216,
+          "min": 0.169696,
+          "max": 0.177216
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.20056000000000002,
+          "p95": 0.20716800000000002,
+          "min": 0.19904,
+          "max": 0.20716800000000002
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 4,
+        "tapsPerTexel": 81,
+        "totalReconstructedTaps": 74649600,
+        "renderExtent": "1280x720",
+        "texels": 921600,
+        "reconstructionWorkgroups": 14400,
+        "reconstructionRatio": 0.8489815404201145
+      }
+    },
+    {
+      "id": "reconstruction/dpr-2/radius-4",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 2,
+        "radius": 4,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 4.100000001490116,
+          "p95": 7.100000001490116,
+          "min": 1.4000000059604645,
+          "max": 7.100000001490116
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0.09999999776482582,
+          "p95": 0.20000000298023224,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.5486880000000001,
+          "p95": 0.550944,
+          "min": 0.547584,
+          "max": 0.550944
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.579456,
+          "p95": 0.582784,
+          "min": 0.577408,
+          "max": 0.582784
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 8,
+        "tapsPerTexel": 289,
+        "totalReconstructedTaps": 266342400,
+        "renderExtent": "1280x720",
+        "texels": 921600,
+        "reconstructionWorkgroups": 14400,
+        "reconstructionRatio": 0.9429687070340428
+      }
+    },
+    {
+      "id": "reconstruction/dpr-3/radius-0",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 3,
+        "radius": 0,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 1.2999999970197678,
+          "p95": 5.899999998509884,
+          "min": 1,
+          "max": 5.899999998509884
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.096048,
+          "p95": 0.097312,
+          "min": 0.088896,
+          "max": 0.097312
+        },
+        "reconstructionActive": false,
+        "radiusTexels": 0,
+        "tapsPerTexel": 0,
+        "totalReconstructedTaps": 0,
+        "renderExtent": "1920x1080",
+        "texels": 2073600,
+        "reconstructionWorkgroups": null,
+        "reconstructionRatio": 0
+      }
+    },
+    {
+      "id": "reconstruction/dpr-3/radius-1",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 3,
+        "radius": 1,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 4.75,
+          "p95": 6.100000001490116,
+          "min": 1.5,
+          "max": 6.100000001490116
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.24368,
+          "p95": 0.395872,
+          "min": 0.242816,
+          "max": 0.395872
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.331824,
+          "p95": 0.488736,
+          "min": 0.32927999999999996,
+          "max": 0.488736
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 3,
+        "tapsPerTexel": 49,
+        "totalReconstructedTaps": 101606400,
+        "renderExtent": "1920x1080",
+        "texels": 2073600,
+        "reconstructionWorkgroups": 32400,
+        "reconstructionRatio": 0.7381382523533326
+      }
+    },
+    {
+      "id": "reconstruction/dpr-3/radius-2",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 3,
+        "radius": 2,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 4.849999997764826,
+          "p95": 6.100000001490116,
+          "min": 3.5999999940395355,
+          "max": 6.100000001490116
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0.04999999701976776,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.712016,
+          "p95": 0.904672,
+          "min": 0.710432,
+          "max": 0.904672
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.802272,
+          "p95": 0.995488,
+          "min": 0.798528,
+          "max": 0.995488
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 6,
+        "tapsPerTexel": 169,
+        "totalReconstructedTaps": 350438400,
+        "renderExtent": "1920x1080",
+        "texels": 2073600,
+        "reconstructionWorkgroups": 32400,
+        "reconstructionRatio": 0.8913601025887633
+      }
+    },
+    {
+      "id": "reconstruction/dpr-3/radius-4",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 3,
+        "radius": 4,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 4.600000001490116,
+          "p95": 5.699999995529652,
+          "min": 3.600000001490116,
+          "max": 5.699999995529652
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0.10000000149011612,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 2.934896,
+          "p95": 3.132672,
+          "min": 2.682592,
+          "max": 3.132672
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 3.0273440000000003,
+          "p95": 3.224512,
+          "min": 2.773696,
+          "max": 3.224512
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 12,
+        "tapsPerTexel": 625,
+        "totalReconstructedTaps": 1296000000,
+        "renderExtent": "1920x1080",
+        "texels": 2073600,
+        "reconstructionWorkgroups": 32400,
+        "reconstructionRatio": 0.967322937637197
+      }
+    },
+    {
+      "id": "reconstruction/dpr-4/radius-0",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 4,
+        "radius": 0,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 1.2999999970197678,
+          "p95": 1.8999999985098839,
+          "min": 1.1000000014901161,
+          "max": 1.8999999985098839
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0,
+          "min": 0,
+          "max": 0
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.187552,
+          "p95": 0.188864,
+          "min": 0.18585600000000002,
+          "max": 0.188864
+        },
+        "reconstructionActive": false,
+        "radiusTexels": 0,
+        "tapsPerTexel": 0,
+        "totalReconstructedTaps": 0,
+        "renderExtent": "2560x1440",
+        "texels": 3686400,
+        "reconstructionWorkgroups": null,
+        "reconstructionRatio": 0
+      }
+    },
+    {
+      "id": "reconstruction/dpr-4/radius-1",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 4,
+        "radius": 1,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 4.5,
+          "p95": 5,
+          "min": 3.100000001490116,
+          "max": 5
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0.04999999701976776,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.6551199999999999,
+          "p95": 0.656864,
+          "min": 0.652992,
+          "max": 0.656864
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.843248,
+          "p95": 1.054368,
+          "min": 0.838304,
+          "max": 1.054368
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 4,
+        "tapsPerTexel": 81,
+        "totalReconstructedTaps": 298598400,
+        "renderExtent": "2560x1440",
+        "texels": 3686400,
+        "reconstructionWorkgroups": 57600,
+        "reconstructionRatio": 0.7789441539107531
+      }
+    },
+    {
+      "id": "reconstruction/dpr-4/radius-2",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 4,
+        "radius": 2,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 4.350000001490116,
+          "p95": 6,
+          "min": 3.6999999955296516,
+          "max": 6
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0.10000000149011612,
+          "p95": 0.10000000149011612,
+          "min": 0,
+          "max": 0.10000000149011612
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 2.362608,
+          "p95": 2.66608,
+          "min": 2.270912,
+          "max": 2.66608
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 2.556064,
+          "p95": 2.859136,
+          "min": 2.45888,
+          "max": 2.859136
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 8,
+        "tapsPerTexel": 289,
+        "totalReconstructedTaps": 1065369600,
+        "renderExtent": "2560x1440",
+        "texels": 3686400,
+        "reconstructionWorkgroups": 57600,
+        "reconstructionRatio": 0.9227692946920121
+      }
+    },
+    {
+      "id": "reconstruction/dpr-4/radius-4",
+      "parameters": {
+        "suite": "reconstruction",
+        "dpr": 4,
+        "radius": 4,
+        "resolution": "640x360",
+        "scene": "reconstruction-heavy",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 10,
+          "median": 10.349999997764826,
+          "p95": 13.199999995529652,
+          "min": 9.299999997019768,
+          "max": 13.199999995529652
+        },
+        "reconstructionHostMs": {
+          "samples": 10,
+          "median": 0,
+          "p95": 0.20000000298023224,
+          "min": 0,
+          "max": 0.20000000298023224
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 8.499103999999999,
+          "p95": 9.038112,
+          "min": 8.3504,
+          "max": 9.038112
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 8.741664,
+          "p95": 9.229792,
+          "min": 8.535552,
+          "max": 9.229792
+        },
+        "reconstructionActive": true,
+        "radiusTexels": 16,
+        "tapsPerTexel": 1089,
+        "totalReconstructedTaps": 4014489600,
+        "renderExtent": "2560x1440",
+        "texels": 3686400,
+        "reconstructionWorkgroups": 57600,
+        "reconstructionRatio": 0.9792580200602841
+      }
+    },
+    {
+      "id": "reconstruction/hard-ring/dpr-1",
+      "parameters": {
+        "suite": "reconstruction",
+        "mode": "hard-ring",
+        "dpr": 1,
+        "radius": 2,
+        "resolution": "640x360",
+        "warmups": 3,
+        "samples": 10
+      },
+      "metrics": {
+        "shadowGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.037968,
+          "p95": 0.04752,
+          "min": 0.037568,
+          "max": 0.04752
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 10,
+          "median": 0.004128,
+          "p95": 0.00432,
+          "min": 0.004096,
+          "max": 0.00432
+        },
+        "gpuTimestampMs": {
+          "samples": 10,
+          "median": 0.083776,
+          "p95": 0.093888,
+          "min": 0.07999999999999999,
+          "max": 0.093888
+        },
+        "hostMs": {
+          "samples": 10,
+          "median": 0.29999999701976776,
+          "p95": 0.5,
+          "min": 0.19999999552965164,
+          "max": 0.5
+        },
+        "wallMs": {
+          "samples": 10,
+          "median": 2.850000001490116,
+          "p95": 6.4000000059604645,
+          "min": 0.8999999985098839,
+          "max": 6.4000000059604645
+        },
+        "submissions": 6,
+        "dispatches": 9,
+        "newAllocations": 0,
+        "allocationCount": 2,
+        "storageBytes": 921632,
+        "renderExtent": "640x360",
+        "reconstructionWorkgroups": 3600
+      }
+    }
+  ],
+  "notes": [
+    "suite reconstruction start",
+    "suite reconstruction done"
+  ],
+  "workingTreeDirty": false
+}

@@ -1,0 +1,1000 @@
+{
+  "schemaVersion": 1,
+  "commit": "412c2234d1648da57c99626f576735b752324aa4",
+  "generatedAt": "2026-08-29T14:07:48.440Z",
+  "environment": {
+    "timestamp": "2026-08-29T14:07:48.331Z",
+    "os": "Windows_NT 10.0.26200",
+    "cpuModel": "AMD Ryzen 7 7700 8-Core Processor              ",
+    "cpuCores": 16,
+    "nodeVersion": "v22.14.0",
+    "commit": "412c2234d1648da57c99626f576735b752324aa4",
+    "workingTreeDirty": false
+  },
+  "cases": [
+    {
+      "id": "cpu/stage/resolution-320x180/stage-compose-height-(incl.-mask-SDF)",
+      "parameters": {
+        "suite": "stage",
+        "resolution": "320x180",
+        "stage": "compose height (incl. mask SDF)",
+        "warmups": 3,
+        "samples": 8
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 4.193250000000006,
+          "p95": 4.680399999999992,
+          "min": 3.626400000000018,
+          "max": 4.680399999999992
+        }
+      }
+    },
+    {
+      "id": "cpu/stage/resolution-320x180/stage-compose-caster-height",
+      "parameters": {
+        "suite": "stage",
+        "resolution": "320x180",
+        "stage": "compose caster height",
+        "warmups": 3,
+        "samples": 8
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 1.712900000000019,
+          "p95": 1.9450000000000216,
+          "min": 1.6402999999999963,
+          "max": 1.9450000000000216
+        }
+      }
+    },
+    {
+      "id": "cpu/stage/resolution-320x180/stage-normal",
+      "parameters": {
+        "suite": "stage",
+        "resolution": "320x180",
+        "stage": "normal",
+        "warmups": 3,
+        "samples": 8
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 3.169550000000001,
+          "p95": 4.074700000000007,
+          "min": 2.8958000000000084,
+          "max": 4.074700000000007
+        }
+      }
+    },
+    {
+      "id": "cpu/stage/resolution-320x180/stage-shadow-(4-samples)",
+      "parameters": {
+        "suite": "stage",
+        "resolution": "320x180",
+        "stage": "shadow (4 samples)",
+        "warmups": 3,
+        "samples": 8
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 91.00454999999994,
+          "p95": 97.90949999999998,
+          "min": 88.4203,
+          "max": 97.90949999999998
+        }
+      }
+    },
+    {
+      "id": "cpu/stage/resolution-320x180/stage-reconstruction-(radius-2)",
+      "parameters": {
+        "suite": "stage",
+        "resolution": "320x180",
+        "stage": "reconstruction (radius 2)",
+        "warmups": 3,
+        "samples": 8
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 11.690500000000043,
+          "p95": 14.627300000000105,
+          "min": 11.149599999999964,
+          "max": 14.627300000000105
+        }
+      }
+    },
+    {
+      "id": "cpu/stage/resolution-320x180/stage-lighting-(shade-+-RGBA-bytes)",
+      "parameters": {
+        "suite": "stage",
+        "resolution": "320x180",
+        "stage": "lighting (shade + RGBA bytes)",
+        "warmups": 3,
+        "samples": 8
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 24.161750000000097,
+          "p95": 26.25960000000009,
+          "min": 23.060200000000123,
+          "max": 26.25960000000009
+        }
+      }
+    },
+    {
+      "id": "cpu/stage/resolution-320x180/stage-compositing-(final-RGBA-synthesis)",
+      "parameters": {
+        "suite": "stage",
+        "resolution": "320x180",
+        "stage": "compositing (final RGBA synthesis)",
+        "warmups": 3,
+        "samples": 8
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 0.24230000000011387,
+          "p95": 0.25830000000019027,
+          "min": 0.23039999999991778,
+          "max": 0.25830000000019027
+        }
+      }
+    },
+    {
+      "id": "cpu/resolution/w-320/h-180",
+      "parameters": {
+        "suite": "resolution",
+        "warmups": 3,
+        "samples": 8,
+        "width": 320,
+        "height": 180,
+        "scene": "simple-rounded-rect"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 128.28195000000005,
+          "p95": 177.08129999999983,
+          "min": 122.97879999999986,
+          "max": 177.08129999999983
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/resolution/w-640/h-360",
+      "parameters": {
+        "suite": "resolution",
+        "warmups": 3,
+        "samples": 8,
+        "width": 640,
+        "height": 360,
+        "scene": "simple-rounded-rect"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 611.7729499999996,
+          "p95": 677.9627,
+          "min": 587.8058999999994,
+          "max": 677.9627
+        },
+        "texels": 230400
+      }
+    },
+    {
+      "id": "cpu/resolution/w-1280/h-720",
+      "parameters": {
+        "suite": "resolution",
+        "warmups": 3,
+        "samples": 8,
+        "width": 1280,
+        "height": 720,
+        "scene": "simple-rounded-rect"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 2508.3174500000005,
+          "p95": 2576.5843999999997,
+          "min": 2418.5231999999996,
+          "max": 2576.5843999999997
+        },
+        "texels": 921600
+      }
+    },
+    {
+      "id": "cpu/resolution/w-1920/h-1080",
+      "parameters": {
+        "suite": "resolution",
+        "warmups": 3,
+        "samples": 8,
+        "width": 1920,
+        "height": 1080,
+        "scene": "simple-rounded-rect"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 5815.648699999994,
+          "p95": 6115.009999999995,
+          "min": 5679.343099999998,
+          "max": 6115.009999999995
+        },
+        "texels": 2073600
+      }
+    },
+    {
+      "id": "cpu/surface/count-1",
+      "parameters": {
+        "suite": "surface",
+        "warmups": 3,
+        "samples": 8,
+        "surfaceCount": 1,
+        "resolution": "320x180",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 55.487450000000536,
+          "p95": 64.81979999999749,
+          "min": 53.085900000005495,
+          "max": 64.81979999999749
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/surface/count-4",
+      "parameters": {
+        "suite": "surface",
+        "warmups": 3,
+        "samples": 8,
+        "surfaceCount": 4,
+        "resolution": "320x180",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 80.89860000000044,
+          "p95": 107.44670000000042,
+          "min": 75.4835000000021,
+          "max": 107.44670000000042
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/surface/count-16",
+      "parameters": {
+        "suite": "surface",
+        "warmups": 3,
+        "samples": 8,
+        "surfaceCount": 16,
+        "resolution": "320x180",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 134.6322,
+          "p95": 157.8231000000087,
+          "min": 125.79709999999614,
+          "max": 157.8231000000087
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/surface/count-64",
+      "parameters": {
+        "suite": "surface",
+        "warmups": 3,
+        "samples": 8,
+        "surfaceCount": 64,
+        "resolution": "320x180",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 295.7544499999931,
+          "p95": 324.65320000000065,
+          "min": 276.87979999999516,
+          "max": 324.65320000000065
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/surface/count-128",
+      "parameters": {
+        "suite": "surface",
+        "warmups": 3,
+        "samples": 8,
+        "surfaceCount": 128,
+        "resolution": "320x180",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 496.72835000000487,
+          "p95": 512.8407000000007,
+          "min": 491.502800000002,
+          "max": 512.8407000000007
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/surface/count-256",
+      "parameters": {
+        "suite": "surface",
+        "warmups": 3,
+        "samples": 8,
+        "surfaceCount": 256,
+        "resolution": "320x180",
+        "scene": "surface-grid"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 938.0695499999929,
+          "p95": 1012.1641999999993,
+          "min": 904.2253999999957,
+          "max": 1012.1641999999993
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/mask/maskCount-0/maskResolution-32",
+      "parameters": {
+        "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
+        "maskCount": 0,
+        "maskResolution": 32,
+        "resolution": "320x180",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "sdfHostMs": {
+          "samples": 8,
+          "median": 0.00035000000207219273,
+          "p95": 0.004100000005564652,
+          "min": 0.00019999999494757503,
+          "max": 0.004100000005564652
+        },
+        "fullHostMs": {
+          "samples": 8,
+          "median": 42.62340000000404,
+          "p95": 50.62290000000212,
+          "min": 39.52840000001015,
+          "max": 50.62290000000212
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/mask/maskCount-1/maskResolution-32",
+      "parameters": {
+        "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
+        "maskCount": 1,
+        "maskResolution": 32,
+        "resolution": "320x180",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "sdfHostMs": {
+          "samples": 8,
+          "median": 1.0213999999978114,
+          "p95": 1.1390000000101281,
+          "min": 0.5278000000107568,
+          "max": 1.1390000000101281
+        },
+        "fullHostMs": {
+          "samples": 8,
+          "median": 63.43215000000055,
+          "p95": 70.99549999998999,
+          "min": 56.85450000000128,
+          "max": 70.99549999998999
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/mask/maskCount-16/maskResolution-32",
+      "parameters": {
+        "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
+        "maskCount": 16,
+        "maskResolution": 32,
+        "resolution": "320x180",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "sdfHostMs": {
+          "samples": 8,
+          "median": 4.419300000001385,
+          "p95": 6.940499999996973,
+          "min": 3.6145999999862397,
+          "max": 6.940499999996973
+        },
+        "fullHostMs": {
+          "samples": 8,
+          "median": 77.25849999999627,
+          "p95": 87.52580000000307,
+          "min": 71.75840000000608,
+          "max": 87.52580000000307
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/mask/maskCount-64/maskResolution-32",
+      "parameters": {
+        "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
+        "maskCount": 64,
+        "maskResolution": 32,
+        "resolution": "320x180",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "sdfHostMs": {
+          "samples": 8,
+          "median": 16.56354999999894,
+          "p95": 17.328999999997905,
+          "min": 15.432300000000396,
+          "max": 17.328999999997905
+        },
+        "fullHostMs": {
+          "samples": 8,
+          "median": 153.1252500000046,
+          "p95": 160.9829999999929,
+          "min": 126.16780000001017,
+          "max": 160.9829999999929
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/mask-resolution/maskResolution-16/maskCount-16",
+      "parameters": {
+        "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
+        "maskCount": 16,
+        "maskResolution": 16,
+        "resolution": "320x180",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "sdfHostMs": {
+          "samples": 8,
+          "median": 1.428299999999581,
+          "p95": 2.5041000000055647,
+          "min": 1.2537000000011176,
+          "max": 2.5041000000055647
+        }
+      }
+    },
+    {
+      "id": "cpu/mask-resolution/maskResolution-32/maskCount-16",
+      "parameters": {
+        "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
+        "maskCount": 16,
+        "maskResolution": 32,
+        "resolution": "320x180",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "sdfHostMs": {
+          "samples": 8,
+          "median": 3.7917000000015832,
+          "p95": 4.2304000000003725,
+          "min": 3.562000000005355,
+          "max": 4.2304000000003725
+        }
+      }
+    },
+    {
+      "id": "cpu/mask-resolution/maskResolution-64/maskCount-16",
+      "parameters": {
+        "suite": "mask",
+        "warmups": 3,
+        "samples": 8,
+        "maskCount": 16,
+        "maskResolution": 64,
+        "resolution": "320x180",
+        "scene": "mask-heavy"
+      },
+      "metrics": {
+        "sdfHostMs": {
+          "samples": 8,
+          "median": 15.437350000000151,
+          "p95": 18.467299999989336,
+          "min": 13.824500000002445,
+          "max": 18.467299999989336
+        }
+      }
+    },
+    {
+      "id": "cpu/shadow/samples-1/angularRadius-0",
+      "parameters": {
+        "suite": "shadow",
+        "warmups": 3,
+        "samples": 1,
+        "angularRadius": 0,
+        "resolution": "320x180",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 141.83290000000125,
+          "p95": 187.6978999999992,
+          "min": 127.10510000000068,
+          "max": 187.6978999999992
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/shadow/samples-4/angularRadius-0",
+      "parameters": {
+        "suite": "shadow",
+        "warmups": 3,
+        "samples": 4,
+        "angularRadius": 0,
+        "resolution": "320x180",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 168.4105500000005,
+          "p95": 175.24239999998827,
+          "min": 131.80079999999725,
+          "max": 175.24239999998827
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/shadow/samples-8/angularRadius-0",
+      "parameters": {
+        "suite": "shadow",
+        "warmups": 3,
+        "samples": 8,
+        "angularRadius": 0,
+        "resolution": "320x180",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 151.1605500000005,
+          "p95": 180.72970000002533,
+          "min": 130.45629999999073,
+          "max": 180.72970000002533
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/shadow/samples-16/angularRadius-0",
+      "parameters": {
+        "suite": "shadow",
+        "warmups": 3,
+        "samples": 16,
+        "angularRadius": 0,
+        "resolution": "320x180",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 145.66084999998566,
+          "p95": 181.15630000000237,
+          "min": 137.90499999999884,
+          "max": 181.15630000000237
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/shadow/samples-1/angularRadius-0.05",
+      "parameters": {
+        "suite": "shadow",
+        "warmups": 3,
+        "samples": 1,
+        "angularRadius": 0.05,
+        "resolution": "320x180",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 144.54189999999653,
+          "p95": 156.74780000001192,
+          "min": 132.2960000000021,
+          "max": 156.74780000001192
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/shadow/samples-4/angularRadius-0.05",
+      "parameters": {
+        "suite": "shadow",
+        "warmups": 3,
+        "samples": 4,
+        "angularRadius": 0.05,
+        "resolution": "320x180",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 595.981850000011,
+          "p95": 689.8384000000078,
+          "min": 517.5259000000078,
+          "max": 689.8384000000078
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/shadow/samples-8/angularRadius-0.05",
+      "parameters": {
+        "suite": "shadow",
+        "warmups": 3,
+        "samples": 8,
+        "angularRadius": 0.05,
+        "resolution": "320x180",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 1212.5087499999936,
+          "p95": 1364.6153999999806,
+          "min": 1066.3295000000217,
+          "max": 1364.6153999999806
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/shadow/samples-16/angularRadius-0.05",
+      "parameters": {
+        "suite": "shadow",
+        "warmups": 3,
+        "samples": 16,
+        "angularRadius": 0.05,
+        "resolution": "320x180",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 2148.4505500000087,
+          "p95": 2425.1932999999844,
+          "min": 2058.673700000014,
+          "max": 2425.1932999999844
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/shadow/samples-1/angularRadius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "warmups": 3,
+        "samples": 1,
+        "angularRadius": 0.15,
+        "resolution": "320x180",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 133.78884999999718,
+          "p95": 157.94670000000042,
+          "min": 124.40750000000116,
+          "max": 157.94670000000042
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/shadow/samples-4/angularRadius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "warmups": 3,
+        "samples": 4,
+        "angularRadius": 0.15,
+        "resolution": "320x180",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 529.4043000000092,
+          "p95": 585.8358000000007,
+          "min": 520.2058000000252,
+          "max": 585.8358000000007
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/shadow/samples-8/angularRadius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "warmups": 3,
+        "samples": 8,
+        "angularRadius": 0.15,
+        "resolution": "320x180",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 1189.7411000000138,
+          "p95": 1231.8702999999805,
+          "min": 1030.255199999985,
+          "max": 1231.8702999999805
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/shadow/samples-16/angularRadius-0.15",
+      "parameters": {
+        "suite": "shadow",
+        "warmups": 3,
+        "samples": 16,
+        "angularRadius": 0.15,
+        "resolution": "320x180",
+        "scene": "soft-shadow"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 2362.8524999999936,
+          "p95": 2542.1878000000142,
+          "min": 2278.489499999996,
+          "max": 2542.1878000000142
+        },
+        "texels": 57600
+      }
+    },
+    {
+      "id": "cpu/reconstruction/radius-1",
+      "parameters": {
+        "suite": "reconstruction",
+        "warmups": 3,
+        "samples": 8,
+        "radius": 1,
+        "tapsPerTexel": 9,
+        "resolution": "320x180",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 6.710900000005495,
+          "p95": 7.821800000005169,
+          "min": 5.57829999999376,
+          "max": 7.821800000005169
+        },
+        "texels": 57600,
+        "totalTaps": 518400
+      }
+    },
+    {
+      "id": "cpu/reconstruction/radius-2",
+      "parameters": {
+        "suite": "reconstruction",
+        "warmups": 3,
+        "samples": 8,
+        "radius": 2,
+        "tapsPerTexel": 25,
+        "resolution": "320x180",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 14.22269999999844,
+          "p95": 16.095900000014808,
+          "min": 12.88990000000922,
+          "max": 16.095900000014808
+        },
+        "texels": 57600,
+        "totalTaps": 1440000
+      }
+    },
+    {
+      "id": "cpu/reconstruction/radius-4",
+      "parameters": {
+        "suite": "reconstruction",
+        "warmups": 3,
+        "samples": 8,
+        "radius": 4,
+        "tapsPerTexel": 81,
+        "resolution": "320x180",
+        "scene": "reconstruction-heavy"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 47.77589999999327,
+          "p95": 50.67560000001686,
+          "min": 43.22200000000885,
+          "max": 50.67560000001686
+        },
+        "texels": 57600,
+        "totalTaps": 4665600
+      }
+    },
+    {
+      "id": "cpu/partial/ratio-1",
+      "parameters": {
+        "suite": "partial",
+        "warmups": 3,
+        "samples": 8,
+        "dirtyRatio": 1,
+        "resolution": "320x180",
+        "scene": "partial-edit"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 0.058750000011059456,
+          "p95": 0.1369000000122469,
+          "min": 0.0239000000001397,
+          "max": 0.1369000000122469
+        }
+      }
+    },
+    {
+      "id": "cpu/partial/ratio-10",
+      "parameters": {
+        "suite": "partial",
+        "warmups": 3,
+        "samples": 8,
+        "dirtyRatio": 10,
+        "resolution": "320x180",
+        "scene": "partial-edit"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 0.023600000000442378,
+          "p95": 0.02429999999003485,
+          "min": 0.023400000005494803,
+          "max": 0.02429999999003485
+        }
+      }
+    },
+    {
+      "id": "cpu/partial/ratio-25",
+      "parameters": {
+        "suite": "partial",
+        "warmups": 3,
+        "samples": 8,
+        "dirtyRatio": 25,
+        "resolution": "320x180",
+        "scene": "partial-edit"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 0.005749999996623956,
+          "p95": 0.0062000000034458935,
+          "min": 0.005699999979697168,
+          "max": 0.0062000000034458935
+        }
+      }
+    },
+    {
+      "id": "cpu/partial/ratio-50",
+      "parameters": {
+        "suite": "partial",
+        "warmups": 3,
+        "samples": 8,
+        "dirtyRatio": 50,
+        "resolution": "320x180",
+        "scene": "partial-edit"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 0.005700000008800998,
+          "p95": 0.007799999992130324,
+          "min": 0.005600000004051253,
+          "max": 0.007799999992130324
+        }
+      }
+    },
+    {
+      "id": "cpu/partial/ratio-100",
+      "parameters": {
+        "suite": "partial",
+        "warmups": 3,
+        "samples": 8,
+        "dirtyRatio": 100,
+        "resolution": "320x180",
+        "scene": "partial-edit"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 0.005750000011175871,
+          "p95": 0.0058000000135507435,
+          "min": 0.005600000004051253,
+          "max": 0.0058000000135507435
+        }
+      }
+    },
+    {
+      "id": "cpu/upload/scene-surface-grid-64",
+      "parameters": {
+        "suite": "upload",
+        "warmups": 3,
+        "samples": 8,
+        "scene": "surface-grid-64",
+        "resolution": "320x180"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 0.13744999999471474,
+          "p95": 0.2146000000066124,
+          "min": 0.08170000000973232,
+          "max": 0.2146000000066124
+        },
+        "encodedBytes": 8640
+      }
+    },
+    {
+      "id": "cpu/upload/scene-mask-heavy-64",
+      "parameters": {
+        "suite": "upload",
+        "warmups": 3,
+        "samples": 8,
+        "scene": "mask-heavy-64",
+        "resolution": "320x180"
+      },
+      "metrics": {
+        "hostMs": {
+          "samples": 8,
+          "median": 0.24049999999988358,
+          "p95": 0.2784000000101514,
+          "min": 0.15109999998821877,
+          "max": 0.2784000000101514
+        },
+        "encodedBytes": 76160
+      }
+    }
+  ],
+  "workingTreeDirty": false
+}
