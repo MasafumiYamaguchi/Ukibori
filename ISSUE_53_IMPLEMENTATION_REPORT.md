@@ -197,7 +197,7 @@ Local NVIDIA/Chrome real adapter, 640x360, DPR 1, hard shadow, ring refinement, 
 
 | case | ShadowPass median/p95 | Reconstruction median/p95 | Total GPU median/p95 | Host median/p95 | Wall median/p95 |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| hard ring | 0.0384 / 0.0476 ms | 0.00414 / 0.00442 ms | 0.0844 / 0.0914 ms | 0.300 / 0.400 ms | 4.15 / 5.90 ms |
+| hard ring | 0.0380 / 0.0475 ms | 0.00413 / 0.00432 ms | 0.0838 / 0.0939 ms | 0.300 / 0.500 ms | 2.85 / 6.40 ms |
 
 Counters: 6 submissions, 9 dispatches, 0 new allocations (2 retained allocations), 921,632 reconstruction allocation bytes. Evidence is stored in `packages/renderer/benchmark-results-issue-53-review.json` as `reconstruction/hard-ring/dpr-1`.
 
@@ -310,8 +310,10 @@ The dedicated artifact is
 `packages/renderer/benchmark-results-issue-53-review.json`. It is regenerated
 from the clean source commit after this review, without `--allow-dirty`; the
 artifact's embedded `commit` and `workingTreeDirty=false` are the authoritative
-provenance. The measured hard-ring reconstruction and total-GPU median/p95
-values are recorded in that artifact and summarized in the PR body.
+provenance (`7ec046841d2ed5551b07d88fc18705c507a337bd`, clean). The measured
+hard-ring reconstruction median/p95 is `0.00413 / 0.00432 ms`; total-GPU
+median/p95 is `0.0838 / 0.0939 ms`. The full sample distributions and counters
+are recorded in that artifact and summarized in the PR body.
 
 ### H. Known limitation
 

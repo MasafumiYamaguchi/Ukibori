@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "commit": "895b3b97e433b12223da89aa96d29b915b938272",
-  "generatedAt": "2026-09-06T06:56:51.175Z",
+  "commit": "7ec046841d2ed5551b07d88fc18705c507a337bd",
+  "generatedAt": "2026-09-06T07:43:26.773Z",
   "environment": {
-    "timestamp": "2026-09-06T06:56:51.174Z",
+    "timestamp": "2026-09-06T07:43:26.772Z",
     "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
     "browser": "chrome",
     "browserVersion": "152.0",
@@ -35,10 +35,10 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 5,
-          "p95": 7.100000001490116,
-          "min": 0.7999999970197678,
-          "max": 7.100000001490116
+          "median": 4.450000002980232,
+          "p95": 5.600000001490116,
+          "min": 0.6000000014901161,
+          "max": 5.600000001490116
         },
         "reconstructionHostMs": {
           "samples": 10,
@@ -56,10 +56,10 @@
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.014448,
-          "p95": 0.016128,
-          "min": 0.012704,
-          "max": 0.016128
+          "median": 0.012832,
+          "p95": 0.016672,
+          "min": 0.01248,
+          "max": 0.016672
         },
         "reconstructionActive": false,
         "radiusTexels": 0,
@@ -85,31 +85,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 2.400000002235174,
-          "p95": 5.600000001490116,
-          "min": 0.6000000014901161,
-          "max": 5.600000001490116
+          "median": 3.7499999962747097,
+          "p95": 6.100000001490116,
+          "min": 0.8999999985098839,
+          "max": 6.100000001490116
         },
         "reconstructionHostMs": {
           "samples": 10,
-          "median": 0,
+          "median": 0.09999999403953552,
           "p95": 0.10000000149011612,
           "min": 0,
           "max": 0.10000000149011612
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 0.01248,
-          "p95": 0.014464,
-          "min": 0.012032,
-          "max": 0.014464
+          "median": 0.012128,
+          "p95": 0.012704,
+          "min": 0.011744,
+          "max": 0.012704
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.026512,
-          "p95": 0.029344000000000002,
-          "min": 0.024703999999999997,
-          "max": 0.029344000000000002
+          "median": 0.025504000000000002,
+          "p95": 0.02704,
+          "min": 0.024128,
+          "max": 0.02704
         },
         "reconstructionActive": true,
         "radiusTexels": 1,
@@ -118,7 +118,7 @@
         "renderExtent": "640x360",
         "texels": 230400,
         "reconstructionWorkgroups": 3600,
-        "reconstructionRatio": 0.4932432432432432
+        "reconstructionRatio": 0.4613496932515337
       }
     },
     {
@@ -135,31 +135,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 1.7500000037252903,
-          "p95": 4.399999998509884,
-          "min": 0.6000000014901161,
-          "max": 4.399999998509884
+          "median": 3.4999999962747097,
+          "p95": 5.899999998509884,
+          "min": 0.7999999970197678,
+          "max": 5.899999998509884
         },
         "reconstructionHostMs": {
           "samples": 10,
-          "median": 0,
-          "p95": 0.19999999552965164,
+          "median": 0.04999999701976776,
+          "p95": 0.10000000149011612,
           "min": 0,
-          "max": 0.19999999552965164
+          "max": 0.10000000149011612
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 0.0224,
-          "p95": 0.02288,
-          "min": 0.021984,
-          "max": 0.02288
+          "median": 0.022848,
+          "p95": 0.024032,
+          "min": 0.02224,
+          "max": 0.024032
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.035103999999999996,
-          "p95": 0.037408,
+          "median": 0.03576,
+          "p95": 0.04057600000000001,
           "min": 0.034752,
-          "max": 0.037408
+          "max": 0.04057600000000001
         },
         "reconstructionActive": true,
         "radiusTexels": 2,
@@ -168,7 +168,7 @@
         "renderExtent": "640x360",
         "texels": 230400,
         "reconstructionWorkgroups": 3600,
-        "reconstructionRatio": 0.6379310344827587
+        "reconstructionRatio": 0.6398916967509026
       }
     },
     {
@@ -185,31 +185,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 2.699999999254942,
-          "p95": 5.199999995529652,
-          "min": 0.7999999970197678,
-          "max": 5.199999995529652
+          "median": 4.949999999254942,
+          "p95": 7.100000001490116,
+          "min": 0.8000000044703484,
+          "max": 7.100000001490116
         },
         "reconstructionHostMs": {
           "samples": 10,
-          "median": 0.09999999776482582,
-          "p95": 0.19999999552965164,
+          "median": 0,
+          "p95": 0.10000000149011612,
           "min": 0,
-          "max": 0.19999999552965164
+          "max": 0.10000000149011612
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 0.055744,
-          "p95": 0.06032,
-          "min": 0.054656,
-          "max": 0.06032
+          "median": 0.055824,
+          "p95": 0.061536,
+          "min": 0.054848,
+          "max": 0.061536
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.069808,
-          "p95": 0.07305600000000001,
-          "min": 0.06739200000000001,
-          "max": 0.07305600000000001
+          "median": 0.06961600000000001,
+          "p95": 0.074496,
+          "min": 0.06844800000000001,
+          "max": 0.074496
         },
         "reconstructionActive": true,
         "radiusTexels": 4,
@@ -218,7 +218,7 @@
         "renderExtent": "640x360",
         "texels": 230400,
         "reconstructionWorkgroups": 3600,
-        "reconstructionRatio": 0.816933638443936
+        "reconstructionRatio": 0.8197945845004669
       }
     },
     {
@@ -235,10 +235,10 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 1.8500000014901161,
-          "p95": 5.799999997019768,
-          "min": 0.6000000014901161,
-          "max": 5.799999997019768
+          "median": 3.949999999254942,
+          "p95": 5.199999995529652,
+          "min": 0.5999999940395355,
+          "max": 5.199999995529652
         },
         "reconstructionHostMs": {
           "samples": 10,
@@ -256,10 +256,10 @@
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.020576,
-          "p95": 0.023488,
-          "min": 0.01824,
-          "max": 0.023488
+          "median": 0.019583999999999997,
+          "p95": 0.023744,
+          "min": 0.018368,
+          "max": 0.023744
         },
         "reconstructionActive": false,
         "radiusTexels": 0,
@@ -285,31 +285,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 4.100000001490116,
-          "p95": 5.5999999940395355,
-          "min": 0.8999999985098839,
-          "max": 5.5999999940395355
+          "median": 2.3000000044703484,
+          "p95": 6.100000001490116,
+          "min": 0.7000000029802322,
+          "max": 6.100000001490116
         },
         "reconstructionHostMs": {
           "samples": 10,
-          "median": 0,
-          "p95": 0.10000000149011612,
+          "median": 0.10000000149011612,
+          "p95": 0.20000000298023224,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.20000000298023224
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 0.04016,
-          "p95": 0.044768,
-          "min": 0.039616,
-          "max": 0.044768
+          "median": 0.04032,
+          "p95": 0.043552,
+          "min": 0.039392,
+          "max": 0.043552
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.060303999999999996,
-          "p95": 0.063264,
-          "min": 0.0584,
-          "max": 0.063264
+          "median": 0.060128,
+          "p95": 0.06406400000000001,
+          "min": 0.058528,
+          "max": 0.06406400000000001
         },
         "reconstructionActive": true,
         "radiusTexels": 2,
@@ -318,7 +318,7 @@
         "renderExtent": "960x540",
         "texels": 518400,
         "reconstructionWorkgroups": 8100,
-        "reconstructionRatio": 0.6926829268292682
+        "reconstructionRatio": 0.6827027027027027
       }
     },
     {
@@ -335,31 +335,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 2.849999997764826,
-          "p95": 4.899999998509884,
-          "min": 0.7999999970197678,
-          "max": 4.899999998509884
+          "median": 3.199999999254942,
+          "p95": 5,
+          "min": 0.8999999985098839,
+          "max": 5
         },
         "reconstructionHostMs": {
           "samples": 10,
-          "median": 0.05000000074505806,
+          "median": 0.10000000149011612,
           "p95": 0.10000000149011612,
           "min": 0,
           "max": 0.10000000149011612
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 0.06667200000000001,
-          "p95": 0.07152,
-          "min": 0.066368,
-          "max": 0.07152
+          "median": 0.066624,
+          "p95": 0.070816,
+          "min": 0.066208,
+          "max": 0.070816
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.085344,
-          "p95": 0.09017599999999999,
-          "min": 0.084992,
-          "max": 0.09017599999999999
+          "median": 0.086112,
+          "p95": 0.091072,
+          "min": 0.085216,
+          "max": 0.091072
         },
         "reconstructionActive": true,
         "radiusTexels": 3,
@@ -368,7 +368,7 @@
         "renderExtent": "960x540",
         "texels": 518400,
         "reconstructionWorkgroups": 8100,
-        "reconstructionRatio": 0.7785285285285285
+        "reconstructionRatio": 0.779571911378145
       }
     },
     {
@@ -385,10 +385,10 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 1,
-          "p95": 5.300000004470348,
-          "min": 0.6000000014901161,
-          "max": 5.300000004470348
+          "median": 3,
+          "p95": 5.5,
+          "min": 0.7000000029802322,
+          "max": 5.5
         },
         "reconstructionHostMs": {
           "samples": 10,
@@ -399,17 +399,17 @@
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 0.19500800000000001,
-          "p95": 0.200448,
-          "min": 0.193824,
-          "max": 0.200448
+          "median": 0.19456,
+          "p95": 0.199136,
+          "min": 0.194176,
+          "max": 0.199136
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.214,
-          "p95": 0.219552,
-          "min": 0.21248,
-          "max": 0.219552
+          "median": 0.214336,
+          "p95": 0.217792,
+          "min": 0.213088,
+          "max": 0.217792
         },
         "reconstructionActive": true,
         "radiusTexels": 6,
@@ -418,7 +418,7 @@
         "renderExtent": "960x540",
         "texels": 518400,
         "reconstructionWorkgroups": 8100,
-        "reconstructionRatio": 0.9129864451246174
+        "reconstructionRatio": 0.9114208633093525
       }
     },
     {
@@ -435,10 +435,10 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 1.449999999254942,
-          "p95": 5,
-          "min": 0.6000000014901161,
-          "max": 5
+          "median": 1.3500000014901161,
+          "p95": 5.299999997019768,
+          "min": 0.7000000029802322,
+          "max": 5.299999997019768
         },
         "reconstructionHostMs": {
           "samples": 10,
@@ -456,10 +456,10 @@
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.031776,
-          "p95": 0.032928,
-          "min": 0.02928,
-          "max": 0.032928
+          "median": 0.030608,
+          "p95": 0.034528,
+          "min": 0.029824,
+          "max": 0.034528
         },
         "reconstructionActive": false,
         "radiusTexels": 0,
@@ -485,31 +485,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 2.350000001490116,
-          "p95": 5,
-          "min": 0.9000000059604645,
-          "max": 5
+          "median": 4.199999999254942,
+          "p95": 14.699999995529652,
+          "min": 1,
+          "max": 14.699999995529652
         },
         "reconstructionHostMs": {
           "samples": 10,
-          "median": 0,
+          "median": 0.10000000149011612,
           "p95": 0.19999999552965164,
           "min": 0,
           "max": 0.19999999552965164
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 0.06776,
-          "p95": 0.070016,
-          "min": 0.067328,
-          "max": 0.070016
+          "median": 0.067712,
+          "p95": 0.072864,
+          "min": 0.066272,
+          "max": 0.072864
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.100832,
-          "p95": 0.10307199999999998,
-          "min": 0.097888,
-          "max": 0.10307199999999998
+          "median": 0.09889600000000001,
+          "p95": 0.101248,
+          "min": 0.09584,
+          "max": 0.101248
         },
         "reconstructionActive": true,
         "radiusTexels": 2,
@@ -518,7 +518,7 @@
         "renderExtent": "1280x720",
         "texels": 921600,
         "reconstructionWorkgroups": 14400,
-        "reconstructionRatio": 0.6861030126336249
+        "reconstructionRatio": 0.683944374209861
       }
     },
     {
@@ -535,31 +535,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 2.600000001490116,
-          "p95": 6.600000001490116,
-          "min": 0.7999999970197678,
-          "max": 6.600000001490116
+          "median": 1.3999999985098839,
+          "p95": 6.0999999940395355,
+          "min": 0.8999999985098839,
+          "max": 6.0999999940395355
         },
         "reconstructionHostMs": {
           "samples": 10,
-          "median": 0.10000000149011612,
-          "p95": 0.20000000298023224,
+          "median": 0.09999999776482582,
+          "p95": 0.10000000149011612,
           "min": 0,
-          "max": 0.20000000298023224
+          "max": 0.10000000149011612
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 0.17166399999999998,
-          "p95": 0.326016,
-          "min": 0.17024,
-          "max": 0.326016
+          "median": 0.17048,
+          "p95": 0.177216,
+          "min": 0.169696,
+          "max": 0.177216
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.202752,
-          "p95": 0.35968,
-          "min": 0.20140799999999998,
-          "max": 0.35968
+          "median": 0.20056000000000002,
+          "p95": 0.20716800000000002,
+          "min": 0.19904,
+          "max": 0.20716800000000002
         },
         "reconstructionActive": true,
         "radiusTexels": 4,
@@ -568,7 +568,7 @@
         "renderExtent": "1280x720",
         "texels": 921600,
         "reconstructionWorkgroups": 14400,
-        "reconstructionRatio": 0.852151818326187
+        "reconstructionRatio": 0.8489815404201145
       }
     },
     {
@@ -585,31 +585,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 4.549999997019768,
-          "p95": 5.799999997019768,
-          "min": 3.100000001490116,
-          "max": 5.799999997019768
+          "median": 4.100000001490116,
+          "p95": 7.100000001490116,
+          "min": 1.4000000059604645,
+          "max": 7.100000001490116
         },
         "reconstructionHostMs": {
           "samples": 10,
-          "median": 0.05000000074505806,
-          "p95": 0.19999999552965164,
+          "median": 0.09999999776482582,
+          "p95": 0.20000000298023224,
           "min": 0,
-          "max": 0.19999999552965164
+          "max": 0.20000000298023224
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 0.5490079999999999,
-          "p95": 0.724128,
-          "min": 0.547744,
-          "max": 0.724128
+          "median": 0.5486880000000001,
+          "p95": 0.550944,
+          "min": 0.547584,
+          "max": 0.550944
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.578848,
-          "p95": 0.755776,
-          "min": 0.5767680000000001,
-          "max": 0.755776
+          "median": 0.579456,
+          "p95": 0.582784,
+          "min": 0.577408,
+          "max": 0.582784
         },
         "reconstructionActive": true,
         "radiusTexels": 8,
@@ -618,7 +618,7 @@
         "renderExtent": "1280x720",
         "texels": 921600,
         "reconstructionWorkgroups": 14400,
-        "reconstructionRatio": 0.9496782068353306
+        "reconstructionRatio": 0.9429687070340428
       }
     },
     {
@@ -635,10 +635,10 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 1.0999999977648258,
-          "p95": 4.200000002980232,
-          "min": 0.8999999985098839,
-          "max": 4.200000002980232
+          "median": 1.2999999970197678,
+          "p95": 5.899999998509884,
+          "min": 1,
+          "max": 5.899999998509884
         },
         "reconstructionHostMs": {
           "samples": 10,
@@ -656,10 +656,10 @@
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.096272,
-          "p95": 0.097248,
-          "min": 0.09459200000000001,
-          "max": 0.097248
+          "median": 0.096048,
+          "p95": 0.097312,
+          "min": 0.088896,
+          "max": 0.097312
         },
         "reconstructionActive": false,
         "radiusTexels": 0,
@@ -685,31 +685,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 1.1500000022351742,
-          "p95": 4.799999997019768,
-          "min": 0.6999999955296516,
-          "max": 4.799999997019768
+          "median": 4.75,
+          "p95": 6.100000001490116,
+          "min": 1.5,
+          "max": 6.100000001490116
         },
         "reconstructionHostMs": {
           "samples": 10,
           "median": 0,
-          "p95": 0.19999999552965164,
+          "p95": 0.10000000149011612,
           "min": 0,
-          "max": 0.19999999552965164
+          "max": 0.10000000149011612
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 0.243296,
-          "p95": 0.395552,
-          "min": 0.242144,
-          "max": 0.395552
+          "median": 0.24368,
+          "p95": 0.395872,
+          "min": 0.242816,
+          "max": 0.395872
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.330304,
-          "p95": 0.477344,
-          "min": 0.321888,
-          "max": 0.477344
+          "median": 0.331824,
+          "p95": 0.488736,
+          "min": 0.32927999999999996,
+          "max": 0.488736
         },
         "reconstructionActive": true,
         "radiusTexels": 3,
@@ -718,7 +718,7 @@
         "renderExtent": "1920x1080",
         "texels": 2073600,
         "reconstructionWorkgroups": 32400,
-        "reconstructionRatio": 0.7425365853658538
+        "reconstructionRatio": 0.7381382523533326
       }
     },
     {
@@ -735,31 +735,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 4.449999999254942,
-          "p95": 5.100000001490116,
-          "min": 3.100000001490116,
-          "max": 5.100000001490116
+          "median": 4.849999997764826,
+          "p95": 6.100000001490116,
+          "min": 3.5999999940395355,
+          "max": 6.100000001490116
         },
         "reconstructionHostMs": {
           "samples": 10,
-          "median": 0,
+          "median": 0.04999999701976776,
           "p95": 0.10000000149011612,
           "min": 0,
           "max": 0.10000000149011612
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 0.711472,
-          "p95": 0.752064,
-          "min": 0.709472,
-          "max": 0.752064
+          "median": 0.712016,
+          "p95": 0.904672,
+          "min": 0.710432,
+          "max": 0.904672
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.799104,
-          "p95": 0.841472,
-          "min": 0.795616,
-          "max": 0.841472
+          "median": 0.802272,
+          "p95": 0.995488,
+          "min": 0.798528,
+          "max": 0.995488
         },
         "reconstructionActive": true,
         "radiusTexels": 6,
@@ -768,7 +768,7 @@
         "renderExtent": "1920x1080",
         "texels": 2073600,
         "reconstructionWorkgroups": 32400,
-        "reconstructionRatio": 0.8922638632533505
+        "reconstructionRatio": 0.8913601025887633
       }
     },
     {
@@ -785,31 +785,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 4.50000000372529,
-          "p95": 6.700000002980232,
-          "min": 3.7999999970197678,
-          "max": 6.700000002980232
+          "median": 4.600000001490116,
+          "p95": 5.699999995529652,
+          "min": 3.600000001490116,
+          "max": 5.699999995529652
         },
         "reconstructionHostMs": {
           "samples": 10,
-          "median": 0.05000000074505806,
-          "p95": 0.20000000298023224,
+          "median": 0.10000000149011612,
+          "p95": 0.10000000149011612,
           "min": 0,
-          "max": 0.20000000298023224
+          "max": 0.10000000149011612
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 2.69056,
-          "p95": 2.883968,
-          "min": 2.4808,
-          "max": 2.883968
+          "median": 2.934896,
+          "p95": 3.132672,
+          "min": 2.682592,
+          "max": 3.132672
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 2.779664,
-          "p95": 2.9638079999999998,
-          "min": 2.572768,
-          "max": 2.9638079999999998
+          "median": 3.0273440000000003,
+          "p95": 3.224512,
+          "min": 2.773696,
+          "max": 3.224512
         },
         "reconstructionActive": true,
         "radiusTexels": 12,
@@ -818,7 +818,7 @@
         "renderExtent": "1920x1080",
         "texels": 2073600,
         "reconstructionWorkgroups": 32400,
-        "reconstructionRatio": 0.9651987137305539
+        "reconstructionRatio": 0.967322937637197
       }
     },
     {
@@ -835,10 +835,10 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 1.050000000745058,
-          "p95": 3.8000000044703484,
-          "min": 0.7999999970197678,
-          "max": 3.8000000044703484
+          "median": 1.2999999970197678,
+          "p95": 1.8999999985098839,
+          "min": 1.1000000014901161,
+          "max": 1.8999999985098839
         },
         "reconstructionHostMs": {
           "samples": 10,
@@ -856,10 +856,10 @@
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.186224,
-          "p95": 0.191328,
-          "min": 0.18511999999999998,
-          "max": 0.191328
+          "median": 0.187552,
+          "p95": 0.188864,
+          "min": 0.18585600000000002,
+          "max": 0.188864
         },
         "reconstructionActive": false,
         "radiusTexels": 0,
@@ -885,31 +885,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 4.799999997019768,
-          "p95": 5.800000004470348,
-          "min": 4.299999997019768,
-          "max": 5.800000004470348
+          "median": 4.5,
+          "p95": 5,
+          "min": 3.100000001490116,
+          "max": 5
         },
         "reconstructionHostMs": {
           "samples": 10,
-          "median": 0,
+          "median": 0.04999999701976776,
           "p95": 0.10000000149011612,
           "min": 0,
           "max": 0.10000000149011612
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 0.647952,
-          "p95": 0.649344,
-          "min": 0.64608,
-          "max": 0.649344
+          "median": 0.6551199999999999,
+          "p95": 0.656864,
+          "min": 0.652992,
+          "max": 0.656864
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.832832,
-          "p95": 0.8347199999999999,
-          "min": 0.830848,
-          "max": 0.8347199999999999
+          "median": 0.843248,
+          "p95": 1.054368,
+          "min": 0.838304,
+          "max": 1.054368
         },
         "reconstructionActive": true,
         "radiusTexels": 4,
@@ -918,7 +918,7 @@
         "renderExtent": "2560x1440",
         "texels": 3686400,
         "reconstructionWorkgroups": 57600,
-        "reconstructionRatio": 0.7779954669432599
+        "reconstructionRatio": 0.7789441539107531
       }
     },
     {
@@ -935,31 +935,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 4.349999997764826,
-          "p95": 6.9000000059604645,
-          "min": 3.5,
-          "max": 6.9000000059604645
+          "median": 4.350000001490116,
+          "p95": 6,
+          "min": 3.6999999955296516,
+          "max": 6
         },
         "reconstructionHostMs": {
           "samples": 10,
-          "median": 0,
+          "median": 0.10000000149011612,
           "p95": 0.10000000149011612,
           "min": 0,
           "max": 0.10000000149011612
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 2.312096,
-          "p95": 2.65824,
-          "min": 2.0864,
-          "max": 2.65824
+          "median": 2.362608,
+          "p95": 2.66608,
+          "min": 2.270912,
+          "max": 2.66608
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 2.504496,
-          "p95": 2.851648,
-          "min": 2.2718079999999996,
-          "max": 2.851648
+          "median": 2.556064,
+          "p95": 2.859136,
+          "min": 2.45888,
+          "max": 2.859136
         },
         "reconstructionActive": true,
         "radiusTexels": 8,
@@ -968,7 +968,7 @@
         "renderExtent": "2560x1440",
         "texels": 3686400,
         "reconstructionWorkgroups": 57600,
-        "reconstructionRatio": 0.9241972231662954
+        "reconstructionRatio": 0.9227692946920121
       }
     },
     {
@@ -985,31 +985,31 @@
       "metrics": {
         "wallMs": {
           "samples": 10,
-          "median": 10.25,
-          "p95": 12,
-          "min": 9,
-          "max": 12
+          "median": 10.349999997764826,
+          "p95": 13.199999995529652,
+          "min": 9.299999997019768,
+          "max": 13.199999995529652
         },
         "reconstructionHostMs": {
           "samples": 10,
-          "median": 0.09999999776482582,
-          "p95": 0.10000000149011612,
+          "median": 0,
+          "p95": 0.20000000298023224,
           "min": 0,
-          "max": 0.10000000149011612
+          "max": 0.20000000298023224
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 8.177744,
-          "p95": 8.45216,
-          "min": 7.819264,
-          "max": 8.45216
+          "median": 8.499103999999999,
+          "p95": 9.038112,
+          "min": 8.3504,
+          "max": 9.038112
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 8.381136000000001,
-          "p95": 8.645503999999999,
-          "min": 8.010848000000001,
-          "max": 8.645503999999999
+          "median": 8.741664,
+          "p95": 9.229792,
+          "min": 8.535552,
+          "max": 9.229792
         },
         "reconstructionActive": true,
         "radiusTexels": 16,
@@ -1018,7 +1018,7 @@
         "renderExtent": "2560x1440",
         "texels": 3686400,
         "reconstructionWorkgroups": 57600,
-        "reconstructionRatio": 0.9772764408370476
+        "reconstructionRatio": 0.9792580200602841
       }
     },
     {
@@ -1035,38 +1035,38 @@
       "metrics": {
         "shadowGpuTimestampMs": {
           "samples": 10,
-          "median": 0.038384,
-          "p95": 0.047584,
-          "min": 0.036864,
-          "max": 0.047584
+          "median": 0.037968,
+          "p95": 0.04752,
+          "min": 0.037568,
+          "max": 0.04752
         },
         "reconstructionGpuTimestampMs": {
           "samples": 10,
-          "median": 0.004144,
-          "p95": 0.004416,
-          "min": 0.004032,
-          "max": 0.004416
+          "median": 0.004128,
+          "p95": 0.00432,
+          "min": 0.004096,
+          "max": 0.00432
         },
         "gpuTimestampMs": {
           "samples": 10,
-          "median": 0.084368,
-          "p95": 0.09136,
-          "min": 0.081888,
-          "max": 0.09136
+          "median": 0.083776,
+          "p95": 0.093888,
+          "min": 0.07999999999999999,
+          "max": 0.093888
         },
         "hostMs": {
           "samples": 10,
           "median": 0.29999999701976776,
-          "p95": 0.3999999985098839,
+          "p95": 0.5,
           "min": 0.19999999552965164,
-          "max": 0.3999999985098839
+          "max": 0.5
         },
         "wallMs": {
           "samples": 10,
-          "median": 4.149999994784594,
-          "p95": 5.899999998509884,
-          "min": 1,
-          "max": 5.899999998509884
+          "median": 2.850000001490116,
+          "p95": 6.4000000059604645,
+          "min": 0.8999999985098839,
+          "max": 6.4000000059604645
         },
         "submissions": 6,
         "dispatches": 9,
@@ -1082,5 +1082,5 @@
     "suite reconstruction start",
     "suite reconstruction done"
   ],
-  "workingTreeDirty": true
+  "workingTreeDirty": false
 }
