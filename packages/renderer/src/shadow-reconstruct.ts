@@ -188,13 +188,40 @@ export const RING_EDGE_TRANSITIONS = 2;
  */
 export const RING_EDGE_MIN_ARC = 3;
 
+/**
+ * Return the two run lengths of a binary 8-element cyclic ring when it has
+ * exactly two transitions. The scan starts immediately after a transition,
+ * so each ring element is counted exactly once and no wrap edge is counted
+ * as an additional element. Other ring topologies return `null`.
+ */
+export function hardRingArcLengths(ringSide: readonly boolean[]): [number, number] | null {
+  if (ringSide.length !== 8) {
+    return null;
+  }
+  let transitions = 0;
+  let start = 0;
+  for (let i = 0; i < 8; i++) {
+    if (ringSide[i] !== ringSide[(i + 7) % 8]) {
+      transitions += 1;
+      start = i;
+    }
+  }
+  if (transitions !== RING_EDGE_TRANSITIONS) {
+    return null;
+  }
+  let arcA = 1;
+  while (arcA < 8 && ringSide[(start + arcA) % 8] === ringSide[start]) {
+    arcA += 1;
+  }
+  return [arcA, 8 - arcA];
+}
+
 /** Public reconstruction controls (#43): deliberately minimal. */
 export interface ShadowReconstructionOptions {
   /**
-   * Master switch (default TRUE): the reconstructed field is consumed by
-   * lighting/presentation whenever the shadow pass ran the SOFT path.
-   * `false` (or a hard-path frame) bypasses the stage — the raw #41 field is
-   * consumed directly and presentation bytes stay the unfiltered #41 ones.
+   * Master switch (default TRUE). When enabled with an effective radius above
+   * zero, soft shadows use bilateral reconstruction and hard shadows use ring
+   * refinement. `false` bypasses both and consumes raw visibility directly.
    */
   enabled?: boolean;
   /**
@@ -281,7 +308,7 @@ export function sanitizeReconstructionOptions(
 /**
  * Edge-aware reconstruction of the raw #41 visibility field (CPU reference).
  * For every texel the gated box average over the `(2r+1)^2` neighborhood
- * runs in FIXED row-major declaration order with uniform weights, mirroring
+ * runs in FIXED row-major declaration order with value-bilateral weights, mirroring
  * the WGSL loop tap-for-tap (same taps, same gate comparisons, same f32
  * sum order). The CPU accumulates in f64 and rounds the final quotient to
  * f32 once; the GPU accumulates/divides in f32 — see the module doc for the
@@ -393,27 +420,9 @@ export function refineHardEdgeVisibility(rawVisibility: HostBuffer): HostBuffer 
       for (let i = 0; i < 8; i++) {
         ringSide.push(rawVisibility.get(x + ringDX[i], y + ringDY[i], 0) >= 0.5);
       }
-      let transitions = 0;
-      const arcs: number[] = [];
-      let run = 1;
-      for (let i = 0; i < 8; i++) {
-        const next = ringSide[(i + 1) % 8];
-        if (next !== ringSide[i]) {
-          transitions += 1;
-          arcs.push(run);
-          run = 1;
-        } else {
-          run += 1;
-        }
-      }
-      // `run` holds the final arc's length. A wrap continuation of arcs[0]
-      // double-counts index 0 exactly once (it is the arc's first element
-      // AND the wrap target), hence the -1; without a wrap transition the
-      // final run is its own arc and nothing merges.
-      arcs[0] += run - (ringSide[7] === ringSide[0] ? 1 : 0);
+      const arcs = hardRingArcLengths(ringSide);
       const edgeLike =
-        transitions === RING_EDGE_TRANSITIONS &&
-        arcs.length === RING_EDGE_TRANSITIONS &&
+        arcs !== null &&
         Math.min(arcs[0], arcs[1]) >= RING_EDGE_MIN_ARC;
       if (!edgeLike) {
         out.set(x, y, 0, raw);

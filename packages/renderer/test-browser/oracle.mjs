@@ -608,7 +608,7 @@ export function createOracle(api) {
    * a TIGHT NUMERIC TOLERANCE plus a strict domain audit:
    *
    * - every GPU value must be finite and inside [0, 1]
-   * - `abs(gpu - oracle) <= RECONSTRUCTION_VISIBILITY_TOLERANCE` (1e-6,
+   * - `abs(gpu - oracle) <= RECONSTRUCTION_VISIBILITY_TOLERANCE` (2e-6,
    *   roughly 16-30 f32 ulp of the [0,1] range — far below any perceptual
    *   threshold, chosen after the ULP evidence of the f32-accumulation
    *   simulation in shadow-reconstruct.test.ts, which measures 0 ulp for the
@@ -618,7 +618,7 @@ export function createOracle(api) {
    *   fixture result so regressions surface even when they stay under the
    *   tolerance.
    */
-  const RECONSTRUCTION_VISIBILITY_TOLERANCE = 1e-6;
+  const RECONSTRUCTION_VISIBILITY_TOLERANCE = 2e-6;
 
   /** IEEE f32 ULP of a normalized value (all reconstruction values are in
    * [0, 1], so the exponent-based definition is exact for them). */
@@ -1072,10 +1072,9 @@ export function createOracle(api) {
       Math.fround(scene.light.angularRadius ?? 0) > 0 &&
       (effectiveShadowOptions.samples ?? 8) > 1;
     const reconOptions = sanitizeReconstructionOptions(reconstructionOptions ?? {}, Math.fround(dpr));
-    // the exact pipeline decision: the soft halo is the sanitized texel
-    // radius, the hard ring halo is fixed at 1 texel
-    const reconReadRadiusTexels = softActive ? reconOptions.radiusTexels : 1;
-    const reconActive = reconOptions.enabled && reconReadRadiusTexels > 0;
+    // enabled=false or an effective configured radius of zero bypasses both
+    // modes. Once active, the soft halo uses that radius and hard uses 1.
+    const reconActive = reconOptions.enabled && reconOptions.radiusTexels > 0;
     const visibility = !reconActive
       ? rawVisibility
       : reconstructionOracle(
@@ -1144,7 +1143,7 @@ export function createOracle(api) {
    * shadows.
    *
    * The reconstructed visibility is NOT dyadic and carries a documented
-   * cross-backend tolerance (`RECONSTRUCTION_VISIBILITY_TOLERANCE`, 1e-6),
+   * cross-backend tolerance (`RECONSTRUCTION_VISIBILITY_TOLERANCE`, 2e-6),
    * so every byte it feeds through the premultiplied compositor must sit
    * FAR enough from an 8-bit rounding boundary (.5 in byte space), or two
    * legal backends legitimately land one byte apart and the exact-alpha
@@ -1164,7 +1163,7 @@ export function createOracle(api) {
    * A fixture is PORTABLE only when `minMargin` exceeds the legal drift by
    * `REQUIRED_SAFETY_FACTOR` (16x) AND stays above the absolute floor
    * `MARGIN_FLOOR` (1e-3 byte units). The factor is evidence-based, not
-   * arbitrary: the drift bound already scales the f32-level tolerance (1e-6
+   * arbitrary: the drift bound already scales the f32-level tolerance (2e-6
    * ~= 16-30 ulp of [0,1]) linearly into byte space, and the 16x headroom
    * guarantees that even a worst-case legal-backend deviation (bounded by
    * the tolerance) can never cross a rounding boundary while remaining far

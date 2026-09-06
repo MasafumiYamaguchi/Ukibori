@@ -320,7 +320,7 @@ height -> per-pixel ray march toward the light -> hard 0/1 visibility mask
     in CSS space.
 - Cross-backend parity: RAW #41 visibility keeps its exact dyadic
   zero-tolerance contract on both backends. SOFT reconstructed visibility
-  uses a SEPARATE documented tight tolerance (|diff| <= 1e-6, finite,
+  uses a SEPARATE documented portable tolerance (|diff| <= 2e-6, finite,
   [0, 1]) — the value-weighted quotient `sum(w*v) / sum(w)` is not dyadic,
   so bit-identity is never promised for it (the browser harness reports
   measured max abs/ULP errors). HARD refined visibility is exact dyadic

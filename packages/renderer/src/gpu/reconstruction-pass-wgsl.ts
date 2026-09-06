@@ -214,32 +214,26 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
       let ny = i32(ty) + ringDY[i];
       ringSide[i] = inRawVisibility[u32(ny) * params.width + u32(nx)] >= 0.5;
     }
-    // Count the cyclic ring transitions and the two same-side arc lengths.
+    // Count transitions, remembering a canonical start immediately after a
+    // transition. The subsequent linear run counts all 8 ring elements once;
+    // the cyclic wrap edge is never mistaken for a ninth element.
     var transitions = 0u;
-    var arcA = 0;
-    var arcB = 0;
-    var run = 1;
+    var start = 0u;
     for (var i = 0u; i < 8u; i += 1u) {
-      let next = ringSide[(i + 1u) % 8u];
-      if (next != ringSide[i]) {
-        if (transitions == 0u) {
-          arcA = run;
-        } else if (transitions == 1u) {
-          arcB = run;
-        }
+      let previous = ringSide[(i + 7u) % 8u];
+      if (ringSide[i] != previous) {
         transitions = transitions + 1u;
-        run = 1;
-      } else {
-        run = run + 1;
+        start = i;
       }
     }
-    // 'run' holds the final arc's length; a wrap continuation of arcA
-    // double-counts index 0 exactly once (it is arcA's first element AND
-    // the wrap target), hence the -1; without a wrap transition the final
-    // run is its own arc and nothing merges (the transitions == 2 guard
-    // below rejects everything else).
-    let mergedA = arcA + run - select(0, 1, ringSide[7] == ringSide[0]);
-    if (transitions == RING_EDGE_TRANSITIONS && min(mergedA, arcB) >= RING_EDGE_MIN_ARC) {
+    var arcA = 1;
+    if (transitions == RING_EDGE_TRANSITIONS) {
+      while (arcA < 8 && ringSide[(start + u32(arcA)) % 8u] == ringSide[start]) {
+        arcA = arcA + 1;
+      }
+    }
+    let arcB = 8 - arcA;
+    if (transitions == RING_EDGE_TRANSITIONS && min(arcA, arcB) >= RING_EDGE_MIN_ARC) {
       outReconstructed[g] = clamp(hardBinomial(tx, ty), 0.0, 1.0);
     } else {
       outReconstructed[g] = clamp(inRawVisibility[g], 0.0, 1.0);

@@ -1,4 +1,4 @@
-﻿import {
+import {
   GPU_USAGE_COPY_DST,
   GPU_USAGE_COPY_SRC,
   GPU_USAGE_STORAGE,
@@ -390,8 +390,8 @@ export class ReconstructionPass {
       allocationCount: this.allocations.size,
       totalAllocationBytes: sumOf(this.allocationSizes),
       // #43 review: report the workgroup count THIS invocation actually
-      // dispatched 窶・ceil(bandTexels / WORKGROUP_SIZE) on a partial band,
-      // ceil(fullTexels / WORKGROUP_SIZE) on a full frame 窶・matching
+      // dispatched —ceil(bandTexels / WORKGROUP_SIZE) on a partial band,
+      // ceil(fullTexels / WORKGROUP_SIZE) on a full frame —matching
       // `lastDispatch.workgroupCountX` and the other field passes'
       // semantics (the LOGICAL total for a band; on a limit-split chunked
       // frame the chunks tile the band and this is the documented total,
@@ -659,7 +659,7 @@ export class ReconstructionPass {
 
 /**
  * Build the narrow visibility binding consumed by `LightingPass` from the
- * reconstruction snapshot 窶・the exact reconstructed buffer with the
+ * reconstruction snapshot —the exact reconstructed buffer with the
  * propagated per-HeightPass-dispatch provenance token. The pipeline uses
  * this builder exactly when reconstruction is ACTIVE for the frame; a
  * bypassed frame keeps consuming the raw shadow output through

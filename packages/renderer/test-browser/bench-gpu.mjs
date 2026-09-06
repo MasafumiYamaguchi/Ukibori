@@ -1131,6 +1131,46 @@ async function suiteReconstruction() {
       }
     }
   }
+  // #53 hard ring-rule measurement. Unlike the soft radius sweep above,
+  // this records both ShadowPass and the fixed 3x3 hard ReconstructionPass
+  // timestamps plus complete frame/host/wall and resource counters.
+  {
+    const hardScene = sceneFor(() => simpleRoundedRectScene({ width: WIDTH, height: HEIGHT }));
+    const { canvas, context, canvasFormat } = makeCanvas();
+    const pipeline = new api.GpuScenePipeline(device, context, canvasFormat);
+    const activeOptions = { samples: 8, maxDistance: 200, stepSize: 0.5, bias: 0.5, reconstruction: { enabled: true, radius: 2 } };
+    try {
+      const series = await benchUpdateFrame(
+        pipeline,
+        { scene: hardScene, dpr: 1, shadowOptions: activeOptions },
+        { scene: hardScene, dpr: 1, shadowOptions: activeOptions, debugForceFull: true },
+        { warmups: WARMUP, sampleCount: SAMPLES },
+      );
+      const first = series[0];
+      const snap = pipeline.getSnapshot();
+      pushCase(
+        "reconstruction/hard-ring/dpr-1",
+        { suite: "reconstruction", mode: "hard-ring", dpr: 1, radius: 2, resolution: `${WIDTH}x${HEIGHT}`, warmups: WARMUP, samples: SAMPLES },
+        {
+          shadowGpuTimestampMs: summarizeSeries(gpuSeriesOf(series, (r) => r.gpuTiming?.passGpuMs?.shadow)),
+          reconstructionGpuTimestampMs: summarizeSeries(gpuSeriesOf(series, (r) => r.gpuTiming?.passGpuMs?.reconstruction)),
+          gpuTimestampMs: totalGpuSummary(series),
+          hostMs: summarizeSeries(series.map((r) => r.stats.frame.hostMs)),
+          wallMs: summarizeSeries(series.map((r) => r.wallMs)),
+          submissions: first.stats.frame.submissions,
+          dispatches: first.stats.frame.dispatchCount,
+          newAllocations: first.stats.frame.newAllocations,
+          allocationCount: first.stats.reconstruction.allocationCount,
+          storageBytes: first.stats.reconstruction.totalAllocationBytes,
+          renderExtent: `${first.stats.renderWidth}x${first.stats.renderHeight}`,
+          reconstructionWorkgroups: snap.reconstructionPass?.lastDispatch.workgroupCountX ?? null,
+        },
+      );
+    } finally {
+      pipeline.dispose();
+      canvas.remove();
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------

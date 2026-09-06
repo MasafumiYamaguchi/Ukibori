@@ -618,9 +618,10 @@ export class GpuScenePipeline {
     );
     // #53 effective read radius of the display-field stage (halo + partial
     // region expansion): the soft bilateral filter's texel radius, or the
-    // hard refinement's fixed 1-texel ring.
+    // hard refinement's fixed 1-texel ring. A zero effective configured
+    // radius bypasses either mode before this mode-specific read radius is used.
+    const reconstructionActive = reconEffective.enabled && reconEffective.radiusTexels > 0;
     const reconReadRadiusTexels = softShadowActive ? reconEffective.radiusTexels : 1;
-    const reconstructionActive = reconEffective.enabled && reconReadRadiusTexels > 0;
     // #43 partial-recompute halo: when the reconstruction filter is active on
     // a PARTIAL frame, its output — and therefore the shading that consumes
     // it — must be recomputed for the band EXPANDED by the texel radius on

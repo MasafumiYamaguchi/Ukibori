@@ -1,4 +1,4 @@
-﻿// #30 golden fixture catalog.
+// #30 golden fixture catalog.
 //
 // The single source of truth for the parity fixture set. Every fixture has a
 // STABLE ID and explicit metadata:
@@ -95,7 +95,7 @@ export const POLICY_TABLE = Object.freeze([
   {
     buffer: "visibility-reconstructed",
     policy: "reconstructed-abs-tolerance",
-    tolerance: 1e-6,
+    tolerance: 2e-6,
     description:
       "#43/#53 SOFT-mode reconstructed visibility: SEPARATE tight policy from " +
       "raw #41. The value-bilateral weighted quotient sum(w*v)/sum(w) is NOT " +
@@ -103,7 +103,8 @@ export const POLICY_TABLE = Object.freeze([
       "CPU's exact f64 quotient rounded to f32 once and the GPU's f32 " +
       "accumulation must NOT be promised bit-identical across legal WebGPU " +
       "backends. Every value must be finite and inside [0,1] with " +
-      "|gpu - cpu| <= 1e-6 (~16-30 f32 ulp —evidence-driven; the ULP " +
+      "|gpu - cpu| <= 2e-6 (portable exp() variance margin; measured max " +
+      "9.537e-7 / 16 ULP on the local real adapter; the ULP " +
       "simulation measures the true f32-vs-f64 rounding delta and the " +
       "headroom covers backend division rounding); max abs/ULP errors are " +
       "reported so regressions surface even under the tolerance.",

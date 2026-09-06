@@ -20,7 +20,7 @@ import type { WasmSelectionReport } from "./selection";
  *   composeSdfHeightField (TypeScript oracle)
  *        -> WASM normal kernel (the ONLY WASM stage)
  *        -> computeVisibility (TypeScript oracle)
- *        -> reconstructVisibility (#43 oracle; bypassed on hard frames)
+ *        -> soft bilateral reconstruction / hard ring refinement (#43/#53)
  *        -> shadePreparedFields (TypeScript oracle)
  * ```
  *
@@ -168,10 +168,11 @@ export class WasmCpuPipeline {
       sanitizeAngularRadius(
         typeof scene.light.angularRadius === "number" ? scene.light.angularRadius : undefined,
       ) > 0 && sanitizeShadowSamples(shadowOptions.samples) > 1;
-    const reconstructionEnabled = sanitizeReconstructionOptions(
+    const reconstruction = sanitizeReconstructionOptions(
       shadowOptions.reconstruction,
-    ).enabled;
-    const reconstructedVisibility = !reconstructionEnabled
+    );
+    const reconstructionActive = reconstruction.enabled && reconstruction.radiusTexels > 0;
+    const reconstructedVisibility = !reconstructionActive
       ? visibility
       : softActive
         ? reconstructVisibility(visibility, composed.height, {

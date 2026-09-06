@@ -558,6 +558,20 @@ describe("#43 lightScene reconstruction consumption (CPU oracle semantics)", () 
         expect(disabled.visibility!.get(x, y, 0)).toBe(softRaw.raw.get(x, y, 0));
       }
     }
+    for (const [scene, raw, samples] of [
+      [hardScene, hardRaw.raw, 1],
+      [hardScene, hardRaw.raw, 8],
+      [softScene, softRaw.raw, 8],
+    ] as const) {
+      const radiusZero = lightScene(scene, {
+        shadow: { samples, reconstruction: { enabled: true, radius: 0 } },
+      });
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          expect(radiusZero.visibility!.get(x, y, 0)).toBe(raw.get(x, y, 0));
+        }
+      }
+    }
   });
 });
 

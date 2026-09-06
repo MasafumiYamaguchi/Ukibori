@@ -7,7 +7,7 @@
 // (hard exact {0,1}, soft dyadic k/n), so the cause analysis runs in Node:
 // for every (scenario, variant, dpr) it renders
 //
-//   raw visibility  ->  reconstructed visibility (soft only)  ->  presented
+//   raw visibility -> soft bilateral / hard ring-refined visibility -> presented
 //   bytes (the production compositor helper, composited over white)
 //
 // and measures, along horizontal cuts crossing the shadow edge:

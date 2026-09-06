@@ -129,7 +129,7 @@ partial/forced-full e2e rows reflect the extra hard-path submission.
   `-hard-mask-caster`, `-hard-thin-caster`, `-hard-dpr2`, exact zero
   tolerance via the `visibility-reconstructed-hard` policy) and the new
   `present-reconstructed-hard` canvas fixture. Soft recon: 0/4800 mismatches
-  (max abs 9.5e-7, max ulp 16 — inside the documented 1e-6).
+  (max abs 9.5e-7, max ulp 16 — inside the portable 2e-6 tolerance).
 - DOM/React: `ukibori-dom` 126/126, `ukibori` 196/196 (submit-count pins
   updated), `UKIBORI_DOM_GPU_PASS` (real adapter, dpr 1/1.5/2).
 - CPU goldens: present-canvas digests regenerated via
@@ -150,7 +150,7 @@ partial/forced-full e2e rows reflect the extra hard-path submission.
   through the DPR exactly once). ✓
 - Scheduling: fresh/retained/partial/forced-full byte equality (0 problems). ✓
 - Numerical: finite/[0,1] enforced; hard dyadic k/16 exact (zero tolerance);
-  soft within the documented 1e-6. ✓
+  soft within the documented 2e-6. ✓
 - Forbidden changes: none made (§4). ✓
 - Performance: measured before/after (§7); no sample/radius/stepSize
   increases. ✓
@@ -167,3 +167,74 @@ partial/forced-full e2e rows reflect the extra hard-path submission.
   canvas fixture (cheap: binary ring walk).
 - The rejected candidates' PPM artifacts are not committed (metrics only,
   in summary.json).
+## PR #55 review corrections (2026-09-06)
+
+### A. Ring-rule bug
+
+- **Root cause:** the old cyclic loop counted the wrap edge as part of `run` and then appended that run to the first arc even when ring index 7 -> 0 was a transition.
+- **Old behavior:** `TTFFFFFF` could be classified as 3/6 rather than 2/6, so a narrow feature could pass `RING_EDGE_MIN_ARC = 3` depending on rotation.
+- **New behavior:** CPU and WGSL choose a canonical start immediately after a transition, count the eight ring elements exactly once, and derive the second arc as `8 - firstArc`. Wrap continuation merges naturally; wrap transition never merges.
+- **Rotation/reflection invariance:** fixed tests cover all eight rotations and their reflections. 2/6 rejects in every orientation; 3/5 and 4/4 accept.
+- **CPU/WGSL parity:** both implementations use the same transition-count / canonical-start / eight-element run algorithm. Local real-WebGPU: 120 fixtures, 0 mismatches; hard reconstructed visibility remains exact dyadic k/16.
+
+### B. `radius = 0` semantics
+
+| Backend/path | Result |
+| --- | --- |
+| hard CPU | raw hard visibility consumed directly |
+| hard WASM | raw hard visibility consumed directly |
+| hard WebGPU | reconstruction inactive; zero dispatch/submission; raw binding consumed |
+| soft CPU | raw soft visibility consumed directly |
+| soft WASM | raw soft visibility consumed directly |
+| soft WebGPU | reconstruction inactive; zero dispatch/submission; raw binding consumed |
+
+The common gate is now `effective.enabled && effective.radiusTexels > 0`; `enabled = false` has the same bypass result. Tests cover hard samples 1/8, soft samples 8, positive/zero radius, stale-snapshot rejection, and partial scheduling.
+
+### C. GPU performance
+
+Local NVIDIA/Chrome real adapter, 640x360, DPR 1, hard shadow, ring refinement, 3 warmups + 10 samples:
+
+| case | ShadowPass median/p95 | Reconstruction median/p95 | Total GPU median/p95 | Host median/p95 | Wall median/p95 |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| hard ring | 0.0384 / 0.0476 ms | 0.00414 / 0.00442 ms | 0.0844 / 0.0914 ms | 0.300 / 0.400 ms | 4.15 / 5.90 ms |
+
+Counters: 6 submissions, 9 dispatches, 0 new allocations (2 retained allocations), 921,632 reconstruction allocation bytes. Evidence is stored in `packages/renderer/benchmark-results-issue-53-review.json` as `reconstruction/hard-ring/dpr-1`.
+
+### D. Soft numerical portability
+
+- **Tolerance:** 2e-6 for reconstructed soft visibility only. Raw visibility and hard reconstructed k/16 remain zero-tolerance.
+- **Measured max abs:** 9.5367431640625e-7 across 4,800 reconstructed texels on the local real adapter.
+- **Measured max ULP:** 16.
+- **Test matrix:** catalog soft reconstruction fixtures plus the real-WebGPU parity run (120 total fixtures), DPR 1/1.5/2 coverage, and CPU f32-accumulation adversarial evidence.
+- **Safety margin:** 2.097x over the measured maximum. This margin covers backend `exp()` variance; semantic/topology differences still fail separately and cannot hide under the tolerance.
+
+### E. CI
+
+- **PR CI:** the observed runs stop during workspace typecheck at `demo/src/scheduler-debug/SchedulerDebug.tsx` TS2366 and do not reach real-WebGPU.
+- **Master reproduction:** reproduced by GitHub Actions on master `03115b8a5380f656bdf25f2ea9503694161379fd`, run `33991169381`, at the same lines/errors. It is pre-existing and outside #53, so it was not changed here.
+- **Local real-WebGPU:** PASS, 120 fixtures / 85,133 scene texels, 0 mismatches; reconstructed soft max abs 9.537e-7 / 16 ULP.
+- **CI real-WebGPU:** not executed because typecheck failed first; no CI GPU result is claimed.
+
+### F. Verification
+
+- Renderer focused regression: 119/119. Full renderer: 968 tests passed; four pre-existing `.mjs` collection failures remain.
+- ukibori-dom: 126/126. ukibori: 196/196.
+- All package typechecks passed except the documented pre-existing demo TS2366; all four package builds passed.
+- CPU golden: 31 fixtures / 258 digests, no changes.
+- Local real-WebGPU and DOM real-WebGPU: PASS.
+- GPU benchmark subset: PASS, 21 reconstruction cases including hard timestamps.
+
+### G. Files cleaned
+
+BOM and/or mojibake were removed from:
+
+- `packages/renderer/src/gpu/pipeline.test.ts`
+- `packages/renderer/src/gpu/reconstruction-pass.ts`
+- `packages/renderer/src/lighting.ts`
+- `packages/renderer/test-browser/catalog.mjs`
+
+Changed source/test files were rechecked as UTF-8 without BOM and without the reported mojibake sequences.
+
+### H. PR metadata
+
+The PR body uses `Implements #53`; `Closes #53` was removed. The issue is not closed and the PR is not merged.

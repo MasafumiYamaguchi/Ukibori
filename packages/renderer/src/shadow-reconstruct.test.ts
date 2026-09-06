@@ -10,6 +10,7 @@ import {
   RECONSTRUCTION_VALUE_SIGMA,
   reconstructVisibility,
   refineHardEdgeVisibility,
+  hardRingArcLengths,
   sanitizeReconstructionOptions,
   RING_EDGE_MIN_ARC,
   RING_EDGE_TRANSITIONS,
@@ -860,6 +861,39 @@ describe("refineHardEdgeVisibility — #53 hard edge quality (ring-rule binomial
     expect(RING_EDGE_MIN_ARC).toBe(3);
   });
 
+  it("counts explicit cyclic arcs exactly once across wrap transitions and continuations", () => {
+    const arcs = (pattern: string) =>
+      hardRingArcLengths([...pattern].map((side) => side === "T"));
+    expect(arcs("TTFFFFFF")!.sort()).toEqual([2, 6]);
+    expect(arcs("TTTFFFFF")!.sort()).toEqual([3, 5]);
+    expect(arcs("TFFFFFFT")!.sort()).toEqual([2, 6]);
+    expect(arcs("TTFFFFTT")!.sort()).toEqual([4, 4]);
+    for (const pattern of ["TTFFFFFF", "TTTFFFFF", "TFFFFFFT", "TTFFFFTT"]) {
+      expect(arcs(pattern)!.reduce((sum, run) => sum + run, 0)).toBe(8);
+    }
+  });
+
+  it("is rotation- and reflection-invariant for 2/6, 3/5, and 4/4 splits", () => {
+    const classify = (pattern: string) => {
+      const sides = [...pattern].map((side) => side === "T");
+      const arcs = hardRingArcLengths(sides);
+      return arcs !== null && Math.min(...arcs) >= RING_EDGE_MIN_ARC;
+    };
+    for (const [pattern, expected] of [
+      ["TTFFFFFF", false],
+      ["TTTFFFFF", true],
+      ["TTTTFFFF", true],
+    ] as const) {
+      for (let rotation = 0; rotation < 8; rotation++) {
+        const rotated = pattern.slice(rotation) + pattern.slice(0, rotation);
+        expect(classify(rotated), `${pattern} rotation ${rotation}`).toBe(expected);
+        expect(classify([...rotated].reverse().join("")), `${pattern} reflected ${rotation}`).toBe(
+          expected,
+        );
+      }
+    }
+  });
+
   it("is a pure postprocess: every output is an exact dyadic k/16 in [0, 1]", () => {
     const raw = binaryField([
       "..........",
@@ -959,15 +993,15 @@ describe("refineHardEdgeVisibility — #53 hard edge quality (ring-rule binomial
     }
     // the band's core rows stay verbatim; the band's straight side edges
     // (the middle-row lateral neighbors, whose rings are straight 5-vs-3
-    // boundaries) refine to the dyadic side ramp 12/16; the end-row ring
-    // neighbors refine to their own asymmetric dyadic values (13/16 below,
-    // verbatim where the dark arc is only 1-2 ring texels)
+    // boundaries) refine to the dyadic side ramp 12/16. End-row neighbors
+    // have a 2-vs-6 cyclic split and therefore remain verbatim regardless
+    // of where the ring walk starts.
     expect(refined.get(4, 2, 0)).toBe(0);
     expect(refined.get(4, 3, 0)).toBe(0);
     expect(refined.get(4, 4, 0)).toBe(0);
     expect(refined.get(3, 3, 0)).toBeCloseTo(12 / 16, 12);
     expect(refined.get(5, 3, 0)).toBeCloseTo(12 / 16, 12);
-    expect(refined.get(5, 4, 0)).toBeCloseTo(13 / 16, 12);
+    expect(refined.get(5, 4, 0)).toBe(1);
     expect(refined.get(5, 2, 0)).toBe(1);
     expect(refined.get(3, 4, 0)).toBe(1);
     // the field is fully lit everywhere outside the band
