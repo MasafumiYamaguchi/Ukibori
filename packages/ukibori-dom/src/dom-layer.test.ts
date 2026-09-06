@@ -79,6 +79,10 @@ let button: HTMLButtonElement;
 
 beforeEach(() => {
   host = document.createElement("div");
+  // Real browsers resolve the initial CanvasText system color to a used
+  // rgb() value. jsdom leaves the keyword unresolved, so pin an explicit
+  // opaque inherited color for physical-ink delegation tests (#56).
+  host.style.color = "rgb(0, 0, 0)";
   document.body.appendChild(host);
   button = document.createElement("button");
   button.type = "button";
@@ -424,6 +428,49 @@ describe("UkiboriDom — DOM integration", () => {
       const range = document.createRange();
       range.selectNodeContents(span);
       expect(range.toString()).toBe("PLAY");
+      layer.dispose();
+    });
+
+    it("updates live opaque CSS color and falls back/reacquires for alpha", () => {
+      const span = maskElement();
+      span.style.color = "rgb(255, 0, 0)";
+      const layer = makeLayer();
+      layer.register(span, MASK_OPTIONS);
+      layer.render();
+      const first = layer.debugBuffers()!.color;
+      const objectId = layer.debugObjectId()!;
+      let sample: { x: number; y: number } | undefined;
+      for (let y = 0; y < objectId.spec.height && sample === undefined; y++) {
+        for (let x = 0; x < objectId.spec.width; x++) {
+          if (objectId.get(x, y, 0) === 0) {
+            sample = { x, y };
+            break;
+          }
+        }
+      }
+      expect(sample).toBeDefined();
+      const red = first.get(sample!.x, sample!.y, 0);
+      const redBlue = first.get(sample!.x, sample!.y, 2);
+      expect(red).toBeGreaterThan(redBlue);
+
+      // The managed suppression attribute is temporarily removed inside the
+      // synchronous computed-style read, so this sees the updated author color
+      // rather than the rule's own transparent value.
+      span.style.color = "rgb(0, 0, 255)";
+      layer.invalidate("glyph");
+      const blueField = layer.debugBuffers()!.color;
+      expect(blueField.get(sample!.x, sample!.y, 2)).toBeGreaterThan(
+        blueField.get(sample!.x, sample!.y, 0),
+      );
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+
+      span.style.color = "rgba(0, 0, 255, 0.5)";
+      layer.invalidate("glyph");
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+
+      span.style.color = "rgb(17, 17, 17)";
+      layer.invalidate("glyph");
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
       layer.dispose();
     });
   });

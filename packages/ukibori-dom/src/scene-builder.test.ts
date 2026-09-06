@@ -147,6 +147,48 @@ describe("buildScene", () => {
     expect(scene.materials?.custom.roughness).toBe(0.5);
   });
 
+  it("composes delegated CSS baseColor over preset physical parameters", () => {
+    const registry = new SurfaceRegistry();
+    addSurface(registry, "glyph", 40, 60, 100, 32, { material: "metal" });
+    const entry = registry.get("glyph")!;
+    entry.inkDelegated = true;
+    entry.computedTextColor = { r: 0.01, g: 0.02, b: 0.03 };
+    const scene = buildScene({ registry, region: REGION, dpr: 1, light: LIGHT });
+    const effective = scene.materials?.[scene.surfaces[0].material];
+    expect(scene.surfaces[0].material).toMatch(/^@ukibori-dom\/text-color\//);
+    expect(effective).toEqual({
+      baseColor: { r: 0.01, g: 0.02, b: 0.03 },
+      roughness: 0.2,
+      metallic: 1,
+      ior: 1.5,
+    });
+  });
+
+  it("lets CSS win only for baseColor of a delegated custom material", () => {
+    const registry = new SurfaceRegistry();
+    addSurface(registry, "glyph", 40, 60, 100, 32, { material: "custom" });
+    const entry = registry.get("glyph")!;
+    entry.inkDelegated = true;
+    entry.computedTextColor = { r: 1, g: 0, b: 0 };
+    const scene = buildScene({
+      registry,
+      region: REGION,
+      dpr: 1,
+      light: LIGHT,
+      materials: {
+        custom: { baseColor: { r: 0.4, g: 0.5, b: 0.6 }, roughness: 0.37, metallic: 0.62, ior: 1.7 },
+      },
+    });
+    const effective = scene.materials?.[scene.surfaces[0].material];
+    expect(effective).toEqual({
+      baseColor: { r: 1, g: 0, b: 0 },
+      roughness: 0.37,
+      metallic: 0.62,
+      ior: 1.7,
+    });
+    expect(scene.materials?.custom.baseColor).toEqual({ r: 0.4, g: 0.5, b: 0.6 });
+  });
+
   it("skips unmeasured surfaces", () => {
     const registry = new SurfaceRegistry();
     registry.add({

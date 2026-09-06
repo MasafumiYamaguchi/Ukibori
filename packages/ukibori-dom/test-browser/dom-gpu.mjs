@@ -254,6 +254,24 @@ function makeStage() {
   return { stage, button };
 }
 
+function makeGlyphStage() {
+  const stage = document.createElement("div");
+  stage.style.setProperty("--glyph-color", "rgb(255, 0, 0)");
+  document.body.appendChild(stage);
+  const glyph = document.createElement("span");
+  glyph.textContent = "PLAY";
+  glyph.style.color = "var(--glyph-color)";
+  stage.appendChild(glyph);
+  const rect = { ...BUTTON_RECT, x: BUTTON_RECT.left, y: BUTTON_RECT.top };
+  glyph.getBoundingClientRect = () => ({
+    ...rect,
+    right: rect.x + rect.width,
+    bottom: rect.y + rect.height,
+    toJSON: () => rect,
+  });
+  return { stage, glyph };
+}
+
 /** The lazily created WebGPU canvas (overlay-internal accessor, test seam). */
 function gpuCanvasOf(layer) {
   return layer.overlay.gpuCanvas();
@@ -278,10 +296,13 @@ function wrapPipelineDebugReadback(layer) {
   pipeline.render = (input) => original({ ...input, debugReadback: true });
 }
 
-/** One RGBA pixel out of tightly packed staging rows (alpha at index 3 for both rgba8unorm and bgra8unorm byte layouts). */
+/** One normalized RGBA pixel out of tightly packed staging rows. */
 function stagingPixel(rows, width, [x, y]) {
   const p = (y * width + x) * 4;
-  return [rows[p], rows[p + 1], rows[p + 2], rows[p + 3]];
+  const pixel = [rows[p], rows[p + 1], rows[p + 2], rows[p + 3]];
+  return navigator.gpu.getPreferredCanvasFormat() === "bgra8unorm"
+    ? [pixel[2], pixel[1], pixel[0], pixel[3]]
+    : pixel;
 }
 
 function assertFrameHealthy(layer, gpuCanvas, timeline, dpr, phaseLabel) {
@@ -482,6 +503,65 @@ async function runDprChangeScenario() {
   }
 }
 
+/** #56 real-WebGPU proof: live inherited CSS color becomes material albedo. */
+async function runGlyphColorScenario() {
+  const label = "glyph css color";
+  const { stage, glyph } = makeGlyphStage();
+  const layer = await UkiboriDom.create({
+    backend: "webgpu",
+    dpr: 1,
+    observe: false,
+    schedule,
+    overlay: { stage },
+  });
+  try {
+    const device = layer.gpuDevice;
+    wrapPipelineDebugReadback(layer);
+    const gpuCanvas = gpuCanvasOf(layer);
+    const mask = { width: 40, height: 11, alpha: new Float32Array(40 * 11).fill(1) };
+    layer.register(glyph, {
+      id: "glyph-color",
+      shape: { kind: "mask", mask },
+      elevation: 2,
+      thickness: 2,
+      bevelWidth: 1,
+      profile: { kind: "bevel" },
+      material: "metal",
+      castsShadow: false,
+      receivesShadow: false,
+      delegateTextInk: true,
+    });
+    flush();
+    const context = gpuCanvas.getContext("webgpu");
+    const redHandle = submitPresentedCopy(device, context, REGION.w, REGION.h);
+    await settle(device);
+    const redRows = await stagingReadback(redHandle);
+    const red = stagingPixel(redRows, REGION.w, surfaceCenterPoint(1));
+    check(red[0] > red[2] + 20, `${label}: red CSS did not produce red albedo rgba(${red})`);
+    eq(glyph.getAttribute("data-ukibori-physical-ink"), "", `${label}: opaque red delegation`);
+
+    // Inherited CSS-variable/theme-style update. Explicit invalidate is the
+    // observe:false test equivalent of the production document observer.
+    stage.style.setProperty("--glyph-color", "rgb(0, 0, 255)");
+    layer.invalidate("glyph-color");
+    flush();
+    const blueHandle = submitPresentedCopy(device, context, REGION.w, REGION.h);
+    await settle(device);
+    const blueRows = await stagingReadback(blueHandle);
+    const blue = stagingPixel(blueRows, REGION.w, surfaceCenterPoint(1));
+    check(blue[2] > blue[0] + 20, `${label}: blue update did not produce blue albedo rgba(${blue})`);
+
+    stage.style.setProperty("--glyph-color", "rgba(0, 0, 255, 0.5)");
+    layer.invalidate("glyph-color");
+    flush();
+    eq(glyph.getAttribute("data-ukibori-physical-ink"), null, `${label}: alpha fallback`);
+    note(`${label}: red=rgba(${red}) blue=rgba(${blue}) alphaFallback=true`);
+  } finally {
+    layer.dispose();
+    stage.remove();
+  }
+}
+
 /**
  * CPU control through the SAME UkiboriDom pipeline: if the CPU canvas is
  * opaque at the surface center, DOM geometry/measurement are correct and any
@@ -583,6 +663,7 @@ async function main() {
     await runFixedDprScenario(1.5);
     await runFixedDprScenario(2);
     await runDprChangeScenario();
+    await runGlyphColorScenario();
     const notesText =
       notes.map((n) => `  # ${n}`).join("\n") +
       (gpuErrors.length > 0

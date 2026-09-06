@@ -41,6 +41,10 @@ import type { UkiboriTextProps } from "../types";
  * - a rasterization FAILURE for the current value drops the raster entirely
  *   (plain DOM text fallback — no stale previous glyph, the physical-ink
  *   delegation is released, and a later success re-registers).
+ * - #56: while delegation is requested, ukibori-dom reads the LIVE computed
+ *   CSS `color`, converts opaque sRGB to linear RGB once, and composes it as
+ *   the physical glyph material's baseColor. Material roughness/metallic/ior
+ *   remain unchanged. Alpha/unsupported colors keep the DOM ink visible.
  *
  * Sizing policy (valid in bare usage, no demo CSS required): the element's
  * measured box is rounded to integer pixel dimensions, the glyph is

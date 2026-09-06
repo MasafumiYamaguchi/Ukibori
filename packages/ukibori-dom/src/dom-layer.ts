@@ -19,11 +19,13 @@ import type {
   Material,
 } from "ukibori-renderer";
 import { computeRegion, renderTargetSize, sanitizeDpr, scaleShadowOptions } from "./coords";
+import { linearRgbEqual, readOpaqueComputedTextColor } from "./computed-text-color";
 import { compositeSurfaceImage } from "./compositor";
 import { geometriesEqual, measureSurfaceElement } from "./measure";
-import { OverlayCanvas, isManagedMutation, restorePhysicalInk, restoreSurface, suppressPhysicalInk, suppressSurface } from "./overlay";
+import { OverlayCanvas, PHYSICAL_INK_ATTR, isManagedMutation, restorePhysicalInk, restoreSurface, suppressPhysicalInk, suppressSurface } from "./overlay";
 import type { Overlay } from "./overlay";
 import { SurfaceRegistry, assertValidId } from "./registry";
+import type { SurfaceEntry } from "./registry";
 import { buildScene } from "./scene-builder";
 import type {
   CompositeOptions,
@@ -534,8 +536,41 @@ export class UkiboriDom {
    * delegation is the UkiboriText-specific "this DOM text was rasterized into
    * THIS mask" semantic.
    */
-  private static delegatesInk(options: DomSurfaceOptions): boolean {
+  private static requestsInkDelegation(options: DomSurfaceOptions): boolean {
     return options.delegateTextInk === true && options.shape?.kind === "mask";
+  }
+
+  /**
+   * #56 synchronize live CSS color and #52 ink ownership. The managed
+   * suppression rule itself makes computed `color` transparent, so the
+   * attribute is removed only for the synchronous style read and restored
+   * before returning; no browser paint can observe the temporary state.
+   */
+  private syncPhysicalInk(entry: SurfaceEntry): boolean {
+    const requested = UkiboriDom.requestsInkDelegation(entry.options);
+    // Another UkiboriDom instance may already own the shared attribute, so
+    // inspect the actual element rather than only this entry's ownership bit.
+    const hadAttribute = entry.element.hasAttribute(PHYSICAL_INK_ATTR);
+    if (hadAttribute) {
+      entry.element.removeAttribute(PHYSICAL_INK_ATTR);
+    }
+    const nextColor = requested ? readOpaqueComputedTextColor(entry.element) : null;
+    if (hadAttribute) {
+      entry.element.setAttribute(PHYSICAL_INK_ATTR, "");
+    }
+
+    const previousColor = entry.computedTextColor;
+    entry.computedTextColor = nextColor ?? undefined;
+    const shouldDelegate = requested && nextColor !== null;
+    const ownershipChanged = shouldDelegate !== entry.inkDelegated;
+    if (!entry.inkDelegated && shouldDelegate) {
+      suppressPhysicalInk(entry.element);
+      entry.inkDelegated = true;
+    } else if (entry.inkDelegated && !shouldDelegate) {
+      restorePhysicalInk(entry.element);
+      entry.inkDelegated = false;
+    }
+    return ownershipChanged || !linearRgbEqual(previousColor, entry.computedTextColor);
   }
 
   /**
@@ -581,11 +616,8 @@ export class UkiboriDom {
         inkDelegated: false,
       };
       this.registry.add(entry);
-      inkDelegated = UkiboriDom.delegatesInk(entry.options);
-      if (inkDelegated) {
-        suppressPhysicalInk(element);
-        entry.inkDelegated = true;
-      }
+      this.syncPhysicalInk(entry);
+      inkDelegated = entry.inkDelegated;
     } catch (error) {
       restoreSurface(element);
       if (inkDelegated) {
@@ -643,16 +675,8 @@ export class UkiboriDom {
     // merge; identical states do nothing, so retained property updates
     // (text/material/elevation/... changes, mask object swaps) never
     // multiply the attribute refcount.
-    const wasDelegated = entry.inkDelegated;
     entry.options = { ...entry.options, ...patch, id: entry.options.id };
-    const shouldDelegate = UkiboriDom.delegatesInk(entry.options);
-    if (!wasDelegated && shouldDelegate) {
-      suppressPhysicalInk(entry.element);
-      entry.inkDelegated = true;
-    } else if (wasDelegated && !shouldDelegate) {
-      restorePhysicalInk(entry.element);
-      entry.inkDelegated = false;
-    }
+    this.syncPhysicalInk(entry);
     // Any option change feeds the scene (geometry, elevation, material...).
     this.sceneDirty = true;
     this.registry.markDirty(id);
@@ -832,6 +856,12 @@ export class UkiboriDom {
     const measureStartedAt = performance.now();
     let measuredEntries = 0;
     for (const entry of this.registry.entries()) {
+      // #56: class/style/inherited/custom-property changes schedule a render
+      // through the existing document observer. Refresh the live computed
+      // color before the unchanged-geometry early exit.
+      if (this.syncPhysicalInk(entry)) {
+        this.sceneDirty = true;
+      }
       if (entry.dirty || entry.geometry === null) {
         entry.dirty = false;
         let geometry;

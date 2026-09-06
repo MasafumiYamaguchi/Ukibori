@@ -1,6 +1,6 @@
 import { act } from "react";
 import { render, screen } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { stubCanvas2d, stubElementRects, stubTextLineBox, canvas2dMirrors } from "../test/dom";
 import { Surface, Ukibori, UkiboriText } from "../index";
 import type { UkiboriDom } from "ukibori-dom";
@@ -17,8 +17,16 @@ const flushAsync = () =>
     await new Promise((resolve) => setTimeout(resolve, 0));
   });
 
+beforeEach(() => {
+  // Real browsers resolve the CanvasText system default to an rgb() used
+  // value. jsdom keeps the keyword, which is intentionally unsupported by
+  // the #56 opaque-sRGB delegation gate.
+  document.body.style.color = "rgb(0, 0, 0)";
+});
+
 afterEach(() => {
   vi.restoreAllMocks();
+  document.body.style.color = "";
 });
 
 describe("UkiboriText glyph integration", () => {
@@ -825,6 +833,36 @@ describe("UkiboriText #52 physical ink compositing policy", () => {
     const spanAfter = screen.getByText("PLAY");
     expect(spanAfter.getAttribute("data-ukibori-physical-ink")).toBeNull();
     expect(spanAfter.textContent).toBe("PLAY");
+  });
+});
+
+describe("UkiboriText #56 computed CSS text color", () => {
+  it("tracks inline color changes as linear material baseColor without replacing the mask", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    stubTextLineBox();
+    let layer: UkiboriDom | null = null;
+    const { rerender } = render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="glyph-color" text="PLAY" style={{ color: "#111" }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const entry = layer!.registry.get("glyph-color")!;
+    const mask = (entry.options.shape as { kind: "mask"; mask: unknown }).mask;
+    expect(entry.computedTextColor?.r).toBeCloseTo(0.00560539, 7);
+    expect(entry.inkDelegated).toBe(true);
+
+    rerender(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="glyph-color" text="PLAY" style={{ color: "rgb(255, 0, 0)" }} elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const updated = layer!.registry.get("glyph-color")!;
+    expect(updated.computedTextColor).toEqual({ r: 1, g: 0, b: 0 });
+    expect((updated.options.shape as { kind: "mask"; mask: unknown }).mask).toBe(mask);
+    expect(updated.inkDelegated).toBe(true);
   });
 });
 

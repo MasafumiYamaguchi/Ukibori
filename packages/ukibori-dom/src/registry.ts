@@ -1,3 +1,4 @@
+import type { LinearRgb } from "ukibori-renderer";
 import type { DomSurfaceOptions, MeasuredGeometry } from "./types";
 
 /**
@@ -25,6 +26,12 @@ export interface SurfaceEntry {
    * attribute now", not how many times an option changed.
    */
   inkDelegated: boolean;
+  /**
+   * #56 live opaque computed CSS text color, converted once to linear RGB.
+   * Present only while this entry can faithfully delegate its DOM text ink.
+   * The scene builder composes it over the resolved material's baseColor.
+   */
+  computedTextColor?: LinearRgb;
 }
 
 export class SurfaceRegistry {

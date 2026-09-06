@@ -75,7 +75,10 @@ export interface DomSurfaceOptions {
    * its physical glyph. Meaningful only together with a mask shape that the
    * caller rasterized from that very text (the UkiboriText contract); a
    * generic mask surface (icon silhouette etc.) must NOT set it, so its DOM
-   * text stays DOM-owned and visible above the physical relief.
+   * text stays DOM-owned and visible above the physical relief. #56 further
+   * requires a supported opaque computed CSS color: the DOM layer reads it
+   * live and uses it as the glyph material baseColor; transparent or
+   * unsupported colors keep the DOM ink visible.
    */
   delegateTextInk?: boolean;
 }

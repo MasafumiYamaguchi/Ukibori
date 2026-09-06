@@ -88,6 +88,8 @@ DOM所有のアクセシブルなテキスト(`<span>`)を描画し、その**�
 委譲は review round 2 の fidelity gate に従います: `rasterizeText` が現在の値に対して忠実なラスタを作れた場合（単一のライブ行ボックス、使用可能な font metrics、タイポグラフィ一致）にのみ ink 委譲が成立し、テキスト/フォント変更でラスタライズが失敗した場合は直前のラスタを破棄して DOM テキストを通常通り可視に戻します（stale な physical glyph が異なるテキストのインクを抑制することはありません）。複数行に折り返すテキストは単一行 mask で忠実に表現できないため、DOM インクは可視のままです（mask は geometry としてのみ登録）。
 さらに review round 3: fidelity gate は要素の computed typography を分類します。letter-spacing / word-spacing / font-kerning / font-stretch / font-variant-caps / text-rendering / direction は、canvas 実装が computed 値を受け付け読み戻せた場合にのみ canvas へミラーします（未対応なら委譲しません）。text-transform・縦書き・text-decoration / text-emphasis / -webkit-text-stroke のインク・カスタム OpenType features など、canvas で再現できないタイポグラフィは home-grown 実装を行わず DOM 可視フォールバックとします。また raster identity は typography 関連の style/className props と computed typography fingerprint にも紐づくため、fontSize/fontWeight/className 等の変更は再ラスタライズ（またはフォールバック）され、古い physical glyph が残りません。
 
+**#56 CSS text color fidelity**: 委譲された glyph の色は live な `getComputedStyle(element).color` が source of truth です。DOM layer で opaque sRGB を一度だけ linear RGB へ変換し、選択された preset/custom material の `baseColor` だけを置き換えます。`roughness` / `metallic` / `ior` と既存 BRDF は維持されるため、CSS `color` は pigment/albedo、`material` は物理表面応答を担当します。style/class/inherited color/CSS variable/theme の変更は retained render 時に再読込されます。renderer は RGB-only/opaque のため、alpha 付きまたは未対応の computed color は DOM 可視フォールバックとなります。
+
 ## アクセシビリティ / フォールバック
 
 - `:focus-visible`を除去しません(outlineは一切触りません)
