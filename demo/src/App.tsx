@@ -102,9 +102,16 @@ export function App() {
       exposure={exposure}
       backend={backend}
       className="demo-root"
-            onReady={(layer) => {
-        (window as any).__ukibori = layer;
-  }}
+      gpuProfiling={import.meta.env.DEV}
+      onReady={(layer) => {
+        if (!import.meta.env.DEV) return;
+
+        if (layer !== null) {
+          (window as any).__ukibori = layer;
+        } else {
+          delete (window as any).__ukibori;
+        }
+      }}
     >
       <div className="demo">
         <header className="demo-header">
