@@ -1,0 +1,232 @@
+{
+  "schemaVersion": 1,
+  "commit": "068248d71ff833b7a7ee376f196476b0dee0f81c",
+  "generatedAt": "2026-09-07T15:46:05.937Z",
+  "environment": {
+    "timestamp": "2026-09-07T15:46:05.935Z",
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+    "browser": "chrome",
+    "browserVersion": "152.0",
+    "headless": true,
+    "devicePixelRatio": 1,
+    "webgpuAvailable": true,
+    "adapterName": "",
+    "adapterArchitecture": "metal-3",
+    "adapterBackend": "unknown",
+    "adapterDevice": "",
+    "adapterVendor": "apple",
+    "timestampQuerySupported": true,
+    "canvasPreferredFormat": "bgra8unorm",
+    "maxStorageBufferBindingSize": 134217728,
+    "maxComputeWorkgroupsPerDimension": 65535
+  },
+  "cases": [
+    {
+      "id": "dynamic-light/micro-soft-8",
+      "parameters": {
+        "suite": "dynamic-light",
+        "workload": "micro-regression",
+        "acceptance": false,
+        "renderWidth": 640,
+        "renderHeight": 360,
+        "displayDpr": 1,
+        "pipelineDpr": 1,
+        "texelCount": 230400,
+        "surfaceCount": 3,
+        "casterCount": 2,
+        "angularRadius": 0.15,
+        "shadowSamples": 8,
+        "maxDistanceSource": "explicit-microbenchmark",
+        "effectiveMaxDistance": 200,
+        "effectiveStepSize": 0.5,
+        "reconstructionRadius": 2,
+        "warmups": 10,
+        "samples": 100
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 100,
+          "median": 2,
+          "p95": 2.2999999970197678,
+          "min": 1.7999999970197678,
+          "max": 2.399999998509884
+        },
+        "gpuTimestampMs": {
+          "samples": 100,
+          "median": 2.956101,
+          "p95": 3.473462,
+          "min": 2.704044,
+          "max": 3.526579
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 100,
+          "median": 1.3890605,
+          "p95": 1.638408,
+          "min": 1.371603,
+          "max": 1.673065
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 100,
+          "median": 0.099742,
+          "p95": 0.146824,
+          "min": 0.095745,
+          "max": 0.348172
+        },
+        "lightingGpuTimestampMs": {
+          "samples": 100,
+          "median": 0.029143,
+          "p95": 0.033996,
+          "min": 0.02775,
+          "max": 0.27872
+        },
+        "presentationGpuTimestampMs": {
+          "samples": 100,
+          "median": 1.4368910000000001,
+          "p95": 1.705438,
+          "min": 1.182762,
+          "max": 1.728858
+        },
+        "executed": "upload,shadow,reconstruction,lighting,presentation",
+        "heightExecuted": false,
+        "normalExecuted": false,
+        "effectiveSamples": 8,
+        "reconstructionActive": true,
+        "radiusTexels": 2,
+        "renderExtent": "640x360",
+        "texelCount": 230400,
+        "surfaceCount": 3,
+        "casterCount": 2,
+        "effectiveMaxDistance": 200,
+        "effectiveStepSize": 0.5,
+        "displayDpr": 1,
+        "pipelineDpr": 1,
+        "acceptance": false,
+        "shadowMarchAlgorithm": "exact-prefix-binary-search+caster-aabb-empty-space",
+        "rayBoundSearch": "exact-combined-prefix-binary-search",
+        "rayBoundSearchIterationUpperBound": 9,
+        "casterAabbCulling": true,
+        "casterAabbPadTexels": 2,
+        "casterAabb": {
+          "minX": 160,
+          "minY": 72,
+          "maxX": 420,
+          "maxY": 216
+        },
+        "frameLogicalArea": 230400,
+        "unionCasterAabbArea": 37440,
+        "casterAabbCoverageRatio": 0.1625,
+        "extraShadowPasses": 0,
+        "extraShadowDispatches": 0,
+        "extraShadowUploads": 0,
+        "extraShadowStorageBytes": 0
+      }
+    },
+    {
+      "id": "dynamic-light/production-demo-soft-8",
+      "parameters": {
+        "suite": "dynamic-light",
+        "workload": "production-demo-acceptance",
+        "acceptance": true,
+        "renderWidth": 1536,
+        "renderHeight": 1440,
+        "displayDpr": 2,
+        "pipelineDpr": 1,
+        "texelCount": 2211840,
+        "surfaceCount": 9,
+        "casterCount": 9,
+        "angularRadius": 0.15,
+        "shadowSamples": 8,
+        "maxDistanceSource": "production-default-sceneDiagonal/lightXYLength",
+        "effectiveMaxDistance": 3827.55419921875,
+        "effectiveStepSize": 1,
+        "reconstructionRadius": 4,
+        "warmups": 10,
+        "samples": 100
+      },
+      "metrics": {
+        "wallMs": {
+          "samples": 100,
+          "median": 11.600000001490116,
+          "p95": 12.600000001490116,
+          "min": 11.199999995529652,
+          "max": 12.800000004470348
+        },
+        "gpuTimestampMs": {
+          "samples": 100,
+          "median": 21.7396465,
+          "p95": 23.498934,
+          "min": 21.054094,
+          "max": 23.911928
+        },
+        "shadowGpuTimestampMs": {
+          "samples": 100,
+          "median": 7.898569,
+          "p95": 8.865074,
+          "min": 7.5648,
+          "max": 9.126944
+        },
+        "reconstructionGpuTimestampMs": {
+          "samples": 100,
+          "median": 2.5348585000000003,
+          "p95": 2.785542,
+          "min": 2.516296,
+          "max": 2.819457
+        },
+        "lightingGpuTimestampMs": {
+          "samples": 100,
+          "median": 0.28657699999999997,
+          "p95": 0.31349,
+          "min": 0.279199,
+          "max": 0.542533
+        },
+        "presentationGpuTimestampMs": {
+          "samples": 100,
+          "median": 10.822397500000001,
+          "p95": 11.700947,
+          "min": 10.418848,
+          "max": 11.959527
+        },
+        "executed": "upload,shadow,reconstruction,lighting,presentation",
+        "heightExecuted": false,
+        "normalExecuted": false,
+        "effectiveSamples": 8,
+        "reconstructionActive": true,
+        "radiusTexels": 4,
+        "renderExtent": "1536x1440",
+        "texelCount": 2211840,
+        "surfaceCount": 9,
+        "casterCount": 9,
+        "effectiveMaxDistance": 3827.55419921875,
+        "effectiveStepSize": 1,
+        "displayDpr": 2,
+        "pipelineDpr": 1,
+        "acceptance": true,
+        "shadowMarchAlgorithm": "exact-prefix-binary-search+caster-aabb-empty-space",
+        "rayBoundSearch": "exact-combined-prefix-binary-search",
+        "rayBoundSearchIterationUpperBound": 12,
+        "casterAabbCulling": true,
+        "casterAabbPadTexels": 2,
+        "casterAabb": {
+          "minX": 128,
+          "minY": 128,
+          "maxX": 1408,
+          "maxY": 1312
+        },
+        "frameLogicalArea": 2211840,
+        "unionCasterAabbArea": 1515520,
+        "casterAabbCoverageRatio": 0.6851851851851852,
+        "extraShadowPasses": 0,
+        "extraShadowDispatches": 0,
+        "extraShadowUploads": 0,
+        "extraShadowStorageBytes": 0
+      }
+    }
+  ],
+  "notes": [
+    "suite dynamic-light start",
+    "suite dynamic-light done"
+  ],
+  "workingTreeDirty": false,
+  "benchmarkHarnessCommit": "aba9d4f495026c825ace824c07b3334ac9b1de26",
+  "benchmarkHarnessWorkingTreeDirty": false
+}
