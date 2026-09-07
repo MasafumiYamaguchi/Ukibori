@@ -583,6 +583,8 @@ function stageStatsNewAllocations(
       return stats.normal.newAllocations;
     case "shadow":
       return stats.shadow.newAllocations;
+    case "reconstruction":
+      return stats.reconstruction.newAllocations;
     case "lighting":
       return stats.lighting.newAllocations;
     case "presentation":
@@ -600,6 +602,8 @@ function stageStatsAllocations(stats: GpuScenePipelineFrameStats, stage: Pipelin
       return stats.normal.allocationCount;
     case "shadow":
       return stats.shadow.allocationCount;
+    case "reconstruction":
+      return stats.reconstruction.allocationCount;
     case "lighting":
       return stats.lighting.allocationCount;
     case "presentation":
@@ -615,6 +619,8 @@ function stageDispatchCount(stats: GpuScenePipelineFrameStats, stage: PipelineSt
       return stats.normal.workgroupCountX > 0 ? 1 : 0;
     case "shadow":
       return stats.shadow.workgroupCountX > 0 ? 1 : 0;
+    case "reconstruction":
+      return stats.reconstruction.workgroupCountX > 0 ? 1 : 0;
     case "lighting":
       return stats.lighting.workgroupCountX > 0 ? 1 : 0;
     default:
