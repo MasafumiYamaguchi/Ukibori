@@ -156,9 +156,9 @@ describe("parity.mjs + oracle.mjs — #27 shadow fixtures and harness hardening"
     expect(catalogSource).toContain('stepSize: 0.1, bias: 0.25, maxDistance: 10');
   });
 
-  it("exempts only the two intentional equality fixtures from the perturbation pre-check", () => {
+  it("exempts only the three intentional equality fixtures from the perturbation pre-check", () => {
     expect(catalogSource).toContain("shadowThresholdExact: true");
-    expect(catalogSource.match(/shadowThresholdExact: true/g)).toHaveLength(2);
+    expect(catalogSource.match(/shadowThresholdExact: true/g)).toHaveLength(3);
     expect(oracleSource).toContain("exactThreshold = false");
     expect(oracleSource).toContain("if (exactThreshold) {");
     // the exemption is NOT applied to ordinary fixtures

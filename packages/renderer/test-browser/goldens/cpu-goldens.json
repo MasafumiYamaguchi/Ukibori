@@ -4207,7 +4207,7 @@
           "policy": "height",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "f8d1503fbb570445992f730e794ce6ffa13e2c4948c657693ff7c57d5421be27",
+          "digest": "1078ced97e5be3681956debfe20cf88f793421de3336111f98e951b1c299b0a8",
           "probes": [
             {
               "x": 0,
@@ -4237,7 +4237,7 @@
           "policy": "coverage",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "e0dcdde43ea44cf9db1d1a9f2ccd6ff01f3767b7312b7ff27d0cc87611582689",
+          "digest": "6430afe8c73ae7b7b85fa11379d21e47e223045606c0b29c592d246f1d0d92d8",
           "probes": [
             {
               "x": 0,
@@ -4267,7 +4267,7 @@
           "policy": "objectId",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "5db87e23072bee6059635545a5a5d9bda8c09674124452defa08ead4263b746e",
+          "digest": "36ef28cb686e3fd68668226ef957564bb507441cf1bee28da9eaf86cdfa0d4ad",
           "probes": [
             {
               "x": 0,
@@ -4297,7 +4297,7 @@
           "policy": "materialId",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "390bcb2ef84fa8c2afc6c38c408f56b72bb8f7d329049d7b4d3dff22ef9a85d5",
+          "digest": "ab195a0b0ca346971ea9dcc7f6675229217ba3ea0d7856d94ffd51d2448caac0",
           "probes": [
             {
               "x": 0,
@@ -4327,7 +4327,7 @@
           "policy": "casterHeight",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "facdcfeab4e069b700394172203aea2537cac8597a5564a93156c73d7ba2a60b",
+          "digest": "81bd441484017a1bc064e34ea29195949cfc5bcce214d45ef9ce10e43b1ff218",
           "probes": [
             {
               "x": 0,
@@ -4357,7 +4357,7 @@
           "policy": "normal",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "a800a42384eec2b3a98197f7dba17c0d7c2c63cc17bf1861de0a7bfb7192f9b4",
+          "digest": "c3c14bdea44c4cd767aa702b8b43dc0cc4e8e3c87d46c91325a8b2c8352341c4",
           "probes": [
             {
               "x": 0,
@@ -4381,7 +4381,7 @@
           "policy": "visibility",
           "tolerance": 0,
           "kind": "f32",
-          "digest": "33754a86c367d6eb267049879737100b8b8367e4511304a3fc0d08dd6a015da4",
+          "digest": "2db0b194c568c9111e97f6bb3c49cb126b919c0428df7ef52d5a00efd90c73cb",
           "probes": [
             {
               "x": 0,
@@ -4411,7 +4411,7 @@
           "policy": "diffuse",
           "tolerance": 0.001,
           "kind": "f32",
-          "digest": "bec29692b33e068244b251a4fc7274fa06c16d512cd0ddb5bf24cbccf4fc9c39",
+          "digest": "84951448aa500a6fcf6beb89c0eb394c68e255b088ecbb0c40e72ae361293488",
           "probes": [
             {
               "x": 0,
@@ -4441,7 +4441,7 @@
           "policy": "specular",
           "tolerance": 0.001,
           "kind": "f32",
-          "digest": "14caabab7e1f9493dffa19e6d302b9b56505ce7d15dccff85cab86d2e1ccd445",
+          "digest": "782bb8fe52bf2237ea5cf6e04b73e09525b2a151d7d7cc79666a72d25431d141",
           "probes": [
             {
               "x": 0,
@@ -4471,7 +4471,7 @@
           "policy": "lightingColor",
           "tolerance": 1,
           "kind": "u8",
-          "digest": "1b899b90880a0e5f4e2a2efc82b538a6aa0e8316f861dfd50798e01f9a9690a0",
+          "digest": "421fe109affc593a3af4522cfd10b6ab01cd8f27811881a1dec2c9cb60e22eb2",
           "probes": [
             {
               "x": 0,
@@ -4564,7 +4564,7 @@
           "policy": "height",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "a32c430564d7bcbc632b1ce0f0f2a50e6a1ce858e3da69fc794b7c4c2cf13ee3",
+          "digest": "14845a16339f21031e2ef046e3b931439394984f303516b3b292e253556b5738",
           "probes": [
             {
               "x": 0,
@@ -4594,7 +4594,7 @@
           "policy": "coverage",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "db3cbbf022d9c738c26f1749d5c084d87ecfbf499e0c3a7edd6c4b88e1841f56",
+          "digest": "a656c4e9cf367aa35f095b38998fbfd270db4c27950f92f6c09a3931a94e5a33",
           "probes": [
             {
               "x": 0,
@@ -4624,7 +4624,7 @@
           "policy": "objectId",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "5b6789cf2f43cbab5f9655a81b4bf61f715e8e3932db97b133b32f0565fe82de",
+          "digest": "50f6fe3f87a5bcbc2a4fb54cede4ef2a526e3984784c235fe471f0987910d4f4",
           "probes": [
             {
               "x": 0,
@@ -4654,7 +4654,7 @@
           "policy": "materialId",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "572d11a1bc8cf68498eba1c5706e83ad1396adabf50023f4232b23385dad439f",
+          "digest": "61cde076c65675c2010dd9bef35e476f4adbd8add7d08f1a8c160c8c9afc7ff8",
           "probes": [
             {
               "x": 0,
@@ -4684,7 +4684,7 @@
           "policy": "casterHeight",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "0c5c8cc4c49b235576fd89f6a505be7ce0cc16fadfe51cee7e58eb7c31af1565",
+          "digest": "d1b09baecbd9c8672e000a8a752897cac2ff5ed9bc97be9300a39c3ccd109b7c",
           "probes": [
             {
               "x": 0,
@@ -4714,7 +4714,7 @@
           "policy": "normal",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "88df2cb4ba12c8d03d0ab55f4106fd36050925b673d6afda3ee5e6de33e66372",
+          "digest": "49dc67e21f726e11a1385d52abe8d250fc7b7ddb17e7204252e95d2f66906028",
           "probes": [
             {
               "x": 0,
@@ -4738,7 +4738,7 @@
           "policy": "visibility",
           "tolerance": 0,
           "kind": "f32",
-          "digest": "ae1ba104d87304f9c68b40db4e1e1411ad0f20768a3d805f5cf522f667d7c810",
+          "digest": "204f91c8604952f3413c999fbe2b4842e59903c72b3efe2aa7f35d9663f27c47",
           "probes": [
             {
               "x": 0,
@@ -4768,7 +4768,7 @@
           "policy": "diffuse",
           "tolerance": 0.001,
           "kind": "f32",
-          "digest": "1144e3fc3c3ee1ef1392d78e37a7c451c04b531f901e531811d6667613a8f3d6",
+          "digest": "cc8c3de9540ac89064f4c95505919d8206e5242c19cbc396b910981162087822",
           "probes": [
             {
               "x": 0,
@@ -4798,7 +4798,7 @@
           "policy": "specular",
           "tolerance": 0.001,
           "kind": "f32",
-          "digest": "61ad8b86277821ce5c47abba2a8e745ca6b26fe554adeac27d6db100938bdb20",
+          "digest": "de508b2e36a9e8139eb0a8800d75f53e1c45f6697e5ac3282efc1fbeedcf3ef3",
           "probes": [
             {
               "x": 0,
@@ -4828,7 +4828,7 @@
           "policy": "lightingColor",
           "tolerance": 1,
           "kind": "u8",
-          "digest": "29baa2576e8e8e6b7380fdbc7c99ba131cf43d50d43486eff83c1fb82d41c2c9",
+          "digest": "842bcdd0b5ce9b9e04bc43116bcafc72da2e0a092dcc2011d07ffef42546a2e1",
           "probes": [
             {
               "x": 0,
@@ -4923,7 +4923,7 @@
           "policy": "height",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "7faf453e566ec02a7f81d9f3d819f063110465b26e9aad75e3ff849d2f01bb4a",
+          "digest": "200661092e5d946dee7df2f605b75d26cdfe851681b6df5aa038d708287db4c6",
           "probes": [
             {
               "x": 0,
@@ -4953,7 +4953,7 @@
           "policy": "coverage",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "519c62ef680b20e93f0ebee7e4b7f9d790caa0e889a2e3a61ed2cca58227c993",
+          "digest": "d55497f2516d98d75f57d711b54f8d89b5a764e614ddbd31c9ea8d773dbb84fb",
           "probes": [
             {
               "x": 0,
@@ -4983,7 +4983,7 @@
           "policy": "objectId",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "28e61469af011e45fe1d293b340a3eb7cf3c81778751c5e54c6653cdbadba9e2",
+          "digest": "c356816abfb17b99db6fa18c9db7ea7621e23bac6c27b89b5f6a4455896b1468",
           "probes": [
             {
               "x": 0,
@@ -5013,7 +5013,7 @@
           "policy": "materialId",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "4dea43044371f7127495075f1e11931bc91b966f5e8ad5b1121fdc909597faaa",
+          "digest": "b36efd6f1df004bb768b51c3c8975b65bfa4617ae10c4213abcdbda4ff245d0a",
           "probes": [
             {
               "x": 0,
@@ -5043,7 +5043,7 @@
           "policy": "casterHeight",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "1e5e95d343f1b5e3643f79e82d61dfa0c914dcb0a637795223b81e059ec2650e",
+          "digest": "2f293819cb4f8dc48ddc34ea5c89cad847ec3a9995afa2a3345a803df1534f5d",
           "probes": [
             {
               "x": 0,
@@ -5073,7 +5073,7 @@
           "policy": "normal",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "d0b389e805a29587c297ff09e315afc95b8c00ede0166358fdd2a571853ffc84",
+          "digest": "af641fcae3a663f7e2751f2de6690c26879530d4e2368ec695e1f77e6b509f33",
           "probes": [
             {
               "x": 0,
@@ -5097,7 +5097,7 @@
           "policy": "visibility",
           "tolerance": 0,
           "kind": "f32",
-          "digest": "92bb064b7416de9be61ccea9a016d86f5844af7e731c698d5dddd7c5c2832774",
+          "digest": "7e8466395511428843f443b31ebcb187298ef1f43ba02535e754acf49e2c8b60",
           "probes": [
             {
               "x": 0,
@@ -5127,7 +5127,7 @@
           "policy": "diffuse",
           "tolerance": 0.001,
           "kind": "f32",
-          "digest": "81c161918e866cb903e2d2bbb4415a024810bd6e1a52bcdb2c65018396c12eb8",
+          "digest": "e2e36ba4e44d25bd07342d2d319afd7abe6774fa65de55312d11b713ba5b5ea0",
           "probes": [
             {
               "x": 0,
@@ -5157,7 +5157,7 @@
           "policy": "specular",
           "tolerance": 0.001,
           "kind": "f32",
-          "digest": "52a95775d6944e69132071df09ea495c10852621196ea209db3015dd52d96ff9",
+          "digest": "c8b90a44d75cd3a779268889e678916776f2bd499886734831db4e9213869834",
           "probes": [
             {
               "x": 0,
@@ -5187,7 +5187,7 @@
           "policy": "lightingColor",
           "tolerance": 1,
           "kind": "u8",
-          "digest": "7f99ea66fb00763b5c250c38738c4a6323f1e3c29d9bc47a9eb62a76a3554b08",
+          "digest": "5f7014e4ee83e9f24fcf740e3ba63615adc0f131f8e3cd3042bedd544d88f0f5",
           "probes": [
             {
               "x": 0,
@@ -5276,7 +5276,7 @@
           "policy": "height",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "f0866958797444cca0a1ca8073fe3a59788a677847520ab5fefe844df775a1f4",
+          "digest": "8ac6ed8c2e1c871721b3788df39982599858e16f5ad0967763f749b95a0c0512",
           "probes": [
             {
               "x": 0,
@@ -5306,7 +5306,7 @@
           "policy": "coverage",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "9b7b2c352f271c286bd7b1fe1a58c5076946e1aa4572108856efeaac5c825a26",
+          "digest": "f9e99625c491441e9eba124b68b0a3b55e2920958f49f22648f5b320c45a9005",
           "probes": [
             {
               "x": 0,
@@ -5336,7 +5336,7 @@
           "policy": "objectId",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "598385e91c84d7481576f77336c1fba8d99a53d1605471accbe81bfb17def5f0",
+          "digest": "a90f59c9cae6c58494ee3bc7114bf44c4ab1e2733538601a76f409a8b97c7b02",
           "probes": [
             {
               "x": 0,
@@ -5366,7 +5366,7 @@
           "policy": "materialId",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "7cac8407f87f77ff0456329259d5a0b9dbeffa126a1ee22634d2e915a1ab8c8c",
+          "digest": "f67c75e51da680911e749d1c8718dfbcbefdd71445a0a4706d7d2f5ecec86ad8",
           "probes": [
             {
               "x": 0,
@@ -5396,7 +5396,7 @@
           "policy": "casterHeight",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "ac6b00be4d88a36d925dbacf154e93ebe30f1f62fcf4a5b694dfd0bd9d103d3a",
+          "digest": "f28fa2e4940a8a456cd3f779ab09418a7e8e8734fde8d02b8e36643b5fcc06b2",
           "probes": [
             {
               "x": 0,
@@ -5426,7 +5426,7 @@
           "policy": "normal",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "043470c3740f28a2e057a5ebdf44231220ad2d889902d3f3bab81495df8f5735",
+          "digest": "1f69a8fa1dd2436f3348c23087c3791cd57dd1dad381f48e7da92e97a4c942a6",
           "probes": [
             {
               "x": 0,
@@ -5450,7 +5450,7 @@
           "policy": "visibility",
           "tolerance": 0,
           "kind": "f32",
-          "digest": "938cd65c6a01a9007752deb7ba538e7dbdc4adfe409389689e78c961d2855490",
+          "digest": "95f3566fa8df56757bd8356bc8689fc435bdbb7e37f3b80c8d725c38fa6bd9bb",
           "probes": [
             {
               "x": 0,
@@ -5480,7 +5480,7 @@
           "policy": "diffuse",
           "tolerance": 0.001,
           "kind": "f32",
-          "digest": "2d6328d7f5c59f4621f9bf8b6469d621a3e970046cb189efce87ea40e29c4b86",
+          "digest": "cba1fa993ee10fdc15b5ba391f31868ed36f464d88fc9848db71e95f37826bf9",
           "probes": [
             {
               "x": 0,
@@ -5510,7 +5510,7 @@
           "policy": "specular",
           "tolerance": 0.001,
           "kind": "f32",
-          "digest": "137e549569335d8c8183eca5a851ea3a1ac14a9a0b89b0a8c2d023185abe33ac",
+          "digest": "4234a712c1f0077df1d4441d0038238d53490a71a80068e303ebc293d6314980",
           "probes": [
             {
               "x": 0,
@@ -5540,7 +5540,7 @@
           "policy": "lightingColor",
           "tolerance": 1,
           "kind": "u8",
-          "digest": "9bf61ad92bb499d479494e44e779a1051e9bee76129bbc19dd28943df550201c",
+          "digest": "c30823507ec7fc58dc482a7460ab0f763b042e40dda8310ff2ee22bf437fbfd1",
           "probes": [
             {
               "x": 0,
@@ -9137,7 +9137,7 @@
           "policy": "height",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "3c24fea5f17a6ee948c79d6e4fa85c9fa10870b91f7a9714489a459fb5f91432",
+          "digest": "572056932b9a5bdc21eba418e9a4f164089699dabe177b7e969d4f9b18b4705c",
           "probes": [
             {
               "x": 0,
@@ -9167,7 +9167,7 @@
           "policy": "coverage",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "c72e248f75404ee648875c0d450c697a73660b907c9a32f9c334498d88be963e",
+          "digest": "94f45a50b3d5578bb4dbab59cf5e931852359c96b67cdad0fa7b68d21835b887",
           "probes": [
             {
               "x": 0,
@@ -9197,7 +9197,7 @@
           "policy": "objectId",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "863273c9655726d4b6326da20e957408a824f0a86c97424f293c6645795f3921",
+          "digest": "7a1a8ff0d11a6ef80a646c3a44985fcfef1c1e30bc8acd82e516a43eed39c857",
           "probes": [
             {
               "x": 0,
@@ -9227,7 +9227,7 @@
           "policy": "materialId",
           "tolerance": 0,
           "kind": "u32",
-          "digest": "5a93f8c03b1d9acb782a368113899658e660389ad904e42964faa0a0c0b77308",
+          "digest": "35db2ca391e9dc1914870b6ba7ce89bb91b23859774972f71c5d17ece4cc82ed",
           "probes": [
             {
               "x": 0,
@@ -9257,7 +9257,7 @@
           "policy": "casterHeight",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "2e1fb13365e16ba3755e55911e46954ee4bd5109c95ab490ae23e26f26134764",
+          "digest": "b21493387629883567a160b608a9cb8a57825492d8540c3388e4da77d310f134",
           "probes": [
             {
               "x": 0,
@@ -9287,7 +9287,7 @@
           "policy": "normal",
           "tolerance": 0.0001,
           "kind": "f32",
-          "digest": "30354b7dca66a6330b009e5c263d26cd3f9cfa47ad3852d2df5c83ddb57022cc",
+          "digest": "3e05d8897fb3aae860226bf78d4ceef5600535bae844d8d19beecec0e7a490eb",
           "probes": [
             {
               "x": 0,
@@ -9311,7 +9311,7 @@
           "policy": "visibility",
           "tolerance": 0,
           "kind": "f32",
-          "digest": "f02f63384ebeb1c3f6a2db8865ed75a7cd500d4c4798ce39e041a5907e404475",
+          "digest": "79c84d863e477a8cb4a7ad10769a46fc5087297e3e7b6c810503659287def847",
           "probes": [
             {
               "x": 0,
@@ -9341,7 +9341,7 @@
           "policy": "diffuse",
           "tolerance": 0.001,
           "kind": "f32",
-          "digest": "772665dfa74437317d23a6418f246f0b037ae335cb301bc7c7fd13c6f17a6848",
+          "digest": "08b4760ed78cb1ad7f54fcb770b32f6208f00869c31fae556304f47f84ccb973",
           "probes": [
             {
               "x": 0,
@@ -9371,7 +9371,7 @@
           "policy": "specular",
           "tolerance": 0.001,
           "kind": "f32",
-          "digest": "202619b6aed98b816b2c2909f54f2f3005ea19696ecc05ce3ef10002b086b8c3",
+          "digest": "cb47dbd7600c4a6257989437c0d79e2b90827fd90054760e41fab06092f87279",
           "probes": [
             {
               "x": 0,
@@ -9401,7 +9401,7 @@
           "policy": "lightingColor",
           "tolerance": 1,
           "kind": "u8",
-          "digest": "b400b832bd1a51eb5c09e841a239611920e0cd89d6e152227be5d6f46a8f0026",
+          "digest": "0a4de0872d279b9f8dfaf1a800f48323075dd919541097eee3cdf47c9973bac6",
           "probes": [
             {
               "x": 0,
