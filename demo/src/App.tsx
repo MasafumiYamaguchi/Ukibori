@@ -102,6 +102,9 @@ export function App() {
       exposure={exposure}
       backend={backend}
       className="demo-root"
+            onReady={(layer) => {
+        (window as any).__ukibori = layer;
+  }}
     >
       <div className="demo">
         <header className="demo-header">
