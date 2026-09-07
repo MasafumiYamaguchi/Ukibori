@@ -12,17 +12,17 @@
 import { execSync } from "node:child_process";
 import { cpus, release, type, platform, arch } from "node:os";
 
-export function gitCommitSync() {
+export function gitCommitSync(cwd = process.cwd()) {
   try {
-    return execSync("git rev-parse HEAD", { encoding: "utf8", cwd: process.cwd() }).trim();
+    return execSync("git rev-parse HEAD", { encoding: "utf8", cwd }).trim();
   } catch {
     return "unknown";
   }
 }
 
-export function gitStatusPorcelain() {
+export function gitStatusPorcelain(cwd = process.cwd()) {
   try {
-    return execSync("git status --porcelain", { encoding: "utf8", cwd: process.cwd() });
+    return execSync("git status --porcelain", { encoding: "utf8", cwd });
   } catch {
     return "";
   }

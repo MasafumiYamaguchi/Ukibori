@@ -16,7 +16,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { presentFs, PRESENT_FS_CONSTANT, PRESENT_VS } from "./presentation-shader.mjs";
-import { partialEditScene } from "./scenes.mjs";
+import { partialEditScene, productionDemoDynamicLightScene } from "./scenes.mjs";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const bundlePath = resolve(scriptDir, "../../../dist/index.js");
@@ -57,6 +57,21 @@ describe("partial scene knob contract", () => {
   it("scenes contain no Math.random", () => {
     const source = readFileSync(join(scriptDir, "scenes.mjs"), "utf8");
     expect(source).not.toContain("Math.random");
+  });
+});
+
+describe("#57 production dynamic-light scene contract", () => {
+  it("pins the demo-scale extent, surface density, and broad caster union", () => {
+    const scene = productionDemoDynamicLightScene({ width: 1536, height: 1440 });
+    const casters = scene.surfaces.filter((surface) => surface.castsShadow === true);
+    expect(scene.width * scene.height).toBe(2_211_840);
+    expect(scene.surfaces).toHaveLength(9);
+    expect(casters).toHaveLength(9);
+    expect(Math.min(...casters.map((surface) => surface.position.x))).toBe(128);
+    expect(Math.min(...casters.map((surface) => surface.position.y))).toBe(128);
+    expect(Math.max(...casters.map((surface) => surface.position.x + surface.size.x))).toBe(1408);
+    expect(Math.max(...casters.map((surface) => surface.position.y + surface.size.y))).toBe(1312);
+    expect(scene.light.angularRadius).toBeGreaterThan(0);
   });
 });
 

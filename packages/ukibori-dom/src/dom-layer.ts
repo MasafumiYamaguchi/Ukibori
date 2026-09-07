@@ -111,6 +111,14 @@ export interface UkiboriDomOptions {
   backend?: DomBackend;
   /** test seam replacing `navigator.gpu` on the async GPU paths */
   gpu?: DomGpuSource;
+  /**
+   * Opt into per-frame WebGPU timestamp queries (default false). When true,
+   * the async create path requests `timestamp-query` only if advertised and
+   * exposes resolved pass timings through `debugState().gpuFrame.gpuTiming`.
+   * Unsupported/failed feature negotiation falls back to an ordinary WebGPU
+   * device; rendering never fails merely because profiling is unavailable.
+   */
+  gpuProfiling?: boolean;
   light?: Partial<DomLightState>;
   /** shared environment illumination (#22): uniform, intensity 0 = off; the
    * diffuse/specular shares independently zero out each term */
@@ -191,6 +199,7 @@ export class UkiboriDom {
   private readonly scheduler: (cb: () => void) => void;
   private readonly onError: (error: unknown) => void;
   private readonly gpuSource: DomGpuSource;
+  private readonly gpuProfiling: boolean;
   private margin: number;
   private dprSource: number | (() => number) | undefined;
   private compositeOptions: CompositeOptions;
@@ -255,6 +264,7 @@ export class UkiboriDom {
       );
     }
     this.gpuSource = options.gpu ?? defaultGpuSource();
+    this.gpuProfiling = options.gpuProfiling === true;
     this.registry = new SurfaceRegistry();
     this.scheduler = options.schedule ?? defaultScheduler;
     this.onError = options.onError ?? ((error) => console.error(error));
@@ -398,11 +408,20 @@ export class UkiboriDom {
       if (adapter === null) {
         throw new Error("no WebGPU adapter available");
       }
-      // Production rendering never enables timestamp queries: doing so makes
-      // every frame resolve and map a GPU buffer. Dedicated benchmark entry
-      // points request the optional feature explicitly when measurements are
-      // needed, keeping normal animation free of GPU readback stalls.
-      const device = await adapter.requestDevice();
+      let device: GpuPipelineDeviceLike & { destroy?: () => void };
+      if (this.gpuProfiling && adapter.features?.has("timestamp-query") === true) {
+        try {
+          device = await adapter.requestDevice({ requiredFeatures: ["timestamp-query"] });
+        } catch {
+          // Profiling is diagnostic-only. Feature negotiation must never
+          // turn a usable WebGPU adapter into a rendering failure.
+          device = await adapter.requestDevice();
+        }
+      } else {
+        // Default production path: no timestamp feature, query resolve, GPU
+        // buffer mapping, or per-frame telemetry overhead.
+        device = await adapter.requestDevice();
+      }
       const canvas = this.overlay.gpuCanvas();
       const context = canvas.getContext("webgpu") as unknown as GpuCanvasContextLike | null;
       if (context === null) {
