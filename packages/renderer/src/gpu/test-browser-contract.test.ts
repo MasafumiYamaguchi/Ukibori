@@ -393,11 +393,14 @@ describe("test-webgpu.mjs — bounded child-exit wait before temp/profile cleanu
   it("terminates Chrome BEFORE removing the temp directory in the finally block", () => {
     const finallyStart = runnerSource.indexOf("} finally {");
     const terminateIndex = runnerSource.indexOf("await terminateChrome(chrome);");
-    const rmIndex = runnerSource.indexOf("await rm(tmp, { recursive: true, force: true });");
+    const rmCall =
+      "await rm(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });";
+    const rmIndex = runnerSource.indexOf(rmCall);
     expect(finallyStart).toBeGreaterThan(-1);
     expect(terminateIndex).toBeGreaterThan(finallyStart);
     expect(rmIndex).toBeGreaterThan(terminateIndex);
     expect(terminateIndex).toBe(runnerSource.indexOf("await terminateChrome(chrome);")); // unique
+    expect(runnerSource).toContain(rmCall);
   });
 });
 

@@ -334,7 +334,9 @@ async function main() {
       server.closeAllConnections?.();
       await new Promise((resolveClose) => server.close(resolveClose));
     }
-    await rm(tmp, { recursive: true, force: true });
+    // Chrome may leave a short-lived profile helper writing after the parent
+    // exits on hosted macOS. Node retries only when maxRetries is explicit.
+    await rm(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
     // Keep build details in the full log; CI parses the dedicated result file.
     if (buildOutput.trim().length > 0) {
       console.log("test:webgpu: renderer build output:\n" + buildOutput.trimEnd());
