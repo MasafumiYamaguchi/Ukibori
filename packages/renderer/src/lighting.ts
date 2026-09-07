@@ -13,7 +13,7 @@ import {
   sanitizeEnvironment,
   sanitizeExposure,
 } from "./environment";
-import { BASE_MATERIAL, resolveMaterial } from "./material";
+import { BASE_MATERIAL, resolveSurfaceMaterial } from "./material";
 import type { Material } from "./material";
 import { NO_OWNER } from "./compose";
 import { COLOR_SPEC, NORMAL_SPEC } from "./types";
@@ -276,7 +276,11 @@ export function shadePreparedFields(
     }
     let material = materials.get(owner);
     if (material === undefined) {
-      material = resolveMaterial(scene.materials, surface.material);
+      material = resolveSurfaceMaterial(
+        scene.materials,
+        surface.material,
+        surface.baseColorOverride,
+      );
       materials.set(owner, material);
     }
     return material;

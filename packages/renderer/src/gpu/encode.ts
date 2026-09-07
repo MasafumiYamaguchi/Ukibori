@@ -1,5 +1,5 @@
 import { NO_OWNER } from "../compose";
-import { resolveMaterial } from "../material";
+import { resolveSurfaceMaterial } from "../material";
 import { isFiniteNumber } from "../math";
 import type { MaskSource, Scene } from "../scene";
 import type { EncodedHeader } from "./layout";
@@ -108,16 +108,18 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
   const renderHeight = Math.max(1, Math.floor(scene.height * dprF));
 
   const surfaceCount = scene.surfaces.length;
-  const materialRefs: string[] = [];
+  const materialKeys: string[] = [];
   const materials: EncodedMaterial[] = [];
   const masks: MaskSource[] = [];
   const maskBlobs: Uint8Array[] = [];
   const maskIndexByMask = new Map<MaskSource, number>();
 
   for (const surface of scene.surfaces) {
-    if (!materialRefs.includes(surface.material)) {
-      materialRefs.push(surface.material);
-      const resolved = resolveMaterial(scene.materials, surface.material);
+    const override = surface.baseColorOverride;
+    const materialKey = `${surface.material}|${override?.r ?? ""}|${override?.g ?? ""}|${override?.b ?? ""}`;
+    if (!materialKeys.includes(materialKey)) {
+      materialKeys.push(materialKey);
+      const resolved = resolveSurfaceMaterial(scene.materials, surface.material, override);
       materials.push({
         baseColor: [
           Math.fround(resolved.baseColor.r),
@@ -202,7 +204,9 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
     writeU32(view, record + SURFACE_OFFSET_PAINT_ORDER, i);
     const shapeKind = surface.shape.kind === "mask" ? SHAPE_MASK : SHAPE_ROUNDED_RECT;
     writeU32(view, record + SURFACE_OFFSET_SHAPE_KIND, shapeKind);
-    writeU32(view, record + SURFACE_OFFSET_MATERIAL_INDEX, materialRefs.indexOf(surface.material));
+    const override = surface.baseColorOverride;
+    const materialKey = `${surface.material}|${override?.r ?? ""}|${override?.g ?? ""}|${override?.b ?? ""}`;
+    writeU32(view, record + SURFACE_OFFSET_MATERIAL_INDEX, materialKeys.indexOf(materialKey));
     writeF32(view, record + SURFACE_OFFSET_ELEVATION, Math.fround(surface.elevation));
     writeF32(view, record + SURFACE_OFFSET_THICKNESS, Math.fround(surface.thickness ?? 0));
     writeF32(view, record + SURFACE_OFFSET_BEVEL_WIDTH, Math.fround(surface.bevelWidth ?? 0));

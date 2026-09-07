@@ -80,6 +80,9 @@ export function buildScene(input: BuildSceneInput): Scene {
           : { kind: "roundedRect", radius: geo.radius * dpr },
       profile: options.profile ?? { kind: "bevel" },
       material: options.material,
+      ...(entry.baseColorOverride !== null
+        ? { baseColorOverride: entry.baseColorOverride }
+        : {}),
       castsShadow: options.castsShadow ?? true,
       receivesShadow: options.receivesShadow ?? true,
     });

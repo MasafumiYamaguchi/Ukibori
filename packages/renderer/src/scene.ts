@@ -170,6 +170,12 @@ export interface SurfaceNode {
    */
   profile: HeightProfile;
   material: MaterialRef;
+  /**
+   * Internal per-surface pigment override in LINEAR RGB. When present it
+   * replaces only the resolved material's baseColor; roughness, metallic and
+   * ior still come from `material`.
+   */
+  baseColorOverride?: LinearRgb;
   castsShadow: boolean;
   receivesShadow: boolean;
 }
@@ -320,6 +326,10 @@ function validateSurface(node: SurfaceNode): SurfaceNode {
   if (typeof node.material !== "string" || node.material.length === 0) {
     throw new TypeError(`${label} material must be a non-empty string`);
   }
+  const baseColorOverride =
+    node.baseColorOverride === undefined
+      ? undefined
+      : sanitizeSurfaceBaseColor(node.baseColorOverride);
   if (typeof node.castsShadow !== "boolean" || typeof node.receivesShadow !== "boolean") {
     throw new TypeError(`${label} castsShadow/receivesShadow must be booleans`);
   }
@@ -339,7 +349,22 @@ function validateSurface(node: SurfaceNode): SurfaceNode {
       );
     }
   }
-  return { ...node, thickness: node.thickness ?? 0, bevelWidth: node.bevelWidth ?? 0 };
+  return {
+    ...node,
+    thickness: node.thickness ?? 0,
+    bevelWidth: node.bevelWidth ?? 0,
+    ...(baseColorOverride !== undefined ? { baseColorOverride } : {}),
+  };
+}
+
+function sanitizeSurfaceBaseColor(color: LinearRgb): LinearRgb {
+  const channel = (value: number): number => {
+    if (typeof value !== "number" || !Number.isFinite(value)) {
+      throw new TypeError("surface baseColorOverride channels must be finite numbers");
+    }
+    return Math.fround(Math.min(1, Math.max(0, value)));
+  };
+  return { r: channel(color.r), g: channel(color.g), b: channel(color.b) };
 }
 
 function sanitizeIntensity(v: unknown): number {

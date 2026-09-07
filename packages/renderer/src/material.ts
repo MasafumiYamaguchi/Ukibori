@@ -87,6 +87,19 @@ export function resolveMaterial(
   throw new Error(`unknown material "${ref}"`);
 }
 
+/** Resolve the physical response, then replace only its per-surface pigment. */
+export function resolveSurfaceMaterial(
+  materials: Record<string, Material> | undefined,
+  ref: string,
+  baseColorOverride?: LinearRgb,
+): Material {
+  const resolved = resolveMaterial(materials, ref);
+  if (baseColorOverride === undefined) {
+    return resolved;
+  }
+  return sanitizeMaterial({ ...resolved, baseColor: baseColorOverride });
+}
+
 function sanitizeChannel(v: number | undefined, fallback: number): number {
   if (typeof v !== "number" || !Number.isFinite(v)) {
     return fallback;

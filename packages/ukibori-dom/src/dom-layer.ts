@@ -35,6 +35,7 @@ import type {
   DomShadowOptions,
   DomSurfaceOptions,
 } from "./types";
+import { parseOpaqueComputedColor } from "./css-color";
 
 /**
  * UkiboriDom — the DOM integration layer (#20).
@@ -534,8 +535,32 @@ export class UkiboriDom {
    * delegation is the UkiboriText-specific "this DOM text was rasterized into
    * THIS mask" semantic.
    */
-  private static delegatesInk(options: DomSurfaceOptions): boolean {
+  private static wantsInkDelegation(options: DomSurfaceOptions): boolean {
     return options.delegateTextInk === true && options.shape?.kind === "mask";
+  }
+
+  private static readTextBaseColor(entry: SurfaceEntry): LinearRgb | null {
+    if (!UkiboriDom.wantsInkDelegation(entry.options)) {
+      return null;
+    }
+    return parseOpaqueComputedColor(getComputedStyle(entry.element).color);
+  }
+
+  private syncTextColor(entry: SurfaceEntry): boolean {
+    const next = UkiboriDom.readTextBaseColor(entry);
+    const previous = entry.baseColorOverride;
+    const changed =
+      previous?.r !== next?.r || previous?.g !== next?.g || previous?.b !== next?.b;
+    entry.baseColorOverride = next;
+    const shouldDelegate = next !== null;
+    if (!entry.inkDelegated && shouldDelegate) {
+      suppressPhysicalInk(entry.element);
+      entry.inkDelegated = true;
+    } else if (entry.inkDelegated && !shouldDelegate) {
+      restorePhysicalInk(entry.element);
+      entry.inkDelegated = false;
+    }
+    return changed;
   }
 
   /**
@@ -579,13 +604,11 @@ export class UkiboriDom {
         geometry: null,
         dirty: true,
         inkDelegated: false,
+        baseColorOverride: null,
       };
       this.registry.add(entry);
-      inkDelegated = UkiboriDom.delegatesInk(entry.options);
-      if (inkDelegated) {
-        suppressPhysicalInk(element);
-        entry.inkDelegated = true;
-      }
+      this.syncTextColor(entry);
+      inkDelegated = entry.inkDelegated;
     } catch (error) {
       restoreSurface(element);
       if (inkDelegated) {
@@ -643,16 +666,8 @@ export class UkiboriDom {
     // merge; identical states do nothing, so retained property updates
     // (text/material/elevation/... changes, mask object swaps) never
     // multiply the attribute refcount.
-    const wasDelegated = entry.inkDelegated;
     entry.options = { ...entry.options, ...patch, id: entry.options.id };
-    const shouldDelegate = UkiboriDom.delegatesInk(entry.options);
-    if (!wasDelegated && shouldDelegate) {
-      suppressPhysicalInk(entry.element);
-      entry.inkDelegated = true;
-    } else if (wasDelegated && !shouldDelegate) {
-      restorePhysicalInk(entry.element);
-      entry.inkDelegated = false;
-    }
+    this.syncTextColor(entry);
     // Any option change feeds the scene (geometry, elevation, material...).
     this.sceneDirty = true;
     this.registry.markDirty(id);
@@ -828,10 +843,14 @@ export class UkiboriDom {
     const startedAt = performance.now();
 
     let geometryChanged = false;
+    let textColorChanged = false;
     this.renderSerial += 1;
     const measureStartedAt = performance.now();
     let measuredEntries = 0;
     for (const entry of this.registry.entries()) {
+      if (this.syncTextColor(entry)) {
+        textColorChanged = true;
+      }
       if (entry.dirty || entry.geometry === null) {
         entry.dirty = false;
         let geometry;
@@ -857,6 +876,7 @@ export class UkiboriDom {
     if (
       this.lastRegion !== null &&
       !geometryChanged &&
+      !textColorChanged &&
       !this.sceneDirty &&
       !this.forceRender
     ) {

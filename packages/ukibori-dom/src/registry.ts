@@ -1,3 +1,4 @@
+import type { LinearRgb } from "ukibori-renderer";
 import type { DomSurfaceOptions, MeasuredGeometry } from "./types";
 
 /**
@@ -16,6 +17,8 @@ export interface SurfaceEntry {
   /** last measured geometry (null until first measure) */
   geometry: MeasuredGeometry | null;
   dirty: boolean;
+  /** Cached computed CSS pigment, already converted once to linear RGB. */
+  baseColorOverride: LinearRgb | null;
   /**
    * #52 compositing policy state: whether THIS layer currently owns the
    * `data-ukibori-physical-ink` suppression for the element. Edge-triggered
