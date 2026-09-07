@@ -226,3 +226,118 @@ describe("#48 exact ShadowPass prefix search", () => {
     }
   });
 });
+
+type AxisIntervalInput = {
+  origin: number;
+  delta: number;
+  stepSize: number;
+  limit: number;
+  axisMin: number;
+  axisMax: number;
+};
+
+function axisCoordinate(input: AxisIntervalInput, step: number): number {
+  return f32(f32(input.origin) + mulF32(input.delta, mulF32(f32(step), input.stepSize)));
+}
+
+function historicalAxisInterval(input: AxisIntervalInput): [number, number] {
+  let first = 0;
+  let last = 0;
+  for (let step = 1; step <= input.limit; step++) {
+    const coordinate = axisCoordinate(input, step);
+    if (coordinate >= input.axisMin && coordinate <= input.axisMax) {
+      if (first === 0) first = step;
+      last = step;
+    }
+  }
+  return first === 0 ? [1, 0] : [first, last];
+}
+
+function optimizedAxisInterval(input: AxisIntervalInput): [number, number] {
+  if (input.limit === 0) return [1, 0];
+  const atFirst = axisCoordinate(input, 1);
+  const atLast = axisCoordinate(input, input.limit);
+  if (input.delta === 0) {
+    return input.origin >= input.axisMin && input.origin <= input.axisMax
+      ? [1, input.limit]
+      : [1, 0];
+  }
+  if (
+    (input.delta > 0 && (atLast < input.axisMin || atFirst > input.axisMax)) ||
+    (input.delta < 0 && (atLast > input.axisMax || atFirst < input.axisMin))
+  ) {
+    return [1, 0];
+  }
+
+  let first = 1;
+  if (
+    (input.delta > 0 && atFirst < input.axisMin) ||
+    (input.delta < 0 && atFirst > input.axisMax)
+  ) {
+    let lo = 1;
+    let hi = input.limit;
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      const coordinate = axisCoordinate(input, mid);
+      if (
+        (input.delta > 0 && coordinate >= input.axisMin) ||
+        (input.delta < 0 && coordinate <= input.axisMax)
+      ) {
+        hi = mid;
+      } else {
+        lo = mid + 1;
+      }
+    }
+    first = lo;
+  }
+  const firstCoordinate = axisCoordinate(input, first);
+  if (firstCoordinate < input.axisMin || firstCoordinate > input.axisMax) return [1, 0];
+
+  let last = input.limit;
+  if (
+    (input.delta > 0 && atLast > input.axisMax) ||
+    (input.delta < 0 && atLast < input.axisMin)
+  ) {
+    let lo = first;
+    let hi = input.limit;
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi + 1) / 2);
+      const coordinate = axisCoordinate(input, mid);
+      if (
+        (input.delta > 0 && coordinate <= input.axisMax) ||
+        (input.delta < 0 && coordinate >= input.axisMin)
+      ) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    last = lo;
+  }
+  const lastCoordinate = axisCoordinate(input, last);
+  return lastCoordinate < input.axisMin || lastCoordinate > input.axisMax ? [1, 0] : [first, last];
+}
+
+describe("#57 exact discrete caster-AABB interval", () => {
+  it("matches a linear f32 reference over narrow, missed, and crossing intervals", () => {
+    const state = { value: 0x57ca57e };
+    for (let index = 0; index < 20_000; index++) {
+      const origin = f32((nextRandom(state) * 2 - 1) * 100);
+      const delta = index % 29 === 0 ? 0 : f32((nextRandom(state) * 2 - 1) * 2);
+      const stepSize = f32(0.01 + nextRandom(state) * 3);
+      const center = f32((nextRandom(state) * 2 - 1) * 100);
+      const halfWidth = f32(index % 7 === 0 ? nextRandom(state) * 0.001 : nextRandom(state) * 20);
+      const input: AxisIntervalInput = {
+        origin,
+        delta,
+        stepSize,
+        limit: 1 + Math.floor(nextRandom(state) * 512),
+        axisMin: f32(center - halfWidth),
+        axisMax: f32(center + halfWidth),
+      };
+      expect(optimizedAxisInterval(input), `case ${index}: ${JSON.stringify(input)}`).toEqual(
+        historicalAxisInterval(input),
+      );
+    }
+  });
+});

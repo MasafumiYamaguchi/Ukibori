@@ -77,6 +77,14 @@ export type UkiboriQuality = "low" | "medium" | "high";
 export interface UkiboriProps {
   /** Backend policy (default "auto"). */
   backend?: UkiboriBackend;
+  /**
+   * Requests the optional WebGPU `timestamp-query` device feature and exposes
+   * resolved per-pass timings through `onReady`'s
+   * `layer.debugState().gpuFrame?.gpuTiming`. Default false. Because WebGPU
+   * features are fixed when a device is created, changing this prop recreates
+   * the physical layer.
+   */
+  gpuProfiling?: boolean;
   /** Shared directional light (renderer #13 convention: points TOWARD the
    * light). Used by the physical layer and the CSS fallback. */
   light?: LightVector;

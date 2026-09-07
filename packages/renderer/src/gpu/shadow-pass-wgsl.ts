@@ -75,6 +75,13 @@ import { WGSL_SCENE_BASE } from "./wgsl";
  *   two-texel interpolation pad), the caster field is zero and its four
  *   storage reads are skipped whenever the zero base plane cannot satisfy the
  *   strict comparison.
+ * - #57 retained dynamic-light clipping: when a rising ray's first
+ *   threshold already reaches the host-derived caster-height maximum, the
+ *   ray is proven lit immediately. Otherwise the same historical discrete
+ *   coordinate expression locates the first and last steps intersecting the
+ *   padded caster union AABB, so known-zero prefixes and suffixes execute no
+ *   march iterations while sample positions and the strict comparison stay
+ *   unchanged.
  *
  * ## Conservative early-exit bound (host-derived, no readback)
  *
@@ -302,6 +309,75 @@ fn rayZAtStep(rz0: f32, dz: f32, stepIndex: u32) -> f32 {
   return rz0 + dz * t;
 }
 
+// Exact discrete interval whose historical sample coordinates overlap one
+// axis of the conservative caster AABB. The projected coordinate is monotone
+// for a fixed ray, so two lower/upper-bound searches replace potentially
+// hundreds of per-step empty-space iterations without changing any sampled
+// coordinate or comparison. An empty interval is encoded as (1, 0).
+fn casterAxisStepInterval(
+  origin: f32,
+  delta: f32,
+  axisMin: f32,
+  axisMax: f32,
+  limit: u32,
+) -> vec2<u32> {
+  if (limit == 0u) {
+    return vec2<u32>(1u, 0u);
+  }
+  let atFirst = origin + delta * (f32(1u) * params.stepSize);
+  let atLast = origin + delta * (f32(limit) * params.stepSize);
+  if (delta == 0.0) {
+    return select(vec2<u32>(1u, 0u), vec2<u32>(1u, limit), origin >= axisMin && origin <= axisMax);
+  }
+  if ((delta > 0.0 && (atLast < axisMin || atFirst > axisMax)) ||
+      (delta < 0.0 && (atLast > axisMax || atFirst < axisMin))) {
+    return vec2<u32>(1u, 0u);
+  }
+
+  var first = 1u;
+  if ((delta > 0.0 && atFirst < axisMin) || (delta < 0.0 && atFirst > axisMax)) {
+    var lo = 1u;
+    var hi = limit;
+    while (lo < hi) {
+      let mid = (lo + hi) >> 1u;
+      let coordinate = origin + delta * (f32(mid) * params.stepSize);
+      if ((delta > 0.0 && coordinate >= axisMin) ||
+          (delta < 0.0 && coordinate <= axisMax)) {
+        hi = mid;
+      } else {
+        lo = mid + 1u;
+      }
+    }
+    first = lo;
+  }
+  let firstCoordinate = origin + delta * (f32(first) * params.stepSize);
+  if (firstCoordinate < axisMin || firstCoordinate > axisMax) {
+    return vec2<u32>(1u, 0u);
+  }
+
+  var last = limit;
+  if ((delta > 0.0 && atLast > axisMax) || (delta < 0.0 && atLast < axisMin)) {
+    var lo = first;
+    var hi = limit;
+    while (lo < hi) {
+      let mid = (lo + hi + 1u) >> 1u;
+      let coordinate = origin + delta * (f32(mid) * params.stepSize);
+      if ((delta > 0.0 && coordinate <= axisMax) ||
+          (delta < 0.0 && coordinate >= axisMin)) {
+        lo = mid;
+      } else {
+        hi = mid - 1u;
+      }
+    }
+    last = lo;
+  }
+  let lastCoordinate = origin + delta * (f32(last) * params.stepSize);
+  if (lastCoordinate < axisMin || lastCoordinate > axisMax) {
+    return vec2<u32>(1u, 0u);
+  }
+  return vec2<u32>(first, last);
+}
+
 // Return the largest march index whose historical step can be reached before
 // either the inclusive XY scene bound or the max-caster-height break.  For
 // dz > 0 the combined predicate is a monotone prefix.  For dz <= 0, height
@@ -375,17 +451,36 @@ fn rayPrefixStepLimit(
  * are identical by construction. Passing params.lightDirection reproduces
  * the historical hard-shadow result exactly.
  */fn traceOccluded(px: f32, py: f32, rz0: f32, dx: f32, dy: f32, dz: f32) -> bool {
+  // #57 light-only frames spend most of their time in this function. If the
+  // very first rising-ray threshold already reaches the caster-height upper
+  // bound, the strict sample-greater-than-threshold test can never succeed at
+  // any later step.
+  if (dz >= 0.0 && rayZAtStep(rz0, dz, 1u) + params.bias >= params.maxCasterHeight) {
+    return false;
+  }
   // Integer step index: the loop terminates on every device (stepCount is
   // host-capped), even when a positive subnormal stepSize makes t round to
   // a constant in f32.  The prefix search uses the historical f32 ray-Z
   // expression directly, so it cannot trim a valid height-boundary sample.
-  let stepLimit = rayPrefixStepLimit(px, py, rz0, dx, dy, dz);
+  var stepLimit = rayPrefixStepLimit(px, py, rz0, dx, dy, dz);
   let casterPad = 2.0 / params.dpr;
   let casterMinX = params.sampleDirs[0].w - casterPad;
   let casterMinY = params.sampleDirs[1].w - casterPad;
   let casterMaxX = params.sampleDirs[2].w + casterPad;
   let casterMaxY = params.sampleDirs[3].w + casterPad;
   var stepIndex = 1u;
+  // Scene heights and the default bias are non-negative. For a rising ray,
+  // that makes the zero base plane unable to occlude at every step. Clip the
+  // loop to the exact discrete intersection with the caster union instead of
+  // walking through known-empty space. Falling rays retain the historical
+  // per-step guard because their threshold can cross below zero.
+  let clipToCasters = dz >= 0.0 && rayZAtStep(rz0, dz, 1u) + params.bias >= 0.0;
+  if (clipToCasters && stepLimit > 0u) {
+    let xInterval = casterAxisStepInterval(px, dx, casterMinX, casterMaxX, stepLimit);
+    let yInterval = casterAxisStepInterval(py, dy, casterMinY, casterMaxY, stepLimit);
+    stepIndex = max(xInterval.x, yInterval.x);
+    stepLimit = min(xInterval.y, yInterval.y);
+  }
   while (stepIndex <= stepLimit) {
     // Explicit f32-multiple march series (shared with the CPU oracle):
     // t = f32(stepIndex) * stepSize is the correctly-rounded f32 of the
@@ -408,7 +503,8 @@ fn rayPrefixStepLimit(
     // Empty-space cull: outside the conservative caster union, the caster
     // field is exactly zero.  Keep the read for a negative threshold because
     // the zero base plane can then be a strict occluder.
-    if (!(sx >= casterMinX && sx <= casterMaxX && sy >= casterMinY && sy <= casterMaxY) &&
+    if (!clipToCasters &&
+        !(sx >= casterMinX && sx <= casterMaxX && sy >= casterMinY && sy <= casterMaxY) &&
         threshold >= 0.0) {
       stepIndex += 1u;
       continue;

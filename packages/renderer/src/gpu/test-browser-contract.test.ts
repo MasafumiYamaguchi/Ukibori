@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 // The runner is a plain ESM CLI script without type declarations; importing
 // parseResultMarker for unit tests is intentional.
 // @ts-expect-error - scripts/test-webgpu.mjs has no type declarations
-import { parseResultMarker } from "../../scripts/test-webgpu.mjs";
+import { parseResultMarker, resolveResultPath } from "../../scripts/test-webgpu.mjs";
 
 /**
  * Deterministic source-level contract assertions for the #25-#30 real-GPU
@@ -28,6 +28,13 @@ import { parseResultMarker } from "../../scripts/test-webgpu.mjs";
  *   and the CPU oracles/comparisons live in test-browser/oracle.mjs
  */
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+describe("test-webgpu.mjs — CI result path", () => {
+  it("resolves workspace-run relative paths from the repository root", () => {
+    expect(resolveResultPath("webgpu-result.txt", "/repo")).toBe("/repo/webgpu-result.txt");
+    expect(resolveResultPath("/tmp/result.txt", "/repo")).toBe("/tmp/result.txt");
+  });
+});
 
 const paritySource = readFileSync(resolve(packageRoot, "test-browser", "parity.mjs"), "utf8");
 const catalogSource = readFileSync(resolve(packageRoot, "test-browser", "catalog.mjs"), "utf8");
@@ -156,9 +163,9 @@ describe("parity.mjs + oracle.mjs — #27 shadow fixtures and harness hardening"
     expect(catalogSource).toContain('stepSize: 0.1, bias: 0.25, maxDistance: 10');
   });
 
-  it("exempts only the two intentional equality fixtures from the perturbation pre-check", () => {
+  it("exempts only the three intentional equality fixtures from the perturbation pre-check", () => {
     expect(catalogSource).toContain("shadowThresholdExact: true");
-    expect(catalogSource.match(/shadowThresholdExact: true/g)).toHaveLength(2);
+    expect(catalogSource.match(/shadowThresholdExact: true/g)).toHaveLength(3);
     expect(oracleSource).toContain("exactThreshold = false");
     expect(oracleSource).toContain("if (exactThreshold) {");
     // the exemption is NOT applied to ordinary fixtures
@@ -386,11 +393,14 @@ describe("test-webgpu.mjs — bounded child-exit wait before temp/profile cleanu
   it("terminates Chrome BEFORE removing the temp directory in the finally block", () => {
     const finallyStart = runnerSource.indexOf("} finally {");
     const terminateIndex = runnerSource.indexOf("await terminateChrome(chrome);");
-    const rmIndex = runnerSource.indexOf("await rm(tmp, { recursive: true, force: true });");
+    const rmCall =
+      "await rm(tmp, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });";
+    const rmIndex = runnerSource.indexOf(rmCall);
     expect(finallyStart).toBeGreaterThan(-1);
     expect(terminateIndex).toBeGreaterThan(finallyStart);
     expect(rmIndex).toBeGreaterThan(terminateIndex);
     expect(terminateIndex).toBe(runnerSource.indexOf("await terminateChrome(chrome);")); // unique
+    expect(runnerSource).toContain(rmCall);
   });
 });
 

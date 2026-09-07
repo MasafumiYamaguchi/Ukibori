@@ -320,7 +320,7 @@ function makeSeam(device: MockFullDevice): DomGpuSource {
 }
 
 describe("UkiboriDom — async WebGPU backend (auto/cpu/webgpu)", () => {
-  it("requests optional timestamp-query when advertised without making it mandatory", async () => {
+  it("does not request timestamp-query in the production DOM path", async () => {
     stubGetContext();
     const device = new MockFullDevice();
     const requestDevice = vi.fn(async (_descriptor?: { requiredFeatures?: readonly string[] }) =>
@@ -339,7 +339,61 @@ describe("UkiboriDom — async WebGPU backend (auto/cpu/webgpu)", () => {
       observe: false,
     });
 
+    expect(requestDevice).toHaveBeenCalledWith();
+    expect(layer.debugState().backend).toBe("webgpu");
+    layer.dispose();
+  });
+
+  it("requests timestamp-query only when GPU profiling is explicitly enabled", async () => {
+    stubGetContext();
+    const device = new MockFullDevice();
+    const requestDevice = vi.fn(async (_descriptor?: { requiredFeatures?: readonly string[] }) =>
+      device as unknown as GpuPipelineDeviceLike,
+    );
+    const layer = await UkiboriDom.create({
+      backend: "auto",
+      gpuProfiling: true,
+      gpu: {
+        requestAdapter: async () => ({
+          features: { has: (feature) => feature === "timestamp-query" },
+          requestDevice,
+        }),
+        getPreferredCanvasFormat: () => "rgba8unorm",
+      },
+      schedule: (cb) => cb(),
+      observe: false,
+    });
+
     expect(requestDevice).toHaveBeenCalledWith({ requiredFeatures: ["timestamp-query"] });
+    expect(layer.debugState().backend).toBe("webgpu");
+    layer.dispose();
+  });
+
+  it("keeps WebGPU rendering when profiling feature negotiation fails", async () => {
+    stubGetContext();
+    const device = new MockFullDevice();
+    const requestDevice = vi.fn(async (descriptor?: { requiredFeatures?: readonly string[] }) => {
+      if (descriptor?.requiredFeatures?.includes("timestamp-query")) {
+        throw new Error("timestamp-query negotiation rejected");
+      }
+      return device as unknown as GpuPipelineDeviceLike;
+    });
+    const layer = await UkiboriDom.create({
+      backend: "auto",
+      gpuProfiling: true,
+      gpu: {
+        requestAdapter: async () => ({
+          features: { has: (feature) => feature === "timestamp-query" },
+          requestDevice,
+        }),
+        getPreferredCanvasFormat: () => "rgba8unorm",
+      },
+      schedule: (cb) => cb(),
+      observe: false,
+    });
+
+    expect(requestDevice).toHaveBeenNthCalledWith(1, { requiredFeatures: ["timestamp-query"] });
+    expect(requestDevice).toHaveBeenNthCalledWith(2);
     expect(layer.debugState().backend).toBe("webgpu");
     layer.dispose();
   });

@@ -15,13 +15,15 @@
 // Usage:
 //   node scripts/bench-gpu.mjs [--suite stage,e2e] [--samples 10]
 //        [--json benchmark-results.json] [--width 640] [--height 360]
-//        [--algorithm optimized|baseline]
+//        [--algorithm optimized|pre57|baseline]
+//        [--renderer-package /clean/worktree/packages/renderer]
 // Restricted desktop/CI hosts may opt into the diagnostic
 // BENCH_CHROME_NO_SANDBOX=1 environment variable; the default remains
 // sandboxed.
 //
 // Suites: stage, e2e, resolution, surface, mask, shadow, reconstruction,
-// presentation, submission, upload, partial, retained (default: all).
+// presentation, submission, upload, partial, retained, dynamic-light
+// (default: all).
 
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -54,6 +56,12 @@ const heightArg = flag("--height", process.env.BENCH_HEIGHT ?? "360");
 const retainedArg = flag("--retained-frames", process.env.BENCH_RETAINED_FRAMES ?? "20");
 const algorithmArg = flag("--algorithm", process.env.BENCH_ALGORITHM ?? "optimized");
 const jsonPath = flag("--json", join(pkgRoot, "benchmark-results.json"));
+// A clean source worktree may be measured with this versioned harness. This
+// is used for honest before/after runs: the top-level commit/dirty fields
+// describe the renderer bundle's source tree, while separate harness fields
+// identify and validate the benchmark implementation itself.
+const rendererPkgRoot = resolve(flag("--renderer-package", pkgRoot));
+const rendererRepoRoot = resolve(rendererPkgRoot, "..", "..");
 
 function findChrome() {
   if (process.env.CHROME_PATH !== undefined) {
@@ -180,7 +188,7 @@ async function main() {
     );
     process.exit(1);
   }
-  const bundle = join(pkgRoot, "dist", "index.js");
+  const bundle = join(rendererPkgRoot, "dist", "index.js");
   if (!existsSync(bundle)) {
     console.error(
       `${MARKER_FAIL} bundle not found at ${bundle} - run ` +
@@ -342,20 +350,27 @@ if (marker === MARKER_PASS) {
       // merge the node-side commit + dirty-tree provenance into the
       // browser-side document so the saved JSON always carries the exact
       // tested commit and the cleanliness of the generating tree
-      const commit = gitCommitSync();
-      const dirty = isWorkingTreeDirty({ porcelain: gitStatusPorcelain() });
-      if (dirty && !allowDirty) {
+      const commit = gitCommitSync(rendererRepoRoot);
+      const dirty = isWorkingTreeDirty({ porcelain: gitStatusPorcelain(rendererRepoRoot) });
+      const harnessCommit = gitCommitSync(repoRoot);
+      const harnessDirty = isWorkingTreeDirty({ porcelain: gitStatusPorcelain(repoRoot) });
+      if ((dirty || harnessDirty) && !allowDirty) {
         console.error(
-          `${MARKER_FAIL} working tree is DIRTY: a baseline must be generated on a clean tree ` +
+          `${MARKER_FAIL} renderer or harness tree is DIRTY: evidence must be generated on clean trees ` +
             `so git checkout <commit> reproduces the runner (pass --allow-dirty for dev runs)`,
         );
-        console.error(gitStatusPorcelain().split("\n").slice(0, 10).join("\n"));
+        if (dirty) console.error(gitStatusPorcelain(rendererRepoRoot).split("\n").slice(0, 10).join("\n"));
+        if (harnessDirty && repoRoot !== rendererRepoRoot) {
+          console.error(gitStatusPorcelain(repoRoot).split("\n").slice(0, 10).join("\n"));
+        }
         process.exitCode = 1;
         return;
       }
       const doc = payload;
       doc.commit = commit;
       doc.workingTreeDirty = dirty;
+      doc.benchmarkHarnessCommit = harnessCommit;
+      doc.benchmarkHarnessWorkingTreeDirty = harnessDirty;
       await mkdir(dirname(jsonPath), { recursive: true });
       await writeFile(jsonPath, JSON.stringify(doc, null, 2), "utf8");
       console.log(

@@ -23,7 +23,7 @@
 // Configuration comes from URL query parameters (the runner passes them
 // through; defaults keep a single suite run under a couple of minutes):
 //   ?suite=all|stage,e2e,...&warmup=3&samples=5&width=640&height=360
-//   &algorithm=optimized|baseline (metadata label only)
+//   &algorithm=optimized|pre57|baseline (metadata label only)
 
 import {
   simpleRoundedRectScene,
@@ -36,6 +36,7 @@ import {
   shadowMaxHeightFastExitScene,
   shadowDenseOverlapScene,
   reconstructionHeavyScene,
+  productionDemoDynamicLightScene,
   partialEditScene,
   SCENE_FAMILIES,
 } from "./lib/scenes.mjs";
@@ -60,12 +61,14 @@ const WARMUP = Number(query.get("warmup") ?? 3);
 const SAMPLES = Number(query.get("samples") ?? 5);
 const RETAINED_FRAMES = Number(query.get("retainedFrames") ?? 20);
 const SUITE_QUERY = query.get("suite") ?? "all";
-// The production benchmark defaults to the optimized #48 path.  The
-// baseline worktree uses `algorithm=baseline` only to label its existing
-// per-step marcher accurately; it does not alter production code or timing.
-const SHADOW_BENCHMARK_ALGORITHM = query.get("algorithm") === "baseline"
+// This flag labels the shader actually supplied by the selected clean source
+// worktree; it never changes production code or timing.
+const requestedAlgorithm = query.get("algorithm") ?? "optimized";
+const SHADOW_BENCHMARK_ALGORITHM = requestedAlgorithm === "baseline"
   ? "baseline-ray-march"
-  : "exact-prefix-binary-search+caster-aabb-empty-space";
+  : requestedAlgorithm === "pre57"
+    ? "exact-prefix-binary-search+caster-aabb-empty-space"
+    : "exact-prefix-binary-search+caster-aabb-interval-clip";
 
 const cases = [];
 const notes = [];
@@ -1770,6 +1773,156 @@ async function suiteRetained() {
 }
 
 // ---------------------------------------------------------------------------
+// #57: production-shaped continuously changing soft-light workload
+// ---------------------------------------------------------------------------
+
+async function runDynamicLightCase({
+  id,
+  raw,
+  displayDpr,
+  pipelineDpr,
+  shadowOptions,
+  acceptance,
+}) {
+  let frame = 0;
+  const sceneAt = (index) => {
+    const angle = index * 0.173;
+    return sceneFor(() => ({
+      ...raw,
+      light: {
+        ...raw.light,
+        direction: {
+          x: Math.cos(angle) * 0.55,
+          y: Math.sin(angle) * 0.55,
+          z: 0.835,
+        },
+        angularRadius: 0.15,
+      },
+    }));
+  };
+  const { canvas, context, canvasFormat } = makeCanvas();
+  const pipeline = new api.GpuScenePipeline(device, context, canvasFormat);
+  try {
+    await timedRender(pipeline, { scene: sceneAt(frame++), dpr: pipelineDpr, shadowOptions });
+    const series = await benchSeries(
+      () => timedRender(pipeline, { scene: sceneAt(frame++), dpr: pipelineDpr, shadowOptions }),
+      { warmups: WARMUP, sampleCount: SAMPLES },
+    );
+    const expectedExecuted = "upload,shadow,reconstruction,lighting,presentation";
+    for (const result of series) {
+      const executed = result.stats.invalidation.executed.join(",");
+      if (executed !== expectedExecuted) {
+        throw new Error(`dynamic-light stage contract: expected ${expectedExecuted}; got ${executed}`);
+      }
+    }
+    const first = series[0];
+    const snap = pipeline.getSnapshot();
+    const effectiveSamples = snap.shadowPass.options.samples;
+    const radiusTexels = snap.reconstructionPass?.options?.radiusTexels ?? 0;
+    if (effectiveSamples !== 8 || radiusTexels <= 0) {
+      throw new Error(`dynamic-light quality contract: samples=${effectiveSamples}, radiusTexels=${radiusTexels}`);
+    }
+    const stageSummary = (stage) => {
+      const values = gpuSeriesOf(series, (result) => result.gpuTiming?.passGpuMs?.[stage]);
+      if (values.length !== SAMPLES) {
+        throw new Error(`dynamic-light ${stage} timestamps: expected ${SAMPLES}; got ${values.length}`);
+      }
+      return values.length > 0 ? summarizeSeries(values) : null;
+    };
+    const measuredScene = sceneAt(frame - 1);
+    const casting = measuredScene.surfaces.filter((surface) => surface.castsShadow === true);
+    const acceleration = shadowAccelerationMetadata(
+      measuredScene,
+      snap.shadowPass.lastDispatch.stepCount,
+    );
+    pushCase(
+      id,
+      {
+        suite: "dynamic-light",
+        workload: acceptance ? "production-demo-acceptance" : "micro-regression",
+        acceptance,
+        renderWidth: first.stats.renderWidth,
+        renderHeight: first.stats.renderHeight,
+        displayDpr,
+        pipelineDpr,
+        texelCount: first.stats.renderWidth * first.stats.renderHeight,
+        surfaceCount: measuredScene.surfaces.length,
+        casterCount: casting.length,
+        angularRadius: 0.15,
+        shadowSamples: 8,
+        maxDistanceSource: shadowOptions.maxDistance === undefined
+          ? "production-default-sceneDiagonal/lightXYLength"
+          : "explicit-microbenchmark",
+        effectiveMaxDistance: snap.shadowPass.options.maxDistance,
+        effectiveStepSize: snap.shadowPass.options.stepSize,
+        reconstructionRadius: shadowOptions.reconstruction.radius,
+        warmups: WARMUP,
+        samples: SAMPLES,
+      },
+      {
+        wallMs: summarizeSeries(series.map((result) => result.wallMs)),
+        gpuTimestampMs: totalGpuSummary(series),
+        shadowGpuTimestampMs: stageSummary("shadow"),
+        reconstructionGpuTimestampMs: stageSummary("reconstruction"),
+        lightingGpuTimestampMs: stageSummary("lighting"),
+        presentationGpuTimestampMs: stageSummary("presentation"),
+        executed: expectedExecuted,
+        heightExecuted: false,
+        normalExecuted: false,
+        effectiveSamples,
+        reconstructionActive: true,
+        radiusTexels,
+        renderExtent: `${first.stats.renderWidth}x${first.stats.renderHeight}`,
+        texelCount: first.stats.renderWidth * first.stats.renderHeight,
+        surfaceCount: measuredScene.surfaces.length,
+        casterCount: casting.length,
+        effectiveMaxDistance: snap.shadowPass.options.maxDistance,
+        effectiveStepSize: snap.shadowPass.options.stepSize,
+        displayDpr,
+        pipelineDpr,
+        acceptance,
+        ...acceleration,
+      },
+    );
+  } finally {
+    pipeline.dispose();
+    canvas.remove();
+  }
+}
+
+async function suiteDynamicLight() {
+  await runDynamicLightCase({
+    id: "dynamic-light/micro-soft-8",
+    raw: reconstructionHeavyScene({ width: WIDTH, height: HEIGHT }),
+    displayDpr: 1,
+    pipelineDpr: 1,
+    shadowOptions: {
+      samples: 8,
+      maxDistance: 200,
+      stepSize: 0.5,
+      bias: 0.5,
+      reconstruction: { enabled: true, radius: 2 },
+    },
+    acceptance: false,
+  });
+  await runDynamicLightCase({
+    id: "dynamic-light/production-demo-soft-8",
+    raw: productionDemoDynamicLightScene({ width: 1536, height: 1440 }),
+    displayDpr: 2,
+    // UkiboriDom has already transformed this scene and every CSS-space
+    // shadow length into device pixels, so the renderer receives DPR 1.
+    pipelineDpr: 1,
+    shadowOptions: {
+      samples: 8,
+      stepSize: 1,
+      bias: 1,
+      reconstruction: { enabled: true, radius: 4 },
+    },
+    acceptance: true,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // suite selection
 // ---------------------------------------------------------------------------
 
@@ -1786,6 +1939,7 @@ const SUITE_RUNNERS = {
   upload: suiteUpload,
   partial: suitePartial,
   retained: suiteRetained,
+  "dynamic-light": suiteDynamicLight,
 };
 
 const SUITES = Object.keys(SUITE_RUNNERS);

@@ -12,6 +12,7 @@
 //   short-shadow / long-shadow / soft-shadow   shadow travel variants
 //   shadow-worst-*     adversarial ShadowPass ray-march workloads (#48)
 //   reconstruction-heavy    soft + reconstruction-ready casters
+//   production-demo-dynamic-light  device-space main demo layout (#57)
 //   partial-edit            base + edit scene pair for partial recompute
 
 export function simpleRoundedRectScene({ width, height, slabSize = 90, dpr = 1 }) {
@@ -481,6 +482,52 @@ export function reconstructionHeavyScene({ width, height, dpr = 1 }) {
     ],
     light: {
       direction: { x: -0.5, y: -0.3, z: 0.8 },
+      intensity: 1,
+      angularRadius: Math.fround(0.15),
+    },
+  };
+}
+
+/**
+ * #57 production-shaped main-demo scene after the DOM layer's DPR transform.
+ * At the acceptance dimensions (1536x1440) this mirrors a 768x720 CSS-pixel
+ * viewport at display DPR 2: nine registered raised surfaces distributed
+ * across the live-card, material tiles, controls, and glyph-panel regions.
+ * The benchmark deliberately keeps the broad caster union produced by the
+ * real layout instead of using the sparse three-surface micro fixture.
+ */
+export function productionDemoDynamicLightScene({ width, height }) {
+  const rounded = (id, x, y, w, h, elevation, thickness, material, radius = 24) => ({
+    id,
+    position: { x, y },
+    size: { x: w, y: h },
+    elevation,
+    thickness,
+    bevelWidth: 7,
+    shape: { kind: "roundedRect", radius },
+    profile: { kind: "bevel" },
+    material,
+    castsShadow: true,
+    receivesShadow: true,
+  });
+  return {
+    width,
+    height,
+    surfaces: [
+      // 128 device-pixel border mirrors the DOM layer's default 64 CSS-pixel
+      // region margin at display DPR 2.
+      rounded("live-card", 128, 128, 1280, 300, 0, 6, "silicone", 32),
+      rounded("tile-silicone", 128, 470, 390, 200, 12, 4, "silicone"),
+      rounded("tile-matte", 573, 470, 390, 200, 12, 4, "matte"),
+      rounded("tile-metal", 1018, 470, 390, 200, 12, 4, "metal"),
+      rounded("primary", 128, 720, 230, 80, 12, 4, "silicone", 20),
+      rounded("secondary", 398, 720, 250, 80, 12, 4, "matte", 20),
+      rounded("field", 688, 720, 720, 80, 12, 4, "silicone", 20),
+      rounded("glyph-panel", 128, 850, 1280, 462, 0, 6, "matte", 32),
+      rounded("play-glyph", 200, 930, 360, 110, 6, 2, "metal", 8),
+    ],
+    light: {
+      direction: { x: -0.6, y: -0.8, z: 1 },
       intensity: 1,
       angularRadius: Math.fround(0.15),
     },
