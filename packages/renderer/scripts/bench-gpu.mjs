@@ -21,7 +21,8 @@
 // sandboxed.
 //
 // Suites: stage, e2e, resolution, surface, mask, shadow, reconstruction,
-// presentation, submission, upload, partial, retained (default: all).
+// presentation, submission, upload, partial, retained, dynamic-light
+// (default: all).
 
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";

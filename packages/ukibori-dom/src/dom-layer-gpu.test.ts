@@ -320,7 +320,7 @@ function makeSeam(device: MockFullDevice): DomGpuSource {
 }
 
 describe("UkiboriDom — async WebGPU backend (auto/cpu/webgpu)", () => {
-  it("requests optional timestamp-query when advertised without making it mandatory", async () => {
+  it("does not request timestamp-query in the production DOM path", async () => {
     stubGetContext();
     const device = new MockFullDevice();
     const requestDevice = vi.fn(async (_descriptor?: { requiredFeatures?: readonly string[] }) =>
@@ -339,7 +339,7 @@ describe("UkiboriDom — async WebGPU backend (auto/cpu/webgpu)", () => {
       observe: false,
     });
 
-    expect(requestDevice).toHaveBeenCalledWith({ requiredFeatures: ["timestamp-query"] });
+    expect(requestDevice).toHaveBeenCalledWith();
     expect(layer.debugState().backend).toBe("webgpu");
     layer.dispose();
   });

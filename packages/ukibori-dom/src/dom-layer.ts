@@ -398,19 +398,11 @@ export class UkiboriDom {
       if (adapter === null) {
         throw new Error("no WebGPU adapter available");
       }
-      let device: GpuPipelineDeviceLike & { destroy?: () => void };
-      if (adapter.features?.has("timestamp-query") === true) {
-        try {
-          // Timestamp queries are optional telemetry. Ask for the feature
-          // only when the adapter advertises it, and retry without it if
-          // negotiation fails so profiling can never disable rendering.
-          device = await adapter.requestDevice({ requiredFeatures: ["timestamp-query"] });
-        } catch {
-          device = await adapter.requestDevice();
-        }
-      } else {
-        device = await adapter.requestDevice();
-      }
+      // Production rendering never enables timestamp queries: doing so makes
+      // every frame resolve and map a GPU buffer. Dedicated benchmark entry
+      // points request the optional feature explicitly when measurements are
+      // needed, keeping normal animation free of GPU readback stalls.
+      const device = await adapter.requestDevice();
       const canvas = this.overlay.gpuCanvas();
       const context = canvas.getContext("webgpu") as unknown as GpuCanvasContextLike | null;
       if (context === null) {

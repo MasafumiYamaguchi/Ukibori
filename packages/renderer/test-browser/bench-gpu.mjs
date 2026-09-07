@@ -65,7 +65,7 @@ const SUITE_QUERY = query.get("suite") ?? "all";
 // per-step marcher accurately; it does not alter production code or timing.
 const SHADOW_BENCHMARK_ALGORITHM = query.get("algorithm") === "baseline"
   ? "baseline-ray-march"
-  : "exact-prefix-binary-search+caster-aabb-empty-space";
+  : "exact-prefix-binary-search+caster-aabb-interval-clip";
 
 const cases = [];
 const notes = [];
@@ -1770,6 +1770,98 @@ async function suiteRetained() {
 }
 
 // ---------------------------------------------------------------------------
+// #57: production-shaped continuously changing soft-light workload
+// ---------------------------------------------------------------------------
+
+async function suiteDynamicLight() {
+  const raw = reconstructionHeavyScene({ width: WIDTH, height: HEIGHT });
+  const shadowOptions = {
+    samples: 8,
+    maxDistance: 200,
+    stepSize: 0.5,
+    bias: 0.5,
+    reconstruction: { enabled: true, radius: 2 },
+  };
+  let frame = 0;
+  const sceneAt = (index) => {
+    const angle = index * 0.173;
+    return sceneFor(() => ({
+      ...raw,
+      light: {
+        ...raw.light,
+        direction: {
+          x: Math.cos(angle) * 0.55,
+          y: Math.sin(angle) * 0.55,
+          z: 0.835,
+        },
+        angularRadius: 0.15,
+      },
+    }));
+  };
+  const { canvas, context, canvasFormat } = makeCanvas();
+  const pipeline = new api.GpuScenePipeline(device, context, canvasFormat);
+  try {
+    await timedRender(pipeline, { scene: sceneAt(frame++), dpr: 1, shadowOptions });
+    const series = await benchSeries(
+      () => timedRender(pipeline, { scene: sceneAt(frame++), dpr: 1, shadowOptions }),
+      { warmups: WARMUP, sampleCount: SAMPLES },
+    );
+    const expectedExecuted = "upload,shadow,reconstruction,lighting,presentation";
+    for (const result of series) {
+      const executed = result.stats.invalidation.executed.join(",");
+      if (executed !== expectedExecuted) {
+        throw new Error(`dynamic-light stage contract: expected ${expectedExecuted}; got ${executed}`);
+      }
+    }
+    const first = series[0];
+    const snap = pipeline.getSnapshot();
+    const effectiveSamples = snap.shadowPass.options.samples;
+    const radiusTexels = snap.reconstructionPass?.options?.radiusTexels ?? 0;
+    if (effectiveSamples !== 8 || radiusTexels <= 0) {
+      throw new Error(`dynamic-light quality contract: samples=${effectiveSamples}, radiusTexels=${radiusTexels}`);
+    }
+    const stageSummary = (stage) => {
+      const values = gpuSeriesOf(series, (result) => result.gpuTiming?.passGpuMs?.[stage]);
+      return values.length > 0 ? summarizeSeries(values) : null;
+    };
+    pushCase(
+      "dynamic-light/soft-8",
+      {
+        suite: "dynamic-light",
+        resolution: `${WIDTH}x${HEIGHT}`,
+        dpr: 1,
+        angularRadius: 0.15,
+        shadowSamples: 8,
+        maxDistance: shadowOptions.maxDistance,
+        stepSize: shadowOptions.stepSize,
+        reconstructionRadius: shadowOptions.reconstruction.radius,
+        warmups: WARMUP,
+        samples: SAMPLES,
+      },
+      {
+        wallMs: summarizeSeries(series.map((result) => result.wallMs)),
+        gpuTimestampMs: totalGpuSummary(series),
+        shadowGpuTimestampMs: stageSummary("shadow"),
+        reconstructionGpuTimestampMs: stageSummary("reconstruction"),
+        lightingGpuTimestampMs: stageSummary("lighting"),
+        presentationGpuTimestampMs: stageSummary("presentation"),
+        executed: expectedExecuted,
+        heightExecuted: false,
+        normalExecuted: false,
+        effectiveSamples,
+        reconstructionActive: true,
+        radiusTexels,
+        renderExtent: `${first.stats.renderWidth}x${first.stats.renderHeight}`,
+        ...shadowAccelerationMetadata(sceneAt(frame), snap.shadowPass.lastDispatch.stepCount),
+      },
+    );
+  } finally {
+    pipeline.dispose();
+    canvas.remove();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // suite selection
 // ---------------------------------------------------------------------------
 
@@ -1786,6 +1878,7 @@ const SUITE_RUNNERS = {
   upload: suiteUpload,
   partial: suitePartial,
   retained: suiteRetained,
+  "dynamic-light": suiteDynamicLight,
 };
 
 const SUITES = Object.keys(SUITE_RUNNERS);

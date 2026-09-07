@@ -1185,6 +1185,17 @@ describe("ShadowPass shader — binding contract", () => {
     expect(SHADOW_PASS_WGSL).toContain("threshold >= 0.0");
     expect(SHADOW_PASS_WGSL).toContain("continue;");
   });
+
+  it("pins the #57 exact caster-interval and rising-ray early-out contract", () => {
+    expect(SHADOW_PASS_WGSL).toContain("fn casterAxisStepInterval(");
+    expect(SHADOW_PASS_WGSL).toContain("stepIndex = max(xInterval.x, yInterval.x);");
+    expect(SHADOW_PASS_WGSL).toContain("stepLimit = min(xInterval.y, yInterval.y);");
+    expect(SHADOW_PASS_WGSL).toContain("firstCoordinate < axisMin || firstCoordinate > axisMax");
+    expect(SHADOW_PASS_WGSL).toContain("lastCoordinate < axisMin || lastCoordinate > axisMax");
+    expect(SHADOW_PASS_WGSL).toContain(
+      "dz >= 0.0 && rayZAtStep(rz0, dz, 1u) + params.bias >= params.maxCasterHeight",
+    );
+  });
 });
 
 describe("ShadowPass shader — CPU shadow semantics pinned in WGSL", () => {
