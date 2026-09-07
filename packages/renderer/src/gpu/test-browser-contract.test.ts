@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 // The runner is a plain ESM CLI script without type declarations; importing
 // parseResultMarker for unit tests is intentional.
 // @ts-expect-error - scripts/test-webgpu.mjs has no type declarations
-import { parseResultMarker } from "../../scripts/test-webgpu.mjs";
+import { parseResultMarker, resolveResultPath } from "../../scripts/test-webgpu.mjs";
 
 /**
  * Deterministic source-level contract assertions for the #25-#30 real-GPU
@@ -28,6 +28,13 @@ import { parseResultMarker } from "../../scripts/test-webgpu.mjs";
  *   and the CPU oracles/comparisons live in test-browser/oracle.mjs
  */
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
+
+describe("test-webgpu.mjs — CI result path", () => {
+  it("resolves workspace-run relative paths from the repository root", () => {
+    expect(resolveResultPath("webgpu-result.txt", "/repo")).toBe("/repo/webgpu-result.txt");
+    expect(resolveResultPath("/tmp/result.txt", "/repo")).toBe("/tmp/result.txt");
+  });
+});
 
 const paritySource = readFileSync(resolve(packageRoot, "test-browser", "parity.mjs"), "utf8");
 const catalogSource = readFileSync(resolve(packageRoot, "test-browser", "catalog.mjs"), "utf8");
