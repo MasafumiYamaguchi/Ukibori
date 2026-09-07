@@ -69,6 +69,7 @@ const QUALITY_DPR: Record<UkiboriQuality, number> = {
 
 export function Ukibori({
   backend = "auto",
+  gpuProfiling = false,
   light = DEFAULT_LIGHT,
   intensity = DEFAULT_INTENSITY,
   angularRadius,
@@ -200,7 +201,9 @@ export function Ukibori({
   const physicalRequested = backend !== "css" && !highContrastEnabled;
 
   // STRUCTURAL effect dependencies are IDENTITY-based: `stage` is a DOM
-  // Element and `backend`/`highContrastEnabled` are primitives. Elements must
+  // Element and `backend`/`gpuProfiling`/`highContrastEnabled` are primitives.
+  // `gpuProfiling` is structural because WebGPU device features are immutable.
+  // Elements must
   // never be serialized into a string key (two different elements can
   // stringify identically), so a stage switch always recreates the layer on
   // the new stage.
@@ -238,6 +241,7 @@ export function Ukibori({
       try {
         created = await UkiboriDom.create({
           backend: domBackend,
+          gpuProfiling,
           light: {
             direction: cssEnv.light,
             intensity: cssEnv.intensity,
@@ -286,7 +290,7 @@ export function Ukibori({
       created?.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backend, stage, highContrastEnabled, canvas2dAvailable, reportError]);
+  }, [backend, gpuProfiling, stage, highContrastEnabled, canvas2dAvailable, reportError]);
 
   // Ordinary value props (light/intensity/environment/exposure/shadow/
   // margin/compositing/quality) are plain data and are serialized for a

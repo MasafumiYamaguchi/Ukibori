@@ -19,9 +19,8 @@ import type {
   GpuShaderModuleLike,
   GpuTextureLike,
 } from "ukibori-renderer";
-import type { DomGpuSource } from "ukibori-dom";
+import { UkiboriDom, type DomGpuSource } from "ukibori-dom";
 import { Surface, Ukibori } from "../index";
-import type { UkiboriDom } from "ukibori-dom";
 import { stubCanvas2d, stubElementRects } from "../test/dom";
 
 /**
@@ -279,6 +278,50 @@ afterEach(() => {
 });
 
 describe("React backend — WebGPU selection", () => {
+  it("forwards gpuProfiling and treats device-feature changes as structural", async () => {
+    const device = new MockFullDevice();
+    const restore = stubWebGpu(device);
+    const create = vi.spyOn(UkiboriDom, "create");
+    const readyLayers: UkiboriDom[] = [];
+    const view = render(
+      <Ukibori
+        gpuProfiling
+        schedule={(cb) => cb()}
+        onReady={(layer) => {
+          if (layer !== null) readyLayers.push(layer);
+        }}
+      >
+        <Surface sceneId="profiled">Profiled</Surface>
+      </Ukibori>,
+    );
+    await flushAsync();
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls[0]?.[0]).toMatchObject({ gpuProfiling: true });
+    expect(readyLayers).toHaveLength(1);
+
+    view.rerender(
+      <Ukibori
+        gpuProfiling={false}
+        schedule={(cb) => cb()}
+        onReady={(layer) => {
+          if (layer !== null) readyLayers.push(layer);
+        }}
+      >
+        <Surface sceneId="profiled">Profiled</Surface>
+      </Ukibori>,
+    );
+    await flushAsync();
+
+    expect(create).toHaveBeenCalledTimes(2);
+    expect(create.mock.calls[1]?.[0]).toMatchObject({ gpuProfiling: false });
+    expect(readyLayers).toHaveLength(2);
+    expect(readyLayers[1]).not.toBe(readyLayers[0]);
+
+    view.unmount();
+    restore();
+  });
+
   it('"auto" with a real navigator.gpu uses WebGPU and presents directly', async () => {
     const device = new MockFullDevice();
     const restore = stubWebGpu(device);
