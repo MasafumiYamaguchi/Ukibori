@@ -53,13 +53,20 @@ import type {
  * - document-level MutationObserver: ANY DOM mutation can move/resize a
  *   registered element through ancestors or siblings (style, class, inserted
  *   nodes, text), so all nodes are marked dirty conservatively; the render
- *   re-measures and SKIPS when geometry is unchanged
+ *   re-measures and SKIPS when geometry is unchanged. #59: surfaces in the
+ *   retained BAKED state (registered with a `bakeId` and already measured)
+ *   are excluded from this conservative invalidation until explicitly
+ *   invalidated (`invalidateBake`) or actually changed (ResizeObserver /
+ *   option update)
  * - scroll (capture): node dirty, re-measured on the next render; with
  *   document-relative scene coordinates ordinary page scroll leaves geometry
- *   unchanged and the render is skipped
+ *   unchanged and the render is skipped. #59: baked surfaces are excluded —
+ *   scroll never changes document-relative geometry
  * - viewport resize: node dirty + scene dirty (devicePixelRatio may have
- *   changed)
- * - font load (`document.fonts` loadingdone): node dirty + scene dirty
+ *   changed). #59: baked surfaces are included (forced rebake — stale
+ *   geometry is never acceptable)
+ * - font load (`document.fonts` loadingdone): node dirty + scene dirty.
+ *   #59: baked surfaces are included (font-dependent geometry)
  * - light / intensity / environment / exposure / materials updates: scene dirty
  *
  * All invalidation coalesces through a single rAF-throttled `render()`.
@@ -185,6 +192,13 @@ const MAX_GPU_DIAGNOSTICS = 16;
  * and siblings, so the layer invalidates conservatively via `markAllDirty`
  * and lets the rAF-coalesced render skip when geometry is unchanged. No
  * per-frame rescanning.
+ *
+ * #59 bake policy: the conservative invalidation EXCLUDES surfaces in the
+ * retained baked state (`markAllDirty()` defaults to `includeBaked = false`).
+ * A baked subtree is re-measured only through an explicit
+ * `invalidateBake(bakeId)`, an actual layout change (ResizeObserver), an
+ * option update, or a forced invalidation (window resize / font load /
+ * `invalidate()`).
  */
 const MUTATION_CONFIG: MutationObserverInit = {
   attributes: true,
@@ -239,6 +253,11 @@ export class UkiboriDom {
   private lastSceneBuildMs = 0;
   /** #46 debug seam: entries measured by the last render's measurement loop */
   private lastMeasuredEntries = 0;
+  /**
+   * #59 debug seam: baked-surface re-measures (rebakes) performed by the last
+   * render's measurement loop. 0 = the frame was dynamic-only or skipped.
+   */
+  private lastRebakeSurfaceCount = 0;
   /**
    * #46 frame-local provenance: monotonically increasing serials so a
    * consumer can tell whether THIS render attempt actually ran the
@@ -334,7 +353,8 @@ export class UkiboriDom {
     // unchanged-geometry skip keep it cheap. Ukibori's OWN DOM mutations
     // (overlay canvas, injected stylesheet, managed data-ukibori-* attributes)
     // are filtered out so the render output cannot feed back into another
-    // render.
+    // render. #59: retained baked surfaces are NOT re-measured by this
+    // conservative invalidation (markAllDirty excludes them by default).
     this.mutationObserver =
       observe && typeof MutationObserver === "function"
         ? new MutationObserver((mutations) => {
@@ -797,17 +817,44 @@ export class UkiboriDom {
   }
 
   /**
-   * Force re-measure of one surface (or all when `id` is omitted). Font/text
-   * geometry changes should be followed by `updateSurface(id, { shape })`
-   * with a fresh mask and/or `invalidate(id)`.
+   * Force re-measure of one surface (or ALL surfaces — baked ones included —
+   * when `id` is omitted). Font/text geometry changes should be followed by
+   * `updateSurface(id, { shape })` with a fresh mask and/or `invalidate(id)`.
+   *
+   * #59: the no-argument form is a FORCED invalidation: retained baked
+   * surfaces are marked dirty too (an explicit caller request is never
+   * filtered by the bake policy).
    */
   invalidate(id?: string): void {
     this.throwIfDisposed();
     if (id !== undefined) {
       this.registry.markDirty(id);
     } else {
-      this.registry.markAllDirty();
+      this.registry.markAllDirty(true);
     }
+    this.scheduleRender();
+  }
+
+  /**
+   * #59 bake boundary invalidation: mark every surface belonging to the bake
+   * boundary `bakeId` dirty so the NEXT scheduled update re-measures and
+   * re-bakes that subtree, then returns it to the retained fast path.
+   *
+   * Semantics (fixed by issue #59):
+   *
+   * - NOT a synchronous recomputation: the rebuild goes through the normal
+   *   coalesced scheduling, so repeated `invalidateBake` calls in the same
+   *   frame (or interleaved with other invalidations) produce exactly ONE
+   *   measurement pass.
+   * - Unknown bake ids are a no-op (the React `<Bake>` handle stays safe to
+   *   call before its surfaces register or after they unmount).
+   * - Only the named boundary is touched; other boundaries and dynamic
+   *   surfaces keep their retained state.
+   */
+  invalidateBake(bakeId: string): void {
+    this.throwIfDisposed();
+    assertValidId(bakeId);
+    this.registry.markBakeDirty(bakeId);
     this.scheduleRender();
   }
 
@@ -842,6 +889,9 @@ export class UkiboriDom {
     this.renderSerial += 1;
     const measureStartedAt = performance.now();
     let measuredEntries = 0;
+    // #59: how many of the measured entries belong to a bake boundary (a
+    // rebake). A dynamic-only update must leave this at 0.
+    let rebakedEntries = 0;
     for (const entry of this.registry.entries()) {
       if (entry.dirty || entry.geometry === null) {
         entry.dirty = false;
@@ -853,6 +903,9 @@ export class UkiboriDom {
           continue;
         }
         measuredEntries += 1;
+        if (entry.options.bakeId !== undefined) {
+          rebakedEntries += 1;
+        }
         if (!geometriesEqual(geometry, entry.geometry)) {
           entry.geometry = geometry;
           geometryChanged = true;
@@ -861,6 +914,7 @@ export class UkiboriDom {
     }
     this.lastMeasureMs = performance.now() - measureStartedAt;
     this.lastMeasuredEntries = measuredEntries;
+    this.lastRebakeSurfaceCount = rebakedEntries;
     if (measuredEntries > 0) {
       this.measureSerial += 1;
     }
@@ -1132,6 +1186,10 @@ export class UkiboriDom {
       gpuFallbackReason: this.gpuFallbackReason,
       gpuFrame: this.lastGpuFrame,
       gpuDiagnostics: [...this.gpuDiagnostics],
+      bakeBoundaryCount: this.registry.bakeBoundaryCount(),
+      bakedSurfaceCount: this.registry.bakedSurfaceCount(),
+      dynamicSurfaceCount: this.registry.dynamicSurfaceCount(),
+      lastRebakeSurfaceCount: this.lastRebakeSurfaceCount,
     };
   }
 
@@ -1171,18 +1229,27 @@ export class UkiboriDom {
   }
 
   private readonly onViewportChange = (): void => {
-    this.registry.markAllDirty();
+    // #59: FORCED invalidation — a viewport resize can move/resize baked
+    // surfaces through viewport-dependent layout, and the dpr may change.
+    // Stale baked geometry is never acceptable here.
+    this.registry.markAllDirty(true);
     this.sceneDirty = true;
     this.scheduleRender();
   };
 
   private readonly onScroll = (): void => {
+    // #59: baked surfaces are NOT re-measured on scroll — scene geometry is
+    // DOCUMENT-relative, so ordinary page scroll cannot change it (the same
+    // unchanged-geometry skip applies to dynamic surfaces; for baked surfaces
+    // we skip the measurement itself).
     this.registry.markAllDirty();
     this.scheduleRender();
   };
 
   private readonly onFontsLoaded = (): void => {
-    this.registry.markAllDirty();
+    // #59: FORCED invalidation — font-dependent geometry (static labels
+    // included) must re-measure once the fonts are available.
+    this.registry.markAllDirty(true);
     this.sceneDirty = true;
     this.scheduleRender();
   };

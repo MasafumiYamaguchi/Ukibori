@@ -78,6 +78,19 @@ export interface DomSurfaceOptions {
    * text stays DOM-owned and visible above the physical relief.
    */
   delegateTextInk?: boolean;
+  /**
+   * #59 bake boundary ownership (compositing/invalidation metadata, NOT scene
+   * data — never forwarded to the scene builder or renderer). Surfaces with
+   * the same `bakeId` form one static retention boundary: once measured, they
+   * are excluded from the conservative document MutationObserver / scroll
+   * invalidation and keep their cached geometry until an explicit
+   * `invalidateBake(bakeId)`, an actual layout change (ResizeObserver), an
+   * option update, or a forced invalidation (window resize / font load /
+   * `invalidate()` with no id) re-measures them. Physical scene semantics are
+   * unchanged: baked surfaces keep participating in height composition,
+   * ownership, shadows and lighting exactly like dynamic ones.
+   */
+  bakeId?: string;
 }
 
 /** Measured, cached document-space geometry of one registered element. */
@@ -307,4 +320,17 @@ export interface DomDebugState {
    * with healthy stats), so they are captured verbatim for diagnosis.
    */
   gpuDiagnostics: readonly string[];
+  /** #59: number of distinct bake boundaries among registered surfaces. */
+  bakeBoundaryCount: number;
+  /** #59: surfaces currently in the retained baked state (measured, not
+   * dirty, owned by a bake boundary). */
+  bakedSurfaceCount: number;
+  /** #59: surfaces NOT owned by any bake boundary (ordinary invalidation). */
+  dynamicSurfaceCount: number;
+  /**
+   * #59: baked-surface re-measures performed by the LAST render's
+   * measurement loop (0 = no rebake ran; e.g. a dynamic-only update). A
+   * frame-local value: it is reset to 0 at the start of every render pass.
+   */
+  lastRebakeSurfaceCount: number;
 }

@@ -27,6 +27,20 @@ export interface SurfaceEntry {
   inkDelegated: boolean;
 }
 
+/**
+ * #59 bake boundary state: a surface is in the RETAINED BAKED state when it
+ * belongs to a bake boundary (`options.bakeId`) and its geometry has been
+ * measured at least once (`geometry !== null`). Such a surface is excluded
+ * from the conservative `markAllDirty` (document MutationObserver / scroll)
+ * and stays on its cached geometry until it is explicitly invalidated
+ * (`invalidateBake`), actually changes layout (ResizeObserver), gets an
+ * option update, or a forced invalidation runs (window resize / font load /
+ * `invalidate()`).
+ */
+export function isBaked(entry: SurfaceEntry): boolean {
+  return entry.options.bakeId !== undefined && entry.geometry !== null;
+}
+
 export class SurfaceRegistry {
   private readonly byId = new Map<string, SurfaceEntry>();
   private readonly byElement = new Map<Element, string>();
@@ -91,9 +105,30 @@ export class SurfaceRegistry {
     }
   }
 
-  markAllDirty(): void {
+  /**
+   * Mark every entry dirty. #59 bake policy: surfaces in the retained baked
+   * state (`isBaked`) are SKIPPED unless `includeBaked` is set — an ordinary
+   * unrelated DOM mutation must not re-measure a baked subtree. Forced
+   * invalidations (viewport resize, font load, explicit `invalidate()`) pass
+   * `includeBaked = true` because they can move/resize any element
+   * (stale-geometry protection).
+   */
+  markAllDirty(includeBaked = false): void {
     for (const entry of this.byId.values()) {
+      if (!includeBaked && isBaked(entry)) {
+        continue;
+      }
       entry.dirty = true;
+    }
+  }
+
+  /** Mark every surface belonging to the #59 bake boundary `bakeId` dirty
+   * (coalescing happens through the shared scheduled render). */
+  markBakeDirty(bakeId: string): void {
+    for (const entry of this.byId.values()) {
+      if (entry.options.bakeId === bakeId) {
+        entry.dirty = true;
+      }
     }
   }
 
@@ -131,6 +166,41 @@ export class SurfaceRegistry {
       }
     }
     return out;
+  }
+
+  /** #59: number of distinct bake boundaries among registered surfaces. */
+  bakeBoundaryCount(): number {
+    const ids = new Set<string>();
+    for (const entry of this.byId.values()) {
+      if (entry.options.bakeId !== undefined) {
+        ids.add(entry.options.bakeId);
+      }
+    }
+    return ids.size;
+  }
+
+  /** #59: surfaces currently in the retained baked state (bake boundary +
+   * measured geometry + not dirty). */
+  bakedSurfaceCount(): number {
+    let count = 0;
+    for (const entry of this.byId.values()) {
+      if (isBaked(entry) && !entry.dirty) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  /** #59: surfaces that do NOT belong to any bake boundary (always subject to
+   * the ordinary conservative invalidation semantics). */
+  dynamicSurfaceCount(): number {
+    let count = 0;
+    for (const entry of this.byId.values()) {
+      if (entry.options.bakeId === undefined) {
+        count++;
+      }
+    }
+    return count;
   }
 }
 

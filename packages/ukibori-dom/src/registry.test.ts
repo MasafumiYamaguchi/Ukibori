@@ -90,6 +90,73 @@ describe("SurfaceRegistry", () => {
     registry.clear();
     expect(registry.size).toBe(0);
   });
+
+  describe("#59 bake boundary", () => {
+    function bakedEntry(id: string, bakeId: string): SurfaceEntry {
+      const e = entry(id, makeElement());
+      e.options = { ...e.options, bakeId };
+      // A baked entry has been measured at least once.
+      e.geometry = { x: 1, y: 2, w: 10, h: 10, radius: 0 };
+      e.dirty = false;
+      return e;
+    }
+
+    it("markAllDirty retains baked surfaces unless forced", () => {
+      const registry = new SurfaceRegistry();
+      registry.add(bakedEntry("baked", "static"));
+      const dynamic = entry("dyn", makeElement());
+      registry.add(dynamic);
+      registry.clearDirty();
+
+      // Ordinary (conservative) invalidation: the measured baked surface is
+      // skipped, the dynamic surface is marked.
+      registry.markAllDirty();
+      expect(registry.get("baked")!.dirty).toBe(false);
+      expect(registry.get("dyn")!.dirty).toBe(true);
+
+      // Forced invalidation includes baked surfaces.
+      registry.clearDirty();
+      registry.markAllDirty(true);
+      expect(registry.get("baked")!.dirty).toBe(true);
+      expect(registry.get("dyn")!.dirty).toBe(true);
+    });
+
+    it("an unmeasured or already-dirty bake entry is never skipped", () => {
+      const registry = new SurfaceRegistry();
+      // Unmeasured: geometry null -> must be measured regardless.
+      const unmeasured = entry("unmeasured", makeElement());
+      unmeasured.options = { ...unmeasured.options, bakeId: "static" };
+      registry.add(unmeasured);
+      registry.clearDirty();
+      registry.markAllDirty();
+      expect(registry.get("unmeasured")!.dirty).toBe(true);
+    });
+
+    it("markBakeDirty touches only the named boundary", () => {
+      const registry = new SurfaceRegistry();
+      registry.add(bakedEntry("a", "boundary-a"));
+      registry.add(bakedEntry("b", "boundary-b"));
+      registry.add(entry("dyn", makeElement()));
+      registry.clearDirty();
+      registry.markBakeDirty("boundary-a");
+      expect(registry.get("a")!.dirty).toBe(true);
+      expect(registry.get("b")!.dirty).toBe(false);
+      expect(registry.get("dyn")!.dirty).toBe(false);
+    });
+
+    it("reports bake boundary / baked / dynamic surface counts", () => {
+      const registry = new SurfaceRegistry();
+      registry.add(bakedEntry("a", "one"));
+      registry.add(bakedEntry("b", "two"));
+      const dirtyBaked = bakedEntry("c", "one");
+      dirtyBaked.dirty = true;
+      registry.add(dirtyBaked);
+      registry.add(entry("dyn", makeElement()));
+      expect(registry.bakeBoundaryCount()).toBe(2);
+      expect(registry.bakedSurfaceCount()).toBe(2);
+      expect(registry.dynamicSurfaceCount()).toBe(1);
+    });
+  });
 });
 
 describe("assertValidId", () => {

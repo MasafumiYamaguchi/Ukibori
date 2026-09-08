@@ -39,3 +39,12 @@ export const UkiboriContext = createContext<UkiboriContextValue>({
   intensity: DEFAULT_INTENSITY,
   color: DEFAULT_COLOR,
 });
+
+/**
+ * #59 bake boundary context: the nearest enclosing <Bake>'s bake id (null =
+ * outside any bake boundary — an ordinary dynamic surface). <Bake> provides
+ * it; <Surface> consumes it and registers with the boundary id. A nested
+ * <Bake> overrides the value, so ownership always resolves to the NEAREST
+ * enclosing boundary — never ambiguous.
+ */
+export const BakeContext = createContext<string | null>(null);

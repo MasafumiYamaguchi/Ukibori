@@ -96,6 +96,26 @@ rAF-throttled `render()`. This is the dirty-update seam: a future backend
 (#21) can replace the single full-scene pass with region-scoped target
 updates without changing the registry/observer API.
 
+### Bake boundaries (#59)
+
+Surfaces registered with a `bakeId` (`DomSurfaceOptions.bakeId`) form a
+**static retention boundary**: once measured, they are excluded from the
+conservative invalidations above (the document MutationObserver's
+`markAllDirty` and the scroll listener) and keep their cached geometry —
+including mask identity, so the per-mask SDF preprocessing is not regenerated.
+Baked surfaces still participate in the SAME physical scene (height
+composition, object/material ownership, cast shadows in both directions,
+shared lighting); bake is invalidation ownership, never a final-image cache.
+
+| change | baked surface behavior |
+| --- | --- |
+| unrelated DOM mutation / scroll | retained (no measurement) |
+| `invalidateBake(bakeId)` | that boundary marked dirty; re-measured at the next coalesced render (repeated calls coalesce into one rebake) |
+| actual layout change (`ResizeObserver`) | that node re-measured (auto-rebake) |
+| viewport resize / dpr change / font load / `invalidate()` with no id | re-measured (forced — stale baked geometry is never acceptable) |
+| `updateSurface` on a baked node | re-measured (physical options must take effect) |
+| `unregister` / dispose | ownership dropped with the entry (no stale registry state) |
+
 ## Compositing
 
 The overlay is one `<canvas>` inserted as the **first child of the stage**

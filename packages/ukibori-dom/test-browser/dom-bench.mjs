@@ -15,6 +15,11 @@
 //   unrelated-mutation one unrelated DOM mutation (document MutationObserver)
 //   frequent-mutations one unrelated mutation per frame
 //   scroll             document-relative geometry unchanged
+//   unrelated-mutation-baked  #59: the same unrelated mutation with all
+//                      surfaces except the dynamic one under a <Bake>-style
+//                      bake boundary (retained baked measurement skip)
+//   rebake-baked       #59: one explicit invalidateBake() per frame (the
+//                      full rebake cost; steady-state fast path resumes after)
 //
 // EVERY scenario runs `warmup` untimed frames then `samples` timed frames
 // (query parameters; defaults keep a full run manageable). The mount-time
@@ -196,6 +201,9 @@ const BUTTON_OPTIONS = (i) => ({
 
 async function measureScenario(scenario, surfaceCount, { frames }) {
   const { stage, buttons, unrelated, spacer, resizeRule } = mountStage(surfaceCount);
+  // #59 bake scenarios: every surface except the dynamic one (index 0) is
+  // registered under one bake boundary ("bake").
+  const bake = scenario === "unrelated-mutation-baked" || scenario === "rebake-baked";
   const layer = await UkiboriDom.create({
     backend: "webgpu",
     observe: true,
@@ -213,7 +221,10 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
       };
     }
     for (let i = 0; i < buttons.length; i++) {
-      layer.register(buttons[i].button, BUTTON_OPTIONS(i));
+      layer.register(buttons[i].button, {
+        ...BUTTON_OPTIONS(i),
+        ...(bake && i > 0 ? { bakeId: "bake" } : {}),
+      });
     }
     // FULL mount drain before any measurement (mount observers/renderer
     // callbacks must be quiescent, or the first measured frame inherits
@@ -273,6 +284,25 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
           triggerHostMs = performance.now() - t1;
           break;
         }
+        case "unrelated-mutation-baked": {
+          // #59: identical trigger to unrelated-mutation, but the static
+          // surfaces are baked — the expected steady state is ONE measured
+          // entry (the dynamic surface) and zero baked measurements.
+          const t1 = performance.now();
+          unrelated.style.width = `${10 + frame + 1}px`;
+          triggerHostMs = performance.now() - t1;
+          break;
+        }
+        case "rebake-baked": {
+          // #59: one explicit invalidateBake per frame — the full rebake
+          // cost (every baked surface re-measures once per frame here, an
+          // upper bound; steady-state frames after a real rebake are the
+          // unrelated-mutation-baked scenario).
+          const t1 = performance.now();
+          layer.invalidateBake("bake");
+          triggerHostMs = performance.now() - t1;
+          break;
+        }
         case "scroll": {
           // REAL scroll path: move the viewport and let the layer's
           // document scroll listener invalidate (capture phase). Geometry
@@ -324,6 +354,8 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
         pipelineInvocationsDelta: pipelineInvocations - beforePipelines,
         rendererRan,
         dirtyCount: state.dirtyCount,
+        bakedSurfaceCount: state.bakedSurfaceCount,
+        rebakedEntries: measureRanThisFrame ? state.lastRebakeSurfaceCount : 0,
         renderHostMs: renderRanThisFrame ? state.lastRenderMs : 0,
         measureHostMs: measureRanThisFrame ? state.lastMeasureMs : 0,
         measuredEntries: measureRanThisFrame ? state.lastMeasuredEntries : 0,
@@ -359,6 +391,8 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
         rendererInvocationsPerFrame: summarizeSeries(timed.map((f) => f.pipelineInvocationsDelta)),
         skippedRenderPerFrame: summarizeSeries(timed.map((f) => (f.rendererRan ? 0 : 1))),
         dirtyCountPerFrame: summarizeSeries(timed.map((f) => f.dirtyCount)),
+        bakedSurfaceCount: timed[timed.length - 1].bakedSurfaceCount,
+        rebakedEntriesPerFrame: summarizeSeries(timed.map((f) => f.rebakedEntries)),
         measureHostMsPerFrame: summarizeSeries(timed.map((f) => f.measureHostMs)),
         measuredEntriesPerFrame: summarizeSeries(timed.map((f) => f.measuredEntries)),
         sceneBuildHostMsPerFrame: summarizeSeries(timed.map((f) => f.sceneBuildHostMs)),
@@ -409,6 +443,8 @@ async function main() {
     "unrelated-mutation",
     "frequent-mutations",
     "scroll",
+    "unrelated-mutation-baked",
+    "rebake-baked",
   ];
   try {
     instrument();
