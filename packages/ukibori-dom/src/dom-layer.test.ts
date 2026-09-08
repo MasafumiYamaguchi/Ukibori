@@ -1496,7 +1496,46 @@ describe("UkiboriDom — DOM integration", () => {
       layer.dispose();
     });
 
-    it("a ResizeObserver layout change on a baked surface auto-rebakes it", () => {
+    it("scroll re-measures baked surfaces and refreshes stale geometry (nested scroll / sticky)", () => {
+      const { layer } = makeLayer(true);
+      const baked = makeSurface("baked", { left: 10, top: 10, width: 50, height: 40 });
+      layer.register(baked, OPTIONS("baked", "static"));
+      layer.render();
+      const before = measureCalls(baked);
+
+      // A scroll-dependent layout change (nested scroll container or
+      // `position: sticky`): getBoundingClientRect() MOVES under the scroll
+      // event even though the element itself was not touched. The forced
+      // scroll invalidation must re-measure the baked surface — ordinary
+      // document scroll still produces equal geometry and the retained
+      // unchanged-geometry path skips the renderer. (mockReturnValue, NOT a
+      // re-spy: re-spying would reset the call history under test.)
+      vi.mocked(baked.getBoundingClientRect).mockReturnValue({
+        left: 10,
+        top: 60,
+        width: 50,
+        height: 40,
+        x: 10,
+        y: 60,
+        right: 60,
+        bottom: 100,
+      } as DOMRect);
+      document.dispatchEvent(new Event("scroll"));
+      expect(measureCalls(baked)).toBe(before + 1);
+      // The cached document-space geometry follows the DOM (no stale bake).
+      const geometry = layer.registry.get("baked")!.geometry!;
+      expect(geometry.x).toBe(10);
+      expect(geometry.y).toBe(60);
+
+      // A second scroll without any rect change re-measures but keeps the
+      // geometry (and the retained renderer skips).
+      document.dispatchEvent(new Event("scroll"));
+      expect(measureCalls(baked)).toBe(before + 2);
+      expect(layer.registry.get("baked")!.geometry!.y).toBe(60);
+      layer.dispose();
+    });
+
+    it("a ResizeObserver event on a baked surface rebakes the WHOLE boundary", () => {
       class FakeResizeObserver {
         static latest: FakeResizeObserver | null = null;
         readonly callback: ResizeObserverCallback;
@@ -1511,21 +1550,68 @@ describe("UkiboriDom — DOM integration", () => {
       vi.stubGlobal("ResizeObserver", FakeResizeObserver);
       try {
         const { layer } = makeLayer(true);
-        const baked = makeSurface("baked", { left: 10, top: 10, width: 50, height: 40 });
-        layer.register(baked, OPTIONS("baked", "static"));
+        const a = makeSurface("a", { left: 10, top: 10, width: 50, height: 40 });
+        const b = makeSurface("b", { left: 70, top: 10, width: 50, height: 40 });
+        const c = makeSurface("c", { left: 200, top: 10, width: 50, height: 40 });
+        layer.register(a, OPTIONS("a", "boundary"));
+        layer.register(b, OPTIONS("b", "boundary"));
+        layer.register(c, OPTIONS("c"));
         layer.render();
-        const before = measureCalls(baked);
+        const aBefore = measureCalls(a);
+        const bBefore = measureCalls(b);
+        const cBefore = measureCalls(c);
 
-        // The element's LAYOUT actually changed: the RO path must re-measure
-        // the baked surface (stale geometry is never acceptable) and then
-        // return it to the retained state.
+        // A's layout actually changed: B keeps its own size but its POSITION
+        // may move (e.g. A grew and pushed B down), so the whole boundary is
+        // rebaked while the dynamic surface keeps per-node semantics.
         FakeResizeObserver.latest!.callback(
-          [{ target: baked }] as unknown as ResizeObserverEntry[],
+          [{ target: a }] as unknown as ResizeObserverEntry[],
           FakeResizeObserver.latest! as unknown as ResizeObserver,
         );
-        expect(measureCalls(baked)).toBe(before + 1);
-        expect(layer.debugState().lastRebakeSurfaceCount).toBe(1);
-        expect(layer.debugState().bakedSurfaceCount).toBe(1);
+        expect(measureCalls(a)).toBe(aBefore + 1);
+        expect(measureCalls(b)).toBe(bBefore + 1);
+        expect(measureCalls(c)).toBe(cBefore);
+        expect(layer.debugState().lastRebakeSurfaceCount).toBe(2);
+        expect(layer.debugState().bakedSurfaceCount).toBe(2);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it("a ResizeObserver event on a DYNAMIC surface marks only that surface", () => {
+      class FakeResizeObserver {
+        static latest: FakeResizeObserver | null = null;
+        readonly callback: ResizeObserverCallback;
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback;
+          FakeResizeObserver.latest = this;
+        }
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      }
+      vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+      try {
+        const { layer } = makeLayer(true);
+        const a = makeSurface("a", { left: 10, top: 10, width: 50, height: 40 });
+        const b = makeSurface("b", { left: 70, top: 10, width: 50, height: 40 });
+        const c = makeSurface("c", { left: 200, top: 10, width: 50, height: 40 });
+        layer.register(a, OPTIONS("a", "boundary"));
+        layer.register(b, OPTIONS("b", "boundary"));
+        layer.register(c, OPTIONS("c"));
+        layer.render();
+        const aBefore = measureCalls(a);
+        const bBefore = measureCalls(b);
+        const cBefore = measureCalls(c);
+
+        FakeResizeObserver.latest!.callback(
+          [{ target: c }] as unknown as ResizeObserverEntry[],
+          FakeResizeObserver.latest! as unknown as ResizeObserver,
+        );
+        expect(measureCalls(c)).toBe(cBefore + 1);
+        expect(measureCalls(a)).toBe(aBefore);
+        expect(measureCalls(b)).toBe(bBefore);
+        expect(layer.debugState().lastRebakeSurfaceCount).toBe(0);
       } finally {
         vi.unstubAllGlobals();
       }
@@ -1552,19 +1638,19 @@ describe("UkiboriDom — DOM integration", () => {
       layer.dispose();
     });
 
-    it("scroll never re-measures baked surfaces (document-relative geometry)", () => {
+    it("scroll re-measures baked surfaces; equal geometry keeps the retained path", () => {
       const { layer } = makeLayer(true);
       const baked = makeSurface("baked", { left: 10, top: 10, width: 50, height: 40 });
       layer.register(baked, OPTIONS("baked", "static"));
       layer.render();
       const before = measureCalls(baked);
 
+      // Ordinary document scroll: geometry is document-relative, so the
+      // re-measure produces equal geometry and the render is skipped — but
+      // the measurement itself now runs (correctness-first scroll policy).
       document.dispatchEvent(new Event("scroll"));
-      // The render ran (sync scheduler) but measured nothing: baked geometry
-      // is document-relative and scroll cannot change it.
-      expect(measureCalls(baked)).toBe(before);
-      expect(layer.debugState().lastMeasuredEntries).toBe(0);
-      expect(layer.debugState().lastRebakeSurfaceCount).toBe(0);
+      expect(measureCalls(baked)).toBe(before + 1);
+      expect(layer.registry.get("baked")!.geometry!.y).toBe(10);
       layer.dispose();
     });
 
@@ -1615,6 +1701,123 @@ describe("UkiboriDom — DOM integration", () => {
       expect(() => layer.invalidateBake("static")).not.toThrow();
       expect(layer.debugState().dirtyCount).toBe(0);
       layer.dispose();
+    });
+
+    it("invalidateBake cascades into nested descendant boundaries", () => {
+      const { layer } = makeLayer();
+      const outer = makeSurface("outer", { left: 10, top: 10, width: 50, height: 40 });
+      const inner = makeSurface("inner", { left: 200, top: 10, width: 50, height: 40 });
+      // Explicit boundary hierarchy (React <Bake> registers these): inner is
+      // a descendant of outer.
+      layer.registerBake("outer-bake");
+      layer.registerBake("inner-bake", "outer-bake");
+      layer.register(outer, OPTIONS("outer", "outer-bake"));
+      layer.register(inner, OPTIONS("inner", "inner-bake"));
+      layer.render();
+      const outerBefore = measureCalls(outer);
+      const innerBefore = measureCalls(inner);
+
+      // OUTER invalidate: the outer subtree's layout can reposition its
+      // nested boundaries, so the whole physical subtree is rebaked.
+      layer.invalidateBake("outer-bake");
+      expect(measureCalls(outer)).toBe(outerBefore + 1);
+      expect(measureCalls(inner)).toBe(innerBefore + 1);
+      expect(layer.debugState().lastRebakeSurfaceCount).toBe(2);
+
+      // INNER invalidate: never cascades upward.
+      layer.invalidateBake("inner-bake");
+      expect(measureCalls(inner)).toBe(innerBefore + 2);
+      expect(measureCalls(outer)).toBe(outerBefore + 1);
+      expect(layer.debugState().lastRebakeSurfaceCount).toBe(1);
+      layer.dispose();
+    });
+
+    it("bake hierarchy registration/unregistration leaves no stale ownership", () => {
+      const { layer } = makeLayer();
+      const outer = makeSurface("outer", { left: 10, top: 10, width: 50, height: 40 });
+      const inner = makeSurface("inner", { left: 200, top: 10, width: 50, height: 40 });
+      layer.registerBake("outer-bake");
+      layer.registerBake("inner-bake", "outer-bake");
+      layer.register(outer, OPTIONS("outer", "outer-bake"));
+      layer.register(inner, OPTIONS("inner", "inner-bake"));
+      layer.render();
+
+      // The inner boundary unmounts first (React cleanup order): its
+      // registration is removed, so a later outer invalidate no longer
+      // reaches it (it has no surfaces left anyway) and nothing throws.
+      layer.unregisterBake("inner-bake");
+      layer.unregister("inner");
+      layer.invalidateBake("outer-bake");
+      expect(measureCalls(outer)).toBe(2);
+      expect(layer.registry.has("inner")).toBe(false);
+      // Unknown/late ids are safe no-ops.
+      expect(() => layer.unregisterBake("inner-bake")).not.toThrow();
+      expect(() => layer.invalidateBake("inner-bake")).not.toThrow();
+      layer.dispose();
+    });
+
+    it("a retained baked caster casts shadows on a dynamic receiver", () => {
+      const build = (casts: boolean, bake: boolean) => {
+        const { layer } = makeLayer();
+        // Oblique light (toward upper-left, low z): the raised deco casts its
+        // shadow to its RIGHT, onto the overlapping dynamic pad. The deco is
+        // thick (z 10..18) so the shadow band on the pad top (z 4) is ~25px
+        // wide and the probe never sits on a boundary.
+        layer.setLight({ x: -0.9, y: -0.1, z: 0.5 }, 1);
+        const deco = makeSurface("deco", { left: 60, top: 0, width: 80, height: 60 });
+        const pad = makeSurface("pad", { left: 100, top: 20, width: 80, height: 80 });
+        layer.register(deco, {
+          ...OPTIONS("deco", bake ? "static" : undefined),
+          elevation: 10,
+          thickness: 8,
+          castsShadow: casts,
+        });
+        layer.register(pad, { ...OPTIONS("pad"), elevation: 2, thickness: 2 });
+        layer.render();
+        return { layer, deco };
+      };
+      const shadowProbe = (bakedLayer: ReturnType<typeof build>["layer"], docX: number, docY: number) => {
+        const buffers = bakedLayer.debugBuffers()!;
+        // Scene coordinates come from the layer's own region (document CSS px
+        // at dpr 1): docX - region.x, docY - region.y.
+        const region = bakedLayer.debugState().region!;
+        const sx = Math.round(docX - region.x);
+        const sy = Math.round(docY - region.y);
+        return [
+          buffers.color.get(sx, sy, 0),
+          buffers.color.get(sx, sy, 1),
+          buffers.color.get(sx, sy, 2),
+        ];
+      };
+
+      const scene = build(true, true);
+      const noCaster = build(false, true);
+      // The overlapping pad pixel is shaded by the RETAINED baked caster's
+      // cast shadow (a real physical interaction, not a frozen image).
+      expect(shadowProbe(scene.layer, 150, 40)).not.toEqual(shadowProbe(noCaster.layer, 150, 40));
+      // Outside the caster's shadow reach the two scenes agree.
+      expect(shadowProbe(scene.layer, 175, 60)).toEqual(shadowProbe(noCaster.layer, 175, 60));
+      noCaster.layer.dispose();
+
+      // Dynamic receiver update: the baked caster is NOT re-measured and its
+      // geometry keeps participating in the physical scene.
+      const decoBefore = measureCalls(scene.deco);
+      scene.layer.updateSurface("pad", { elevation: 1 });
+      scene.layer.render();
+      expect(measureCalls(scene.deco)).toBe(decoBefore);
+      expect(scene.layer.registry.get("deco")!.dirty).toBe(false);
+
+      // Physical output parity: a baked caster produces the identical scene
+      // to a dynamic one (static geometry retention, not image caching).
+      // The reference is built in the SAME post-update receiver state.
+      const plain = build(true, false);
+      plain.layer.updateSurface("pad", { elevation: 1 });
+      plain.layer.render();
+      expect([...scene.layer.debugBuffers()!.color.data]).toEqual([
+        ...plain.layer.debugBuffers()!.color.data,
+      ]);
+      plain.layer.dispose();
+      scene.layer.dispose();
     });
 
     it("baked and unbaked scenes produce identical physical output (parity)", () => {

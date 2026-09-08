@@ -41,10 +41,22 @@ export const UkiboriContext = createContext<UkiboriContextValue>({
 });
 
 /**
- * #59 bake boundary context: the nearest enclosing <Bake>'s bake id (null =
- * outside any bake boundary — an ordinary dynamic surface). <Bake> provides
- * it; <Surface> consumes it and registers with the boundary id. A nested
- * <Bake> overrides the value, so ownership always resolves to the NEAREST
- * enclosing boundary — never ambiguous.
+ * #59 bake boundary context: the nearest enclosing <Bake> (null = outside any
+ * bake boundary — an ordinary dynamic surface). <Bake> provides it; <Surface>
+ * consumes it and registers with the boundary id. A nested <Bake> overrides
+ * the value, so ownership always resolves to the NEAREST enclosing boundary —
+ * never ambiguous.
+ *
+ * `parentId` records the ENCLOSING boundary for the nested-cascade contract:
+ * invalidating an outer boundary also rebakes its descendant boundaries
+ * (their layout can be repositioned by the outer subtree), while an inner
+ * invalidation never cascades upward.
  */
-export const BakeContext = createContext<string | null>(null);
+export interface BakeBoundary {
+  /** this boundary's id (also the registry key for its surfaces) */
+  id: string;
+  /** the id of the enclosing <Bake>, or null at the top level */
+  parentId: string | null;
+}
+
+export const BakeContext = createContext<BakeBoundary | null>(null);

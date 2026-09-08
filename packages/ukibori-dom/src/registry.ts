@@ -31,11 +31,12 @@ export interface SurfaceEntry {
  * #59 bake boundary state: a surface is in the RETAINED BAKED state when it
  * belongs to a bake boundary (`options.bakeId`) and its geometry has been
  * measured at least once (`geometry !== null`). Such a surface is excluded
- * from the conservative `markAllDirty` (document MutationObserver / scroll)
- * and stays on its cached geometry until it is explicitly invalidated
- * (`invalidateBake`), actually changes layout (ResizeObserver), gets an
- * option update, or a forced invalidation runs (window resize / font load /
- * `invalidate()`).
+ * from the conservative `markAllDirty` (document MutationObserver) and stays
+ * on its cached geometry until it is explicitly invalidated
+ * (`invalidateBake`), its boundary is rebaked (a ResizeObserver event on any
+ * boundary member rebakes the WHOLE boundary — a sibling layout change can
+ * move surfaces without resizing them), gets an option update, or a forced
+ * invalidation runs (scroll / window resize / font load / `invalidate()`).
  */
 export function isBaked(entry: SurfaceEntry): boolean {
   return entry.options.bakeId !== undefined && entry.geometry !== null;
@@ -44,6 +45,14 @@ export function isBaked(entry: SurfaceEntry): boolean {
 export class SurfaceRegistry {
   private readonly byId = new Map<string, SurfaceEntry>();
   private readonly byElement = new Map<Element, string>();
+  /**
+   * #59 nested bake boundary hierarchy: bake id -> parent bake id (a root
+   * boundary has no entry OR an undefined parent). Populated explicitly by
+   * the integration layer (`registerBake`) — never derived from DOM scans.
+   * An OUTER `invalidateBake` cascades into every DESCENDANT boundary; the
+   * reverse is not true (an inner invalidate touches only its own boundary).
+   */
+  private readonly bakeParents = new Map<string, string | undefined>();
 
   get size(): number {
     return this.byId.size;
@@ -96,6 +105,45 @@ export class SurfaceRegistry {
   clear(): void {
     this.byId.clear();
     this.byElement.clear();
+    this.bakeParents.clear();
+  }
+
+  /**
+   * Register a bake boundary (mount) with its optional parent boundary.
+   * Idempotent: a React StrictMode double-mount re-registers the same pair.
+   * The parent does NOT need to be registered first (child effects run
+   * before parent effects in React) — the hierarchy is a plain map.
+   */
+  registerBake(id: string, parentBakeId?: string): void {
+    this.bakeParents.set(id, parentBakeId);
+  }
+
+  /** Remove a bake boundary registration (unmount). Descendant registrations
+   * are untouched — React unmounts the outer boundary only after the inner
+   * boundary has unregistered itself. */
+  unregisterBake(id: string): void {
+    this.bakeParents.delete(id);
+  }
+
+  /**
+   * #59: collect `bakeId` plus every DESCENDANT boundary id (transitively
+   * through the registered hierarchy). Guarded against cycles (which a
+   * well-formed React tree cannot produce) by a visited set.
+   */
+  bakeTreeIds(bakeId: string): Set<string> {
+    const seen = new Set<string>([bakeId]);
+    let frontier = [bakeId];
+    while (frontier.length > 0) {
+      const next: string[] = [];
+      for (const [id, parent] of this.bakeParents) {
+        if (parent !== undefined && seen.has(parent) === true && !seen.has(id)) {
+          seen.add(id);
+          next.push(id);
+        }
+      }
+      frontier = next;
+    }
+    return seen;
   }
 
   markDirty(id: string): void {
@@ -127,6 +175,22 @@ export class SurfaceRegistry {
   markBakeDirty(bakeId: string): void {
     for (const entry of this.byId.values()) {
       if (entry.options.bakeId === bakeId) {
+        entry.dirty = true;
+      }
+    }
+  }
+
+  /**
+   * #59 nested-boundary cascade: mark every surface of `bakeId` AND of every
+   * descendant boundary dirty. An outer boundary's layout can move/reposition
+   * its nested boundaries, so an outer `invalidateBake` must rebake the whole
+   * physical subtree. Descendants are resolved through the explicitly
+   * registered hierarchy — never a DOM scan.
+   */
+  markBakeTreeDirty(bakeId: string): void {
+    const ids = this.bakeTreeIds(bakeId);
+    for (const entry of this.byId.values()) {
+      if (entry.options.bakeId !== undefined && ids.has(entry.options.bakeId)) {
         entry.dirty = true;
       }
     }

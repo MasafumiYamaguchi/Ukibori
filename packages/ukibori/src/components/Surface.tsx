@@ -165,7 +165,7 @@ export const Surface = forwardRef<HTMLElement, SurfaceInnerProps>(function Surfa
   const ctx = useContext(UkiboriContext);
   // #59 bake boundary ownership: the nearest enclosing <Bake> (null =
   // dynamic). Nested boundaries override, so ownership is never ambiguous.
-  const bakeId = useContext(BakeContext) ?? undefined;
+  const bakeId = useContext(BakeContext)?.id;
   const elementRef = useRef<HTMLElement | null>(null);
   // Unconditional hooks: useId() is always called; the DOM `id` prop is a
   // separate concern and is forwarded to the element untouched.

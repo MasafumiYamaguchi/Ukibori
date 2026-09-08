@@ -20,6 +20,12 @@
 //                      bake boundary (retained baked measurement skip)
 //   rebake-baked       #59: one explicit invalidateBake() per frame (the
 //                      full rebake cost; steady-state fast path resumes after)
+//   dynamic-update     #59 sampler-style: one dynamic surface's physical
+//                      options change per frame (no bake — baseline)
+//   dynamic-update-baked  #59 sampler-style: the same dynamic updates with
+//                      the remaining surfaces under ONE bake boundary
+//                      (many static + few interactive; acceptance: baked
+//                      DOM measurements = 0 in steady state)
 //
 // EVERY scenario runs `warmup` untimed frames then `samples` timed frames
 // (query parameters; defaults keep a full run manageable). The mount-time
@@ -47,6 +53,13 @@ const query = new URLSearchParams(location.search);
 const WARMUP = Number(query.get("warmup") ?? 5);
 const SAMPLES = Number(query.get("samples") ?? 20);
 const SURFACE_QUERY = query.get("surfaces") ?? "1,10,50,100,250,500,1000";
+/**
+ * #59 sampler-style scenarios: dynamic surfaces per scene (the remaining
+ * surfaces form ONE bake boundary). "Many static + few interactive" is the
+ * primary Bake use case, so the dynamic subset stays small while the total
+ * surface count scales through the standard matrix.
+ */
+const SAMPLER_DYNAMIC_COUNT = 8;
 
 const cases = [];
 const notes = [];
@@ -201,9 +214,16 @@ const BUTTON_OPTIONS = (i) => ({
 
 async function measureScenario(scenario, surfaceCount, { frames }) {
   const { stage, buttons, unrelated, spacer, resizeRule } = mountStage(surfaceCount);
-  // #59 bake scenarios: every surface except the dynamic one (index 0) is
-  // registered under one bake boundary ("bake").
-  const bake = scenario === "unrelated-mutation-baked" || scenario === "rebake-baked";
+  // #59 bake scenarios: every surface except the dynamic subset is registered
+  // under one bake boundary ("bake"). The sampler scenarios keep a SMALL
+  // dynamic subset (SAMPLER_DYNAMIC_COUNT); the mutation scenarios keep a
+  // single dynamic surface (index 0).
+  const sampler = scenario === "dynamic-update" || scenario === "dynamic-update-baked";
+  const bake =
+    scenario === "unrelated-mutation-baked" ||
+    scenario === "rebake-baked" ||
+    scenario === "dynamic-update-baked";
+  const dynamicCount = sampler ? Math.max(1, Math.min(SAMPLER_DYNAMIC_COUNT, surfaceCount - 1)) : 1;
   const layer = await UkiboriDom.create({
     backend: "webgpu",
     observe: true,
@@ -223,7 +243,7 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
     for (let i = 0; i < buttons.length; i++) {
       layer.register(buttons[i].button, {
         ...BUTTON_OPTIONS(i),
-        ...(bake && i > 0 ? { bakeId: "bake" } : {}),
+        ...(bake && i < surfaceCount - dynamicCount ? { bakeId: "bake" } : {}),
       });
     }
     // FULL mount drain before any measurement (mount observers/renderer
@@ -300,6 +320,21 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
           // unrelated-mutation-baked scenario).
           const t1 = performance.now();
           layer.invalidateBake("bake");
+          triggerHostMs = performance.now() - t1;
+          break;
+        }
+        case "dynamic-update":
+        case "dynamic-update-baked": {
+          // #59 sampler-style steady state: one dynamic surface's physical
+          // options change per frame (cycling through the dynamic subset).
+          // Expected: exactly ONE DOM measurement (that surface); baked
+          // surfaces must stay at zero measurements. The elevation cycles
+          // through 2/3/4 so the scene genuinely changes every frame and the
+          // retained dirty-pass scheduling does real work.
+          const first = surfaceCount - dynamicCount;
+          const target = first + (frame % dynamicCount);
+          const t1 = performance.now();
+          layer.updateSurface(`s${target}`, { elevation: 2 + (frame % 3) });
           triggerHostMs = performance.now() - t1;
           break;
         }
@@ -445,6 +480,8 @@ async function main() {
     "scroll",
     "unrelated-mutation-baked",
     "rebake-baked",
+    "dynamic-update",
+    "dynamic-update-baked",
   ];
   try {
     instrument();

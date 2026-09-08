@@ -256,15 +256,19 @@ export interface BakeHandle {
  * surfaces participate in the SAME physical scene (height composition,
  * ownership, shadows, lighting) but are excluded from ordinary DOM
  * mutation-driven re-measurement until `bakeRef.current?.invalidate()` is
- * called (or a forced invalidation runs: viewport resize, font load, an
- * actual layout change via ResizeObserver, or a prop update on the surface).
+ * called (or a forced invalidation runs: a scroll event, a viewport resize, a
+ * font load, a layout change of any boundary member via ResizeObserver —
+ * which rebakes the whole boundary — or a prop update on the surface).
  *
  * Bake is NOT a final-image cache: static geometry stays in the scene so
  * dynamic caster -> baked receiver and baked caster -> dynamic receiver
  * shadows keep working.
  *
  * Nested <Bake> boundaries are allowed: a surface always belongs to the
- * NEAREST enclosing boundary (the inner one overrides the outer).
+ * NEAREST enclosing boundary (the inner one overrides the outer), and an
+ * outer `invalidate()` CASCADES into its descendant boundaries (their layout
+ * can be repositioned by the outer subtree). An inner `invalidate()` never
+ * cascades upward.
  */
 export interface BakeProps {
   children?: ReactNode;

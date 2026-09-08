@@ -137,21 +137,22 @@ describe("#59 <Bake> boundary", () => {
     expect(chassisSpy.mock.calls.length).toBe(1);
   });
 
-  it("nested boundaries: a surface belongs to the NEAREST enclosing Bake", async () => {
+  it("nested boundaries: nearest ownership + outer invalidate CASCADES into descendants", async () => {
     stubElementRects();
     stubCanvas2d();
     let layer: UkiboriDom | null = null;
     const outerRef = createRef<BakeHandle>();
     const innerRef = createRef<BakeHandle>();
-    const innerRef2 = createRef<HTMLDivElement>();
+    const outerSurfaceRef = createRef<HTMLDivElement>();
+    const innerSurfaceRef = createRef<HTMLDivElement>();
     render(
       <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
         <Bake ref={outerRef}>
-          <Surface sceneId="outer-static" elevation={0} thickness={2}>
+          <Surface ref={outerSurfaceRef} sceneId="outer-static" elevation={0} thickness={2}>
             outer
           </Surface>
           <Bake ref={innerRef}>
-            <Surface ref={innerRef2} sceneId="inner-static" elevation={1} thickness={2}>
+            <Surface ref={innerSurfaceRef} sceneId="inner-static" elevation={1} thickness={2}>
               inner
             </Surface>
           </Bake>
@@ -164,20 +165,71 @@ describe("#59 <Bake> boundary", () => {
     const innerBakeId = current.registry.get("inner-static")!.options.bakeId;
     expect(outerBakeId).toEqual(expect.any(String));
     expect(innerBakeId).toEqual(expect.any(String));
+    // Ownership still resolves to the NEAREST enclosing boundary.
     expect(innerBakeId).not.toBe(outerBakeId);
     expect(current.debugState().bakeBoundaryCount).toBe(2);
 
-    // The outer handle invalidates only the OUTER boundary's surfaces.
-    const innerSpy = countRects(innerRef2.current!);
+    const outerSpy = countRects(outerSurfaceRef.current!);
+    const innerSpy = countRects(innerSurfaceRef.current!);
+
+    // OUTER invalidate: the outer subtree's layout can reposition its nested
+    // boundaries, so the whole physical subtree (outer + inner) is rebaked.
     outerRef.current!.invalidate();
     await flushAsync();
-    expect(innerSpy.mock.calls.length).toBe(0);
-    expect(current.debugState().lastRebakeSurfaceCount).toBe(1);
+    expect(outerSpy.mock.calls.length).toBe(1);
+    expect(innerSpy.mock.calls.length).toBe(1);
+    expect(current.debugState().lastRebakeSurfaceCount).toBe(2);
 
-    // ...and the inner handle only the inner one.
+    // INNER invalidate: never cascades upward.
     innerRef.current!.invalidate();
     await flushAsync();
-    expect(innerSpy.mock.calls.length).toBe(1);
+    expect(innerSpy.mock.calls.length).toBe(2);
+    expect(outerSpy.mock.calls.length).toBe(1);
+    expect(current.debugState().lastRebakeSurfaceCount).toBe(1);
+  });
+
+  it("unmounting a nested boundary removes its cascade reach without stale ownership", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    let layer: UkiboriDom | null = null;
+    const outerRef = createRef<BakeHandle>();
+    const { rerender } = render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <Bake ref={outerRef}>
+          <Surface sceneId="outer-static" elevation={0} thickness={2}>
+            outer
+          </Surface>
+          <Bake>
+            <Surface sceneId="inner-static" elevation={1} thickness={2}>
+              inner
+            </Surface>
+          </Bake>
+        </Bake>
+      </Ukibori>,
+    );
+    await flushAsync();
+    const current = layer!;
+    expect(current.registry.has("inner-static")).toBe(true);
+
+    // The inner <Bake> unmounts: its registration is removed with it.
+    rerender(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <Bake ref={outerRef}>
+          <Surface sceneId="outer-static" elevation={0} thickness={2}>
+            outer
+          </Surface>
+        </Bake>
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(current.registry.has("inner-static")).toBe(false);
+
+    // A late invalidate for the unmounted boundary is a safe no-op; the
+    // outer boundary still rebakes cleanly.
+    expect(() => current.invalidateBake("gone-boundary")).not.toThrow();
+    outerRef.current!.invalidate();
+    await flushAsync();
+    expect(current.debugState().lastRebakeSurfaceCount).toBe(1);
   });
 
   it("provider-less / SSR: plain DOM children and a safe no-op invalidate()", () => {

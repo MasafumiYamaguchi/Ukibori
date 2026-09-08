@@ -144,6 +144,52 @@ describe("SurfaceRegistry", () => {
       expect(registry.get("dyn")!.dirty).toBe(false);
     });
 
+    it("markBakeTreeDirty cascades into registered descendant boundaries", () => {
+      const registry = new SurfaceRegistry();
+      registry.add(bakedEntry("outer", "outer-bake"));
+      registry.add(bakedEntry("inner", "inner-bake"));
+      registry.add(bakedEntry("deep", "deep-bake"));
+      registry.add(bakedEntry("other", "other-bake"));
+      registry.registerBake("outer-bake");
+      // Child effects run before parent effects: registering the child
+      // before its parent must be fine (plain parent-id map).
+      registry.registerBake("deep-bake", "inner-bake");
+      registry.registerBake("inner-bake", "outer-bake");
+      registry.registerBake("other-bake");
+      registry.clearDirty();
+
+      registry.markBakeTreeDirty("outer-bake");
+      expect(registry.get("outer")!.dirty).toBe(true);
+      expect(registry.get("inner")!.dirty).toBe(true);
+      expect(registry.get("deep")!.dirty).toBe(true);
+      expect(registry.get("other")!.dirty).toBe(false);
+
+      // An inner invalidate never cascades upward.
+      registry.clearDirty();
+      registry.markBakeTreeDirty("inner-bake");
+      expect(registry.get("inner")!.dirty).toBe(true);
+      expect(registry.get("deep")!.dirty).toBe(true);
+      expect(registry.get("outer")!.dirty).toBe(false);
+      expect(registry.get("other")!.dirty).toBe(false);
+    });
+
+    it("unregisterBake removes the boundary (and its cascade reach)", () => {
+      const registry = new SurfaceRegistry();
+      registry.add(bakedEntry("outer", "outer-bake"));
+      registry.add(bakedEntry("inner", "inner-bake"));
+      registry.registerBake("outer-bake");
+      registry.registerBake("inner-bake", "outer-bake");
+      registry.unregisterBake("inner-bake");
+      registry.clearDirty();
+      registry.markBakeTreeDirty("outer-bake");
+      expect(registry.get("outer")!.dirty).toBe(true);
+      expect(registry.get("inner")!.dirty).toBe(false);
+      // clear() drops the whole hierarchy.
+      registry.clear();
+      registry.clearDirty();
+      expect(registry.bakeTreeIds("outer-bake")).toEqual(new Set(["outer-bake"]));
+    });
+
     it("reports bake boundary / baked / dynamic surface counts", () => {
       const registry = new SurfaceRegistry();
       registry.add(bakedEntry("a", "one"));

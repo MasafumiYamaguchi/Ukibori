@@ -60,8 +60,12 @@ import type {
  *   option update)
  * - scroll (capture): node dirty, re-measured on the next render; with
  *   document-relative scene coordinates ordinary page scroll leaves geometry
- *   unchanged and the render is skipped. #59: baked surfaces are excluded —
- *   scroll never changes document-relative geometry
+ *   unchanged and the render is skipped. #59: baked surfaces are INCLUDED —
+ *   although ordinary document scroll cannot change document-relative
+ *   geometry, nested scroll containers, `position: sticky` and transformed /
+ *   scroll-dependent layout CAN change `getBoundingClientRect()` under a
+ *   scroll event, so correctness wins over the measurement skip (the
+ *   unchanged-geometry retained path still skips the renderer)
  * - viewport resize: node dirty + scene dirty (devicePixelRatio may have
  *   changed). #59: baked surfaces are included (forced rebake — stale
  *   geometry is never acceptable)
@@ -196,8 +200,9 @@ const MAX_GPU_DIAGNOSTICS = 16;
  * #59 bake policy: the conservative invalidation EXCLUDES surfaces in the
  * retained baked state (`markAllDirty()` defaults to `includeBaked = false`).
  * A baked subtree is re-measured only through an explicit
- * `invalidateBake(bakeId)`, an actual layout change (ResizeObserver), an
- * option update, or a forced invalidation (window resize / font load /
+ * `invalidateBake(bakeId)` (which cascades into nested boundaries), a bake
+ * boundary rebake (a ResizeObserver event on any boundary member), an option
+ * update, or a forced invalidation (scroll / window resize / font load /
  * `invalidate()`).
  */
 const MUTATION_CONFIG: MutationObserverInit = {
@@ -337,7 +342,18 @@ export class UkiboriDom {
             for (const entry of entries) {
               const id = this.registry.idFor(entry.target);
               if (id !== undefined) {
-                this.registry.markDirty(id);
+                // #59: a baked surface's layout change can move SIBLINGS of
+                // its boundary without resizing them (e.g. A grows -> B is
+                // pushed down but keeps its own size). Re-measuring only the
+                // observed target would leave stale baked geometry behind, so
+                // the WHOLE bake boundary is rebaked. Dynamic surfaces keep
+                // the per-node invalidation semantics.
+                const surface = this.registry.get(id);
+                if (surface?.options.bakeId !== undefined) {
+                  this.registry.markBakeDirty(surface.options.bakeId);
+                } else {
+                  this.registry.markDirty(id);
+                }
                 changed = true;
               }
             }
@@ -840,22 +856,48 @@ export class UkiboriDom {
    * boundary `bakeId` dirty so the NEXT scheduled update re-measures and
    * re-bakes that subtree, then returns it to the retained fast path.
    *
-   * Semantics (fixed by issue #59):
+   * Semantics (fixed by issue #59 + the nested-boundary review contract):
    *
    * - NOT a synchronous recomputation: the rebuild goes through the normal
    *   coalesced scheduling, so repeated `invalidateBake` calls in the same
    *   frame (or interleaved with other invalidations) produce exactly ONE
    *   measurement pass.
+   * - CASCADE: boundaries registered as DESCENDANTS of `bakeId`
+   *   (`registerBake(child, parent)`) are invalidated together — an outer
+   *   boundary's layout can reposition its nested boundaries. An inner
+   *   `invalidateBake` does NOT cascade upward.
    * - Unknown bake ids are a no-op (the React `<Bake>` handle stays safe to
-   *   call before its surfaces register or after they unmount).
-   * - Only the named boundary is touched; other boundaries and dynamic
-   *   surfaces keep their retained state.
+   *   call before its boundary registers or after it unmounts).
    */
   invalidateBake(bakeId: string): void {
     this.throwIfDisposed();
     assertValidId(bakeId);
-    this.registry.markBakeDirty(bakeId);
+    this.registry.markBakeTreeDirty(bakeId);
     this.scheduleRender();
+  }
+
+  /**
+   * #59 nested-bake hierarchy registration (mount of a `<Bake>` boundary).
+   * Pure invalidation-ownership metadata: no scene change, no render. The
+   * parent does not need to be registered first (React runs child effects
+   * before parent effects) — the hierarchy is a plain parent-id map.
+   */
+  registerBake(id: string, parentBakeId?: string): void {
+    this.throwIfDisposed();
+    assertValidId(id);
+    if (parentBakeId !== undefined) {
+      assertValidId(parentBakeId);
+    }
+    this.registry.registerBake(id, parentBakeId);
+  }
+
+  /** Remove a bake boundary registration (unmount of a `<Bake>`). Safe after
+   * dispose (the provider may tear down before a child boundary's cleanup). */
+  unregisterBake(id: string): void {
+    if (this.disposed) {
+      return;
+    }
+    this.registry.unregisterBake(id);
   }
 
   /** Schedule a render; coalesces multiple invalidations into one pass. */
@@ -1238,11 +1280,13 @@ export class UkiboriDom {
   };
 
   private readonly onScroll = (): void => {
-    // #59: baked surfaces are NOT re-measured on scroll — scene geometry is
-    // DOCUMENT-relative, so ordinary page scroll cannot change it (the same
-    // unchanged-geometry skip applies to dynamic surfaces; for baked surfaces
-    // we skip the measurement itself).
-    this.registry.markAllDirty();
+    // #59 correctness-first policy: ordinary document scroll leaves
+    // document-relative geometry unchanged, but nested scroll containers,
+    // `position: sticky` and transformed / scroll-dependent layout CAN change
+    // getBoundingClientRect() under a scroll event — so baked surfaces are
+    // re-measured too (FORCED). The unchanged-geometry retained path still
+    // skips the scene rebuild when nothing actually moved.
+    this.registry.markAllDirty(true);
     this.scheduleRender();
   };
 
