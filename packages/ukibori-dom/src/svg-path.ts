@@ -65,23 +65,11 @@ export function svgPathRasterKey(
   width: number,
   height: number,
 ): string;
-/** @deprecated The five numeric argument form is retained for source compatibility. */
 export function svgPathRasterKey(
   shape: Extract<DomShape, { kind: "svgPath" }>,
-  cssWidth: number,
-  cssHeight: number,
-  dpr: number,
   width: number,
   height: number,
-): string;
-export function svgPathRasterKey(
-  shape: Extract<DomShape, { kind: "svgPath" }>,
-  ...dimensions: number[]
 ): string {
-  // The legacy form supplied CSS size and DPR as well. They are deliberately
-  // ignored: only the effective raster dimensions affect generated pixels.
-  const width = dimensions.length === 2 ? dimensions[0] : dimensions[3];
-  const height = dimensions.length === 2 ? dimensions[1] : dimensions[4];
   return [
     SVG_PATH_RASTER_QUALITY,
     shape.d,

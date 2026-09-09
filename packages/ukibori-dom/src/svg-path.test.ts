@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { rasterizeSvgPath, SvgPathRasterCache, svgPathRasterKey, validateSvgPathShape } from "./svg-path";
+import { rasterizeSvgPath, SvgPathRasterCache, validateSvgPathShape } from "./svg-path";
 import { buildScene } from "./scene-builder";
 import { SurfaceRegistry } from "./registry";
 import type { SvgPathShape } from "./types";
@@ -12,13 +12,6 @@ afterEach(() => {
 });
 
 describe("SVG path authoring raster", () => {
-  it("uses effective raster dimensions, not CSS subpixels or DPR, in the cache key", () => {
-    expect(svgPathRasterKey(SHAPE, 100.10, 50.25, 1, 100, 50))
-      .toBe(svgPathRasterKey(SHAPE, 100.20, 50.25, 1.5, 100, 50));
-    expect(svgPathRasterKey(SHAPE, 100.20, 50.25, 1.5, 100, 50))
-      .not.toBe(svgPathRasterKey(SHAPE, 100.60, 50.25, 1.5, 101, 50));
-  });
-
   it("bounds retained masks with LRU eviction", () => {
     const cache = new SvgPathRasterCache(2);
     const a = { width: 1, height: 1, alpha: new Float32Array([0]) };
