@@ -3,12 +3,17 @@ import type { Material, Scene, SurfaceNode } from "ukibori-renderer";
 import { renderTargetSize } from "./coords";
 import type { SurfaceRegistry } from "./registry";
 import type { DomEnvironmentState, DomLightState, Region } from "./types";
-import { rasterizeSvgPath, svgPathRasterKey } from "./svg-path";
+import { rasterizeSvgPath, SvgPathRasterCache, svgPathRasterKey } from "./svg-path";
 import type { DomShape } from "./types";
+
+interface SvgPathMaskCache {
+  get(key: string): ReturnType<typeof rasterizeSvgPath> | undefined;
+  set(key: string, value: ReturnType<typeof rasterizeSvgPath>): void;
+}
 
 // Cache by every input affecting raster output. Retained light/material
 // updates therefore reuse the exact same immutable MaskSource.
-const svgMaskCache = new Map<string, ReturnType<typeof rasterizeSvgPath>>();
+const defaultSvgMaskCache = new SvgPathRasterCache();
 
 /**
  * DOM -> renderer scene construction (#20).
@@ -52,6 +57,8 @@ export interface BuildSceneInput {
   /** exposure multiplier (dimensionless). `undefined` -> renderer default 1. */
   exposure?: number;
   materials?: Record<string, Material>;
+  /** Internal layer-owned cache; omitted callers use a bounded fallback. */
+  svgPathCache?: SvgPathMaskCache;
 }
 
 export function buildScene(input: BuildSceneInput): Scene {
@@ -86,8 +93,17 @@ export function buildScene(input: BuildSceneInput): Scene {
         options.shape.kind === "mask"
           ? { kind: "mask", mask: options.shape.mask }
           : options.shape.kind === "svgPath"
-            ? { kind: "mask", mask: svgMaskFor(options.shape, geo.w, geo.h, dpr) }
-          : { kind: "roundedRect", radius: geo.radius * dpr },
+            ? {
+                kind: "mask",
+                mask: svgMaskFor(
+                  options.shape,
+                  geo.w,
+                  geo.h,
+                  dpr,
+                  input.svgPathCache ?? defaultSvgMaskCache,
+                ),
+              }
+            : { kind: "roundedRect", radius: geo.radius * dpr },
       profile: options.profile ?? { kind: "bevel" },
       material: options.material,
       castsShadow: options.castsShadow ?? true,
@@ -137,16 +153,17 @@ function svgMaskFor(
   cssWidth: number,
   cssHeight: number,
   dpr: number,
+  cache: SvgPathMaskCache,
 ): ReturnType<typeof rasterizeSvgPath> {
   const width = Math.max(1, Math.round(cssWidth * dpr));
   const height = Math.max(1, Math.round(cssHeight * dpr));
   const key = svgPathRasterKey(shape, cssWidth, cssHeight, dpr, width, height);
-  const cached = svgMaskCache.get(key);
+  const cached = cache.get(key);
   if (cached !== undefined) {
     return cached;
   }
   const mask = rasterizeSvgPath(shape, width, height);
-  svgMaskCache.set(key, mask);
+  cache.set(key, mask);
   return mask;
 }
 

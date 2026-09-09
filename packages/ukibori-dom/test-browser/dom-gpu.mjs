@@ -24,7 +24,9 @@
 // The runner (scripts/test-webgpu-dom.mjs) parses only the first line of the
 // #result block below.
 
-import { UkiboriDom } from "../src/index";
+import { UkiboriDom, buildScene } from "../src/index";
+import { lightScene } from "ukibori-renderer";
+import { GEAR_SHAPE, maskAlphaAt } from "./svg-gear-fixture.mjs";
 
 const MARKER_PASS = "UKIBORI_DOM_GPU_PASS";
 const MARKER_FAIL = "UKIBORI_DOM_GPU_FAIL";
@@ -513,6 +515,147 @@ async function runCpuControlScenario() {
   }
 }
 
+/** Real Canvas2D SVG-path fixture: coverage, DPR/cache invalidation and gear shadow. */
+function runSvgGearScenario() {
+  const stage = document.createElement("div");
+  document.body.appendChild(stage);
+  const gear = document.createElement("div");
+  const receiver = document.createElement("div");
+  stage.append(gear, receiver);
+  const gearRect = { left: 80, top: 40, width: 96, height: 96 };
+  const receiverRect = { left: 80, top: 180, width: 96, height: 48 };
+  const asRect = (r) => ({ ...r, x: r.left, y: r.top, right: r.left + r.width, bottom: r.top + r.height, toJSON: () => r });
+  gear.getBoundingClientRect = () => asRect(gearRect);
+  receiver.getBoundingClientRect = () => asRect(receiverRect);
+  const layer = new UkiboriDom({ backend: "cpu", dpr: 1, observe: false, schedule, overlay: { stage } });
+  const gearOptions = {
+    id: "svg-gear", shape: GEAR_SHAPE, elevation: 8, thickness: 3, bevelWidth: 2,
+    material: "silicone", castsShadow: true, receivesShadow: false,
+  };
+  layer.register(gear, gearOptions);
+  layer.register(receiver, {
+    id: "flat-receiver", shape: { kind: "roundedRect", radius: 0 }, elevation: 0,
+    thickness: 0, profile: { kind: "flat" }, material: "matte", castsShadow: false, receivesShadow: true,
+  });
+  flush();
+  try {
+    const alphaByDpr = [];
+    for (const dpr of [1, 2, 3]) {
+      if (dpr !== 1) {
+        layer.setDpr(dpr);
+        flush();
+      }
+      const state = layer.debugState();
+      const scene = buildScene({ registry: layer.registry, region: state.region, dpr,
+        light: { direction: { x: 0, y: -1, z: 1 }, intensity: 1 } });
+      const shape = scene.surfaces.find((s) => s.id === "svg-gear").shape;
+      check(shape.kind === "mask", `gear dpr ${dpr} did not become a mask`);
+      const mask = shape.mask;
+      eq(mask.width, gearRect.width * dpr, `gear dpr ${dpr} mask width`);
+      eq(mask.height, gearRect.height * dpr, `gear dpr ${dpr} mask height`);
+      check(maskAlphaAt(mask, 48 * dpr, 48 * dpr) < 0.1, `gear dpr ${dpr} center hole is filled`);
+      // Sample well inside a tooth tip (r=40), and just outside the root at
+      // the inter-tooth valley (r=40 at half a tooth pitch). These paired
+      // samples distinguish the gear from both a circle and a rectangle.
+      check(maskAlphaAt(mask, 48 * dpr + 40 * dpr, 48 * dpr) > 0.5, `gear dpr ${dpr} tooth missing`);
+      const valley = Math.round(48 * dpr + Math.cos(Math.PI / 16) * 40 * dpr);
+      const valleyY = Math.round(48 * dpr + Math.sin(Math.PI / 16) * 40 * dpr);
+      check(maskAlphaAt(mask, valley, valleyY) < 0.5, `gear dpr ${dpr} valley lost tooth boundary`);
+      const same = buildScene({ registry: layer.registry, region: state.region, dpr,
+        light: { direction: { x: 0, y: -1, z: 1 }, intensity: 1 } });
+      const sameShape = same.surfaces.find((s) => s.id === "svg-gear").shape;
+      check(sameShape.kind === "mask" && sameShape.mask === mask, `gear dpr ${dpr} mask identity changed on rebuild`);
+      if (sameShape.kind === "mask") {
+        check(sameShape.mask.alpha.length === mask.alpha.length && sameShape.mask.alpha.every((v, i) => v === mask.alpha[i]),
+          `gear dpr ${dpr} alpha changed on identical rebuild`);
+      }
+      alphaByDpr.push({ dpr, alpha: new Float32Array(mask.alpha) });
+    }
+    const before = layer.debugState().svgRasterizationCount;
+    layer.setLight({ x: 0.2, y: -1, z: 1 }, 1);
+    flush();
+    eq(layer.debugState().svgRasterizationCount, before, "gear light-only rerasterization");
+    layer.updateSurface("svg-gear", { material: "metal" });
+    flush();
+    eq(layer.debugState().svgRasterizationCount, before, "gear material-only rerasterization");
+    const pathBefore = layer.debugState().svgRasterizationCount;
+    layer.updateSurface("svg-gear", { shape: { ...GEAR_SHAPE, d: GEAR_SHAPE.d + "M1 1Z" } });
+    flush();
+    eq(layer.debugState().svgRasterizationCount, pathBefore + 1, "gear path invalidation");
+    layer.updateSurface("svg-gear", { shape: { ...GEAR_SHAPE, viewBox: [0, 0, 120, 120] } });
+    flush();
+    eq(layer.debugState().svgRasterizationCount, pathBefore + 2, "gear viewBox invalidation");
+    layer.updateSurface("svg-gear", { shape: { ...GEAR_SHAPE, fillRule: "nonzero" } });
+    flush();
+    eq(layer.debugState().svgRasterizationCount, pathBefore + 3, "gear fillRule invalidation");
+    const resizeBefore = layer.debugState().svgRasterizationCount;
+    gearRect.width = 120;
+    gearRect.height = 120;
+    layer.invalidate("svg-gear");
+    flush();
+    eq(layer.debugState().svgRasterizationCount, resizeBefore + 1, "gear CSS resize invalidation");
+    layer.invalidate("svg-gear");
+    flush();
+    eq(layer.debugState().svgRasterizationCount, resizeBefore + 1, "gear unchanged resize frame retained");
+
+    // The receiver's visibility contains tooth-scale variation that vanishes
+    // when the caster is removed, proving the shadow boundary is path-derived.
+    const current = buildScene({ registry: layer.registry, region: layer.debugState().region, dpr: 1,
+      light: { direction: { x: 0, y: -1, z: 1 }, intensity: 1 } });
+    const withGear = lightScene(current).visibility;
+    const receiverOnly = lightScene({ ...current, surfaces: current.surfaces.filter((s) => s.id !== "svg-gear") }).visibility;
+    let shadowDelta = 0;
+    for (let y = 150; y < current.height; y++) {
+      for (let x = 0; x < current.width; x++) {
+        shadowDelta = Math.max(shadowDelta, (receiverOnly.get(x, y, 0) ?? 0) - (withGear.get(x, y, 0) ?? 0));
+      }
+    }
+    check(shadowDelta > 0, "gear caster produced no receiver shadow boundary");
+    note(`svg gear: dpr=1/2/3 coverage + cache count=${layer.debugState().svgRasterizationCount} shadowDelta=${shadowDelta.toFixed(4)}`);
+  } finally {
+    layer.dispose();
+    stage.remove();
+  }
+}
+
+/** The same authoring fixture through the real WebGPU path. */
+async function runGpuSvgGearScenario() {
+  const stage = document.createElement("div");
+  document.body.appendChild(stage);
+  const gear = document.createElement("div");
+  stage.appendChild(gear);
+  const rect = { left: 80, top: 40, width: 96, height: 96 };
+  gear.getBoundingClientRect = () => ({ ...rect, x: rect.left, y: rect.top,
+    right: rect.left + rect.width, bottom: rect.top + rect.height, toJSON: () => rect });
+  const layer = await UkiboriDom.create({ backend: "webgpu", dpr: 2, observe: false, schedule, overlay: { stage } });
+  try {
+    const device = layer.gpuDevice;
+    check(device != null && layer.debugState().backend === "webgpu", "SVG gear WebGPU path unavailable");
+    if (device == null) return;
+    wrapPipelineDebugReadback(layer);
+    layer.register(gear, { id: "gpu-svg-gear", shape: GEAR_SHAPE, elevation: 8, thickness: 3,
+      bevelWidth: 2, material: "silicone", castsShadow: true, receivesShadow: false });
+    flush();
+    const state = layer.debugState();
+    check(state.svgRasterizationCount === 1, "SVG gear WebGPU did not rasterize exactly once");
+    const canvas = gpuCanvasOf(layer);
+    const handle = submitPresentedCopy(device, canvas.getContext("webgpu"), state.renderSize.width, state.renderSize.height);
+    await settle(device);
+    const rows = await stagingReadback(handle);
+    const dpr = 2;
+    const sx = (rect.left - state.region.x) * dpr;
+    const sy = (rect.top - state.region.y) * dpr;
+    const tooth = stagingPixel(rows, state.renderSize.width, [Math.round(sx + (48 + 40) * dpr), Math.round(sy + 48 * dpr)]);
+    const hole = stagingPixel(rows, state.renderSize.width, [Math.round(sx + 48 * dpr), Math.round(sy + 48 * dpr)]);
+    check(tooth[3] > 0, "SVG gear WebGPU tooth pixel is transparent");
+    check(hole[3] === 0, "SVG gear WebGPU evenodd hole is opaque");
+    note(`svg gear WebGPU: dpr=2 toothAlpha=${tooth[3]} holeAlpha=${hole[3]} upload=${state.gpuFrame.frame.upload.bytesUploaded}B`);
+  } finally {
+    layer.dispose();
+    stage.remove();
+  }
+}
+
 /**
  * TEST-ONLY presented-frame capture (the parity harness pattern, CRITICAL on
  * Windows/D3D): the current texture MUST be captured and the staging copy
@@ -579,6 +722,8 @@ async function main() {
     check(sanity.maxAlpha === 255, `raw webgpu readback sanity: ${JSON.stringify(sanity)}`);
 
     await runCpuControlScenario();
+    runSvgGearScenario();
+    await runGpuSvgGearScenario();
     await runFixedDprScenario(1);
     await runFixedDprScenario(1.5);
     await runFixedDprScenario(2);

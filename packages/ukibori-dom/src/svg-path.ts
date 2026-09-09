@@ -1,6 +1,56 @@
 import type { MaskSource } from "ukibori-renderer";
 import type { DomShape } from "./types";
 
+/** Bounded per-layer cache size; masks are immutable and may be large. */
+const DEFAULT_CACHE_LIMIT = 64;
+
+/**
+ * Small LRU owned by a DOM layer. Keeping ownership here makes disposing a
+ * layer release every generated mask, while the limit also protects callers
+ * that use buildScene directly from unbounded path/resize churn.
+ */
+export class SvgPathRasterCache {
+  private readonly entries = new Map<string, MaskSource>();
+  private readonly limit: number;
+  private rasterizationCount = 0;
+
+  constructor(limit = DEFAULT_CACHE_LIMIT) {
+    this.limit = Number.isInteger(limit) && limit > 0 ? limit : DEFAULT_CACHE_LIMIT;
+  }
+
+  get(key: string): MaskSource | undefined {
+    const value = this.entries.get(key);
+    if (value !== undefined) {
+      this.entries.delete(key);
+      this.entries.set(key, value);
+    }
+    return value;
+  }
+
+  set(key: string, value: MaskSource): void {
+    this.entries.delete(key);
+    this.entries.set(key, value);
+    this.rasterizationCount += 1;
+    while (this.entries.size > this.limit) {
+      const oldest = this.entries.keys().next().value as string | undefined;
+      if (oldest === undefined) break;
+      this.entries.delete(oldest);
+    }
+  }
+
+  clear(): void {
+    this.entries.clear();
+  }
+
+  get size(): number {
+    return this.entries.size;
+  }
+
+  get rasterizations(): number {
+    return this.rasterizationCount;
+  }
+}
+
 /** A stable cache key for authoring SVG paths and their raster footprint. */
 export function svgPathRasterKey(
   shape: Extract<DomShape, { kind: "svgPath" }>,
@@ -102,4 +152,3 @@ export function validateSvgPathShape(
     throw new TypeError("SVG path d accepts path data only, not SVG markup");
   }
 }
-

@@ -42,6 +42,11 @@ device-pixel footprint (`round(cssSize * dpr)`), while scene geometry is still
 CSS-space geometry scaled once by the DOM scene builder. `fillRule` supports
 `nonzero` (default) and `evenodd`, including holes.
 
+Generated masks are retained across light/material-only scene rebuilds and
+returned to the retained renderer path. Each layer owns a bounded LRU (64
+entries); `debugState().svgRasterizationCount` and `svgCacheSize` provide the
+existing diagnostic seam for verifying regeneration and memory behavior.
+
 SVG documents, markup, strokes, paint servers (gradients/patterns), filters,
 scripts, external resources and other full-SVG features are intentionally out
 of scope. Environments without `Path2D` or a 2D canvas report an explicit

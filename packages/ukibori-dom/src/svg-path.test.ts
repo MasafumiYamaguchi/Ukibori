@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { rasterizeSvgPath, validateSvgPathShape } from "./svg-path";
+import { rasterizeSvgPath, SvgPathRasterCache, validateSvgPathShape } from "./svg-path";
 import { buildScene } from "./scene-builder";
 import { SurfaceRegistry } from "./registry";
 import type { SvgPathShape } from "./types";
@@ -12,6 +12,23 @@ afterEach(() => {
 });
 
 describe("SVG path authoring raster", () => {
+  it("bounds retained masks with LRU eviction", () => {
+    const cache = new SvgPathRasterCache(2);
+    const a = { width: 1, height: 1, alpha: new Float32Array([0]) };
+    const b = { width: 1, height: 1, alpha: new Float32Array([0]) };
+    const c = { width: 1, height: 1, alpha: new Float32Array([0]) };
+    cache.set("a", a);
+    cache.set("b", b);
+    expect(cache.get("a")).toBe(a);
+    cache.set("c", c);
+    expect(cache.get("b")).toBeUndefined();
+    expect(cache.get("a")).toBe(a);
+    expect(cache.size).toBe(2);
+    expect(cache.rasterizations).toBe(3);
+    cache.clear();
+    expect(cache.size).toBe(0);
+  });
+
   it("validates path-data-only descriptors and rejects SVG markup", () => {
     expect(() => validateSvgPathShape(SHAPE)).not.toThrow();
     expect(() => validateSvgPathShape({ ...SHAPE, d: "<svg><path/></svg>" })).toThrow(/path data only/);
