@@ -28,4 +28,3 @@ export const GEAR_SHAPE = {
 export function maskAlphaAt(mask, x, y) {
   return mask.alpha[y * mask.width + x];
 }
-
