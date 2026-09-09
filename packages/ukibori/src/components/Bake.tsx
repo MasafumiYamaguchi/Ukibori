@@ -3,6 +3,7 @@ import {
   useEffect,
   useId,
   useImperativeHandle,
+  useLayoutEffect,
   useMemo,
   useContext,
 } from "react";
@@ -75,11 +76,16 @@ export const Bake = forwardRef<BakeHandle, BakeProps>(function Bake(
   const layer = ctx.layer;
   const parentId = parent?.id ?? null;
 
+  // Publish ownership before same-commit consumers run their layout effects
+  // (for example, a consumer that immediately invalidates after reparenting).
+  // Keep the server fallback passive so SSR remains warning-free.
+  const useBakeLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
   // Register the boundary hierarchy (nested-cascade ownership) with the
   // layer. Idempotent under StrictMode double-effects; the parent does not
   // need to be registered first (React runs child effects first). A no-op
   // while the physical layer is absent (SSR / hydration / css fallback).
-  useEffect(() => {
+  useBakeLayoutEffect(() => {
     if (layer === null) {
       return;
     }

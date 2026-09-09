@@ -146,6 +146,26 @@ export class SurfaceRegistry {
     return seen;
   }
 
+  /**
+   * Resolve a boundary to the root of its registered bake tree. This uses
+   * only the retained parent map; observer callbacks never inspect the DOM.
+   * A temporarily missing parent is treated as a detached root (which keeps
+   * cleanup callbacks safe), and a malformed cycle is contained.
+   */
+  rootBakeId(bakeId: string): string {
+    let current = bakeId;
+    const seen = new Set<string>();
+    while (!seen.has(current)) {
+      seen.add(current);
+      const parent = this.bakeParents.get(current);
+      if (parent === undefined || !this.bakeParents.has(parent)) {
+        return current;
+      }
+      current = parent;
+    }
+    return current;
+  }
+
   markDirty(id: string): void {
     const entry = this.byId.get(id);
     if (entry !== undefined) {

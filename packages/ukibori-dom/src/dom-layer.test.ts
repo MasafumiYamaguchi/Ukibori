@@ -1578,6 +1578,49 @@ describe("UkiboriDom — DOM integration", () => {
       }
     });
 
+    it("a nested baked ResizeObserver event cascades from the root tree", () => {
+      class FakeResizeObserver {
+        static latest: FakeResizeObserver | null = null;
+        readonly callback: ResizeObserverCallback;
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback;
+          FakeResizeObserver.latest = this;
+        }
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      }
+      vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+      try {
+        const { layer } = makeLayer(true);
+        const a = makeSurface("a", { left: 10, top: 10, width: 50, height: 40 });
+        const b = makeSurface("b", { left: 70, top: 10, width: 50, height: 40 });
+        const c = makeSurface("c", { left: 130, top: 10, width: 50, height: 40 });
+        layer.registerBake("outer-bake");
+        layer.registerBake("inner-bake", "outer-bake");
+        layer.register(a, OPTIONS("a", "outer-bake"));
+        layer.register(b, OPTIONS("b", "inner-bake"));
+        layer.register(c, OPTIONS("c", "outer-bake"));
+        layer.render();
+        const aBefore = measureCalls(a);
+        const bBefore = measureCalls(b);
+        const cBefore = measureCalls(c);
+
+        // The inner member's resize must invalidate the root tree, including
+        // root siblings whose own size did not change.
+        FakeResizeObserver.latest!.callback(
+          [{ target: b }] as unknown as ResizeObserverEntry[],
+          FakeResizeObserver.latest! as unknown as ResizeObserver,
+        );
+        expect(measureCalls(a)).toBe(aBefore + 1);
+        expect(measureCalls(b)).toBe(bBefore + 1);
+        expect(measureCalls(c)).toBe(cBefore + 1);
+        expect(layer.debugState().lastRebakeSurfaceCount).toBe(3);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
     it("a ResizeObserver event on a DYNAMIC surface marks only that surface", () => {
       class FakeResizeObserver {
         static latest: FakeResizeObserver | null = null;

@@ -1,10 +1,12 @@
-import { act, createRef } from "react";
+import { act, createRef, useContext, useLayoutEffect } from "react";
+import type { RefObject } from "react";
 import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { stubCanvas2d, stubElementRects } from "../test/dom";
 import { Bake, Surface, Ukibori } from "../index";
 import type { BakeHandle } from "../index";
-import type { UkiboriDom } from "ukibori-dom";
+import { BakeContext, UkiboriContext } from "../context";
+import { UkiboriDom } from "ukibori-dom";
 
 /**
  * #59 Bake boundary  EReact API semantics:
@@ -32,6 +34,39 @@ function countRects(el: Element) {
       return proto.call(this);
     });
   return spy;
+}
+
+function InvalidateOnLayout({ handle, revision }: { handle: { current: BakeHandle | null }; revision: number }) {
+  useLayoutEffect(() => {
+    if (revision > 0) {
+      handle.current?.invalidate();
+    }
+  }, [handle, revision]);
+  return null;
+}
+
+/** Keep one inner Bake mounted while its explicit parent context changes. */
+function ReparentedBake({
+  parent,
+  innerRef,
+}: {
+  parent: "a" | "b";
+  innerRef: RefObject<BakeHandle | null>;
+}) {
+  const enclosing = useContext(BakeContext);
+  const parentBoundary =
+    parent === "b"
+      ? enclosing
+      : { id: "a-boundary", parentId: null };
+  return (
+    <BakeContext.Provider value={parentBoundary}>
+      <Bake ref={innerRef}>
+        <Surface sceneId="reparented-inner" elevation={1} thickness={2}>
+          inner
+        </Surface>
+      </Bake>
+    </BakeContext.Provider>
+  );
 }
 
 afterEach(() => {
@@ -186,6 +221,57 @@ describe("#59 <Bake> boundary", () => {
     expect(innerSpy.mock.calls.length).toBe(2);
     expect(outerSpy.mock.calls.length).toBe(1);
     expect(current.debugState().lastRebakeSurfaceCount).toBe(1);
+  });
+
+  it("publishes a reparented Bake hierarchy before a same-commit layout invalidate", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    const layer = new UkiboriDom({
+      schedule: (cb) => cb(),
+      observe: false,
+    });
+    layer.registerBake("a-boundary");
+    const outerRef = createRef<BakeHandle>();
+    const innerRef = createRef<BakeHandle>();
+    const context = {
+      mode: "physical" as const,
+      layer,
+      backend: "cpu" as const,
+      reportError: vi.fn(),
+      light: { x: 0, y: 0, z: 1 },
+      intensity: 1,
+      color: "#fff",
+    };
+    function Tree({ parent, revision }: { parent: "a" | "b"; revision: number }) {
+      return (
+        <UkiboriContext.Provider value={context}>
+          <Bake ref={outerRef}>
+            <ReparentedBake parent={parent} innerRef={innerRef} />
+          </Bake>
+          <InvalidateOnLayout handle={outerRef} revision={revision} />
+        </UkiboriContext.Provider>
+      );
+    }
+
+    const { rerender } = render(<Tree parent="a" revision={0} />);
+    await flushAsync();
+    // Use its retained registry entry to obtain the element and count its
+    // measurements.
+    const registered = layer.registry.get("reparented-inner")!.element;
+    const innerSpy = countRects(registered);
+    const before = innerSpy.mock.calls.length;
+
+    // The inner Bake remains mounted but changes from A's context to B's.
+    // Its layout effect updates the parent map before B's consumer effect
+    // calls the outer handle in the same commit.
+    rerender(<Tree parent="b" revision={1} />);
+    await flushAsync();
+    expect(innerSpy.mock.calls.length).toBe(before + 1);
+
+    // A's old tree no longer reaches the reparented inner boundary.
+    layer.invalidateBake("a-boundary");
+    expect(innerSpy.mock.calls.length).toBe(before + 1);
+    layer.dispose();
   });
 
   it("unmounting a nested boundary removes its cascade reach without stale ownership", async () => {

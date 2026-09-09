@@ -173,6 +173,22 @@ describe("SurfaceRegistry", () => {
       expect(registry.get("other")!.dirty).toBe(false);
     });
 
+    it("resolves a nested boundary to its registered root", () => {
+      const registry = new SurfaceRegistry();
+      registry.registerBake("outer-bake");
+      registry.registerBake("inner-bake", "outer-bake");
+      registry.registerBake("deep-bake", "inner-bake");
+
+      expect(registry.rootBakeId("outer-bake")).toBe("outer-bake");
+      expect(registry.rootBakeId("inner-bake")).toBe("outer-bake");
+      expect(registry.rootBakeId("deep-bake")).toBe("outer-bake");
+
+      // Cleanup can transiently detach a parent; the remaining boundary is
+      // still a safe root for observer invalidation.
+      registry.unregisterBake("outer-bake");
+      expect(registry.rootBakeId("inner-bake")).toBe("inner-bake");
+    });
+
     it("unregisterBake removes the boundary (and its cascade reach)", () => {
       const registry = new SurfaceRegistry();
       registry.add(bakedEntry("outer", "outer-bake"));
@@ -217,4 +233,3 @@ describe("assertValidId", () => {
     expect(() => assertValidId("")).toThrow(TypeError);
   });
 });
-

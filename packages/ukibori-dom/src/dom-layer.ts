@@ -350,7 +350,11 @@ export class UkiboriDom {
                 // the per-node invalidation semantics.
                 const surface = this.registry.get(id);
                 if (surface?.options.bakeId !== undefined) {
-                  this.registry.markBakeDirty(surface.options.bakeId);
+                  // Resolve nested ownership to the ROOT boundary, then
+                  // cascade through its complete registered tree. Dynamic
+                  // surfaces stay on the per-node fast path below.
+                  const rootId = this.registry.rootBakeId(surface.options.bakeId);
+                  this.registry.markBakeTreeDirty(rootId);
                 } else {
                   this.registry.markDirty(id);
                 }
