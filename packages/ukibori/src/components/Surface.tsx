@@ -108,6 +108,8 @@ function surfaceOptionsKey(options: PhysicalSurfaceOptions): string {
   const shapeKey =
     shape.kind === "mask"
       ? `mask:${maskObjectId(shape.mask)}`
+      : shape.kind === "svgPath"
+        ? `svg:${shape.d}:${shape.viewBox.join(",")}:${shape.fillRule ?? "nonzero"}`
       : `rr:${shape.radius ?? ""}`;
   // `delegateTextInk` is deliberately NOT part of the key: it is
   // compositing-only metadata (#52) that never changes for a mounted

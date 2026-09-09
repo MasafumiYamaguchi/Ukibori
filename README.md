@@ -76,7 +76,9 @@ React層は薄いlifecycle/API層であり、rendererのセマンティクスを
 
 実セマンティック要素をenhanceします。`id`はmounted lifetimeで安定(既定は`useId()`)。prop更新はretained `updateSurface`パス(**unregister/registerしない**ためscene挿入/塗り順が安定)。
 
-- 物理props: `shape`(`{ kind: "roundedRect", radius }` | `{ kind: "mask", mask }`、radius省略時はCSS `border-radius`を計測) / `elevation`(絶対scene z, #13) / `thickness` / `bevelWidth` / `profile` / `material`(renderer ref: silicone / matte / metal) / `castsShadow` / `receivesShadow`
+- 物理props: `shape`(`{ kind: "roundedRect", radius }` | `{ kind: "mask", mask }` | `{ kind: "svgPath", d, viewBox, fillRule? }`、radius省略時はCSS `border-radius`を計測) / `elevation`(絶対scene z, #13) / `thickness` / `bevelWidth` / `profile` / `material`(renderer ref: silicone / matte / metal) / `castsShadow` / `receivesShadow`
+
+`svgPath` はDOM integration専用のauthoring formatです。`d`（path data）のみをCanvas `Path2D`で、viewBoxをsurface content boxへ`xMidYMid meet`（等方・中央寄せ）fitしてDPR解像度のcoverage maskへラスタライズします。`nonzero`/`evenodd`の穴をサポートし、AA coverageはFloat32 alphaのまま既存mask→SDFへ渡します。SVG document/markup、stroke、外部resource、filter、script、gradientなどは非対応で、Path2D/2D canvasがない環境では明示的なrasterization errorとなります。
 - CSS近似props(`backend="css"`のみ有効): `variant`(raised/inset) / `radius` / `materialOverrides`。**これらは近似であり、物理レンダリングと混同しないこと**
 - それ以外のprops(`className` / `style` / `aria-*` / `data-*` / events / `ref`)はすべてDOMへそのまま透過
 

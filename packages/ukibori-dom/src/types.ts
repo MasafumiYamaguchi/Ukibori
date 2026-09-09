@@ -37,11 +37,23 @@ import type {
  * in CSS pixels; when omitted the DOM layer falls back to the element's own
  * computed `border-radius` (top-left corner). `mask` shapes (#19) receive a
  * `MaskSource` raster whose mapping must be isotropic with the element's
- * aspect ratio (enforced by `createScene`).
+ * aspect ratio (enforced by `createScene`). `svgPath` is authoring-only and
+ * is converted to such a raster by the DOM layer.
  */
+export interface SvgPathShape {
+  kind: "svgPath";
+  /** SVG path-data string (not an SVG document). */
+  d: string;
+  /** `[minX, minY, width, height]`; width and height must be positive. */
+  viewBox: readonly [number, number, number, number];
+  /** Canvas fill rule; defaults to `nonzero`. */
+  fillRule?: "nonzero" | "evenodd";
+}
+
 export type DomShape =
   | { kind: "roundedRect"; radius?: number }
-  | { kind: "mask"; mask: MaskSource };
+  | { kind: "mask"; mask: MaskSource }
+  | SvgPathShape;
 
 /**
  * Options a caller registers for one DOM element. Field semantics mirror the

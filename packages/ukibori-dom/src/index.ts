@@ -21,6 +21,7 @@ export { compositeSurfaceImage, DEFAULT_SHADOW_ALPHA, DEFAULT_SHADOW_COLOR } fro
 export type { CompositeInput } from "./compositor";
 export { buildScene } from "./scene-builder";
 export type { BuildSceneInput } from "./scene-builder";
+export { rasterizeSvgPath, validateSvgPathShape, svgPathRasterKey } from "./svg-path";
 export { computeRegion, renderTargetSize, sanitizeDpr, viewportRectToDocument } from "./coords";
 export type { ViewportRect } from "./coords";
 export {
@@ -44,4 +45,5 @@ export type {
   MeasuredGeometry,
   Region,
   SurfaceImage,
+  SvgPathShape,
 } from "./types";

@@ -3,6 +3,12 @@ import type { Material, Scene, SurfaceNode } from "ukibori-renderer";
 import { renderTargetSize } from "./coords";
 import type { SurfaceRegistry } from "./registry";
 import type { DomEnvironmentState, DomLightState, Region } from "./types";
+import { rasterizeSvgPath, svgPathRasterKey } from "./svg-path";
+import type { DomShape } from "./types";
+
+// Cache by every input affecting raster output. Retained light/material
+// updates therefore reuse the exact same immutable MaskSource.
+const svgMaskCache = new Map<string, ReturnType<typeof rasterizeSvgPath>>();
 
 /**
  * DOM -> renderer scene construction (#20).
@@ -18,7 +24,9 @@ import type { DomEnvironmentState, DomLightState, Region } from "./types";
  * - surface `elevation` stays ABSOLUTE scene z (no parent-relative
  *   resolution, no z-index); the DOM layer does not reinterpret it
  * - mask shapes keep their `MaskSource` identity so the renderer's per-mask
- *   SDF cache (#19) still hits
+ *   SDF cache (#19) still hits; SVG path authoring shapes are rasterized here
+ *   (and cached by path/viewBox/fillRule/footprint/DPR) before reaching the
+ *   renderer
  * - shadow flags are passed through unchanged (#18)
  *
  * Non-renderable nodes: a registered element whose measured footprint has
@@ -77,6 +85,8 @@ export function buildScene(input: BuildSceneInput): Scene {
       shape:
         options.shape.kind === "mask"
           ? { kind: "mask", mask: options.shape.mask }
+          : options.shape.kind === "svgPath"
+            ? { kind: "mask", mask: svgMaskFor(options.shape, geo.w, geo.h, dpr) }
           : { kind: "roundedRect", radius: geo.radius * dpr },
       profile: options.profile ?? { kind: "bevel" },
       material: options.material,
@@ -120,6 +130,24 @@ export function buildScene(input: BuildSceneInput): Scene {
     environment: input.environment,
     exposure: input.exposure,
   });
+}
+
+function svgMaskFor(
+  shape: Extract<DomShape, { kind: "svgPath" }>,
+  cssWidth: number,
+  cssHeight: number,
+  dpr: number,
+): ReturnType<typeof rasterizeSvgPath> {
+  const width = Math.max(1, Math.round(cssWidth * dpr));
+  const height = Math.max(1, Math.round(cssHeight * dpr));
+  const key = svgPathRasterKey(shape, cssWidth, cssHeight, dpr, width, height);
+  const cached = svgMaskCache.get(key);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const mask = rasterizeSvgPath(shape, width, height);
+  svgMaskCache.set(key, mask);
+  return mask;
 }
 
 function sanitizeNonNegative(v: number): number {

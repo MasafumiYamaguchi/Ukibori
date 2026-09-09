@@ -31,6 +31,22 @@ ukibori.register(button, {
 // button stays a real DOM button: focusable, clickable, ARIA intact.
 ```
 
+### SVG path silhouettes
+
+For authored silhouettes, `shape: { kind: "svgPath", d, viewBox,
+fillRule? }` is supported. `d` is path data only (never SVG markup); the DOM
+layer uses `Path2D` and Canvas 2D fill to produce an anti-aliased Float32
+coverage mask. The `viewBox` is mapped to the measured CSS content box with a
+centered, isotropic `xMidYMid meet` fit. Raster dimensions are the effective
+device-pixel footprint (`round(cssSize * dpr)`), while scene geometry is still
+CSS-space geometry scaled once by the DOM scene builder. `fillRule` supports
+`nonzero` (default) and `evenodd`, including holes.
+
+SVG documents, markup, strokes, paint servers (gradients/patterns), filters,
+scripts, external resources and other full-SVG features are intentionally out
+of scope. Environments without `Path2D` or a 2D canvas report an explicit
+rasterization error; there is no unsafe markup fallback.
+
 ## Coordinate contract
 
 **Scene coordinates are DOCUMENT-relative CSS pixels.** The origin `(0, 0)`
