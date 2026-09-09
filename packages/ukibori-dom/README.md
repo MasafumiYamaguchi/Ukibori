@@ -118,12 +118,19 @@ reposition them. An inner `invalidateBake` never cascades upward.
 | unrelated DOM mutation | retained (no measurement) |
 | `invalidateBake(bakeId)` | that boundary AND its descendant boundaries marked dirty; re-measured at the next coalesced render (repeated calls coalesce into one rebake) |
 | scroll (capture) | re-measured (forced — nested scroll containers, `position: sticky` and transformed/scroll-dependent layout can change `getBoundingClientRect()` under a scroll event; equal geometry keeps the retained renderer path) |
-| layout change of ANY boundary member (`ResizeObserver`) | the WHOLE boundary re-measured (auto-rebake — a sibling resize can move members without resizing them) |
+| layout change of ANY boundary member (`ResizeObserver`) | the root boundary and every descendant `Bake` boundary in its registered tree are re-measured (auto-rebake — a sibling resize can move members without resizing them) |
 | viewport / layout resize (`window` resize) | re-measured (forced rebake — stale baked geometry is never acceptable) |
 | font load / `invalidate()` with no id | re-measured (forced rebake) |
 | explicit `setDpr()` only | NOT re-measured — the CSS-space DOM geometry is unchanged; DPR is a render-target mapping concern (`sceneDirty` only) |
 | `updateSurface` on a baked node | re-measured (physical options must take effect) |
 | `unregister` / `unregisterBake` / dispose | ownership dropped with the entry/registration (no stale registry state) |
+
+Known limitation: a caller that cross-root reparents a `Bake` subtree from root
+A to root B is responsible for explicitly invalidating both roots. The old A
+tree may need to account for sibling reflow, while the new B tree needs to
+measure the reparented subtree. This does not change the one-way explicit
+invalidation rule (an inner invalidation never cascades upward); automatic
+`ResizeObserver` invalidation still cascades through the current root tree.
 
 ## Compositing
 

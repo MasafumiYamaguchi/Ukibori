@@ -1,4 +1,4 @@
-import { act, createRef, useContext, useLayoutEffect } from "react";
+import { StrictMode, act, createRef, useContext, useLayoutEffect } from "react";
 import type { RefObject } from "react";
 import { render } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -271,6 +271,54 @@ describe("#59 <Bake> boundary", () => {
     // A's old tree no longer reaches the reparented inner boundary.
     layer.invalidateBake("a-boundary");
     expect(innerSpy.mock.calls.length).toBe(before + 1);
+    layer.dispose();
+  });
+
+  it("StrictMode keeps one Bake registration and cleans ownership on unmount", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    const layer = new UkiboriDom({ schedule: (cb) => cb(), observe: false });
+    const context = {
+      mode: "physical" as const,
+      layer,
+      backend: "cpu" as const,
+      reportError: vi.fn(),
+      light: { x: 0, y: 0, z: 1 },
+      intensity: 1,
+      color: "#fff",
+    };
+    const bakeRef = createRef<BakeHandle>();
+    const view = render(
+      <StrictMode>
+        <UkiboriContext.Provider value={context}>
+          <Bake ref={bakeRef}>
+            <Surface sceneId="strict-baked" elevation={1} thickness={2}>
+              strict
+            </Surface>
+          </Bake>
+        </UkiboriContext.Provider>
+      </StrictMode>,
+    );
+    await flushAsync();
+
+    const entry = layer.registry.get("strict-baked")!;
+    const bakeId = entry.options.bakeId!;
+    expect(layer.debugState().bakeBoundaryCount).toBe(1);
+    expect(layer.debugState().nodeCount).toBe(1);
+    expect(bakeId).toEqual(expect.any(String));
+    expect(layer.registry.bakeTreeIds(bakeId)).toEqual(new Set([bakeId]));
+
+    view.unmount();
+    await flushAsync();
+    expect(layer.debugState().nodeCount).toBe(0);
+    expect(layer.debugState().bakeBoundaryCount).toBe(0);
+
+    // Late calls from an unmounted handle/observer are safe and cannot retain
+    // surface ownership or throw after StrictMode cleanup.
+    expect(() => layer.invalidateBake(bakeId)).not.toThrow();
+    layer.registerBake("post-cleanup-probe", bakeId);
+    expect(layer.registry.rootBakeId("post-cleanup-probe")).toBe("post-cleanup-probe");
+    layer.unregisterBake("post-cleanup-probe");
     layer.dispose();
   });
 

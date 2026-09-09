@@ -55,9 +55,15 @@ import type { BakeHandle, BakeProps } from "../types";
  *   boundaries); invalidating an inner boundary touches only the inner one.
  * - Forced correctness rebakes are automatic: a scroll event, a viewport
  *   resize, a font load, a layout change of any boundary member
- *   (ResizeObserver rebakes the whole boundary), or a physical prop update on
- *   the surface re-measure it — stale baked geometry (baked position !=
- *   actual DOM position) is never kept.
+ *   (ResizeObserver rebakes the root boundary and every descendant Bake in
+ *   that registered tree), or a physical prop update on the surface re-measure
+ *   it — stale baked geometry (baked position != actual DOM position) is never
+ *   kept.
+ * - Known limitation: a caller that cross-root reparents a Bake subtree from
+ *   root A to root B must explicitly invalidate both roots. The old A tree can
+ *   need sibling reflow measurement while the new B tree measures the moved
+ *   subtree. Automatic ResizeObserver invalidation still follows the current
+ *   root tree, and inner explicit invalidation never cascades upward.
  * - The DOM stays authoritative (layout, semantics, accessibility, focus,
  *   pointer/keyboard events are never frozen or replaced).
  * - SSR / hydration safe: nothing physical happens during server render, and
