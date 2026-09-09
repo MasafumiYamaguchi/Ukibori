@@ -1358,4 +1358,579 @@ describe("UkiboriDom — DOM integration", () => {
     expect(scheduled).toBe(afterOneTimeResize + 2);
     layer.dispose();
   });
+
+  describe("#59 bake boundary", () => {
+    interface Rect {
+      left: number;
+      top: number;
+      width: number;
+      height: number;
+    }
+
+    function makeSurface(id: string, rect: Rect): HTMLDivElement {
+      const el = document.createElement("div");
+      el.dataset.testid = id;
+      host.appendChild(el);
+      stubRectFor(el, rect);
+      return el;
+    }
+
+    function makeLayer(observe = false) {
+      const fake = makeFakeOverlay();
+      const layer = new UkiboriDom({
+        overlay: { factory: () => fake.overlay },
+        schedule: (cb) => cb(),
+        observe,
+        margin: 16,
+      });
+      return { fake, layer };
+    }
+
+    const OPTIONS = (id: string, bakeId?: string) => ({
+      id,
+      shape: { kind: "roundedRect", radius: 8 } as const,
+      elevation: 4,
+      thickness: 2,
+      material: "silicone",
+      ...(bakeId !== undefined ? { bakeId } : {}),
+    });
+
+    /** Cumulative DOM measurement calls for one element (stubRectFor spy). */
+    function measureCalls(el: HTMLElement): number {
+      return vi.mocked(el.getBoundingClientRect).mock.calls.length;
+    }
+
+    it("measures baked surfaces once, then unrelated DOM mutations skip them", async () => {
+      const { layer } = makeLayer(true);
+      const dyn = makeSurface("dyn", { left: 10, top: 10, width: 50, height: 40 });
+      const baked = makeSurface("baked", { left: 100, top: 10, width: 50, height: 40 });
+      layer.register(dyn, OPTIONS("dyn"));
+      // The register auto-render measures the baked surface once (initial
+      // bake); the dynamic surface was measured by the previous auto-render.
+      layer.register(baked, OPTIONS("baked", "static"));
+      expect(layer.debugState().lastMeasuredEntries).toBe(1);
+      expect(layer.debugState().bakedSurfaceCount).toBe(1);
+      expect(layer.debugState().dynamicSurfaceCount).toBe(1);
+      expect(layer.debugState().bakeBoundaryCount).toBe(1);
+
+      // Initial bake: both entries hold measured geometry.
+      expect(layer.registry.get("baked")!.geometry).not.toBeNull();
+      const bakedCallsBefore = measureCalls(baked);
+      const dynCallsBefore = measureCalls(dyn);
+
+      // An UNRELATED external mutation: the document observer's conservative
+      // markAllDirty re-measures the dynamic surface and RETAINS the baked
+      // one (zero additional DOM measurements for the baked subtree).
+      host.setAttribute("data-unrelated", "mutation");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(measureCalls(dyn)).toBe(dynCallsBefore + 1);
+      expect(measureCalls(baked)).toBe(bakedCallsBefore);
+      expect(layer.debugState().lastMeasuredEntries).toBe(1);
+      expect(layer.debugState().lastRebakeSurfaceCount).toBe(0);
+      expect(layer.registry.get("baked")!.dirty).toBe(false);
+      layer.dispose();
+    });
+
+    it("explicit invalidateBake re-measures only that boundary's surfaces", () => {
+      const { layer } = makeLayer();
+      const a = makeSurface("a", { left: 10, top: 10, width: 50, height: 40 });
+      const b = makeSurface("b", { left: 200, top: 10, width: 50, height: 40 });
+      const dyn = makeSurface("dyn", { left: 300, top: 10, width: 50, height: 40 });
+      layer.register(a, OPTIONS("a", "boundary-a"));
+      layer.register(b, OPTIONS("b", "boundary-b"));
+      layer.register(dyn, OPTIONS("dyn"));
+      layer.render();
+      const aBefore = measureCalls(a);
+      const bBefore = measureCalls(b);
+      const dynBefore = measureCalls(dyn);
+
+      layer.invalidateBake("boundary-a");
+      // invalidateBake scheduled the update and the sync scheduler ran it:
+      // exactly the named boundary's surfaces re-measured.
+      expect(measureCalls(a)).toBe(aBefore + 1);
+      expect(measureCalls(b)).toBe(bBefore);
+      expect(measureCalls(dyn)).toBe(dynBefore);
+      expect(layer.debugState().lastRebakeSurfaceCount).toBe(1);
+      // The boundary returns to the retained state after the rebake.
+      expect(layer.debugState().bakedSurfaceCount).toBe(2);
+      layer.dispose();
+    });
+
+    it("coalesces repeated invalidateBake calls into one scheduled rebake", () => {
+      const pending: Array<() => void> = [];
+      let scheduled = 0;
+      const fake = makeFakeOverlay();
+      const layer = new UkiboriDom({
+        overlay: { factory: () => fake.overlay },
+        schedule: (cb) => {
+          scheduled++;
+          pending.push(cb);
+        },
+        observe: false,
+      });
+      const a = makeSurface("a", { left: 10, top: 10, width: 50, height: 40 });
+      const b = makeSurface("b", { left: 200, top: 10, width: 50, height: 40 });
+      layer.register(a, OPTIONS("a", "boundary"));
+      layer.register(b, OPTIONS("b", "boundary"));
+      for (const cb of [...pending]) {
+        cb();
+      }
+      pending.length = 0;
+      const scheduledAtRest = scheduled;
+      const aBefore = measureCalls(a);
+      const bBefore = measureCalls(b);
+
+      layer.invalidateBake("boundary");
+      layer.invalidateBake("boundary");
+      layer.invalidateBake("boundary");
+      // Coalesced: one schedule, one pending render callback.
+      expect(scheduled).toBe(scheduledAtRest + 1);
+      expect(pending.length).toBe(1);
+      for (const cb of [...pending]) {
+        cb();
+      }
+      expect(measureCalls(a)).toBe(aBefore + 1);
+      expect(measureCalls(b)).toBe(bBefore + 1);
+      expect(layer.debugState().lastRebakeSurfaceCount).toBe(2);
+      expect(layer.debugState().lastMeasuredEntries).toBe(2);
+      layer.dispose();
+    });
+
+    it("scroll re-measures baked surfaces and refreshes stale geometry (nested scroll / sticky)", () => {
+      const { layer } = makeLayer(true);
+      const baked = makeSurface("baked", { left: 10, top: 10, width: 50, height: 40 });
+      layer.register(baked, OPTIONS("baked", "static"));
+      layer.render();
+      const before = measureCalls(baked);
+
+      // A scroll-dependent layout change (nested scroll container or
+      // `position: sticky`): getBoundingClientRect() MOVES under the scroll
+      // event even though the element itself was not touched. The forced
+      // scroll invalidation must re-measure the baked surface — ordinary
+      // document scroll still produces equal geometry and the retained
+      // unchanged-geometry path skips the renderer. (mockReturnValue, NOT a
+      // re-spy: re-spying would reset the call history under test.)
+      vi.mocked(baked.getBoundingClientRect).mockReturnValue({
+        left: 10,
+        top: 60,
+        width: 50,
+        height: 40,
+        x: 10,
+        y: 60,
+        right: 60,
+        bottom: 100,
+      } as DOMRect);
+      document.dispatchEvent(new Event("scroll"));
+      expect(measureCalls(baked)).toBe(before + 1);
+      // The cached document-space geometry follows the DOM (no stale bake).
+      const geometry = layer.registry.get("baked")!.geometry!;
+      expect(geometry.x).toBe(10);
+      expect(geometry.y).toBe(60);
+
+      // A second scroll without any rect change re-measures but keeps the
+      // geometry (and the retained renderer skips).
+      document.dispatchEvent(new Event("scroll"));
+      expect(measureCalls(baked)).toBe(before + 2);
+      expect(layer.registry.get("baked")!.geometry!.y).toBe(60);
+      layer.dispose();
+    });
+
+    it("a ResizeObserver event on a baked surface rebakes the WHOLE boundary", () => {
+      class FakeResizeObserver {
+        static latest: FakeResizeObserver | null = null;
+        readonly callback: ResizeObserverCallback;
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback;
+          FakeResizeObserver.latest = this;
+        }
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      }
+      vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+      try {
+        const { layer } = makeLayer(true);
+        const a = makeSurface("a", { left: 10, top: 10, width: 50, height: 40 });
+        const b = makeSurface("b", { left: 70, top: 10, width: 50, height: 40 });
+        const c = makeSurface("c", { left: 200, top: 10, width: 50, height: 40 });
+        layer.register(a, OPTIONS("a", "boundary"));
+        layer.register(b, OPTIONS("b", "boundary"));
+        layer.register(c, OPTIONS("c"));
+        layer.render();
+        const aBefore = measureCalls(a);
+        const bBefore = measureCalls(b);
+        const cBefore = measureCalls(c);
+
+        // A's layout actually changed: B keeps its own size but its POSITION
+        // may move (e.g. A grew and pushed B down), so the whole boundary is
+        // rebaked while the dynamic surface keeps per-node semantics.
+        FakeResizeObserver.latest!.callback(
+          [{ target: a }] as unknown as ResizeObserverEntry[],
+          FakeResizeObserver.latest! as unknown as ResizeObserver,
+        );
+        expect(measureCalls(a)).toBe(aBefore + 1);
+        expect(measureCalls(b)).toBe(bBefore + 1);
+        expect(measureCalls(c)).toBe(cBefore);
+        expect(layer.debugState().lastRebakeSurfaceCount).toBe(2);
+        expect(layer.debugState().bakedSurfaceCount).toBe(2);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it("a nested baked ResizeObserver event cascades from the root tree", () => {
+      class FakeResizeObserver {
+        static latest: FakeResizeObserver | null = null;
+        readonly callback: ResizeObserverCallback;
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback;
+          FakeResizeObserver.latest = this;
+        }
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      }
+      vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+      try {
+        const { layer } = makeLayer(true);
+        const a = makeSurface("a", { left: 10, top: 10, width: 50, height: 40 });
+        const b = makeSurface("b", { left: 70, top: 10, width: 50, height: 40 });
+        const c = makeSurface("c", { left: 130, top: 10, width: 50, height: 40 });
+        layer.registerBake("outer-bake");
+        layer.registerBake("inner-bake", "outer-bake");
+        layer.register(a, OPTIONS("a", "outer-bake"));
+        layer.register(b, OPTIONS("b", "inner-bake"));
+        layer.register(c, OPTIONS("c", "outer-bake"));
+        layer.render();
+        const aBefore = measureCalls(a);
+        const bBefore = measureCalls(b);
+        const cBefore = measureCalls(c);
+
+        // The inner member's resize must invalidate the root tree, including
+        // root siblings whose own size did not change.
+        FakeResizeObserver.latest!.callback(
+          [{ target: b }] as unknown as ResizeObserverEntry[],
+          FakeResizeObserver.latest! as unknown as ResizeObserver,
+        );
+        expect(measureCalls(a)).toBe(aBefore + 1);
+        expect(measureCalls(b)).toBe(bBefore + 1);
+        expect(measureCalls(c)).toBe(cBefore + 1);
+        expect(layer.debugState().lastRebakeSurfaceCount).toBe(3);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it("a ResizeObserver event on a DYNAMIC surface marks only that surface", () => {
+      class FakeResizeObserver {
+        static latest: FakeResizeObserver | null = null;
+        readonly callback: ResizeObserverCallback;
+        constructor(callback: ResizeObserverCallback) {
+          this.callback = callback;
+          FakeResizeObserver.latest = this;
+        }
+        observe(): void {}
+        unobserve(): void {}
+        disconnect(): void {}
+      }
+      vi.stubGlobal("ResizeObserver", FakeResizeObserver);
+      try {
+        const { layer } = makeLayer(true);
+        const a = makeSurface("a", { left: 10, top: 10, width: 50, height: 40 });
+        const b = makeSurface("b", { left: 70, top: 10, width: 50, height: 40 });
+        const c = makeSurface("c", { left: 200, top: 10, width: 50, height: 40 });
+        layer.register(a, OPTIONS("a", "boundary"));
+        layer.register(b, OPTIONS("b", "boundary"));
+        layer.register(c, OPTIONS("c"));
+        layer.render();
+        const aBefore = measureCalls(a);
+        const bBefore = measureCalls(b);
+        const cBefore = measureCalls(c);
+
+        FakeResizeObserver.latest!.callback(
+          [{ target: c }] as unknown as ResizeObserverEntry[],
+          FakeResizeObserver.latest! as unknown as ResizeObserver,
+        );
+        expect(measureCalls(c)).toBe(cBefore + 1);
+        expect(measureCalls(a)).toBe(aBefore);
+        expect(measureCalls(b)).toBe(bBefore);
+        expect(layer.debugState().lastRebakeSurfaceCount).toBe(0);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+
+    it("viewport resize and font load force baked surfaces to re-measure", () => {
+      const { layer } = makeLayer(true);
+      const baked = makeSurface("baked", { left: 10, top: 10, width: 50, height: 40 });
+      layer.register(baked, OPTIONS("baked", "static"));
+      layer.render();
+      const before = measureCalls(baked);
+
+      // Viewport resize: dpr/viewport-dependent layout can move anything.
+      window.dispatchEvent(new Event("resize"));
+      expect(measureCalls(baked)).toBe(before + 1);
+      layer.render();
+
+      // Font load: font-dependent static geometry must re-measure once.
+      // (Dispatch through the handler directly: jsdom's `document.fonts`
+      // FontFaceSet support varies, and the policy under test is the
+      // handler's forced markAllDirty, not the event wiring.)
+      (layer as unknown as { onFontsLoaded(): void }).onFontsLoaded();
+      expect(measureCalls(baked)).toBe(before + 2);
+      layer.dispose();
+    });
+
+    it("scroll re-measures baked surfaces; equal geometry keeps the retained path", () => {
+      const { layer } = makeLayer(true);
+      const baked = makeSurface("baked", { left: 10, top: 10, width: 50, height: 40 });
+      layer.register(baked, OPTIONS("baked", "static"));
+      layer.render();
+      const before = measureCalls(baked);
+
+      // Ordinary document scroll: geometry is document-relative, so the
+      // re-measure produces equal geometry and the render is skipped — but
+      // the measurement itself now runs (correctness-first scroll policy).
+      document.dispatchEvent(new Event("scroll"));
+      expect(measureCalls(baked)).toBe(before + 1);
+      expect(layer.registry.get("baked")!.geometry!.y).toBe(10);
+      layer.dispose();
+    });
+
+    it("option updates and invalidate() re-measure baked surfaces", () => {
+      const { layer } = makeLayer();
+      const baked = makeSurface("baked", { left: 10, top: 10, width: 50, height: 40 });
+      layer.register(baked, OPTIONS("baked", "static"));
+      layer.render();
+      const before = measureCalls(baked);
+
+      // A physical prop update must take effect on a baked surface too.
+      layer.updateSurface("baked", { elevation: 9 });
+      expect(measureCalls(baked)).toBe(before + 1);
+      expect(layer.registry.get("baked")!.options.elevation).toBe(9);
+      expect(layer.debugState().lastRebakeSurfaceCount).toBe(1);
+
+      // The no-argument invalidate() is a FORCED invalidation: baked
+      // surfaces included.
+      layer.invalidate();
+      expect(measureCalls(baked)).toBe(before + 2);
+      layer.dispose();
+    });
+
+    it("invalidateBake on an unknown boundary is a coalesced no-op", () => {
+      const { layer } = makeLayer();
+      const baked = makeSurface("baked", { left: 10, top: 10, width: 50, height: 40 });
+      layer.register(baked, OPTIONS("baked", "static"));
+      layer.render();
+      const before = measureCalls(baked);
+      expect(() => layer.invalidateBake("missing")).not.toThrow();
+      layer.render();
+      expect(measureCalls(baked)).toBe(before);
+      expect(layer.debugState().dirtyCount).toBe(0);
+      layer.dispose();
+    });
+
+    it("unmount clears bake ownership; late invalidateBake is a safe no-op", () => {
+      const { layer } = makeLayer();
+      const baked = makeSurface("baked", { left: 10, top: 10, width: 50, height: 40 });
+      layer.register(baked, OPTIONS("baked", "static"));
+      layer.render();
+      expect(layer.debugState().bakeBoundaryCount).toBe(1);
+      expect(layer.debugState().bakedSurfaceCount).toBe(1);
+
+      layer.unregister("baked");
+      expect(layer.debugState().bakeBoundaryCount).toBe(0);
+      expect(layer.debugState().bakedSurfaceCount).toBe(0);
+      expect(() => layer.invalidateBake("static")).not.toThrow();
+      expect(layer.debugState().dirtyCount).toBe(0);
+      layer.dispose();
+    });
+
+    it("invalidateBake cascades into nested descendant boundaries", () => {
+      const { layer } = makeLayer();
+      const outer = makeSurface("outer", { left: 10, top: 10, width: 50, height: 40 });
+      const inner = makeSurface("inner", { left: 200, top: 10, width: 50, height: 40 });
+      // Explicit boundary hierarchy (React <Bake> registers these): inner is
+      // a descendant of outer.
+      layer.registerBake("outer-bake");
+      layer.registerBake("inner-bake", "outer-bake");
+      layer.register(outer, OPTIONS("outer", "outer-bake"));
+      layer.register(inner, OPTIONS("inner", "inner-bake"));
+      layer.render();
+      const outerBefore = measureCalls(outer);
+      const innerBefore = measureCalls(inner);
+
+      // OUTER invalidate: the outer subtree's layout can reposition its
+      // nested boundaries, so the whole physical subtree is rebaked.
+      layer.invalidateBake("outer-bake");
+      expect(measureCalls(outer)).toBe(outerBefore + 1);
+      expect(measureCalls(inner)).toBe(innerBefore + 1);
+      expect(layer.debugState().lastRebakeSurfaceCount).toBe(2);
+
+      // INNER invalidate: never cascades upward.
+      layer.invalidateBake("inner-bake");
+      expect(measureCalls(inner)).toBe(innerBefore + 2);
+      expect(measureCalls(outer)).toBe(outerBefore + 1);
+      expect(layer.debugState().lastRebakeSurfaceCount).toBe(1);
+      layer.dispose();
+    });
+
+    it("bake hierarchy registration/unregistration leaves no stale ownership", () => {
+      const { layer } = makeLayer();
+      const outer = makeSurface("outer", { left: 10, top: 10, width: 50, height: 40 });
+      const inner = makeSurface("inner", { left: 200, top: 10, width: 50, height: 40 });
+      layer.registerBake("outer-bake");
+      layer.registerBake("inner-bake", "outer-bake");
+      layer.register(outer, OPTIONS("outer", "outer-bake"));
+      layer.register(inner, OPTIONS("inner", "inner-bake"));
+      layer.render();
+
+      // The inner boundary unmounts first (React cleanup order): its
+      // registration is removed, so a later outer invalidate no longer
+      // reaches it (it has no surfaces left anyway) and nothing throws.
+      layer.unregisterBake("inner-bake");
+      layer.unregister("inner");
+      layer.invalidateBake("outer-bake");
+      expect(measureCalls(outer)).toBe(2);
+      expect(layer.registry.has("inner")).toBe(false);
+      // Unknown/late ids are safe no-ops.
+      expect(() => layer.unregisterBake("inner-bake")).not.toThrow();
+      expect(() => layer.invalidateBake("inner-bake")).not.toThrow();
+      layer.dispose();
+    });
+
+    it("a retained baked caster casts shadows on a dynamic receiver", () => {
+      const build = (casts: boolean, bake: boolean) => {
+        const { layer } = makeLayer();
+        // Oblique light (toward upper-left, low z): the raised deco casts its
+        // shadow to its RIGHT, onto the overlapping dynamic pad. The deco is
+        // thick (z 10..18) so the shadow band on the pad top (z 4) is ~25px
+        // wide and the probe never sits on a boundary.
+        layer.setLight({ x: -0.9, y: -0.1, z: 0.5 }, 1);
+        const deco = makeSurface("deco", { left: 60, top: 0, width: 80, height: 60 });
+        const pad = makeSurface("pad", { left: 100, top: 20, width: 80, height: 80 });
+        layer.register(deco, {
+          ...OPTIONS("deco", bake ? "static" : undefined),
+          elevation: 10,
+          thickness: 8,
+          castsShadow: casts,
+        });
+        layer.register(pad, { ...OPTIONS("pad"), elevation: 2, thickness: 2 });
+        layer.render();
+        return { layer, deco };
+      };
+      const shadowProbe = (bakedLayer: ReturnType<typeof build>["layer"], docX: number, docY: number) => {
+        const buffers = bakedLayer.debugBuffers()!;
+        // Scene coordinates come from the layer's own region (document CSS px
+        // at dpr 1): docX - region.x, docY - region.y.
+        const region = bakedLayer.debugState().region!;
+        const sx = Math.round(docX - region.x);
+        const sy = Math.round(docY - region.y);
+        return [
+          buffers.color.get(sx, sy, 0),
+          buffers.color.get(sx, sy, 1),
+          buffers.color.get(sx, sy, 2),
+        ];
+      };
+
+      const scene = build(true, true);
+      const noCaster = build(false, true);
+      // The overlapping pad pixel is shaded by the RETAINED baked caster's
+      // cast shadow (a real physical interaction, not a frozen image).
+      expect(shadowProbe(scene.layer, 150, 40)).not.toEqual(shadowProbe(noCaster.layer, 150, 40));
+      // Outside the caster's shadow reach the two scenes agree.
+      expect(shadowProbe(scene.layer, 175, 60)).toEqual(shadowProbe(noCaster.layer, 175, 60));
+      noCaster.layer.dispose();
+
+      // Dynamic receiver update: the baked caster is NOT re-measured and its
+      // geometry keeps participating in the physical scene.
+      const decoBefore = measureCalls(scene.deco);
+      scene.layer.updateSurface("pad", { elevation: 1 });
+      scene.layer.render();
+      expect(measureCalls(scene.deco)).toBe(decoBefore);
+      expect(scene.layer.registry.get("deco")!.dirty).toBe(false);
+
+      // Physical output parity: a baked caster produces the identical scene
+      // to a dynamic one (static geometry retention, not image caching).
+      // The reference is built in the SAME post-update receiver state.
+      const plain = build(true, false);
+      plain.layer.updateSurface("pad", { elevation: 1 });
+      plain.layer.render();
+      expect([...scene.layer.debugBuffers()!.color.data]).toEqual([
+        ...plain.layer.debugBuffers()!.color.data,
+      ]);
+      plain.layer.dispose();
+      scene.layer.dispose();
+    });
+
+    it("baked and unbaked scenes produce identical physical output (parity)", () => {
+      const build = (bake: boolean) => {
+        const { layer } = makeLayer();
+        const chassis = makeSurface("chassis", { left: 0, top: 0, width: 200, height: 100 });
+        const deco = makeSurface("deco", { left: 20, top: 10, width: 60, height: 40 });
+        const pad = makeSurface("pad", { left: 90, top: 20, width: 80, height: 80 });
+        layer.register(chassis, OPTIONS("chassis", bake ? "static" : undefined));
+        layer.register(deco, OPTIONS("deco", bake ? "static" : undefined));
+        layer.register(pad, OPTIONS("pad"));
+        layer.render();
+        return layer;
+      };
+      const baked = build(true);
+      const plain = build(false);
+      const a = baked.debugBuffers()!;
+      const b = plain.debugBuffers()!;
+      expect(a.color.spec.width).toBe(b.color.spec.width);
+      expect(a.color.spec.height).toBe(b.color.spec.height);
+      // Height/ownership/material/shadow composition: value-for-value equal.
+      expect([...a.color.data]).toEqual([...b.color.data]);
+      expect([...baked.debugObjectId()!.data]).toEqual([...plain.debugObjectId()!.data]);
+      baked.dispose();
+      plain.dispose();
+    });
+
+    it("a dynamic caster updates shadows on a retained baked receiver", () => {
+      const { layer } = makeLayer();
+      // Oblique light (toward upper-left, low z) so the pad's cast shadow
+      // lands on the baked chassis to the pad's right.
+      layer.setLight({ x: -0.9, y: -0.1, z: 0.5 }, 1);
+      const chassis = makeSurface("chassis", { left: 0, top: 0, width: 200, height: 100 });
+      const pad = makeSurface("pad", { left: 80, top: 30, width: 40, height: 40 });
+      layer.register(chassis, OPTIONS("chassis", "static"));
+      // A thick raised pad (z 8..16) casts a WIDE shadow band on the chassis
+      // top (z 6): the shadow ray window at the probe below spans a ~13px
+      // horizontal range, so the assertion never sits on a boundary.
+      layer.register(pad, { ...OPTIONS("pad"), elevation: 8, thickness: 8 });
+      layer.render();
+
+      const chassisScene = (docX: number, docY: number) => {
+        // region = union inflated by the test margin 16 -> origin (-16, -16).
+        return { x: docX + 16, y: docY + 16 };
+      };
+      const colorAt = (docX: number, docY: number) => {
+        const buffers = layer.debugBuffers()!;
+        const { x, y } = chassisScene(docX, docY);
+        return [
+          buffers.color.get(x, y, 0),
+          buffers.color.get(x, y, 1),
+          buffers.color.get(x, y, 2),
+        ];
+      };
+      // Probe on the baked chassis, far from the pad and its shadow cone.
+      const farProbe = colorAt(10, 10);
+      // Probe to the RIGHT of the pad (doc x 120), inside the pad's y band:
+      // its cast-shadow zone at elevation 8 (unshadowed once it drops).
+      const nearProbe = colorAt(130, 50);
+
+      // The dynamic pad drops (pressed state, elevation 2): the shadow it
+      // casts onto the RETAINED baked chassis must move — the baked
+      // receiver's pixels change WITHOUT any re-measurement of the chassis.
+      const chassisCallsBefore = measureCalls(chassis);
+      layer.updateSurface("pad", { elevation: 2 });
+      layer.render();
+      expect(measureCalls(chassis)).toBe(chassisCallsBefore);
+      expect(colorAt(10, 10)).toEqual(farProbe);
+      expect(colorAt(130, 50)).not.toEqual(nearProbe);
+      layer.dispose();
+    });
+  });
 });

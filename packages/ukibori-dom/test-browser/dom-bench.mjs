@@ -15,6 +15,17 @@
 //   unrelated-mutation one unrelated DOM mutation (document MutationObserver)
 //   frequent-mutations one unrelated mutation per frame
 //   scroll             document-relative geometry unchanged
+//   unrelated-mutation-baked  #59: the same unrelated mutation with all
+//                      surfaces except the dynamic one under a <Bake>-style
+//                      bake boundary (retained baked measurement skip)
+//   rebake-baked       #59: one explicit invalidateBake() per frame (the
+//                      full rebake cost; steady-state fast path resumes after)
+//   dynamic-update     #59 sampler-style: one dynamic surface's physical
+//                      options change per frame (no bake — baseline)
+//   dynamic-update-baked  #59 sampler-style: the same dynamic updates with
+//                      the remaining surfaces under ONE bake boundary
+//                      (many static + few interactive; acceptance: baked
+//                      DOM measurements = 0 in steady state)
 //
 // EVERY scenario runs `warmup` untimed frames then `samples` timed frames
 // (query parameters; defaults keep a full run manageable). The mount-time
@@ -42,6 +53,13 @@ const query = new URLSearchParams(location.search);
 const WARMUP = Number(query.get("warmup") ?? 5);
 const SAMPLES = Number(query.get("samples") ?? 20);
 const SURFACE_QUERY = query.get("surfaces") ?? "1,10,50,100,250,500,1000";
+/**
+ * #59 sampler-style scenarios: dynamic surfaces per scene (the remaining
+ * surfaces form ONE bake boundary). "Many static + few interactive" is the
+ * primary Bake use case, so the dynamic subset stays small while the total
+ * surface count scales through the standard matrix.
+ */
+const SAMPLER_DYNAMIC_COUNT = 8;
 
 const cases = [];
 const notes = [];
@@ -196,6 +214,16 @@ const BUTTON_OPTIONS = (i) => ({
 
 async function measureScenario(scenario, surfaceCount, { frames }) {
   const { stage, buttons, unrelated, spacer, resizeRule } = mountStage(surfaceCount);
+  // #59 bake scenarios: every surface except the dynamic subset is registered
+  // under one bake boundary ("bake"). The sampler scenarios keep a SMALL
+  // dynamic subset (SAMPLER_DYNAMIC_COUNT); the mutation scenarios keep a
+  // single dynamic surface (index 0).
+  const sampler = scenario === "dynamic-update" || scenario === "dynamic-update-baked";
+  const bake =
+    scenario === "unrelated-mutation-baked" ||
+    scenario === "rebake-baked" ||
+    scenario === "dynamic-update-baked";
+  const dynamicCount = sampler ? Math.max(1, Math.min(SAMPLER_DYNAMIC_COUNT, surfaceCount - 1)) : 1;
   const layer = await UkiboriDom.create({
     backend: "webgpu",
     observe: true,
@@ -213,7 +241,10 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
       };
     }
     for (let i = 0; i < buttons.length; i++) {
-      layer.register(buttons[i].button, BUTTON_OPTIONS(i));
+      layer.register(buttons[i].button, {
+        ...BUTTON_OPTIONS(i),
+        ...(bake && i < surfaceCount - dynamicCount ? { bakeId: "bake" } : {}),
+      });
     }
     // FULL mount drain before any measurement (mount observers/renderer
     // callbacks must be quiescent, or the first measured frame inherits
@@ -273,6 +304,40 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
           triggerHostMs = performance.now() - t1;
           break;
         }
+        case "unrelated-mutation-baked": {
+          // #59: identical trigger to unrelated-mutation, but the static
+          // surfaces are baked — the expected steady state is ONE measured
+          // entry (the dynamic surface) and zero baked measurements.
+          const t1 = performance.now();
+          unrelated.style.width = `${10 + frame + 1}px`;
+          triggerHostMs = performance.now() - t1;
+          break;
+        }
+        case "rebake-baked": {
+          // #59: one explicit invalidateBake per frame — the full rebake
+          // cost (every baked surface re-measures once per frame here, an
+          // upper bound; steady-state frames after a real rebake are the
+          // unrelated-mutation-baked scenario).
+          const t1 = performance.now();
+          layer.invalidateBake("bake");
+          triggerHostMs = performance.now() - t1;
+          break;
+        }
+        case "dynamic-update":
+        case "dynamic-update-baked": {
+          // #59 sampler-style steady state: one dynamic surface's physical
+          // options change per frame (cycling through the dynamic subset).
+          // Expected: exactly ONE DOM measurement (that surface); baked
+          // surfaces must stay at zero measurements. The elevation cycles
+          // through 2/3/4 so the scene genuinely changes every frame and the
+          // retained dirty-pass scheduling does real work.
+          const first = surfaceCount - dynamicCount;
+          const target = first + (frame % dynamicCount);
+          const t1 = performance.now();
+          layer.updateSurface(`s${target}`, { elevation: 2 + (frame % 3) });
+          triggerHostMs = performance.now() - t1;
+          break;
+        }
         case "scroll": {
           // REAL scroll path: move the viewport and let the layer's
           // document scroll listener invalidate (capture phase). Geometry
@@ -324,6 +389,8 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
         pipelineInvocationsDelta: pipelineInvocations - beforePipelines,
         rendererRan,
         dirtyCount: state.dirtyCount,
+        bakedSurfaceCount: state.bakedSurfaceCount,
+        rebakedEntries: measureRanThisFrame ? state.lastRebakeSurfaceCount : 0,
         renderHostMs: renderRanThisFrame ? state.lastRenderMs : 0,
         measureHostMs: measureRanThisFrame ? state.lastMeasureMs : 0,
         measuredEntries: measureRanThisFrame ? state.lastMeasuredEntries : 0,
@@ -359,6 +426,8 @@ async function measureScenario(scenario, surfaceCount, { frames }) {
         rendererInvocationsPerFrame: summarizeSeries(timed.map((f) => f.pipelineInvocationsDelta)),
         skippedRenderPerFrame: summarizeSeries(timed.map((f) => (f.rendererRan ? 0 : 1))),
         dirtyCountPerFrame: summarizeSeries(timed.map((f) => f.dirtyCount)),
+        bakedSurfaceCount: timed[timed.length - 1].bakedSurfaceCount,
+        rebakedEntriesPerFrame: summarizeSeries(timed.map((f) => f.rebakedEntries)),
         measureHostMsPerFrame: summarizeSeries(timed.map((f) => f.measureHostMs)),
         measuredEntriesPerFrame: summarizeSeries(timed.map((f) => f.measuredEntries)),
         sceneBuildHostMsPerFrame: summarizeSeries(timed.map((f) => f.sceneBuildHostMs)),
@@ -409,6 +478,10 @@ async function main() {
     "unrelated-mutation",
     "frequent-mutations",
     "scroll",
+    "unrelated-mutation-baked",
+    "rebake-baked",
+    "dynamic-update",
+    "dynamic-update-baked",
   ];
   try {
     instrument();

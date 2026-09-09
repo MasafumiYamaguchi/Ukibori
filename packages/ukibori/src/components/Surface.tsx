@@ -2,7 +2,7 @@ import { createElement, forwardRef, useContext, useEffect, useId, useMemo, useRe
 import type { CSSProperties, ElementType, MutableRefObject, ReactNode, Ref } from "react";
 import type { DomSurfaceOptions, UkiboriDom } from "ukibori-dom";
 import type { HeightProfile, MaskSource } from "ukibori-renderer";
-import { UkiboriContext } from "../context";
+import { BakeContext, UkiboriContext } from "../context";
 import {
   ELEVATION_MAX,
   RADIUS_MAX,
@@ -79,6 +79,13 @@ interface PhysicalSurfaceOptions {
   material: string;
   castsShadow: boolean;
   receivesShadow: boolean;
+  /**
+   * #59 bake boundary ownership (invalidation metadata, never scene data):
+   * the id of the nearest enclosing <Bake>, or undefined for an ordinary
+   * dynamic surface. Part of the retained-update key so a boundary transition
+   * reaches the layer's registry exactly like any other option change.
+   */
+  bakeId: string | undefined;
   /** #52 compositing-only intent (never scene data; see SurfaceOwnProps). */
   delegateTextInk: boolean;
 }
@@ -115,6 +122,7 @@ function surfaceOptionsKey(options: PhysicalSurfaceOptions): string {
     options.material,
     options.castsShadow,
     options.receivesShadow,
+    options.bakeId ?? "",
   ].join("|");
 }
 
@@ -155,6 +163,9 @@ export const Surface = forwardRef<HTMLElement, SurfaceInnerProps>(function Surfa
   forwardedRef,
 ) {
   const ctx = useContext(UkiboriContext);
+  // #59 bake boundary ownership: the nearest enclosing <Bake> (null =
+  // dynamic). Nested boundaries override, so ownership is never ambiguous.
+  const bakeId = useContext(BakeContext)?.id;
   const elementRef = useRef<HTMLElement | null>(null);
   // Unconditional hooks: useId() is always called; the DOM `id` prop is a
   // separate concern and is forwarded to the element untouched.
@@ -171,6 +182,7 @@ export const Surface = forwardRef<HTMLElement, SurfaceInnerProps>(function Surfa
     material: material ?? "silicone",
     castsShadow: castsShadow ?? true,
     receivesShadow: receivesShadow ?? true,
+    bakeId,
     delegateTextInk: delegateTextInk ?? false,
   };
   const optionsKey = surfaceOptionsKey(physicalOptions);

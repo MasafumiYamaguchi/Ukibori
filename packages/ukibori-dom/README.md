@@ -96,6 +96,42 @@ rAF-throttled `render()`. This is the dirty-update seam: a future backend
 (#21) can replace the single full-scene pass with region-scoped target
 updates without changing the registry/observer API.
 
+### Bake boundaries (#59)
+
+Surfaces registered with a `bakeId` (`DomSurfaceOptions.bakeId`) form a
+**static retention boundary**: once measured, they are excluded from the
+conservative document MutationObserver invalidation and keep their cached
+geometry — including mask identity, so the per-mask SDF preprocessing is not
+regenerated. Baked surfaces still participate in the SAME physical scene
+(height composition, object/material ownership, cast shadows in both
+directions, shared lighting); bake is invalidation ownership, never a
+final-image cache.
+
+Nested boundaries are allowed (a surface belongs to the NEAREST enclosing
+boundary). Boundaries registered as descendants
+(`registerBake(child, parent)`) cascade: invalidating an OUTER boundary also
+rebakes its descendant boundaries, because the outer subtree's layout can
+reposition them. An inner `invalidateBake` never cascades upward.
+
+| change | baked surface behavior |
+| --- | --- |
+| unrelated DOM mutation | retained (no measurement) |
+| `invalidateBake(bakeId)` | that boundary AND its descendant boundaries marked dirty; re-measured at the next coalesced render (repeated calls coalesce into one rebake) |
+| scroll (capture) | re-measured (forced — nested scroll containers, `position: sticky` and transformed/scroll-dependent layout can change `getBoundingClientRect()` under a scroll event; equal geometry keeps the retained renderer path) |
+| layout change of ANY boundary member (`ResizeObserver`) | the root boundary and every descendant `Bake` boundary in its registered tree are re-measured (auto-rebake — a sibling resize can move members without resizing them) |
+| viewport / layout resize (`window` resize) | re-measured (forced rebake — stale baked geometry is never acceptable) |
+| font load / `invalidate()` with no id | re-measured (forced rebake) |
+| explicit `setDpr()` only | NOT re-measured — the CSS-space DOM geometry is unchanged; DPR is a render-target mapping concern (`sceneDirty` only) |
+| `updateSurface` on a baked node | re-measured (physical options must take effect) |
+| `unregister` / `unregisterBake` / dispose | ownership dropped with the entry/registration (no stale registry state) |
+
+Known limitation: a caller that cross-root reparents a `Bake` subtree from root
+A to root B is responsible for explicitly invalidating both roots. The old A
+tree may need to account for sibling reflow, while the new B tree needs to
+measure the reparented subtree. This does not change the one-way explicit
+invalidation rule (an inner invalidation never cascades upward); automatic
+`ResizeObserver` invalidation still cascades through the current root tree.
+
 ## Compositing
 
 The overlay is one `<canvas>` inserted as the **first child of the stage**

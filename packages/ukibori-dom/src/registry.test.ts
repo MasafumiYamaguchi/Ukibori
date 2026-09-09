@@ -90,6 +90,135 @@ describe("SurfaceRegistry", () => {
     registry.clear();
     expect(registry.size).toBe(0);
   });
+
+  describe("#59 bake boundary", () => {
+    function bakedEntry(id: string, bakeId: string): SurfaceEntry {
+      const e = entry(id, makeElement());
+      e.options = { ...e.options, bakeId };
+      // A baked entry has been measured at least once.
+      e.geometry = { x: 1, y: 2, w: 10, h: 10, radius: 0 };
+      e.dirty = false;
+      return e;
+    }
+
+    it("markAllDirty retains baked surfaces unless forced", () => {
+      const registry = new SurfaceRegistry();
+      registry.add(bakedEntry("baked", "static"));
+      const dynamic = entry("dyn", makeElement());
+      registry.add(dynamic);
+      registry.clearDirty();
+
+      // Ordinary (conservative) invalidation: the measured baked surface is
+      // skipped, the dynamic surface is marked.
+      registry.markAllDirty();
+      expect(registry.get("baked")!.dirty).toBe(false);
+      expect(registry.get("dyn")!.dirty).toBe(true);
+
+      // Forced invalidation includes baked surfaces.
+      registry.clearDirty();
+      registry.markAllDirty(true);
+      expect(registry.get("baked")!.dirty).toBe(true);
+      expect(registry.get("dyn")!.dirty).toBe(true);
+    });
+
+    it("an unmeasured or already-dirty bake entry is never skipped", () => {
+      const registry = new SurfaceRegistry();
+      // Unmeasured: geometry null -> must be measured regardless.
+      const unmeasured = entry("unmeasured", makeElement());
+      unmeasured.options = { ...unmeasured.options, bakeId: "static" };
+      registry.add(unmeasured);
+      registry.clearDirty();
+      registry.markAllDirty();
+      expect(registry.get("unmeasured")!.dirty).toBe(true);
+    });
+
+    it("markBakeDirty touches only the named boundary", () => {
+      const registry = new SurfaceRegistry();
+      registry.add(bakedEntry("a", "boundary-a"));
+      registry.add(bakedEntry("b", "boundary-b"));
+      registry.add(entry("dyn", makeElement()));
+      registry.clearDirty();
+      registry.markBakeDirty("boundary-a");
+      expect(registry.get("a")!.dirty).toBe(true);
+      expect(registry.get("b")!.dirty).toBe(false);
+      expect(registry.get("dyn")!.dirty).toBe(false);
+    });
+
+    it("markBakeTreeDirty cascades into registered descendant boundaries", () => {
+      const registry = new SurfaceRegistry();
+      registry.add(bakedEntry("outer", "outer-bake"));
+      registry.add(bakedEntry("inner", "inner-bake"));
+      registry.add(bakedEntry("deep", "deep-bake"));
+      registry.add(bakedEntry("other", "other-bake"));
+      registry.registerBake("outer-bake");
+      // Child effects run before parent effects: registering the child
+      // before its parent must be fine (plain parent-id map).
+      registry.registerBake("deep-bake", "inner-bake");
+      registry.registerBake("inner-bake", "outer-bake");
+      registry.registerBake("other-bake");
+      registry.clearDirty();
+
+      registry.markBakeTreeDirty("outer-bake");
+      expect(registry.get("outer")!.dirty).toBe(true);
+      expect(registry.get("inner")!.dirty).toBe(true);
+      expect(registry.get("deep")!.dirty).toBe(true);
+      expect(registry.get("other")!.dirty).toBe(false);
+
+      // An inner invalidate never cascades upward.
+      registry.clearDirty();
+      registry.markBakeTreeDirty("inner-bake");
+      expect(registry.get("inner")!.dirty).toBe(true);
+      expect(registry.get("deep")!.dirty).toBe(true);
+      expect(registry.get("outer")!.dirty).toBe(false);
+      expect(registry.get("other")!.dirty).toBe(false);
+    });
+
+    it("resolves a nested boundary to its registered root", () => {
+      const registry = new SurfaceRegistry();
+      registry.registerBake("outer-bake");
+      registry.registerBake("inner-bake", "outer-bake");
+      registry.registerBake("deep-bake", "inner-bake");
+
+      expect(registry.rootBakeId("outer-bake")).toBe("outer-bake");
+      expect(registry.rootBakeId("inner-bake")).toBe("outer-bake");
+      expect(registry.rootBakeId("deep-bake")).toBe("outer-bake");
+
+      // Cleanup can transiently detach a parent; the remaining boundary is
+      // still a safe root for observer invalidation.
+      registry.unregisterBake("outer-bake");
+      expect(registry.rootBakeId("inner-bake")).toBe("inner-bake");
+    });
+
+    it("unregisterBake removes the boundary (and its cascade reach)", () => {
+      const registry = new SurfaceRegistry();
+      registry.add(bakedEntry("outer", "outer-bake"));
+      registry.add(bakedEntry("inner", "inner-bake"));
+      registry.registerBake("outer-bake");
+      registry.registerBake("inner-bake", "outer-bake");
+      registry.unregisterBake("inner-bake");
+      registry.clearDirty();
+      registry.markBakeTreeDirty("outer-bake");
+      expect(registry.get("outer")!.dirty).toBe(true);
+      expect(registry.get("inner")!.dirty).toBe(false);
+      // clear() drops the whole hierarchy.
+      registry.clear();
+      registry.clearDirty();
+      expect(registry.bakeTreeIds("outer-bake")).toEqual(new Set(["outer-bake"]));
+    });
+
+    it("reports bake boundary / baked / dynamic surface counts", () => {
+      const registry = new SurfaceRegistry();
+      registry.add(bakedEntry("a", "one"));
+      registry.add(bakedEntry("b", "two"));
+      const dirtyBaked = bakedEntry("c", "one");
+      dirtyBaked.dirty = true;
+      registry.add(dirtyBaked);
+      registry.add(entry("dyn", makeElement()));
+      expect(registry.bakeBoundaryCount()).toBe(2);
+      expect(registry.bakedSurfaceCount()).toBe(2);
+      expect(registry.dynamicSurfaceCount()).toBe(1);
+    });
+  });
 });
 
 describe("assertValidId", () => {
@@ -104,4 +233,3 @@ describe("assertValidId", () => {
     expect(() => assertValidId("")).toThrow(TypeError);
   });
 });
-

@@ -15,6 +15,7 @@
 export { Ukibori } from "./components/Ukibori";
 export { Surface, ELEVATION_DEFAULT, RADIUS_DEFAULT } from "./components/Surface";
 export { UkiboriText } from "./components/UkiboriText";
+export { Bake } from "./components/Bake";
 export { UkiboriContext, DEFAULT_COLOR, DEFAULT_INTENSITY } from "./context";
 export { DEFAULT_LIGHT, isValidVector, normalizeLight } from "./core/light";
 export { ELEVATION_MAX, INTENSITY_MAX, RADIUS_MAX, getShadowSpec } from "./core/shadow";
@@ -40,4 +41,6 @@ export type {
   UkiboriQuality,
   UkiboriTextProps,
   Variant,
+  BakeHandle,
+  BakeProps,
 } from "./types";

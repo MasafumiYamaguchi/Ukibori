@@ -231,3 +231,45 @@ export type UkiboriTextProps = Omit<PolymorphicSurfaceProps<"span">, "children">
    * computed font). Rasterization stays outside the renderer core. */
   font?: string;
 };
+
+/**
+ * #59 imperative handle of a <Bake> boundary. Obtain it with a ref
+ * (`useRef<BakeHandle>(null)`) and call `invalidate()` when the baked
+ * subtree actually changed (theme-dependent geometry, generated-artwork seed,
+ * layout mode, static label, font-dependent geometry, responsive static
+ * reconstruction).
+ */
+export interface BakeHandle {
+  /**
+   * Mark every surface inside this bake boundary dirty. NOT a synchronous
+   * recomputation: the re-measure / re-bake runs through Ukibori's normal
+   * coalesced update (the next scheduled render), after which the boundary
+   * returns to the retained fast path. Repeated `invalidate()` calls before
+   * that update coalesce into exactly one rebake. Safe to call before the
+   * physical layer exists (SSR / hydration) — it is a no-op then.
+   */
+  invalidate(): void;
+}
+
+/**
+ * #59 <Bake> props: a static physical scene retention boundary. The subtree's
+ * surfaces participate in the SAME physical scene (height composition,
+ * ownership, shadows, lighting) but are excluded from ordinary DOM
+ * mutation-driven re-measurement until `bakeRef.current?.invalidate()` is
+ * called (or a forced invalidation runs: a scroll event, a viewport resize, a
+ * font load, a layout change of any boundary member via ResizeObserver —
+ * which rebakes the whole boundary — or a prop update on the surface).
+ *
+ * Bake is NOT a final-image cache: static geometry stays in the scene so
+ * dynamic caster -> baked receiver and baked caster -> dynamic receiver
+ * shadows keep working.
+ *
+ * Nested <Bake> boundaries are allowed: a surface always belongs to the
+ * NEAREST enclosing boundary (the inner one overrides the outer), and an
+ * outer `invalidate()` CASCADES into its descendant boundaries (their layout
+ * can be repositioned by the outer subtree). An inner `invalidate()` never
+ * cascades upward.
+ */
+export interface BakeProps {
+  children?: ReactNode;
+}
