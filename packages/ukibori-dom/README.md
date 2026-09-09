@@ -36,10 +36,12 @@ ukibori.register(button, {
 For authored silhouettes, `shape: { kind: "svgPath", d, viewBox,
 fillRule? }` is supported. `d` is path data only (never SVG markup); the DOM
 layer uses `Path2D` and Canvas 2D fill to produce an anti-aliased Float32
-coverage mask. The `viewBox` is mapped to the measured CSS content box with a
-centered, isotropic `xMidYMid meet` fit. Raster dimensions are the effective
-device-pixel footprint (`round(cssSize * dpr)`), while scene geometry is still
-CSS-space geometry scaled once by the DOM scene builder. `fillRule` supports
+coverage mask. The `viewBox` is mapped to the measured DOM element footprint
+(`getBoundingClientRect()`) with a centered, isotropic `xMidYMid meet` fit.
+Raster dimensions are the effective device-pixel footprint
+(`round(cssSize * dpr)`). For SVG surfaces that integer footprint is also the
+physical surface size, keeping the renderer's isotropic mask contract intact
+for fractional CSS sizes while applying DPR exactly once. `fillRule` supports
 `nonzero` (default) and `evenodd`, including holes.
 
 Generated masks are retained across light/material-only scene rebuilds and

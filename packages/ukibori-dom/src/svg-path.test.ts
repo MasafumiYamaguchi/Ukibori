@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { rasterizeSvgPath, SvgPathRasterCache, validateSvgPathShape } from "./svg-path";
+import { rasterizeSvgPath, SvgPathRasterCache, svgPathRasterKey, validateSvgPathShape } from "./svg-path";
 import { buildScene } from "./scene-builder";
 import { SurfaceRegistry } from "./registry";
 import type { SvgPathShape } from "./types";
@@ -12,6 +12,13 @@ afterEach(() => {
 });
 
 describe("SVG path authoring raster", () => {
+  it("uses effective raster dimensions, not CSS subpixels or DPR, in the cache key", () => {
+    expect(svgPathRasterKey(SHAPE, 100.10, 50.25, 1, 100, 50))
+      .toBe(svgPathRasterKey(SHAPE, 100.20, 50.25, 1.5, 100, 50));
+    expect(svgPathRasterKey(SHAPE, 100.20, 50.25, 1.5, 100, 50))
+      .not.toBe(svgPathRasterKey(SHAPE, 100.60, 50.25, 1.5, 101, 50));
+  });
+
   it("bounds retained masks with LRU eviction", () => {
     const cache = new SvgPathRasterCache(2);
     const a = { width: 1, height: 1, alpha: new Float32Array([0]) };
@@ -114,5 +121,91 @@ describe("SVG path authoring raster", () => {
       shape: { ...SHAPE, d: "M0 0H8V8H0Z" } };
     buildScene(input);
     expect(createElement).toHaveBeenCalledTimes(3);
+  });
+
+  it("canonicalizes fractional SVG footprints and keys only effective raster size", () => {
+    class FakePath {
+      constructor(readonly d: string) {}
+    }
+    const context = {
+      save: vi.fn(), restore: vi.fn(), clearRect: vi.fn(), setTransform: vi.fn(),
+      fillStyle: "", fill: vi.fn(),
+      getImageData: vi.fn((_x: number, _y: number, w: number, h: number) => ({
+        data: new Uint8ClampedArray(w * h * 4),
+      })),
+    } as unknown as CanvasRenderingContext2D;
+    const canvas = { width: 0, height: 0, getContext: vi.fn(() => context) };
+    const createElement = vi.spyOn(document, "createElement").mockImplementation((tag: string) =>
+      tag === "canvas"
+        ? (canvas as unknown as HTMLCanvasElement)
+        : document.createElementNS("http://www.w3.org/1999/xhtml", tag),
+    );
+    vi.stubGlobal("Path2D", FakePath);
+
+    const registry = new SurfaceRegistry();
+    const shape = { ...SHAPE, d: "M0 0H100V50H0Z" };
+    registry.add({
+      id: "fractional", element: document.createElement("div"),
+      options: { id: "fractional", shape, elevation: 0, thickness: 0, material: "matte" },
+      geometry: { x: 0, y: 0, w: 100.10, h: 50.25, radius: 0 }, dirty: false, inkDelegated: false,
+    });
+    const cacheInput = {
+      registry, region: { x: 0, y: 0, w: 101, h: 51 },
+      light: { direction: { x: 0, y: 0, z: 1 }, intensity: 1 },
+    } as const;
+    const first = buildScene({ ...cacheInput, dpr: 1 });
+    expect(first.surfaces[0]!.size).toEqual({ x: 100, y: 50 });
+    expect(first.surfaces[0]!.shape.kind).toBe("mask");
+    const firstMask = first.surfaces[0]!.shape.kind === "mask" ? first.surfaces[0]!.shape.mask : null;
+    expect(firstMask).not.toBeNull();
+    expect(createElement).toHaveBeenCalledTimes(2); // element + raster canvas
+
+    registry.get("fractional")!.geometry = { x: 0, y: 0, w: 100.20, h: 50.25, radius: 0 };
+    const sameFootprint = buildScene({ ...cacheInput, dpr: 1 });
+    expect(sameFootprint.surfaces[0]!.size).toEqual({ x: 100, y: 50 });
+    const sameMask = sameFootprint.surfaces[0]!.shape.kind === "mask" ? sameFootprint.surfaces[0]!.shape.mask : null;
+    expect(sameMask).toBe(firstMask);
+    expect(createElement).toHaveBeenCalledTimes(2);
+
+    registry.get("fractional")!.geometry = { x: 0, y: 0, w: 100.60, h: 50.25, radius: 0 };
+    const changedFootprint = buildScene({ ...cacheInput, dpr: 1 });
+    expect(changedFootprint.surfaces[0]!.size).toEqual({ x: 101, y: 50 });
+    const changedMask = changedFootprint.surfaces[0]!.shape.kind === "mask" ? changedFootprint.surfaces[0]!.shape.mask : null;
+    expect(changedMask).not.toBe(firstMask);
+    expect(createElement).toHaveBeenCalledTimes(3);
+  });
+
+  it.each([
+    [1, 101, 50], [1.5, 151, 75], [2, 201, 101],
+    [1, 127, 64], // 127.34375 × 63.671875 CSS px
+  ])("keeps fractional footprint isotropic at DPR %s", (dpr, width, height) => {
+    class FakePath { constructor(readonly d: string) {} }
+    const context = {
+      save: vi.fn(), restore: vi.fn(), clearRect: vi.fn(), setTransform: vi.fn(),
+      fillStyle: "", fill: vi.fn(),
+      getImageData: vi.fn((_x: number, _y: number, w: number, h: number) => ({
+        data: new Uint8ClampedArray(w * h * 4),
+      })),
+    } as unknown as CanvasRenderingContext2D;
+    const canvas = { width: 0, height: 0, getContext: vi.fn(() => context) };
+    vi.spyOn(document, "createElement").mockImplementation((tag: string) =>
+      tag === "canvas" ? (canvas as unknown as HTMLCanvasElement) : document.createElementNS("http://www.w3.org/1999/xhtml", tag),
+    );
+    vi.stubGlobal("Path2D", FakePath);
+    const registry = new SurfaceRegistry();
+    registry.add({
+      id: `fractional-${dpr}-${width}`, element: document.createElement("div"),
+      options: { id: `fractional-${dpr}-${width}`, shape: { ...SHAPE, d: `M0 0H100V50H0Z ${dpr}-${width}` }, elevation: 0, thickness: 0, material: "matte" },
+      geometry: { x: 0, y: 0, w: width === 127 ? 127.34375 : 100.5, h: height === 64 ? 63.671875 : 50.25, radius: 0 }, dirty: false, inkDelegated: false,
+    });
+    expect(() => buildScene({ registry, region: { x: 0, y: 0, w: 102, h: 52 }, dpr,
+      light: { direction: { x: 0, y: 0, z: 1 }, intensity: 1 } })).not.toThrow();
+    const scene = buildScene({ registry, region: { x: 0, y: 0, w: 102, h: 52 }, dpr,
+      light: { direction: { x: 0, y: 0, z: 1 }, intensity: 1 } });
+    const surface = scene.surfaces[0]!;
+    expect(surface.size).toEqual({ x: width, y: height });
+    expect(surface.size.x / surface.size.y).toBe(width / height);
+    expect(surface.shape.kind === "mask" ? [surface.shape.mask.width, surface.shape.mask.height] : null)
+      .toEqual([width, height]);
   });
 });

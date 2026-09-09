@@ -618,6 +618,55 @@ function runSvgGearScenario() {
   }
 }
 
+/** Fractional layout and narrow/diagonal feature contract for SVG paths. */
+function runSvgFractionalScenario() {
+  const stage = document.createElement("div");
+  document.body.appendChild(stage);
+  const surface = document.createElement("div");
+  stage.appendChild(surface);
+  const rect = { left: 48, top: 32, width: 100.5, height: 50.25 };
+  surface.getBoundingClientRect = () => ({ ...rect, x: rect.left, y: rect.top,
+    right: rect.left + rect.width, bottom: rect.top + rect.height, toJSON: () => rect });
+  const layer = new UkiboriDom({ backend: "cpu", dpr: 1, observe: false, schedule, overlay: { stage } });
+  // A diagonal 2-CSS-px band exercises antialiasing and a narrow feature.
+  const shape = { kind: "svgPath", d: "M1 1L99 49L99 47L1 3Z", viewBox: [0, 0, 100, 50] };
+  layer.register(surface, { id: "svg-fractional", shape, elevation: 3, thickness: 1,
+    bevelWidth: 1, material: "silicone", castsShadow: true, receivesShadow: false });
+  try {
+    for (const [dpr, width, height] of [[1, 101, 50], [1.5, 151, 75], [2, 201, 101]]) {
+      if (dpr !== 1) layer.setDpr(dpr);
+      flush();
+      const state = layer.debugState();
+      const scene = buildScene({ registry: layer.registry, region: state.region, dpr,
+        light: { direction: { x: 0, y: -1, z: 1 }, intensity: 1 } });
+      const node = scene.surfaces[0];
+      check(node.size.x === width && node.size.y === height, `fractional dpr ${dpr} physical footprint`);
+      check(node.shape.kind === "mask" && node.shape.mask.width === width && node.shape.mask.height === height,
+        `fractional dpr ${dpr} mask footprint`);
+      check(Math.abs(node.size.x / node.size.y - node.shape.mask.width / node.shape.mask.height) < 1e-9,
+        `fractional dpr ${dpr} anisotropic mapping`);
+      const mask = node.shape.mask;
+      check(mask.alpha.some((alpha) => alpha > 0 && alpha < 1), `fractional dpr ${dpr} lost Canvas2D AA coverage`);
+      const same = buildScene({ registry: layer.registry, region: state.region, dpr,
+        light: { direction: { x: 0.1, y: -1, z: 1 }, intensity: 0.5 } });
+      check(same.surfaces[0].shape.mask === mask, `fractional dpr ${dpr} unstable retained mask`);
+    }
+    const before = layer.debugState().svgRasterizationCount;
+    rect.width = 100.6; // still rounds to the same effective footprint
+    layer.invalidate("svg-fractional");
+    flush();
+    check(layer.debugState().svgRasterizationCount === before, "fractional same-footprint rerasterized");
+    rect.width = 101.6; // effective device width becomes 102 at DPR 1
+    layer.invalidate("svg-fractional");
+    flush();
+    check(layer.debugState().svgRasterizationCount === before + 1, "fractional changed-footprint did not invalidate");
+    note(`svg fractional: DPR 1/1.5/2 diagonal AA + effective-footprint retention count=${layer.debugState().svgRasterizationCount}`);
+  } finally {
+    layer.dispose();
+    stage.remove();
+  }
+}
+
 /** The same authoring fixture through the real WebGPU path. */
 async function runGpuSvgGearScenario() {
   const stage = document.createElement("div");
@@ -723,6 +772,7 @@ async function main() {
 
     await runCpuControlScenario();
     runSvgGearScenario();
+    runSvgFractionalScenario();
     await runGpuSvgGearScenario();
     await runFixedDprScenario(1);
     await runFixedDprScenario(1.5);
