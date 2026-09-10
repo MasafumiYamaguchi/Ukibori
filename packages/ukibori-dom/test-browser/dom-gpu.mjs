@@ -523,10 +523,9 @@ function runSvgGearScenario() {
   const receiver = document.createElement("div");
   stage.append(gear, receiver);
   const gearRect = { left: 80, top: 40, width: 96, height: 96 };
-  // Keep the receiver wider than the caster so the projected silhouette has
-  // room for several tooth/valley samples instead of clipping at the caster
-  // footprint. Its center row is the projection target below.
-  const receiverRect = { left: 0, top: 180, width: 320, height: 48 };
+  // Keep the receiver larger than the caster so the translated shadow has
+  // room for several tooth/valley samples without clipping.
+  const receiverRect = { left: 0, top: 0, width: 320, height: 240 };
   const asRect = (r) => ({ ...r, x: r.left, y: r.top, right: r.left + r.width, bottom: r.top + r.height, toJSON: () => r });
   gear.getBoundingClientRect = () => asRect(gearRect);
   receiver.getBoundingClientRect = () => asRect(receiverRect);
@@ -580,7 +579,7 @@ function runSvgGearScenario() {
     // composeSdfHeightField -> binary SDF -> height, rather than only checking
     // Canvas2D alpha. The radii are in the fixture's 100-unit viewBox and the
     // same isotropic fit used by rasterizeSvgPath maps them into mask pixels.
-    const shadowLight = { x: 0.414, y: -1, z: 0.03 };
+    const shadowLight = { x: -1, y: 0, z: 1.6 };
     const shadowState = layer.debugState();
     const shadowScene = buildScene({ registry: layer.registry, region: shadowState.region, dpr: 1,
       light: { direction: shadowLight, intensity: 1 } });
@@ -593,23 +592,30 @@ function runSvgGearScenario() {
       const fit = Math.min(caster.shape.mask.width / 100, caster.shape.mask.height / 100);
       const cx = caster.position.x + caster.size.x / 2;
       const cy = caster.position.y + caster.size.y / 2;
-      const receiverY = shadowReceiver.position.y + shadowReceiver.size.y / 2;
       const sourceSample = (svgX, svgY) => [
         Math.round(cx + (svgX - 50) * fit),
         Math.round(cy + (svgY - 50) * fit),
       ];
       const receiverSample = (source) => {
         const [sourceX, sourceY] = source;
-        const projectedX = sourceX + (shadowLight.x / shadowLight.y) * (receiverY - sourceY);
-        return [Math.round(projectedX), Math.round(receiverY)];
+        // Aim one scene unit below the top so the ray crosses the tooth
+        // interior instead of merely touching the bias-shifted top tangent.
+        const projectionHeight = caster.elevation + caster.thickness - 1;
+        return [
+          Math.round(sourceX - shadowLight.x / shadowLight.z * projectionHeight),
+          Math.round(sourceY - shadowLight.y / shadowLight.z * projectionHeight),
+        ];
       };
-      const pairs = [0, 1, 8].map((toothIndex) => {
+      const sampleRadius = 42;
+      const pairs = [0, 1, 15].map((toothIndex) => {
         const toothAngle = toothIndex * Math.PI / 8;
-        // r=44 is inside the fixture's r=46 tooth tip. r=48 at the
-        // inter-tooth angle is outside the r=38 valley boundary by design.
-        const toothSource = sourceSample(50 + 44 * Math.cos(toothAngle), 50 + 44 * Math.sin(toothAngle));
-        const valleySource = sourceSample(50 + 48 * Math.cos(toothAngle + Math.PI / 16),
-          50 + 48 * Math.sin(toothAngle + Math.PI / 16));
+        // Same-radius tooth/valley sampling intentionally rejects circle
+        // degeneration: r=42 is inside the r=46 tooth but outside the r=38
+        // valley solely because the sample angle changes.
+        const toothSource = sourceSample(50 + sampleRadius * Math.cos(toothAngle),
+          50 + sampleRadius * Math.sin(toothAngle));
+        const valleySource = sourceSample(50 + sampleRadius * Math.cos(toothAngle + Math.PI / 16),
+          50 + sampleRadius * Math.sin(toothAngle + Math.PI / 16));
         return {
           toothSource,
           valleySource,
@@ -617,7 +623,9 @@ function runSvgGearScenario() {
           valleyReceiver: receiverSample(valleySource),
         };
       });
-      const visibility = lightScene(shadowScene, { shadow: { stepSize: 0.25, bias: 0.1 } }).visibility;
+      const visibility = lightScene(shadowScene, {
+        shadow: { stepSize: 0.25, bias: 0.1 },
+      }).visibility;
       for (const [index, pair] of pairs.entries()) {
         const toothHeight = shadowHeight.get(pair.toothSource[0], pair.toothSource[1], 0);
         const valleyHeight = shadowHeight.get(pair.valleySource[0], pair.valleySource[1], 0);
