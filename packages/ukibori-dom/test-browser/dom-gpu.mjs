@@ -25,7 +25,7 @@
 // #result block below.
 
 import { UkiboriDom, buildScene } from "../src/index";
-import { lightScene } from "ukibori-renderer";
+import { composeSdfHeightField, lightScene } from "ukibori-renderer";
 import { GEAR_SHAPE, maskAlphaAt } from "./svg-gear-fixture.mjs";
 
 const MARKER_PASS = "UKIBORI_DOM_GPU_PASS";
@@ -523,7 +523,10 @@ function runSvgGearScenario() {
   const receiver = document.createElement("div");
   stage.append(gear, receiver);
   const gearRect = { left: 80, top: 40, width: 96, height: 96 };
-  const receiverRect = { left: 80, top: 180, width: 96, height: 48 };
+  // Keep the receiver wider than the caster so the projected silhouette has
+  // room for several tooth/valley samples instead of clipping at the caster
+  // footprint. Its center row is the projection target below.
+  const receiverRect = { left: 0, top: 180, width: 320, height: 48 };
   const asRect = (r) => ({ ...r, x: r.left, y: r.top, right: r.left + r.width, bottom: r.top + r.height, toJSON: () => r });
   gear.getBoundingClientRect = () => asRect(gearRect);
   receiver.getBoundingClientRect = () => asRect(receiverRect);
@@ -571,10 +574,74 @@ function runSvgGearScenario() {
       }
       alphaByDpr.push({ dpr, alpha: new Float32Array(mask.alpha) });
     }
+
+    // Project known fixture points onto the receiver along the direction
+    // opposite the light's XY ray. This checks the actual caster mask through
+    // composeSdfHeightField -> binary SDF -> height, rather than only checking
+    // Canvas2D alpha. The radii are in the fixture's 100-unit viewBox and the
+    // same isotropic fit used by rasterizeSvgPath maps them into mask pixels.
+    const shadowLight = { x: 0.414, y: -1, z: 0.03 };
+    const shadowState = layer.debugState();
+    const shadowScene = buildScene({ registry: layer.registry, region: shadowState.region, dpr: 1,
+      light: { direction: shadowLight, intensity: 1 } });
+    const shadowHeight = composeSdfHeightField(shadowScene).height;
+    const caster = shadowScene.surfaces.find((s) => s.id === "svg-gear");
+    const shadowReceiver = shadowScene.surfaces.find((s) => s.id === "flat-receiver");
+    check(caster?.shape.kind === "mask" && shadowReceiver !== undefined,
+      "gear shadow fixture surfaces missing");
+    if (caster?.shape.kind === "mask" && shadowReceiver !== undefined) {
+      const fit = Math.min(caster.shape.mask.width / 100, caster.shape.mask.height / 100);
+      const cx = caster.position.x + caster.size.x / 2;
+      const cy = caster.position.y + caster.size.y / 2;
+      const receiverY = shadowReceiver.position.y + shadowReceiver.size.y / 2;
+      const sourceSample = (svgX, svgY) => [
+        Math.round(cx + (svgX - 50) * fit),
+        Math.round(cy + (svgY - 50) * fit),
+      ];
+      const receiverSample = (source) => {
+        const [sourceX, sourceY] = source;
+        const projectedX = sourceX + (shadowLight.x / shadowLight.y) * (receiverY - sourceY);
+        return [Math.round(projectedX), Math.round(receiverY)];
+      };
+      const pairs = [0, 1, 8].map((toothIndex) => {
+        const toothAngle = toothIndex * Math.PI / 8;
+        // r=44 is inside the fixture's r=46 tooth tip. r=48 at the
+        // inter-tooth angle is outside the r=38 valley boundary by design.
+        const toothSource = sourceSample(50 + 44 * Math.cos(toothAngle), 50 + 44 * Math.sin(toothAngle));
+        const valleySource = sourceSample(50 + 48 * Math.cos(toothAngle + Math.PI / 16),
+          50 + 48 * Math.sin(toothAngle + Math.PI / 16));
+        return {
+          toothSource,
+          valleySource,
+          toothReceiver: receiverSample(toothSource),
+          valleyReceiver: receiverSample(valleySource),
+        };
+      });
+      const visibility = lightScene(shadowScene, { shadow: { stepSize: 0.25, bias: 0.1 } }).visibility;
+      for (const [index, pair] of pairs.entries()) {
+        const toothHeight = shadowHeight.get(pair.toothSource[0], pair.toothSource[1], 0);
+        const valleyHeight = shadowHeight.get(pair.valleySource[0], pair.valleySource[1], 0);
+        check(toothHeight > caster.elevation,
+          `gear pair ${index} tooth did not survive SDF height composition`);
+        check(valleyHeight === 0,
+          `gear pair ${index} valley unexpectedly has physical height`);
+        const toothVisibility = visibility.get(pair.toothReceiver[0], pair.toothReceiver[1], 0);
+        const valleyVisibility = visibility.get(pair.valleyReceiver[0], pair.valleyReceiver[1], 0);
+        check(valleyVisibility - toothVisibility > 0.25,
+          `gear pair ${index} shadow tooth/valley visibility collapsed (${toothVisibility}/${valleyVisibility})`);
+      }
+      note(`svg gear projected pairs: ${pairs.map((pair) => `${pair.toothReceiver[0]}/${pair.valleyReceiver[0]}`).join(",")}`);
+    }
+
     const before = layer.debugState().svgRasterizationCount;
     layer.setLight({ x: 0.2, y: -1, z: 1 }, 1);
     flush();
     eq(layer.debugState().svgRasterizationCount, before, "gear light-only rerasterization");
+    const lightRetained = buildScene({ registry: layer.registry, region: layer.debugState().region, dpr: 1,
+      light: { direction: { x: 0.2, y: -1, z: 1 }, intensity: 1 } });
+    const lightMask = lightRetained.surfaces.find((s) => s.id === "svg-gear")?.shape;
+    check(lightMask?.kind === "mask" && caster?.shape.kind === "mask" && lightMask.mask === caster.shape.mask,
+      "gear light-only update changed MaskSource identity");
     layer.updateSurface("svg-gear", { material: "metal" });
     flush();
     eq(layer.debugState().svgRasterizationCount, before, "gear material-only rerasterization");
@@ -633,7 +700,7 @@ function runSvgFractionalScenario() {
   layer.register(surface, { id: "svg-fractional", shape, elevation: 3, thickness: 1,
     bevelWidth: 1, material: "silicone", castsShadow: true, receivesShadow: false });
   try {
-    for (const [dpr, width, height] of [[1, 101, 50], [1.5, 151, 75], [2, 201, 101]]) {
+    for (const [dpr, width, height] of [[1, 101, 50], [1.5, 151, 75], [2, 201, 101], [3, 302, 151]]) {
       if (dpr !== 1) layer.setDpr(dpr);
       flush();
       const state = layer.debugState();
@@ -647,6 +714,35 @@ function runSvgFractionalScenario() {
         `fractional dpr ${dpr} anisotropic mapping`);
       const mask = node.shape.mask;
       check(mask.alpha.some((alpha) => alpha > 0 && alpha < 1), `fractional dpr ${dpr} lost Canvas2D AA coverage`);
+      // The path is a two-pixel diagonal band in viewBox space. Derive one
+      // interior and one exterior point from its left branch, then inspect
+      // the composed height (the existing alpha>=0.5 binary SDF threshold is
+      // exercised inside composeSdfHeightField).
+      const fit = Math.min(mask.width / 100, mask.height / 50);
+      const offsetX = (mask.width - 100 * fit) / 2;
+      const offsetY = (mask.height - 50 * fit) / 2;
+      const leftBranchY = (1 + 48 * 9 / 98 + 3 + 44 * 9 / 98) / 2;
+      const toMaskPixel = (svgX, svgY) => [
+        Math.floor(offsetX + svgX * fit),
+        Math.floor(offsetY + svgY * fit),
+      ];
+      const [insideX, insideY] = toMaskPixel(10, leftBranchY);
+      const [outsideX, outsideY] = toMaskPixel(10, 25);
+      check(maskAlphaAt(mask, insideX, insideY) >= 0.5,
+        `fractional dpr ${dpr} fixture interior did not cross binary threshold`);
+      check(maskAlphaAt(mask, outsideX, outsideY) < 0.5,
+        `fractional dpr ${dpr} fixture exterior unexpectedly crossed binary threshold`);
+      const heightField = composeSdfHeightField(scene).height;
+      const scenePixel = (mx, my) => [
+        Math.floor(node.position.x + mx),
+        Math.floor(node.position.y + my),
+      ];
+      const [insideSceneX, insideSceneY] = scenePixel(insideX, insideY);
+      const [outsideSceneX, outsideSceneY] = scenePixel(outsideX, outsideY);
+      check(heightField.get(insideSceneX, insideSceneY, 0) > 3,
+        `fractional dpr ${dpr} narrow diagonal disappeared after SDF/height composition`);
+      check(heightField.get(outsideSceneX, outsideSceneY, 0) === 0,
+        `fractional dpr ${dpr} diagonal exterior acquired physical height`);
       const same = buildScene({ registry: layer.registry, region: state.region, dpr,
         light: { direction: { x: 0.1, y: -1, z: 1 }, intensity: 0.5 } });
       check(same.surfaces[0].shape.mask === mask, `fractional dpr ${dpr} unstable retained mask`);
@@ -660,7 +756,7 @@ function runSvgFractionalScenario() {
     layer.invalidate("svg-fractional");
     flush();
     check(layer.debugState().svgRasterizationCount === before + 1, "fractional changed-footprint did not invalidate");
-    note(`svg fractional: DPR 1/1.5/2 diagonal AA + effective-footprint retention count=${layer.debugState().svgRasterizationCount}`);
+    note(`svg fractional: DPR 1/1.5/2/3 diagonal AA + SDF/height + effective-footprint retention count=${layer.debugState().svgRasterizationCount}`);
   } finally {
     layer.dispose();
     stage.remove();

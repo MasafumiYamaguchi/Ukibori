@@ -11,8 +11,11 @@ interface SvgPathMaskCache {
   set(key: string, value: ReturnType<typeof rasterizeSvgPath>): void;
 }
 
-// Cache by every input affecting raster output. Retained light/material
-// updates therefore reuse the exact same immutable MaskSource.
+// Cache by the quality policy, path descriptor, and effective integer device
+// footprint. CSS/DPR values are intentionally represented only by that
+// footprint: retained light/material updates reuse the exact same immutable
+// MaskSource, and subpixel layout changes that do not change the footprint do
+// not retain redundant rasters.
 const defaultSvgMaskCache = new SvgPathRasterCache();
 
 /**
@@ -30,7 +33,8 @@ const defaultSvgMaskCache = new SvgPathRasterCache();
  *   resolution, no z-index); the DOM layer does not reinterpret it
  * - mask shapes keep their `MaskSource` identity so the renderer's per-mask
  *   SDF cache (#19) still hits; SVG path authoring shapes are rasterized here
- *   (and cached by path/viewBox/fillRule/footprint/DPR) before reaching the
+ *   (and cached by quality/path/viewBox/fillRule/effective device footprint)
+ *   before reaching the
  *   renderer
  * - shadow flags are passed through unchanged (#18)
  *
