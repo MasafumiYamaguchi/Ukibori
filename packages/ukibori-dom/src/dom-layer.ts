@@ -25,6 +25,7 @@ import { OverlayCanvas, isManagedMutation, restorePhysicalInk, restoreSurface, s
 import type { Overlay } from "./overlay";
 import { SurfaceRegistry, assertValidId } from "./registry";
 import { buildScene } from "./scene-builder";
+import { SvgPathRasterCache } from "./svg-path";
 import type {
   CompositeOptions,
   DomBackend,
@@ -223,6 +224,8 @@ export class UkiboriDom {
   private dprSource: number | (() => number) | undefined;
   private compositeOptions: CompositeOptions;
   private shadowOptions: DomShadowOptions;
+  /** Per-layer SVG mask ownership prevents cache retention after dispose. */
+  private readonly svgPathCache = new SvgPathRasterCache();
 
   private light: DomLightState;
   private environment: DomEnvironmentState;
@@ -1004,6 +1007,7 @@ export class UkiboriDom {
         environment: this.environment,
         exposure: this.exposure,
         materials: this.materials,
+        svgPathCache: this.svgPathCache,
       });
     } catch (error) {
       this.onError(error);
@@ -1236,6 +1240,8 @@ export class UkiboriDom {
       bakedSurfaceCount: this.registry.bakedSurfaceCount(),
       dynamicSurfaceCount: this.registry.dynamicSurfaceCount(),
       lastRebakeSurfaceCount: this.lastRebakeSurfaceCount,
+      svgRasterizationCount: this.svgPathCache.rasterizations,
+      svgCacheSize: this.svgPathCache.size,
     };
   }
 
@@ -1264,6 +1270,7 @@ export class UkiboriDom {
       }
     }
     this.registry.clear();
+    this.svgPathCache.clear();
     this.overlay.dispose();
   }
 

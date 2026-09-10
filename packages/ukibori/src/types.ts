@@ -4,10 +4,13 @@ import type {
   DomEnvironmentState,
   DomShadowOptions,
   DomShape,
+  SvgPathShape,
   UkiboriDom,
 } from "ukibori-dom";
 import type { HeightProfile, LinearRgb } from "ukibori-renderer";
 import type { MaterialTokensOverride } from "./core/materials";
+
+export type { SvgPathShape } from "ukibori-dom";
 
 /**
  * #21 React API types.
@@ -176,9 +179,11 @@ export interface SurfaceOwnProps {
    * path so the scene insertion/paint order never changes.
    */
   sceneId?: string;
-  /** Shape source (renderer #13/#19). Defaults to a rounded rect with the
-   * corner radius measured from the element's CSS. `null` = do not register
-   * (plain semantic DOM; used by <UkiboriText> before its mask exists). */
+  /** Shape source. In addition to renderer rounded rect/mask shapes, the DOM
+   * integration accepts the authoring-only `svgPath` descriptor and converts
+   * it to a coverage mask. Defaults to a rounded rect with the corner radius
+   * measured from the element's CSS. `null` = do not register (plain semantic
+   * DOM; used by <UkiboriText> before its mask exists). */
   shape?: DomShape | null;
   /**
    * #52 compositing-only intent (NOT scene data — never forwarded to the

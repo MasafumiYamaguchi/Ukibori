@@ -35,6 +35,7 @@ export type {
   MaterialName,
   PolymorphicSurfaceProps,
   SurfaceOwnProps,
+  SvgPathShape,
   UkiboriBackend,
   UkiboriMode,
   UkiboriProps,

@@ -81,6 +81,32 @@ describe("UkiboriText glyph integration", () => {
   });
 });
 
+describe("Surface SVG path shape", () => {
+  it("forwards SVG shape changes through the retained updateSurface entry", async () => {
+    stubElementRects();
+    stubCanvas2d();
+    const first = { kind: "svgPath" as const, d: "M0 0H10V10H0Z", viewBox: [0, 0, 10, 10] as const };
+    const second = { ...first, d: "M0 0H8V8H0Z", fillRule: "evenodd" as const };
+    let layer: UkiboriDom | null = null;
+    const { rerender } = render(
+      <Ukibori schedule={(cb) => cb()} onReady={(value) => (layer = value)}>
+        <Surface sceneId="svg" shape={first} elevation={2} thickness={1} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const entryBefore = layer!.registry.get("svg")!;
+    expect(entryBefore.options.shape).toBe(first);
+    rerender(
+      <Ukibori schedule={(cb) => cb()} onReady={(value) => (layer = value)}>
+        <Surface sceneId="svg" shape={second} elevation={2} thickness={1} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(layer!.registry.get("svg")).toBe(entryBefore);
+    expect(layer!.registry.get("svg")!.options.shape).toBe(second);
+  });
+});
+
 describe("UkiboriText #52 physical ink compositing policy", () => {
   it("delegates the glyph ink to the physical relief while the node, text and aria stay intact", async () => {
     stubElementRects();
@@ -953,5 +979,4 @@ describe("UkiboriText layout policy", () => {
     expect(layer!.debugBuffers()).not.toBeNull();
   });
 });
-
 
