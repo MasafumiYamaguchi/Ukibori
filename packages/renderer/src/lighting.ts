@@ -13,6 +13,7 @@ import {
   sanitizeEnvironment,
   sanitizeExposure,
 } from "./environment";
+import type { EnvironmentResult } from "./environment";
 import { BASE_MATERIAL, resolveMaterial } from "./material";
 import type { Material } from "./material";
 import { NO_OWNER } from "./compose";
@@ -265,22 +266,28 @@ export function shadePreparedFields(
   const hy = ly / hLen;
   const hz = (lz + 1) / hLen;
 
-  const materials = new Map<number, Material>();
-  const materialFor = (owner: number): Material => {
-    if (owner === NO_OWNER) {
-      return BASE_MATERIAL;
-    }
+  // Uniform environment response depends only on material and this call's
+  // environment settings, not on pixel normals, ownership or visibility.
+  // Keep preparation local so material/environment edits affect the next call.
+  type PreparedMaterial = { material: Material; environment: EnvironmentResult };
+  const prepare = (material: Material): PreparedMaterial => ({
+    material,
+    environment: evaluateEnvironment(material, environment),
+  });
+  const baseMaterial = prepare(BASE_MATERIAL);
+  const materials = new Map<number, PreparedMaterial>();
+  const materialFor = (owner: number): PreparedMaterial => {
+    if (owner === NO_OWNER) return baseMaterial;
     const surface = scene.surfaces[owner];
-    if (surface === undefined) {
-      return BASE_MATERIAL;
+    if (surface === undefined) return baseMaterial;
+    let prepared = materials.get(owner);
+    if (prepared === undefined) {
+      prepared = prepare(resolveMaterial(scene.materials, surface.material));
+      materials.set(owner, prepared);
     }
-    let material = materials.get(owner);
-    if (material === undefined) {
-      material = resolveMaterial(scene.materials, surface.material);
-      materials.set(owner, material);
-    }
-    return material;
+    return prepared;
   };
+  const lightColor = scene.light.color ?? { r: 1, g: 1, b: 1 };
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < width; x++) {
@@ -289,7 +296,8 @@ export function shadePreparedFields(
       const nz = normal.get(x, y, 2);
       const nDotL = Math.max(nx * lx + ny * ly + nz * lz, 0);
       const nDotV = Math.max(nz, 0);
-      const material = materialFor(objectId.get(x, y, 0));
+      const prepared = materialFor(objectId.get(x, y, 0));
+      const material = prepared.material;
       const vis = visibility === null ? 1 : clamp(visibility.get(x, y, 0), 0, 1);
       let brdf = { diffuse: ZERO_RGB, specular: ZERO_RGB };
       if (nDotL > 0 && nDotV > 0 && hLen > 0) {
@@ -308,9 +316,8 @@ export function shadePreparedFields(
       // visibility. Ambient and environment are never multiplied by the
       // light color. White light reproduces the historical scalar formula
       // byte-for-byte (1 * intensity * cosine * vis).
-      const lightColor = scene.light.color ?? { r: 1, g: 1, b: 1 };
       const direct = directLightContribution(lightColor, intensity, cosine, vis, brdf);
-      const env = evaluateEnvironment(material, environment);
+      const env = prepared.environment;
       // #22 linear accumulation: saturated arithmetic keeps every finite
       // input (including Number.MAX_VALUE-scale intensity/environment)
       // producing a finite pre-encode LinearRgb.
