@@ -12,7 +12,7 @@ import {
 } from "./layout";
 
 /**
- * #24 WGSL layout declarations for ABI v2 — MUST match `layout.ts` exactly
+ * #24 WGSL layout declarations for ABI v4 — MUST match `layout.ts` exactly
  * (same offsets, strides, 32-bit scalars, little-endian storage).
  *
  * Every binding is declared as a `var<storage>` buffer so compute passes
@@ -31,7 +31,7 @@ import {
  */
 
 export const WGSL_SCENE_BASE = /* wgsl */ `
-// Ukibori scene ABI v3 (magic ${ABI_MAGIC.toString(16)}, version ${ABI_VERSION},
+// Ukibori scene ABI v4 (magic ${ABI_MAGIC.toString(16)}, version ${ABI_VERSION},
 // header ${HEADER_SIZE} bytes, sentinel NO_OWNER ${NO_OWNER}).
 
 const SURFACE_STRIDE: u32 = ${SURFACE_STRIDE}u; // 128
@@ -89,7 +89,7 @@ struct SurfaceRecord {
   profileKind: u32,        // 32 (0 step, 1 smooth, 2 linear, 3 convex, 4 concave, 5 power)
   maskIndex: u32,          // 36 (mask record index, or NO_OWNER)
   radius: f32,             // 40 (roundedRect corner radius)
-  profileExponent: f32,    // 44 (ABI v3: power exponent, else 0)
+  profileExponent: f32,    // 44 (ABI v4: power exponent, else 0)
   localToSceneRow0: vec4<f32>, // 48 (a, b, tx, 0)
   localToSceneRow1: vec4<f32>, // 64 (c, d, ty, 0)
   bounds: vec4<f32>,       // 80 (minX, minY, maxX, maxY)
@@ -116,13 +116,14 @@ struct MaterialRecord {
   metallic: f32,           // 16
   ior: f32,                // 20
   flags: u32,              // 24 (reserved, 0)
-  _reserved0: vec4<f32>,   // 32
+  emissive: vec3<f32>,     // 32 (LINEAR RGB radiance)
+  _emissivePad: f32,       // 44
   _reserved1: vec4<f32>,   // 48
 }                          // size 64, align 16
 `;
 
 /**
- * ABI v2 scene bindings (group 0, bindings 0-4). Compute passes must keep
+ * ABI v4 scene bindings (group 0, bindings 0-4). Compute passes must keep
  * these binding NUMBERS stable. A pass module may declare a SUBSET of these
  * bindings (its pipeline layout can bind more than the shader declares, but
  * never fewer); `WGSL_LAYOUT` below is the complete declaration.

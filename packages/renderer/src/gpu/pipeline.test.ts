@@ -1158,3 +1158,36 @@ describe("debugForceFull benchmark seam (#46)", () => {
     });
   });
 });
+
+
+it("updates emissive values without recomputing retained geometry or shadows", () => {
+  const { pipeline } = setup();
+  const scene = sceneA();
+  pipeline.render({ scene, dpr: 1 });
+  const prior = pipeline.getSnapshot().heightPass.provenance;
+  scene.materials = { silicone: { baseColor: { r: 0.78, g: 0.8, b: 0.83 }, roughness: 0.4, metallic: 0, ior: 1.45,
+    emissive: { r: 2, g: 0.25, b: 0 } } };
+  const stats = pipeline.render({ scene, dpr: 1 });
+  expect(stats.invalidation.executed).toEqual(["upload", "lighting", "presentation"]);
+  expect(pipeline.getSnapshot().heightPass.provenance).toBe(prior);
+  expect(pipeline.getSnapshot().lightingPass.provenance).toBe(prior);
+  pipeline.dispose();
+});
+
+it("retains emissive effects across repaint, updates only presentation on controls, and frees buffers", () => {
+  const { pipeline, device } = setup();
+  const scene = sceneA();
+  pipeline.render({ scene, dpr: 1 });
+  const before = pipeline.getSnapshot().heightPass.provenance;
+  const compositeOptions = { emissive: { bloom: { radius: 12 }, illumination: { radius: 24 } } };
+  const enabled = pipeline.render({ scene, dpr: 1, compositeOptions });
+  expect(enabled.invalidation.executed).toEqual(["presentation"]);
+  expect(pipeline.getSnapshot().heightPass.provenance).toBe(before);
+  pipeline.present();
+  expect(pipeline.render({ scene, dpr: 1, compositeOptions }).invalidation.executed).toEqual([]);
+  const changed = pipeline.render({ scene, dpr: 1, compositeOptions: { emissive: { bloom: { radius: 18 } } } });
+  expect(changed.invalidation.executed).toEqual(["presentation"]);
+  expect(pipeline.render({ scene, dpr: 1 }).invalidation.executed).toEqual(["presentation"]);
+  pipeline.dispose();
+  expect(device.created.every(buffer => buffer.destroyed)).toBe(true);
+});

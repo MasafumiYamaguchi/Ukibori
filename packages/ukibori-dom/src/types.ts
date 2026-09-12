@@ -193,6 +193,7 @@ export interface DomEnvironmentState {
  *   over whatever the page shows underneath
  */
 export interface CompositeOptions {
+  emissive?: import("ukibori-renderer").EmissiveEffectsOptions;
   /** RGB 0..255 tint for cast shadows on the base plane (default near-black) */
   shadowColor?: readonly [number, number, number];
   /** 0..1 opacity of cast shadows on the base plane (default 0.3) */

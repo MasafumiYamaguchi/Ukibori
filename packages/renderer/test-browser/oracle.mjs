@@ -351,6 +351,7 @@ export function createOracle(api) {
               g: Math.fround(material.baseColor.g),
               b: Math.fround(material.baseColor.b),
             },
+            emissive: material.emissive,
             roughness: Math.fround(material.roughness),
             metallic: Math.fround(material.metallic),
             ior: Math.fround(material.ior ?? DEFAULT_IOR),

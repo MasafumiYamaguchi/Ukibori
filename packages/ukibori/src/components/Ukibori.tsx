@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { UkiboriDom } from "ukibori-dom";
 import type { DomBackend, DomLightState, DomShadowOptions } from "ukibori-dom";
-import { sanitizeEnvironment, sanitizeExposure } from "ukibori-renderer";
+import { sanitizeEnvironment, sanitizeExposure, sanitizeMaterialTable } from "ukibori-renderer";
 import {
   DEFAULT_COLOR,
   DEFAULT_EXPOSURE,
@@ -74,6 +74,7 @@ export function Ukibori({
   intensity = DEFAULT_INTENSITY,
   angularRadius,
   lightColor,
+  materials,
   environment = {},
   exposure = DEFAULT_EXPOSURE,
   color = DEFAULT_COLOR,
@@ -91,6 +92,11 @@ export function Ukibori({
   schedule,
   children,
 }: UkiboriProps) {
+  // Canonical content key detects in-place material edits on a React render.
+  const materialTable = sanitizeMaterialTable(materials);
+  const materialsKey = JSON.stringify(materialTable);
+  const materialsWereControlled = useRef(false);
+
   // ---- CSS approximation environment (also used by the physical light) ----
   const cssEnv = useMemo(() => {
     const normalizedLight = normalizeLight(light);
@@ -254,6 +260,7 @@ export function Ukibori({
             specularIntensity: envEnv.specularIntensity,
           },
           exposure: safeExposure,
+          materials: materialTable,
           margin,
           shadow,
           compositing,
@@ -339,6 +346,16 @@ export function Ukibori({
     current.setDpr(dpr ?? (() => (window.devicePixelRatio ?? 1) * QUALITY_DPR[quality]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layer, updateDataKey, dpr]);
+
+  useEffect(() => {
+    if (layer === null) return;
+    // Preserve imperative onReady/setMaterials users when no prop was supplied.
+    if (materialTable !== undefined || materialsWereControlled.current) {
+      layer.setMaterials(materialTable ?? {});
+    }
+    materialsWereControlled.current = materialTable !== undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [layer, materialsKey]);
 
   const mode: UkiboriMode =
     backend === "css" || webgpuFailed

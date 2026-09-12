@@ -33,7 +33,9 @@ import type {
 } from "./reconstruction-pass";
 import { SceneUploader } from "./uploader";
 import type { UploadStats } from "./uploader";
-import type { CompositeOptions } from "./composite";
+import { sanitizeCompositeOptions, type CompositeOptions } from "./composite";
+import { emissiveEffectsActive } from "../emissive-effects";
+import { EmissiveEffectsPass } from "./emissive-effects-pass";
 import {
   lightingMaterialIdBindingFromHeightPass,
   lightingNormalBindingFromNormalPass,
@@ -347,6 +349,8 @@ export class GpuScenePipeline {
   private readonly reconstructionPass: ReconstructionPass;
   private readonly lightingPass: LightingPass;
   private readonly presentationPass: PresentationPass;
+  private readonly effectsPass: EmissiveEffectsPass;
+  private effectsColor: ReturnType<typeof presentationColorBindingFromLightingPass> | null = null;
   private readonly profiler = new GpuPipelineProfiler();
   private readonly timestampProfiler: GpuTimestampProfiler;
   private activeTimestampFrame: GpuTimestampFrame | null = null;
@@ -403,6 +407,7 @@ export class GpuScenePipeline {
     this.reconstructionPass = new ReconstructionPass(this.device);
     this.lightingPass = new LightingPass(this.device);
     this.presentationPass = new PresentationPass(this.device);
+    this.effectsPass = new EmissiveEffectsPass(this.device);
     this.timestampProfiler = new GpuTimestampProfiler(
       this.device as unknown as GpuTimestampDeviceLike,
     );
@@ -440,6 +445,7 @@ export class GpuScenePipeline {
       this.lastKey = null;
       this.lastEncoded = null;
       this.lastFrame = null;
+      this.effectsColor = null;
       throw error;
     }
   }
@@ -774,8 +780,31 @@ export class GpuScenePipeline {
       // (CSS positioning/size stays a DOM-layer responsibility).
       this.resizeCanvas(heightSnapshot.width, heightSnapshot.height);
       const t0 = performance.now();
+      const composite = sanitizeCompositeOptions(input.compositeOptions);
+      const effects = composite.emissive;
+      const active = effects !== undefined && emissiveEffectsActive(effects);
+      const rawColor = presentationColorBindingFromLightingPass(lightingSnapshot);
+      const visibility = reconstructionSnapshot !== null
+        ? presentationVisibilityBindingFromReconstructionPass(reconstructionSnapshot)
+        : presentationVisibilityBindingFromShadowPass(shadowSnapshot);
+      const timestamps = timestampFrame.getTimestampWrites("presentation");
+      let effectsAllocations = 0;
+      this.effectsColor = null;
+      if (active) {
+        const result = this.effectsPass.dispatch([
+          rawColor.buffer, presentationObjectIdBindingFromHeightPass(heightSnapshot).buffer,
+          lightingMaterialIdBindingFromHeightPass(heightSnapshot).buffer,
+          normalHeightBindingFromHeightPass(heightSnapshot).buffer,
+          lightingNormalBindingFromNormalPass(normalSnapshot).buffer, bindings.materials.buffer, visibility.buffer,
+        ], heightSnapshot.width, heightSnapshot.height, parsedFrameHeader.materialCount,
+        heightSnapshot.dpr, parsedFrameHeader.exposure, effects, composite.shadowColor, composite.shadowAlpha,
+        timestamps ? { querySet: timestamps.querySet, beginningOfPassWriteIndex: timestamps.beginningOfPassWriteIndex } : undefined);
+        this.effectsColor = { ...rawColor, buffer: result.buffer, byteLength: result.byteLength };
+        effectsAllocations = result.newAllocations;
+      }
       presentation = this.presentationPass.present({
-        color: presentationColorBindingFromLightingPass(lightingSnapshot),
+        color: this.effectsColor ?? rawColor,
+        precomposited: active,
         objectId: presentationObjectIdBindingFromHeightPass(heightSnapshot),
         visibility:
           reconstructionSnapshot !== null
@@ -785,16 +814,16 @@ export class GpuScenePipeline {
         canvasFormat: this.canvasFormat,
         options: input.compositeOptions,
         debug: input.debugReadback === true,
-        timestampWrites: timestampFrame.getTimestampWrites("presentation"),
+        timestampWrites: active && timestamps ? { querySet: timestamps.querySet, endOfPassWriteIndex: timestamps.endOfPassWriteIndex } : timestamps,
       });
       const hostMs = performance.now() - t0;
       records.push({
         stage: "presentation",
         hostMs,
-        newAllocations: presentation.newAllocations,
-        bytesUploaded: 0,
-        dispatches: 0,
-        submissions: 1,
+        newAllocations: presentation.newAllocations + effectsAllocations,
+        bytesUploaded: active ? (effects.bloomIntensity > 0 && effects.bloomRadius > 0 ? 128 : 64) : 0,
+        dispatches: active ? (effects.bloomIntensity > 0 && effects.bloomRadius > 0 ? 3 : 1) : 0,
+        submissions: active ? (effects.bloomIntensity > 0 && effects.bloomRadius > 0 ? 3 : 2) : 1,
       });
       this.retained.presentation = presentation;
     } else {
@@ -984,7 +1013,8 @@ export class GpuScenePipeline {
     this.resizeCanvas(frame.width, frame.height);
     const t0 = performance.now();
     const stats = this.presentationPass.present({
-      color: presentationColorBindingFromLightingPass(frame.lightingPass),
+      color: this.effectsColor ?? presentationColorBindingFromLightingPass(frame.lightingPass),
+      precomposited: this.effectsColor !== null,
       objectId: presentationObjectIdBindingFromHeightPass(frame.heightPass),
       visibility:
         frame.reconstructionPass !== null
@@ -1050,6 +1080,8 @@ export class GpuScenePipeline {
     this.activeTimestampFrame = null;
     this.timestampProfiler.dispose();
     this.presentationPass.dispose();
+    this.effectsPass.dispose();
+    this.effectsColor = null;
     this.lightingPass.dispose();
     this.reconstructionPass.dispose();
     this.shadowPass.dispose();
