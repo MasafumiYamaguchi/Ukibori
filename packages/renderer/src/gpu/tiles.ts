@@ -1,3 +1,4 @@
+import { equalByteRanges } from "./byte-equality";
 import { parseHeader } from "./encode";
 import {
   HEADER_SIZE,
@@ -948,12 +949,7 @@ export function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.byteLength !== b.byteLength) {
     return false;
   }
-  for (let i = 0; i < a.byteLength; i++) {
-    if (a[i] !== b[i]) {
-      return false;
-    }
-  }
-  return true;
+  return equalByteRanges(a, 0, b, 0, a.byteLength);
 }
 
 function assertPositiveInt(v: number, label: string): void {
