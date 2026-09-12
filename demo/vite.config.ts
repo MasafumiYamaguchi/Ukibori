@@ -23,6 +23,7 @@ export default defineConfig({
         "wasm-debug": resolve("./wasm-debug.html"),
         neumorphism: resolve("./neumorphism.html"),
         "profile-debug": resolve("./profile-debug.html"),
+        "emissive-debug": resolve("./emissive-debug.html"),
       },
     },
   },

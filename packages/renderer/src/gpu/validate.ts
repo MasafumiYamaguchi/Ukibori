@@ -17,6 +17,7 @@ import {
   MASK_OFFSET_WIDTH,
   MASK_STRIDE,
   MATERIAL_OFFSET_BASE_COLOR,
+  MATERIAL_OFFSET_EMISSIVE,
   MATERIAL_OFFSET_FLAGS,
   MATERIAL_OFFSET_IOR,
   MATERIAL_OFFSET_METALLIC,
@@ -368,7 +369,11 @@ export function validateEncodedScene(bytes: Uint8Array): ValidationResult {
       const ior = readF32(record + MATERIAL_OFFSET_IOR);
       check(isFiniteNumber(ior) && ior >= 1, `${label} ior must be finite and >= 1, got ${ior}`);
       check(readU32(record + MATERIAL_OFFSET_FLAGS) === 0, `${label} flags must be 0`);
-      for (let offset = 28; offset < MATERIAL_STRIDE; offset += 4) {
+      for (let c = 0; c < 3; c++) {
+        const value = readF32(record + MATERIAL_OFFSET_EMISSIVE + c * 4);
+        check(isFiniteNumber(value) && value >= 0, `${label} emissive channel ${c} must be finite and >= 0`);
+      }
+      for (const offset of [28, 44, 48, 52, 56, 60]) {
         check(readU32(record + offset) === 0, `${label} reserved byte at ${offset} must be 0`);
       }
     }

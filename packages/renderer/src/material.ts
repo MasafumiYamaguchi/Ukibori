@@ -18,6 +18,9 @@ export interface Material {
   roughness: number;
   metallic: number;
   ior?: number;
+  /** Self-emitted LINEAR RGB radiance, added before exposure; defaults to black.
+   * Finite non-negative f32 values, including HDR > 1. Does not cast light. */
+  emissive?: LinearRgb;
 }
 
 /** Material used for the base plane (pixels no surface owns). */
@@ -52,6 +55,11 @@ export function sanitizeMaterial(m: Material): Material {
     roughness: clamp(sanitizeFinite(m.roughness, 0.5), 0, 1),
     metallic: clamp(sanitizeFinite(m.metallic, 0), 0, 1),
     ior: sanitizeIor(m.ior),
+    ...(m.emissive === undefined ? {} : { emissive: {
+      r: sanitizeEmissiveChannel(m.emissive?.r),
+      g: sanitizeEmissiveChannel(m.emissive?.g),
+      b: sanitizeEmissiveChannel(m.emissive?.b),
+    } }),
   };
 }
 
@@ -101,4 +109,11 @@ function sanitizeFinite(v: number | undefined, fallback: number): number {
 
 function sanitizeIor(v: number | undefined): number {
   return typeof v === "number" && Number.isFinite(v) && v >= 1 ? v : DEFAULT_IOR;
+}
+
+/** Missing, negative, non-finite or f32-overflow emission is black. */
+function sanitizeEmissiveChannel(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return 0;
+  const rounded = Math.fround(value);
+  return Number.isFinite(rounded) ? rounded : 0;
 }

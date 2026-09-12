@@ -1,0 +1,24 @@
+{
+  "basePullRequest": 65,
+  "native": {
+    "adapter": "SwiftShader driver 5.0.0",
+    "fixtures": 126,
+    "comparedBytes": 77952,
+    "colorParity": "exact"
+  },
+  "browser": {
+    "browser": "153.0.8010.0",
+    "parity": {
+      "fixtures": 126,
+      "comparedBytes": 77952,
+      "colorParity": "exact"
+    },
+    "errors": []
+  },
+  "testSuites": {
+    "renderer": 1090,
+    "dom": 161,
+    "react": 208
+  },
+  "gpuScope": "126 distinct fixtures on each runtime; software Vulkan/SwiftShader; exact RGBA8 parity"
+}
