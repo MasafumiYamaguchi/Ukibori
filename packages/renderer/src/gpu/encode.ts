@@ -18,6 +18,7 @@ import {
   MASK_OFFSET_WIDTH,
   MASK_STRIDE,
   MATERIAL_OFFSET_BASE_COLOR,
+  MATERIAL_OFFSET_EMISSIVE,
   MATERIAL_OFFSET_FLAGS,
   MATERIAL_OFFSET_IOR,
   MATERIAL_OFFSET_METALLIC,
@@ -49,7 +50,7 @@ import {
 } from "./layout";
 
 /**
- * #24 host-side encoder — a pure, deterministic `Scene` + DPR -> ABI v3
+ * #24 host-side encoder — a pure, deterministic `Scene` + DPR -> ABI v4
  * bytes mapping with no DOM, no callbacks and no host objects leaking into
  * the buffer.
  *
@@ -87,19 +88,20 @@ import {
  * `(tx + 0.5)` mapping alone is only correct at DPR 1.
  */
 export interface EncodedScene {
-  /** ABI v3 little-endian scene bytes (see layout.ts). */
+  /** ABI v4 little-endian scene bytes (see layout.ts). */
   bytes: Uint8Array;
 }
 
 interface EncodedMaterial {
   baseColor: [number, number, number];
+  emissive: [number, number, number];
   roughness: number;
   metallic: number;
   ior: number;
 }
 
 /**
- * Encode a validated scene at a device pixel ratio into the ABI v3 byte
+ * Encode a validated scene at a device pixel ratio into the ABI v4 byte
  * buffer. Deterministic: the same scene and DPR always produce identical
  * bytes.
  */
@@ -126,6 +128,7 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
           Math.fround(resolved.baseColor.g),
           Math.fround(resolved.baseColor.b),
         ],
+        emissive: [resolved.emissive?.r ?? 0, resolved.emissive?.g ?? 0, resolved.emissive?.b ?? 0],
         roughness: Math.fround(resolved.roughness),
         metallic: Math.fround(resolved.metallic),
         ior: Math.fround(resolved.ior ?? 1.5),
@@ -295,6 +298,7 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
     writeF32(view, record + MATERIAL_OFFSET_METALLIC, m.metallic);
     writeF32(view, record + MATERIAL_OFFSET_IOR, m.ior);
     writeU32(view, record + MATERIAL_OFFSET_FLAGS, 0);
+    for (let c = 0; c < 3; c++) writeF32(view, record + MATERIAL_OFFSET_EMISSIVE + c * 4, m.emissive[c]);
   }
 
   return { bytes };

@@ -1,5 +1,5 @@
 import { HostBuffer } from "./buffer";
-import { clamp, saturatingAdd, saturatingMulF32 } from "./math";
+import { F32_MAX, clamp, saturatingAdd, saturatingMulF32 } from "./math";
 import { composeCasterHeightField, composeSdfHeightField } from "./geometry";
 import { computeVisibility } from "./shadow";
 import { reconstructVisibility, refineHardEdgeVisibility, sanitizeReconstructionOptions } from "./shadow-reconstruct";
@@ -317,6 +317,15 @@ export function shadePreparedFields(
       const linear = accumulateLinear(base, ambient, direct, env);
       // #22 exposure boundary: the pure function between linear RGB and the
       // sRGB encoder (the future tone mapper replaces `applyExposure` here).
+      // Emission is radiance from the material itself: neither shadow visibility
+      // nor directional/environment light modulates it. Preserve zero-emission
+      // arithmetic exactly; nonzero addition saturates at the GPU f32 boundary.
+      const emissive = material.emissive;
+      if (emissive !== undefined) {
+        if (emissive.r > 0) linear.r = Math.min(F32_MAX, saturatingAdd(linear.r, emissive.r));
+        if (emissive.g > 0) linear.g = Math.min(F32_MAX, saturatingAdd(linear.g, emissive.g));
+        if (emissive.b > 0) linear.b = Math.min(F32_MAX, saturatingAdd(linear.b, emissive.b));
+      }
       const exposed = applyExposure(linear, exposure);
       color.set(x, y, 0, srgbEncodeChannel(exposed.r));
       color.set(x, y, 1, srgbEncodeChannel(exposed.g));

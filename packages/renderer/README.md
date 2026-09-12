@@ -392,3 +392,23 @@ npm run build -w ukibori-renderer
 ```
 
 Browser debug page (demo): `npm run dev`, then `/renderer-debug.html`.
+
+
+## Emissive material radiance
+
+`Material.emissive?: LinearRgb` adds self-emitted radiance after reflected lighting
+and before exposure/sRGB conversion. Missing emission is black; non-negative,
+finite f32 values above 1 are preserved. Invalid/negative/f32-overflow channels
+become 0. Emission is independent of light color/intensity, normal and visibility;
+it does not illuminate other surfaces or provide bloom. Nonzero addition saturates
+at the f32 maximum; the zero-emission arithmetic path remains unchanged.
+
+ABI **v4** assigns material bytes 32–43 to emissive RGB, with 44–47 reserved zero.
+The 64-byte material stride and all bindings remain unchanged. Encoded v1/v2/v3
+buffers must be re-encoded; validation rejects them. Scene descriptors with no
+emission keep their previous rendered output. Emission changes are material-value
+changes, rerunning upload/lighting/presentation while retaining geometry/shadows.
+
+Optional real-WebGPU verification: `npm run test:emissive:webgpu` after building.
+Install the `webgpu` Dawn package separately or set `UKIBORI_WEBGPU_MODULE` to its
+absolute module path. The runner fails when no real adapter is available.

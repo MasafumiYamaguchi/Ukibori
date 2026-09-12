@@ -150,11 +150,11 @@ describe("encodeScene — determinism and header", () => {
     });
   });
 
-  it("always writes the current ABI version (v3) and rejects nothing upstream", () => {
+  it("always writes the current ABI version (v4) and rejects nothing upstream", () => {
     const { bytes } = encodeScene(roundedScene(), 1);
     const view = new DataView(bytes.buffer);
-    expect(view.getUint32(4, true)).toBe(3);
-    expect(parseHeader(bytes).version).toBe(3);
+    expect(view.getUint32(4, true)).toBe(4);
+    expect(parseHeader(bytes).version).toBe(4);
   });
 
   it("encodes an explicit v2 black light as all-zero RGB (legal, not a sentinel)", () => {

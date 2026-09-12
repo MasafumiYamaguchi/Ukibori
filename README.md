@@ -62,6 +62,7 @@ React層は薄いlifecycle/API層であり、rendererのセマンティクスを
 
 | prop | 説明 |
 | --- | --- |
+| `materials` | 物理マテリアルの参照テーブル。`emissive: { r, g, b }`で線形RGBの自己発光を指定。未指定は発光なし |
 | `light` / `intensity` | 共有方向光(#13: receiver→光源方向。`{ x: -0.6, y: -0.8, z: 1 }`は左上前方) |
 | `backend` | `"auto"` / `"cpu"` / `"webgpu"` / `"css"`。auto=実WebGPU(直接canvas提示)を最優先、失敗時はCPU reference rendererへ一度だけfallback。`"cpu"`=物理層(CPU reference renderer)。`"webgpu"`=WebGPU専用(失敗時は明示ラベルのCSS近似へ)。`"css"`=**明示的に近似とラベル付けされたbox-shadowフォールバック**(物理レンダリングではない) |
 | `quality` / `dpr` | レンダーターゲットのスケール方針(`low` 0.75× / `medium` 1× / `high` 1.5× devicePixelRatio)。scene単位は常にCSS px(#13) |
@@ -149,3 +150,28 @@ Legacy `flat`/`bevel` remain raised step/smooth aliases. Insets carve earlier
 surfaces in scene order and update their shadow geometry.
 See [the profile API, formulas and composition rules](ISSUE_61_IMPLEMENTATION_REPORT.md).
 The deterministic comparison is available at `/profile-debug.html` in the demo.
+
+
+### Emissive materials
+
+```tsx
+<Ukibori
+  materials={{
+    led: {
+      baseColor: { r: 0.02, g: 0.02, b: 0.02 },
+      roughness: 0.5,
+      metallic: 0,
+      emissive: { r: 0.05, g: 0.5, b: 2 },
+    },
+  }}
+>
+  <Surface material="led" elevation={2} thickness={4}
+    style={{ width: 120, height: 64 }}>LED</Surface>
+</Ukibori>
+```
+
+`emissive`は**線形RGBの自己発光**です。環境光・方向光・影によって減衰せず、通常のライティング結果に加算してから露出とsRGB変換を適用します。未指定は黒（発光なし）。HDR値（1を超える値）を保持し、負数・非有限値・f32範囲外はチャンネルごとに0へ戻します。CSSのsRGB値を渡す場合は先に線形RGBへ変換してください。
+
+`materials`の変更は既存レイヤーへ反映され、propを取り除くと組み込みマテリアルに戻ります。DOM APIでは`UkiboriDom.create({ materials })`と`layer.setMaterials(materials)`、rendererでは`createScene({ materials })`から同じマテリアルを使用できます。CSS近似モードはemissiveの物理描画には対応しません。
+
+周囲を照らす面光源やブルームは含みません。デモは`npm run dev`の`/emissive-debug.html`で、発光・外部照明・露出を変更できます。

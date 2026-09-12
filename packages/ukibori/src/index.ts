@@ -45,3 +45,5 @@ export type {
   BakeHandle,
   BakeProps,
 } from "./types";
+
+export type { Material, LinearRgb } from "ukibori-renderer";

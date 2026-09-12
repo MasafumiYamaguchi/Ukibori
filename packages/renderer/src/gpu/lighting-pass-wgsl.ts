@@ -248,7 +248,8 @@ fn baseMaterial() -> MaterialRecord {
   m.metallic = 0.0;
   m.ior = 1.5;
   m.flags = 0u;
-  m._reserved0 = vec4<f32>(0.0);
+  m.emissive = vec3<f32>(0.0);
+  m._emissivePad = 0.0;
   m._reserved1 = vec4<f32>(0.0);
   return m;
 }
@@ -400,6 +401,11 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   linear.r = accumulateChannel(base.r, envDiffuse.r, envSpecular.r, params.ambient, directR);
   linear.g = accumulateChannel(base.g, envDiffuse.g, envSpecular.g, params.ambient, directG);
   linear.b = accumulateChannel(base.b, envDiffuse.b, envSpecular.b, params.ambient, directB);
+  // Emission is independent of light/visibility, before exposure. A zero
+  // channel preserves the historical arithmetic path exactly.
+  if (m.emissive.r > 0.0) { linear.r = satAdd(linear.r, m.emissive.r); }
+  if (m.emissive.g > 0.0) { linear.g = satAdd(linear.g, m.emissive.g); }
+  if (m.emissive.b > 0.0) { linear.b = satAdd(linear.b, m.emissive.b); }
   let exposedR = satMul(linear.r, exposure);
   let exposedG = satMul(linear.g, exposure);
   let exposedB = satMul(linear.b, exposure);
