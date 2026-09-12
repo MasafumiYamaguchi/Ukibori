@@ -1,7 +1,7 @@
 import { HostBuffer } from "./buffer";
 import { composeHeightField } from "./compose";
 import { getMaskSdf, sampleMaskSdfAt } from "./mask";
-import { evaluateProfile } from "./profile";
+import { evaluateProfile, profileSurfaceHeight } from "./profile";
 import type { Scene, SurfaceNode } from "./scene";
 import type { Vec2 } from "./types";
 
@@ -18,7 +18,7 @@ import type { Vec2 } from "./types";
  *
  *     distance = sdf(shape, p)
  *     localHeight = profile(distance, bevelWidth, thickness)
- *     H = elevation + localHeight
+ *     H = raised ? elevation + localHeight : max(0, elevation - localHeight)
  *
  * Profiles are standalone descriptors evaluated by `evaluateProfile`; the
  * SDF implementation never contains profile math.
@@ -93,7 +93,7 @@ export function roundedRectSurfaceHeight(surface: SurfaceNode, x: number, y: num
     surface.bevelWidth ?? 0,
     surface.thickness ?? 0,
   );
-  return surface.elevation + local;
+  return profileSurfaceHeight(surface.profile, surface.elevation, local);
 }
 
 /**
@@ -139,7 +139,7 @@ export function maskSurfaceHeight(surface: SurfaceNode, x: number, y: number): n
     surface.bevelWidth ?? 0,
     surface.thickness ?? 0,
   );
-  return surface.elevation + local;
+  return profileSurfaceHeight(surface.profile, surface.elevation, local);
 }
 
 /** Per-shape dispatch for the scene composition geometry. */
@@ -156,7 +156,8 @@ export function composeSdfHeightField(scene: Scene) {
 
 /**
  * Caster-only height field (#18): composed from the surfaces with
- * `castsShadow = true` only, using the same composition rule and geometry.
+ * `castsShadow = true` raised surfaces and ALL inset modifiers. Insets lower
+ * existing casting geometry even when their own castsShadow flag is false.
  *
  * This is the shadow occlusion field. Composing only casting surfaces means
  * a topmost `castsShadow = false` surface NEVER hides a lower casting
@@ -167,7 +168,7 @@ export function composeSdfHeightField(scene: Scene) {
  * (the returned buffer is then the same composition result).
  */
 export function composeCasterHeightField(scene: Scene): HostBuffer {
-  const casters = scene.surfaces.filter((s) => s.castsShadow);
+  const casters = scene.surfaces.filter((s) => s.castsShadow || s.profile.mode === "inset");
   if (casters.length === scene.surfaces.length) {
     return composeSdfHeightField(scene).height;
   }

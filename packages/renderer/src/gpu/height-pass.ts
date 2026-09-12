@@ -278,7 +278,7 @@ export interface HeightPassOutputs {
   readonly materialId: HeightPassOutputBinding;
   /**
    * f32 caster-only height field (#27): same shape/profile/tie rules as
-   * `height`, but composed ONLY from surfaces with `FLAG_CASTS_SHADOW`; 0.0
+   * `height`, composed from casting raised surfaces plus all inset modifiers; 0.0
    * where no casting surface owns the texel. Sampled bilinearly by the
    * #27 ShadowPass for occlusion.
    */

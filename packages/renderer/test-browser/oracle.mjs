@@ -98,7 +98,8 @@ export function createOracle(api) {
         let owner = NO_OWNER;
         for (let i = 0; i < scene.surfaces.length; i++) {
           const h = Math.fround(surfaceHeight(scene.surfaces[i], sx, sy));
-          if (Number.isFinite(h) && h >= 0 && (h > best || h === best)) {
+          const inset = scene.surfaces[i].profile.mode === "inset";
+          if (Number.isFinite(h) && h >= 0 && (inset ? h < best : h >= best)) {
             best = h;
             owner = i;
           }
@@ -146,7 +147,7 @@ export function createOracle(api) {
    */
   function cpuCasterOracle(scene, dpr) {
     return cpuOracle(
-      { ...scene, surfaces: scene.surfaces.filter((s) => s.castsShadow) },
+      { ...scene, surfaces: scene.surfaces.filter((s) => s.castsShadow || s.profile.mode === "inset") },
       dpr,
     );
   }

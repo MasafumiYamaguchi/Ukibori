@@ -31,7 +31,7 @@ import {
  */
 
 export const WGSL_SCENE_BASE = /* wgsl */ `
-// Ukibori scene ABI v2 (magic ${ABI_MAGIC.toString(16)}, version ${ABI_VERSION},
+// Ukibori scene ABI v3 (magic ${ABI_MAGIC.toString(16)}, version ${ABI_VERSION},
 // header ${HEADER_SIZE} bytes, sentinel NO_OWNER ${NO_OWNER}).
 
 const SURFACE_STRIDE: u32 = ${SURFACE_STRIDE}u; // 128
@@ -86,10 +86,10 @@ struct SurfaceRecord {
   thickness: f32,          // 20
   bevelWidth: f32,         // 24
   flags: u32,              // 28 (bit0 castsShadow, bit1 receivesShadow)
-  profileKind: u32,        // 32 (0 = flat, 1 = bevel)
+  profileKind: u32,        // 32 (0 step, 1 smooth, 2 linear, 3 convex, 4 concave, 5 power)
   maskIndex: u32,          // 36 (mask record index, or NO_OWNER)
   radius: f32,             // 40 (roundedRect corner radius)
-  _reserved0: u32,         // 44
+  profileExponent: f32,    // 44 (ABI v3: power exponent, else 0)
   localToSceneRow0: vec4<f32>, // 48 (a, b, tx, 0)
   localToSceneRow1: vec4<f32>, // 64 (c, d, ty, 0)
   bounds: vec4<f32>,       // 80 (minX, minY, maxX, maxY)

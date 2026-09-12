@@ -26,7 +26,12 @@ import type { Scene, SurfaceNode } from "./scene";
  *
  * Composition rule (fixed here, shared by #18):
  *
- *     Hscene(x, y) = max(0, max_i surfaceHeightAt_i(x, y))
+ *     start at H=0; process scene.surfaces in array order:
+ *     raised: H = max(H, candidate)
+ *     inset:  H = min(H, candidate), transferring ownership only if lowered
+ *
+ * With only raised surfaces this reduces to the historical max composition.
+ * Insets never create geometry on empty floor or steal an equal-height owner.
  *
  * The base plane is z = 0 and has no owner. `objectId` is the INDEX into
  * `scene.surfaces` of the surface that provides the maximum height at that
@@ -105,7 +110,10 @@ export function composeHeightField(
         if (!hOk) {
           continue;
         }
-        if (h > best || (h === best && tieBreak === "last")) {
+        // Insets only lower existing geometry; equal-height cutters do not
+        // steal ownership. Later raised nodes can rebuild over the recess.
+        const inset = scene.surfaces[i].profile.mode === "inset";
+        if (inset ? h < best : h > best || (h === best && tieBreak === "last")) {
           best = h;
           owner = i;
         }

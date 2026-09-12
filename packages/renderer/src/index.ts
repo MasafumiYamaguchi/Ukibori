@@ -259,7 +259,7 @@ export type { DebugMode, RgbaImage, ToRgbaOptions } from "./debug/export";
 export { DEFAULT_LIGHT_DIRECTION, createScene, isHeightProfile, isShape } from "./scene";
 export type {
   DirectionalLight,
-  HeightProfile,
+  HeightProfile, ProfileCurve,
   MaskSource,
   MaterialRef,
   Scene,

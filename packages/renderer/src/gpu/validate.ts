@@ -23,6 +23,7 @@ import {
   MATERIAL_OFFSET_ROUGHNESS,
   MATERIAL_STRIDE,
   PROFILE_BEVEL,
+  PROFILE_POWER, FLAG_PROFILE_OUT, SURFACE_OFFSET_PROFILE_EXPONENT,
   PROFILE_FLAT,
   SHAPE_MASK,
   SHAPE_ROUNDED_RECT,
@@ -46,7 +47,7 @@ import {
 } from "./layout";
 
 /**
- * #24 strict validator — checks the ACTUAL ENCODED BYTES of an ABI v2 scene,
+ * #24 strict validator — checks the ACTUAL ENCODED BYTES of an ABI v3 scene,
  * never the source `Scene` object. It is the byte-level counterpart of
  * `encodeScene` and is safe for Node unit tests and for defending later GPU
  * uploads against corrupted or foreign buffers.
@@ -55,11 +56,11 @@ import {
  *
  * v1 kept header offsets 112..128 as RESERVED ZERO; v2 reuses them for the
  * `lightColor` vec4. v1 buffers are therefore NEVER re-interpreted: the
- * version check below rejects any `version != ABI_VERSION` (2) as
+ * version check below rejects any `version != ABI_VERSION` (3) as
  * `unsupported ABI version N` — a legacy v1 scene with zeroed 112..128 must
  * never be silently accepted as an explicit BLACK light (the v1 reserved
  * bytes carry no color semantics at all). There is no migration path for v1
- * input: re-encode with the current encoder (which always emits v2).
+ * input: re-encode with the current encoder (which always emits v3).
  *
  * Rejected (each with a specific error message):
  *
@@ -212,7 +213,7 @@ export function validateEncodedScene(bytes: Uint8Array): ValidationResult {
       );
       const profileKind = readU32(record + SURFACE_OFFSET_PROFILE_KIND);
       check(
-        profileKind === PROFILE_FLAT || profileKind === PROFILE_BEVEL,
+        profileKind >= PROFILE_FLAT && profileKind <= PROFILE_POWER,
         `${label} invalid profileKind ${profileKind}`,
       );
       const materialIndex = readU32(record + SURFACE_OFFSET_MATERIAL_INDEX);
@@ -244,7 +245,13 @@ export function validateEncodedScene(bytes: Uint8Array): ValidationResult {
         (flags & FLAG_RESERVED_MASK) === 0,
         `${label} reserved flag bits set: 0x${(flags & FLAG_RESERVED_MASK).toString(16)}`,
       );
-      check(readU32(record + 44) === 0, `${label} reserved0 must be 0`);
+      const exponent = readF32(record + SURFACE_OFFSET_PROFILE_EXPONENT);
+      if (profileKind === PROFILE_POWER) {
+        check(Number.isFinite(exponent) && exponent > 0, `${label} power exponent must be finite and > 0`);
+      } else {
+        check(readU32(record + SURFACE_OFFSET_PROFILE_EXPONENT) === 0, `${label} non-power exponent must be 0`);
+        check((flags & FLAG_PROFILE_OUT) === 0, `${label} power bias flag requires power profile`);
+      }
       const row0 = [
         readF32(record + SURFACE_OFFSET_TRANSFORM_ROW0 + 0),
         readF32(record + SURFACE_OFFSET_TRANSFORM_ROW0 + 4),

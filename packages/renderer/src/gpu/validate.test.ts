@@ -251,9 +251,19 @@ describe("validateEncodedScene — invalid surface records", () => {
 
   it("rejects invalid flag values and nonzero reserved record bytes", () => {
     const record = surfaceOffset(validBytes());
-    expectRejected(mutate(validBytes(), record + 28, (v) => v.setUint32(record + 28, 0x8, true)), /reserved flag bits/);
-    expectRejected(mutate(validBytes(), record + 44, (v) => v.setUint32(record + 44, 1, true)), /reserved0 must be 0/);
+    expectRejected(mutate(validBytes(), record + 28, (v) => v.setUint32(record + 28, 0x10, true)), /reserved flag bits/);
+    expectRejected(mutate(validBytes(), record + 44, (v) => v.setUint32(record + 44, 1, true)), /non-power exponent must be 0/);
     expectRejected(mutate(validBytes(), record + 112, (v) => v.setUint32(record + 112, 1, true)), /reserved1 byte at 112/);
+  });
+
+  it("rejects legacy v2 buffers and malformed v3 power parameters", () => {
+    expectRejected(mutate(validBytes(), 4, (v) => v.setUint32(4, 2, true)), /unsupported ABI version 2/);
+    const record = surfaceOffset(validBytes());
+    const power = mutate(validBytes(), record + 32, (v) => v.setUint32(record + 32, 5, true));
+    for (const exponent of [0, -1, Infinity, NaN]) {
+      expectRejected(mutate(power, record + 44, (v) => v.setFloat32(record + 44, exponent, true)), /power exponent/);
+    }
+    expectRejected(mutate(validBytes(), record + 28, (v) => v.setUint32(record + 28, 8, true)), /power bias flag requires power/);
   });
 
   it("rejects non-positive local sizes", () => {

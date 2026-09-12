@@ -24,6 +24,8 @@ import {
   MATERIAL_OFFSET_ROUGHNESS,
   MATERIAL_STRIDE,
   PROFILE_BEVEL,
+  PROFILE_LINEAR, PROFILE_CONVEX, PROFILE_CONCAVE, PROFILE_POWER,
+  FLAG_PROFILE_INSET, FLAG_PROFILE_OUT, SURFACE_OFFSET_PROFILE_EXPONENT,
   PROFILE_FLAT,
   SCENE_FLAG_DEFAULT,
   SHAPE_MASK,
@@ -47,7 +49,7 @@ import {
 } from "./layout";
 
 /**
- * #24 host-side encoder — a pure, deterministic `Scene` + DPR -> ABI v2
+ * #24 host-side encoder — a pure, deterministic `Scene` + DPR -> ABI v3
  * bytes mapping with no DOM, no callbacks and no host objects leaking into
  * the buffer.
  *
@@ -85,7 +87,7 @@ import {
  * `(tx + 0.5)` mapping alone is only correct at DPR 1.
  */
 export interface EncodedScene {
-  /** ABI v2 little-endian scene bytes (see layout.ts). */
+  /** ABI v3 little-endian scene bytes (see layout.ts). */
   bytes: Uint8Array;
 }
 
@@ -97,7 +99,7 @@ interface EncodedMaterial {
 }
 
 /**
- * Encode a validated scene at a device pixel ratio into the ABI v2 byte
+ * Encode a validated scene at a device pixel ratio into the ABI v3 byte
  * buffer. Deterministic: the same scene and DPR always produce identical
  * bytes.
  */
@@ -209,12 +211,16 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
     let flags = 0;
     if (surface.castsShadow) flags |= FLAG_CASTS_SHADOW;
     if (surface.receivesShadow) flags |= FLAG_RECEIVES_SHADOW;
+    if (surface.profile.mode === "inset") flags |= FLAG_PROFILE_INSET;
+    if (surface.profile.kind === "power" && surface.profile.bias === "out") flags |= FLAG_PROFILE_OUT;
     writeU32(view, record + SURFACE_OFFSET_FLAGS, flags);
     writeU32(
       view,
       record + SURFACE_OFFSET_PROFILE_KIND,
-      surface.profile.kind === "bevel" ? PROFILE_BEVEL : PROFILE_FLAT,
+      profileCode(surface.profile.kind),
     );
+    writeF32(view, record + SURFACE_OFFSET_PROFILE_EXPONENT,
+      surface.profile.kind === "power" ? Math.fround(surface.profile.exponent) : 0);
     if (surface.shape.kind === "mask") {
       const maskIndex = maskIndexByMask.get(surface.shape.mask)!;
       writeU32(view, record + SURFACE_OFFSET_MASK_INDEX, maskIndex);
@@ -384,5 +390,17 @@ function writeF32(view: DataView, offset: number, value: number): void {
 function assertFinitePositive(v: number, label: string): void {
   if (!isFiniteNumber(v) || v <= 0) {
     throw new TypeError(`${label} must be a finite number > 0, got ${String(v)}`);
+  }
+}
+
+function profileCode(kind: Scene["surfaces"][number]["profile"]["kind"]): number {
+  switch (kind) {
+    case "flat": case "step": return PROFILE_FLAT;
+    case "bevel": case "smooth": return PROFILE_BEVEL;
+    case "linear": return PROFILE_LINEAR;
+    case "convex": return PROFILE_CONVEX;
+    case "concave": return PROFILE_CONCAVE;
+    case "power": return PROFILE_POWER;
+    default: throw new TypeError(`unknown profile kind: ${kind}`);
   }
 }

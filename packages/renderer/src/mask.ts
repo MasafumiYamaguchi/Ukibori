@@ -93,6 +93,7 @@ export function computeMaskSdf(mask: MaskSource): MaskSdf {
   const v = new Int32Array(lineCap);
   const z = new Float64Array(lineCap + 1);
   const line = new Float64Array(lineCap);
+  const costs = new Float64Array(lineCap);
 
   // Boundary segments (2x units) and their endpoints (corners).
   const vertByRow: number[][] = Array.from({ length: h2 }, () => []);
@@ -128,7 +129,7 @@ export function computeMaskSdf(mask: MaskSource): MaskSdf {
     for (const sx of vertByRow[band]) {
       line[sx] = 0;
     }
-    edt1d(line, w2, v, z);
+    edt1d(line, w2, v, z, costs);
     for (let x = 0; x < w2; x++) {
       vert2[band * w2 + x] = line[x];
     }
@@ -140,7 +141,7 @@ export function computeMaskSdf(mask: MaskSource): MaskSdf {
     for (const sy of horByCol[band]) {
       line[sy] = 0;
     }
-    edt1d(line, h2, v, z);
+    edt1d(line, h2, v, z, costs);
     for (let y = 0; y < h2; y++) {
       hor2[y * w2 + band] = line[y];
     }
@@ -218,12 +219,13 @@ function edt2dSquared(f: Float64Array, width: number, height: number): Float64Ar
   const v = new Int32Array(maxDim);
   const z = new Float64Array(maxDim + 1);
   const line = new Float64Array(maxDim);
+  const costs = new Float64Array(maxDim);
 
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       line[x] = f[y * width + x];
     }
-    edt1d(line, width, v, z);
+    edt1d(line, width, v, z, costs);
     for (let x = 0; x < width; x++) {
       out[y * width + x] = line[x];
     }
@@ -232,7 +234,7 @@ function edt2dSquared(f: Float64Array, width: number, height: number): Float64Ar
     for (let y = 0; y < height; y++) {
       line[y] = out[y * width + x];
     }
-    edt1d(line, height, v, z);
+    edt1d(line, height, v, z, costs);
     for (let y = 0; y < height; y++) {
       out[y * width + x] = line[y];
     }
@@ -241,7 +243,7 @@ function edt2dSquared(f: Float64Array, width: number, height: number): Float64Ar
 }
 
 /** Felzenszwalb-Huttenlocher 1D distance transform (lower envelope of parabolas). */
-function edt1d(f: Float64Array, n: number, v: Int32Array, z: Float64Array): void {
+function edt1d(f: Float64Array, n: number, v: Int32Array, z: Float64Array, costs: Float64Array): void {
   let k = 0;
   v[0] = 0;
   z[0] = -Infinity;
@@ -261,12 +263,16 @@ function edt1d(f: Float64Array, n: number, v: Int32Array, z: Float64Array): void
     z[k] = s;
     z[k + 1] = Infinity;
   }
+  // Evaluation writes f in place. Preserve each envelope parabola's ORIGINAL
+  // cost: a prior output can overwrite f[v[k]] before that parabola is used.
+  // This matters in the second 2D pass, where seed costs are not just 0/far.
+  for (let i = 0; i <= k; i++) costs[i] = f[v[i]];
   k = 0;
   for (let q = 0; q < n; q++) {
     while (z[k + 1] < q) {
       k++;
     }
     const qv = v[k];
-    f[q] = (q - qv) * (q - qv) + f[qv];
+    f[q] = (q - qv) * (q - qv) + costs[k];
   }
 }

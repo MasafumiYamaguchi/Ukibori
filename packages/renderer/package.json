@@ -4,7 +4,9 @@
   "description": "Backend-agnostic 2.5D renderer core for Ukibori: height-field buffers, CPU/WebGPU backends, and debug buffer export.",
   "type": "module",
   "sideEffects": false,
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -29,7 +31,8 @@
     "bench:issue-48-report": "node scripts/bench-issue-48-report.mjs",
     "bench:cpu": "node scripts/bench-cpu.mjs",
     "bench:report": "node scripts/bench-report.mjs",
-    "clean": "rimraf dist"
+    "clean": "rimraf dist",
+    "test:profiles:webgpu": "npm run build && node scripts/test-profiles-webgpu.mjs"
   },
   "devDependencies": {
     "@webgpu/types": "^0.1.71",
