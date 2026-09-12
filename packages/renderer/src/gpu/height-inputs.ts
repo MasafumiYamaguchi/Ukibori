@@ -1,3 +1,4 @@
+import { equalByteRanges } from "./byte-equality";
 import type { EncodedHeader, SceneSectionLayout } from "./layout";
 import {
   HEADER_SIZE,
@@ -162,12 +163,7 @@ export function regionEqual(
   ) {
     return false;
   }
-  for (let i = 0; i < byteLength; i++) {
-    if (prevBytes[offset + i] !== nextBytes[offset + i]) {
-      return false;
-    }
-  }
-  return true;
+  return equalByteRanges(prevBytes, offset, nextBytes, offset, byteLength);
 }
 
 /** Exact comparison of every region in the list (all must match). */
@@ -213,12 +209,7 @@ export function regionBytesEqual(
   ) {
     return false;
   }
-  for (let i = 0; i < byteLength; i++) {
-    if (prevBytes[prevOffset + i] !== nextBytes[nextOffset + i]) {
-      return false;
-    }
-  }
-  return true;
+  return equalByteRanges(prevBytes, prevOffset, nextBytes, nextOffset, byteLength);
 }
 
 /**
