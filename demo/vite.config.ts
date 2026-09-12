@@ -22,6 +22,7 @@ export default defineConfig({
         "scheduler-debug": resolve("./scheduler-debug.html"),
         "wasm-debug": resolve("./wasm-debug.html"),
         neumorphism: resolve("./neumorphism.html"),
+        "profile-debug": resolve("./profile-debug.html"),
       },
     },
   },

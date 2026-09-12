@@ -45,9 +45,9 @@ function header(overrides: Partial<EncodedHeader> = {}): EncodedHeader {
   };
 }
 
-describe("ABI v2 layout constants", () => {
+describe("ABI v3 layout constants", () => {
   it("pins the versioned header/stride contract", () => {
-    expect(ABI_VERSION).toBe(2);
+    expect(ABI_VERSION).toBe(3);
     expect(ABI_MAGIC).toBe(0x554b4942);
     expect(HEADER_SIZE).toBe(128);
     expect(SURFACE_STRIDE).toBe(128);
@@ -61,7 +61,7 @@ describe("ABI v2 layout constants", () => {
     // vec4. The layout docs must say so — a silent v1->black reinterpretation
     // is the forbidden legacy corruption.
     const source = readLayoutSource();
-    expect(source).toContain("ABI_VERSION = 2");
+    expect(source).toContain("ABI_VERSION = 3");
     expect(source).toContain("v1");
     expect(source).toContain("reserved zero");
     expect(source).toContain("lightColor");

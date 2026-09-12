@@ -1176,7 +1176,7 @@ describe("HeightPass shaders  ECPU semantics pinned in WGSL", () => {
     for (const wgsl of COMPOSE_MODULES) {
       expect(wgsl).toContain("var best = 0.0;");
       expect(wgsl).toContain("var owner = NO_OWNER;");
-      expect(wgsl).toContain("if (h > best || h == best) {");
+      expect(wgsl).toContain("if (select(h >= best, h < best, inset)) {");
       expect(wgsl).toContain("return OwnerResult(best, owner);");
     }
     expect(COMPOSE_COVERAGE_WGSL).toContain("select(0u, 1u, r.owner != NO_OWNER)");
@@ -1204,8 +1204,8 @@ describe("HeightPass shaders  ECPU semantics pinned in WGSL", () => {
     for (const wgsl of COMPOSE_MODULES) {
       expect(wgsl).toContain("if (distance >= 0.0) {");
       expect(wgsl).toContain("let u = clamp((distance + s.bevelWidth) / s.bevelWidth, 0.0, 1.0);");
-      expect(wgsl).toContain("let falloff = u * u * (3.0 - 2.0 * u);");
-      expect(wgsl).toContain("if (s.bevelWidth <= 0.0) {");
+      expect(wgsl).toContain("value = 1.0 - u * u * (3.0 - 2.0 * u);");
+      expect(wgsl).toContain("if (s.profileKind != PROFILE_FLAT && s.bevelWidth > 0.0) {");
     }
   });
 
@@ -1241,19 +1241,19 @@ describe("HeightPass shaders  ECPU semantics pinned in WGSL", () => {
 });
 
 describe("HeightPass shaders  Ecaster-only composition (#27)", () => {
-  it("searches ONLY FLAG_CASTS_SHADOW surfaces with an independent owner scan", () => {
+  it("searches casting surfaces and inset modifiers with an independent owner scan", () => {
     // the caster pass must not filter the already selected full owner: the
     // WGSL must contain the FLAG_CASTS_SHADOW gate INSIDE its own surface
     // loop (an independent caster-only search)
     expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("const FLAG_CASTS_SHADOW: u32 = 0x1u;");
     expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain(
-      'if ((s.flags & FLAG_CASTS_SHADOW) == 0u) {',
+      'if ((s.flags & (FLAG_CASTS_SHADOW | FLAG_PROFILE_INSET)) == 0u) {',
     );
     expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("fn casterOwnerAt(sx: f32, sy: f32) -> OwnerResult");
     expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("let r = casterOwnerAt(sx, sy);");
     // same composition rule as the full field: larger f32 height wins,
     // exact ties go to the later surface
-    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("if (h > best || h == best) {");
+    expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("if (select(h >= best, h < best, inset)) {");
     expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain("let s = surfaces[i];");
     // writes the caster owner's height, 0.0 for no casting owner
     expect(COMPOSE_CASTER_HEIGHT_WGSL).toContain(

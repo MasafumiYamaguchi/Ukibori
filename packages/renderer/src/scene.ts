@@ -80,7 +80,9 @@ export function sanitizeLightColor(color: Partial<LinearRgb> | undefined): Linea
  *
  * - `evaluateProfile(profile, distance, bevelWidth, thickness)` returns the
  *   local height above the base, in `[0, thickness]`
- * - absolute scene z at a point is `elevation + localHeight`
+ * - raised candidate z is `elevation + localHeight`
+ * - inset candidate z is `max(0, elevation - localHeight)`; ordered min
+ *   composition lowers earlier geometry before subsequent raised surfaces
  * - `distance` is the signed distance from the shape boundary (negative
  *   inside, zero on boundary, positive outside)
  *
@@ -93,7 +95,13 @@ export function sanitizeLightColor(color: Partial<LinearRgb> | undefined): Linea
  *   zero at the nominal boundary. The bevel never extends outside the shape,
  *   so `SurfaceNode.size` describes the physical footprint (DOM semantics)
  */
-export type HeightProfile = { kind: "flat" } | { kind: "bevel" };
+/** Boundary-relative curve; flat/bevel are compatible step/smooth aliases. */
+export type ProfileCurve =
+  | { kind: "flat" | "bevel" | "step" | "linear" | "smooth" | "convex" | "concave" }
+  | { kind: "power"; exponent: number; bias?: "in" | "out" };
+
+/** Raised max operation or ordered inset min operation; raised is default. */
+export type HeightProfile = ProfileCurve & { mode?: "raised" | "inset" };
 
 /**
  * Material is referenced by id. Physical BRDF parameters are fixed by the
@@ -144,14 +152,13 @@ export interface SurfaceNode {
   /** width/height in scene units, > 0 */
   size: Vec2;
   /**
-   * Absolute scene-space z of the surface BASE (the bottom of the surface's
-   * solid). The top of the surface at a point is `elevation + localHeight`,
-   * so the whole surface sits at z >= elevation. Finite and >= 0.
+   * Absolute non-negative reference-plane z. Raised curves add localHeight;
+   * inset curves subtract it and clamp to the world floor at zero.
    */
   elevation: number;
   /**
-   * Vertical extent of the local height profile above the base, i.e. the
-   * maximum possible `localHeight`. Profile output is in `[0, thickness]`.
+   * Non-negative raised height or inset depth (maximum local magnitude).
+   * Profile output magnitude is in `[0, thickness]`.
    * Finite and >= 0; defaults to 0.
    */
   thickness?: number;
@@ -314,7 +321,7 @@ function validateSurface(node: SurfaceNode): SurfaceNode {
   assertFiniteNonNegative(node.bevelWidth ?? 0, `${label} bevelWidth`);
   if (!isHeightProfile(node.profile)) {
     throw new TypeError(
-      `${label} profile must be a profile descriptor (kind "flat"; analytic kinds come in #14)`,
+      `${label} profile must be a valid curve descriptor with raised/inset mode and positive finite f32 power exponent`,
     );
   }
   if (typeof node.material !== "string" || node.material.length === 0) {
@@ -339,7 +346,13 @@ function validateSurface(node: SurfaceNode): SurfaceNode {
       );
     }
   }
-  return { ...node, thickness: node.thickness ?? 0, bevelWidth: node.bevelWidth ?? 0 };
+  return {
+    ...node,
+    profile: node.profile.kind === "power"
+      ? { ...node.profile, exponent: Math.fround(node.profile.exponent) }
+      : { ...node.profile },
+    thickness: node.thickness ?? 0, bevelWidth: node.bevelWidth ?? 0,
+  };
 }
 
 function sanitizeIntensity(v: unknown): number {
@@ -350,8 +363,15 @@ export function isHeightProfile(v: unknown): v is HeightProfile {
   if (typeof v !== "object" || v === null) {
     return false;
   }
-  const kind = (v as HeightProfile).kind;
-  return kind === "flat" || kind === "bevel";
+  const profile = v as HeightProfile;
+  if (profile.mode !== undefined && profile.mode !== "raised" && profile.mode !== "inset") return false;
+  if (profile.kind === "power") {
+    if (typeof profile.exponent !== "number") return false;
+    const p = Math.fround(profile.exponent);
+    return Number.isFinite(p) && p > 0 &&
+      (profile.bias === undefined || profile.bias === "in" || profile.bias === "out");
+  }
+  return ["flat", "bevel", "step", "linear", "smooth", "convex", "concave"].includes(profile.kind);
 }
 
 /**

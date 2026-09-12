@@ -52,12 +52,16 @@ export const ABI_MAGIC = 0x554b4942; // "UKIB" tag, little-endian u32
  *
  * - 1: legacy (#24..#44). Header 112..128 = reserved zero (NO light color).
  * - 2: #45. Header 112..128 = `lightColor` vec4 (linear RGB r, g, b + zero w).
+ * - 3: #61. Surface offset 44 = power exponent; flags 2/3 = inset/power-out;
+ *   curve enum extends through 5. Header and record sizes are unchanged.
  *
- * The encoder always writes the current version; v1 buffers are rejected as
+ * The encoder always writes the current version; v1/v2 buffers are rejected as
  * unsupported rather than re-interpreted (their reserved zero bytes are NOT
  * a black light).
  */
-export const ABI_VERSION = 2;
+// ABI v3 (#61): surface offset 44 is power exponent; flags bits 2/3 are
+// inset/outward-power, and profile enums 2..5 are defined. Re-encode v1/v2.
+export const ABI_VERSION = 3;
 export const HEADER_SIZE = 128;
 
 /**
@@ -87,7 +91,7 @@ export const HEADER_SIZE = 128;
  * | 92     | 4    | reserved (u32, 0)                                 |
  * | 96     | 16   | environment (vec4: intensity, diffuseIntensity,   |
  * |        |      |            specularIntensity, 0)                  |
- * | 112    | 16   | ABI v2 ONLY: lightColor (vec4: linear RGB r, g,  |
+ * | 112    | 16   | ABI v2+: lightColor (vec4: linear RGB r, g,  |
  * |        |      |            b, 0; white default, HDR values > 1  |
  * |        |      |            allowed). ABI v1 kept 112..128 as    |
  * |        |      |            reserved zero and is REJECTED, never |
@@ -133,10 +137,10 @@ export function texelCenterToLogical(texel: number, dpr: number): number {
  * | 20     | 4    | thickness (f32 >= 0)                              |
  * | 24     | 4    | bevelWidth (f32 >= 0)                             |
  * | 28     | 4    | flags (u32; bit0 castsShadow, bit1 receivesShadow)|
- * | 32     | 4    | profileKind (u32: 0 = flat, 1 = bevel)            |
+ * | 32     | 4    | profileKind (u32: 0..5, see enum constants)            |
  * | 36     | 4    | maskIndex (u32, < maskCount when mask, else NO_OWNER) |
  * | 40     | 4    | radius (f32 >= 0, roundedRect corner radius)      |
- * | 44     | 4    | reserved0 (u32, 0)                                |
+ * | 44     | 4    | profileExponent (f32, > 0 for power; else 0)       |
  * | 48     | 16   | localToSceneRow0 (vec4: a, b, tx, 0)              |
  * | 64     | 16   | localToSceneRow1 (vec4: c, d, ty, 0)              |
  * | 80     | 16   | bounds (vec4: minX, minY, maxX, maxY)             |
@@ -170,6 +174,7 @@ export const SURFACE_OFFSET_FLAGS = 28;
 export const SURFACE_OFFSET_PROFILE_KIND = 32;
 export const SURFACE_OFFSET_MASK_INDEX = 36;
 export const SURFACE_OFFSET_RADIUS = 40;
+export const SURFACE_OFFSET_PROFILE_EXPONENT = 44;
 export const SURFACE_OFFSET_TRANSFORM_ROW0 = 48;
 export const SURFACE_OFFSET_TRANSFORM_ROW1 = 64;
 export const SURFACE_OFFSET_BOUNDS = 80;
@@ -179,7 +184,10 @@ export const SURFACE_OFFSET_LOCAL_SIZE = 96;
 export const FLAG_CASTS_SHADOW = 0x1;
 /** Surface flags bit 1: the surface receives cast-shadow visibility. */
 export const FLAG_RECEIVES_SHADOW = 0x2;
-export const FLAG_RESERVED_MASK = ~(FLAG_CASTS_SHADOW | FLAG_RECEIVES_SHADOW) >>> 0;
+/** #61 ordered carving and power-curve orientation (ABI v3). */
+export const FLAG_PROFILE_INSET = 0x4;
+export const FLAG_PROFILE_OUT = 0x8;
+export const FLAG_RESERVED_MASK = ~(FLAG_CASTS_SHADOW | FLAG_RECEIVES_SHADOW | FLAG_PROFILE_INSET | FLAG_PROFILE_OUT) >>> 0;
 
 /**
  * Mask record (MASK_STRIDE = 32 bytes).
@@ -235,6 +243,10 @@ export const SHAPE_ROUNDED_RECT = 0;
 export const SHAPE_MASK = 1;
 export const PROFILE_FLAT = 0;
 export const PROFILE_BEVEL = 1;
+export const PROFILE_LINEAR = 2;
+export const PROFILE_CONVEX = 3;
+export const PROFILE_CONCAVE = 4;
+export const PROFILE_POWER = 5;
 
 /** WebGPU `GPUBufferUsage` bit values (spec-fixed; usable in Node tests). */
 export const GPU_USAGE_MAP_READ = 0x1;

@@ -330,7 +330,7 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
 // storage = 8 (plus the uniform), staying within the spec-minimum
 // maxStorageBuffersPerShaderStage of 8. The deterministic owner is
 // recomputed per pass, so the full-field outputs agree; the caster-height
-// pass independently searches only FLAG_CASTS_SHADOW surfaces.
+// pass independently searches casting surfaces plus every inset modifier.
 // ---------------------------------------------------------------------------
 
 const COMPOSE_GROUP1 = /* wgsl */ `
@@ -345,6 +345,8 @@ const PROFILE_BEVEL: u32 = 1u;
 const NO_OWNER: u32 = 0xffffffffu;
 // ABI SurfaceRecord flags (offset 28): bit0 castsShadow, bit1 receivesShadow
 const FLAG_CASTS_SHADOW: u32 = 0x1u;
+const FLAG_PROFILE_INSET: u32 = 0x4u;
+const FLAG_PROFILE_OUT: u32 = 0x8u;
 // Most-negative f32: "no geometry" sentinel (CPU uses -Infinity; heights are
 // validated >= 0, so the h >= 0 test cleanly separates coverage from
 // no-coverage).
@@ -401,15 +403,33 @@ fn shapeHeightAt(i: u32, sx: f32, sy: f32) -> f32 {
   if (distance >= 0.0) {
     return F32_NEG_MAX; // no coverage
   }
-  if (s.profileKind == PROFILE_FLAT) {
-    return s.elevation + s.thickness;
+  var value = 1.0;
+  if (s.profileKind != PROFILE_FLAT && s.bevelWidth > 0.0) {
+    let t = clamp(-distance / s.bevelWidth, 0.0, 1.0);
+    switch s.profileKind {
+      case 1u: {
+        // Preserve the original smoothstep evaluation order for old scenes.
+        let u = clamp((distance + s.bevelWidth) / s.bevelWidth, 0.0, 1.0);
+        value = 1.0 - u * u * (3.0 - 2.0 * u);
+      }
+      case 2u: { value = t; }
+      case 3u: { value = t * t; }
+      case 4u: { value = 1.0 - (1.0 - t) * (1.0 - t); }
+      case 5u: {
+        // Explicit endpoints avoid pow(0,p) backend edge cases.
+        if (t == 0.0 || t == 1.0) { value = t; }
+        else if ((s.flags & FLAG_PROFILE_OUT) != 0u) {
+          value = 1.0 - pow(1.0 - t, s.profileExponent);
+        } else { value = pow(t, s.profileExponent); }
+      }
+      default: {}
+    }
   }
-  if (s.bevelWidth <= 0.0) {
-    return s.elevation + s.thickness; // zero bevel width degenerates to flat
+  let local = s.thickness * value;
+  if ((s.flags & FLAG_PROFILE_INSET) != 0u) {
+    return max(0.0, s.elevation - local);
   }
-  let u = clamp((distance + s.bevelWidth) / s.bevelWidth, 0.0, 1.0);
-  let falloff = u * u * (3.0 - 2.0 * u);
-  return s.elevation + s.thickness * (1.0 - falloff);
+  return s.elevation + local;
 }
 
 // Deterministic owner composition, mirroring composeHeightField: larger
@@ -436,7 +456,8 @@ fn ownerAt(sx: f32, sy: f32) -> OwnerResult {
     }
     let h = shapeHeightAt(i, sx, sy);
     if (h >= 0.0) {
-      if (h > best || h == best) {
+      let inset = (s.flags & FLAG_PROFILE_INSET) != 0u;
+      if (select(h >= best, h < best, inset)) {
         best = h;
         owner = i;
       }
@@ -447,8 +468,8 @@ fn ownerAt(sx: f32, sy: f32) -> OwnerResult {
 `;
 
 const COMPOSE_CASTER_CORE = /* wgsl */ `
-// CASTER-ONLY owner composition (#27): the search considers ONLY surfaces
-// with the ABI FLAG_CASTS_SHADOW bit set and otherwise uses the exact same
+// CASTER-ONLY owner composition (#27/#61): consider casting raised surfaces
+// and ALL inset modifiers, with the same ordered raise/carve
 // geometry/tie rules as ownerAt. This is the Hcaster field: a non-casting
 // top surface never hides a lower casting surface. Filtering the already
 // selected full owner would be incorrect (a texel owned by a non-casting
@@ -461,7 +482,7 @@ fn casterOwnerAt(sx: f32, sy: f32) -> OwnerResult {
   for (var k = 0u; k < candidateCount; k++) {
     let i = composeSurfaceIndex(k);
     let s = surfaces[i];
-    if ((s.flags & FLAG_CASTS_SHADOW) == 0u) {
+    if ((s.flags & (FLAG_CASTS_SHADOW | FLAG_PROFILE_INSET)) == 0u) {
       continue;
     }
     if (sx < s.bounds.x || sx > s.bounds.z || sy < s.bounds.y || sy > s.bounds.w) {
@@ -469,7 +490,8 @@ fn casterOwnerAt(sx: f32, sy: f32) -> OwnerResult {
     }
     let h = shapeHeightAt(i, sx, sy);
     if (h >= 0.0) {
-      if (h > best || h == best) {
+      let inset = (s.flags & FLAG_PROFILE_INSET) != 0u;
+      if (select(h >= best, h < best, inset)) {
         best = h;
         owner = i;
       }
@@ -574,8 +596,8 @@ export const COMPOSE_MATERIAL_ID_WGSL = composeModule(
 /**
  * Caster-height output pass (#27): writes the composed caster-only height
  * field Hcaster — the same f32 absolute scene-space z layout as `outHeight`,
- * but the owner search (`casterOwnerAt`) considers ONLY surfaces with the
- * ABI `FLAG_CASTS_SHADOW` bit. `0.0` (base plane) where no casting surface
+ * but the owner search (`casterOwnerAt`) considers casting raised surfaces
+ * plus every inset modifier. `0.0` (base plane) where no casting surface
  * owns the texel. Shadow visibility (#27 ShadowPass) samples this field
  * bilinearly, so a non-casting top surface never hides a lower casting
  * surface and caster boundaries follow the bilinear height semantics of

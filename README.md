@@ -141,3 +141,11 @@ npm run dev        # デモを起動
 
 #21(React API)実装済み。#33(WASM-assisted CPU fallback)実装済み。WebGPU統合(auto/cpu/webgpu backend、直接canvas提示、honest CPU fallback)実装済み。
 進行は [DEEPSEEK_IMPLEMENTATION_BRIEF.md](./DEEPSEEK_IMPLEMENTATION_BRIEF.md) のチェックポイント方式とGitHub Issue(#12〜)に従っています。
+## Boundary profile comparison
+
+Surfaces accept `profile={{ kind: "smooth", mode: "inset" }}` as well as
+`step`, `linear`, `convex`, `concave`, and adjustable `power` curves.
+Legacy `flat`/`bevel` remain raised step/smooth aliases. Insets carve earlier
+surfaces in scene order and update their shadow geometry.
+See [the profile API, formulas and composition rules](ISSUE_61_IMPLEMENTATION_REPORT.md).
+The deterministic comparison is available at `/profile-debug.html` in the demo.
