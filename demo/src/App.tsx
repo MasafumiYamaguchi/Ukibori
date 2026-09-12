@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import type { UkiboriBackend } from "ukibori";
+import type { Material, UkiboriBackend } from "ukibori";
 import { Surface, Ukibori, UkiboriText } from "ukibori";
 
 /**
@@ -9,7 +9,7 @@ import { Surface, Ukibori, UkiboriText } from "ukibori";
  * cast shadows) renders onto the provider's stage-root overlay.
  */
 
-const MATERIALS = ["silicone", "matte", "metal"] as const;
+const MATERIALS = ["silicone", "matte", "metal", "emissive"] as const;
 
 // #45 directional-light color presets: linear RGB (HDR values allowed).
 const LIGHT_COLORS: Record<string, { r: number; g: number; b: number }> = {
@@ -79,6 +79,18 @@ export function App() {
   const [material, setMaterial] = useState<(typeof MATERIALS)[number]>("silicone");
   const [backend, setBackend] = useState<UkiboriBackend>("auto");
   const [showPlay, setShowPlay] = useState(true);
+  const [emission, setEmission] = useState(2);
+  const [nearbyLight, setNearbyLight] = useState(1.5);
+  const [bloom, setBloom] = useState(0.6);
+
+  const materials: Record<string, Material> = {
+    emissive: {
+      baseColor: { r: 0.025, g: 0.025, b: 0.025 },
+      roughness: 0.5,
+      metallic: 0,
+      emissive: { r: 0.06 * emission, g: 0.65 * emission, b: emission },
+    },
+  };
 
   const setLightAxis = (axis: "x" | "y" | "z") => (value: number) =>
     setLight((prev) => ({ ...prev, [axis]: value }));
@@ -100,6 +112,14 @@ export function App() {
       }}
       environment={{ intensity: environment, specularIntensity: environmentSpecular }}
       exposure={exposure}
+      materials={materials}
+      compositing={{
+        emissive: {
+          illumination: { intensity: nearbyLight, radius: 72 },
+          bloom: { intensity: bloom, radius: 32, threshold: 1 },
+          quality: 4,
+        },
+      }}
       backend={backend}
       className="demo-root"
       gpuProfiling={import.meta.env.DEV}
@@ -297,6 +317,37 @@ export function App() {
               format={TWO_DECIMALS}
               onChange={setExposure}
             />
+            <SliderControl
+              label="Emissive intensity"
+              value={emission}
+              min={0}
+              max={4}
+              step={0.05}
+              format={TWO_DECIMALS}
+              onChange={setEmission}
+            />
+            <SliderControl
+              label="Nearby emissive light"
+              value={nearbyLight}
+              min={0}
+              max={3}
+              step={0.05}
+              format={TWO_DECIMALS}
+              onChange={setNearbyLight}
+            />
+            <SliderControl
+              label="Emissive bloom"
+              value={bloom}
+              min={0}
+              max={2}
+              step={0.05}
+              format={TWO_DECIMALS}
+              onChange={setBloom}
+            />
+            <p className="hint">
+              The cyan emissive material uses linear HDR RGB. Nearby light and bloom are
+              independent screen-space effects; set either control to 0 to disable it.
+            </p>
             <p className="hint">
               Environment is a uniform shared fill (0 = off) applied with exposure before sRGB
               encoding — physical path only, kept independent of the directional light.

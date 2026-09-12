@@ -55,13 +55,14 @@ export const ABI_MAGIC = 0x554b4942; // "UKIB" tag, little-endian u32
  * - 3: #61. Surface offset 44 = power exponent; flags 2/3 = inset/power-out;
  *   curve enum extends through 5. Header and record sizes are unchanged.
  *
- * The encoder always writes the current version; v1/v2 buffers are rejected as
+ * The encoder always writes the current version; v1/v2/v3 buffers are rejected as
  * unsupported rather than re-interpreted (their reserved zero bytes are NOT
  * a black light).
  */
 // ABI v3 (#61): surface offset 44 is power exponent; flags bits 2/3 are
 // inset/outward-power, and profile enums 2..5 are defined. Re-encode v1/v2.
-export const ABI_VERSION = 3;
+// ABI v4: material offset 32 contains emissive RGB; record stride is unchanged.
+export const ABI_VERSION = 4;
 export const HEADER_SIZE = 128;
 
 /**
@@ -225,7 +226,9 @@ export const ALPHA_FORMAT_U8 = 1;
  * | 16     | 4    | metallic (f32 in [0, 1])               |
  * | 20     | 4    | ior (f32 >= 1)                         |
  * | 24     | 4    | flags (u32, reserved, 0)               |
- * | 32..64 | 32   | reserved (vec4 + vec4, 0)              |
+ * | 28     | 4    | reserved (0)                            |
+ * | 32     | 12   | emissive (linear RGB radiance, f32 >= 0) |
+ * | 44..64 | 20   | reserved (0)                            |
  *
  * The table is packed in FIRST-APPEARANCE order across `scene.surfaces`,
  * matching `composeHeightField`'s material-id semantics, with each ref
@@ -237,6 +240,7 @@ export const MATERIAL_OFFSET_ROUGHNESS = 12;
 export const MATERIAL_OFFSET_METALLIC = 16;
 export const MATERIAL_OFFSET_IOR = 20;
 export const MATERIAL_OFFSET_FLAGS = 24;
+export const MATERIAL_OFFSET_EMISSIVE = 32;
 
 /** Record section enums. */
 export const SHAPE_ROUNDED_RECT = 0;

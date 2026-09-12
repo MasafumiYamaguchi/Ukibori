@@ -7,7 +7,7 @@ import type {
   SvgPathShape,
   UkiboriDom,
 } from "ukibori-dom";
-import type { HeightProfile, LinearRgb } from "ukibori-renderer";
+import type { HeightProfile, LinearRgb, Material } from "ukibori-renderer";
 import type { MaterialTokensOverride } from "./core/materials";
 
 export type { SvgPathShape } from "ukibori-dom";
@@ -101,6 +101,9 @@ export interface UkiboriProps {
    * HDR values above 1 preserved). Removing the prop restores white.
    */
   lightColor?: LinearRgb;
+  /** Physical material overrides, including optional linear-RGB emissive.
+   * Surface material refs select entries. Removing this prop restores presets. */
+  materials?: Record<string, Material>;
   /**
    * #41 apparent light size for the physical layer: angular radius of the
    * light cone in RADIANS (dimensionless, never dpr-scaled). 0/undefined
