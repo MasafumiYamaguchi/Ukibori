@@ -400,7 +400,7 @@ Browser debug page (demo): `npm run dev`, then `/renderer-debug.html`.
 and before exposure/sRGB conversion. Missing emission is black; non-negative,
 finite f32 values above 1 are preserved. Invalid/negative/f32-overflow channels
 become 0. Emission is independent of light color/intensity, normal and visibility;
-it does not illuminate other surfaces or provide bloom. Nonzero addition saturates
+nearby illumination and bloom require opting in via `compositeOptions.emissive`. Nonzero addition saturates
 at the f32 maximum; the zero-emission arithmetic path remains unchanged.
 
 ABI **v4** assigns material bytes 32–43 to emissive RGB, with 44–47 reserved zero.
@@ -412,3 +412,11 @@ changes, rerunning upload/lighting/presentation while retaining geometry/shadows
 Optional real-WebGPU verification: `npm run test:emissive:webgpu` after building.
 Install the `webgpu` Dawn package separately or set `UKIBORI_WEBGPU_MODULE` to its
 absolute module path. The runner fails when no real adapter is available.
+
+Emissive post-processing is opt-in through `GpuScenePipeline.render({ ..., compositeOptions:
+{ emissive: { illumination: { intensity: 1, radius: 48 }, bloom: { intensity: 0.6,
+radius: 24, threshold: 1 } } } })`. `renderEmissiveEffects` provides the matching CPU
+reference and returns premultiplied RGBA8; pass sanitized options from
+`sanitizeEmissiveEffects`. Lengths use scene units. Raw lighting snapshots remain
+pre-effect outputs. See the repository's `EMISSIVE_EFFECTS_IMPLEMENTATION_REPORT.md`
+for the approximation, memory cost and validation contract.

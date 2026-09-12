@@ -19,7 +19,7 @@ export interface Material {
   metallic: number;
   ior?: number;
   /** Self-emitted LINEAR RGB radiance, added before exposure; defaults to black.
-   * Finite non-negative f32 values, including HDR > 1. Does not cast light. */
+   * Finite non-negative f32 values, including HDR > 1. Nearby light/bloom are opt-in composite effects. */
   emissive?: LinearRgb;
 }
 
