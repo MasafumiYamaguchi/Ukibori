@@ -110,15 +110,14 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
   const renderHeight = Math.max(1, Math.floor(scene.height * dprF));
 
   const surfaceCount = scene.surfaces.length;
-  const materialRefs: string[] = [];
+  const materialIndexByRef = new Map<string, number>();
   const materials: EncodedMaterial[] = [];
   const masks: MaskSource[] = [];
-  const maskBlobs: Uint8Array[] = [];
   const maskIndexByMask = new Map<MaskSource, number>();
 
   for (const surface of scene.surfaces) {
-    if (!materialRefs.includes(surface.material)) {
-      materialRefs.push(surface.material);
+    if (!materialIndexByRef.has(surface.material)) {
+      materialIndexByRef.set(surface.material, materials.length);
       const resolved = resolveMaterial(scene.materials, surface.material);
       materials.push({
         baseColor: [
@@ -134,9 +133,6 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
     if (surface.shape.kind === "mask" && !maskIndexByMask.has(surface.shape.mask)) {
       maskIndexByMask.set(surface.shape.mask, masks.length);
       masks.push(surface.shape.mask);
-      const alpha = surface.shape.mask.alpha;
-      const blob = packMaskAlpha(alpha);
-      maskBlobs.push(blob);
     }
   }
 
@@ -150,8 +146,8 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
 
   let maskPixelsByteLength = 0;
   const paddedBlobLengths: number[] = [];
-  for (const blob of maskBlobs) {
-    const padded = align16(blob.byteLength);
+  for (const mask of masks) {
+    const padded = align16(mask.alpha.byteLength);
     paddedBlobLengths.push(padded);
     maskPixelsByteLength += padded;
   }
@@ -159,7 +155,6 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
   const totalByteLength = maskPixelsOffset + maskPixelsByteLength;
   const bytes = new Uint8Array(totalByteLength);
   const view = new DataView(bytes.buffer);
-  bytes.fill(0);
 
   // Header.
   writeU32(view, 0, ABI_MAGIC);
@@ -204,7 +199,7 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
     writeU32(view, record + SURFACE_OFFSET_PAINT_ORDER, i);
     const shapeKind = surface.shape.kind === "mask" ? SHAPE_MASK : SHAPE_ROUNDED_RECT;
     writeU32(view, record + SURFACE_OFFSET_SHAPE_KIND, shapeKind);
-    writeU32(view, record + SURFACE_OFFSET_MATERIAL_INDEX, materialRefs.indexOf(surface.material));
+    writeU32(view, record + SURFACE_OFFSET_MATERIAL_INDEX, materialIndexByRef.get(surface.material)!);
     writeF32(view, record + SURFACE_OFFSET_ELEVATION, Math.fround(surface.elevation));
     writeF32(view, record + SURFACE_OFFSET_THICKNESS, Math.fround(surface.thickness ?? 0));
     writeF32(view, record + SURFACE_OFFSET_BEVEL_WIDTH, Math.fround(surface.bevelWidth ?? 0));
@@ -279,8 +274,7 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
     writeU32(view, record + MASK_OFFSET_ALPHA_FORMAT, format);
     writeU32(view, record + MASK_OFFSET_ALPHA_BYTE_LENGTH, alpha.byteLength);
     writeU32(view, record + MASK_OFFSET_PIXEL_OFFSET, pixelCursor);
-    const blob = maskBlobs[i];
-    bytes.set(blob, pixelCursor);
+    writeMaskAlpha(alpha, bytes, view, pixelCursor);
     pixelCursor += paddedBlobLengths[i];
   }
 
@@ -359,18 +353,21 @@ function align16(length: number): number {
  * copied). `MaskSource.alpha` may be a non-zero-byteOffset view; only the
  * viewed elements are packed.
  */
-function packMaskAlpha(alpha: Float32Array | Uint8Array): Uint8Array {
+function writeMaskAlpha(
+  alpha: Float32Array | Uint8Array,
+  bytes: Uint8Array,
+  view: DataView,
+  offset: number,
+): void {
+  // Write directly into the final allocation. TypedArray.set respects source
+  // byteOffset/length and copies, so later source edits cannot change the ABI.
   if (alpha instanceof Uint8Array) {
-    return new Uint8Array(
-      alpha.buffer.slice(alpha.byteOffset, alpha.byteOffset + alpha.byteLength),
-    );
+    bytes.set(alpha, offset);
+    return;
   }
-  const blob = new Uint8Array(alpha.byteLength);
-  const view = new DataView(blob.buffer);
   for (let i = 0; i < alpha.length; i++) {
-    view.setFloat32(i * 4, alpha[i], true);
+    view.setFloat32(offset + i * 4, alpha[i], true);
   }
-  return blob;
 }
 
 function writeU32(view: DataView, offset: number, value: number): void {
