@@ -430,3 +430,30 @@ describe("encodeScene — material and mask tables", () => {
     expect(utf8.includes("icon")).toBe(false);
   });
 });
+
+
+describe("encodeScene — direct mask packing ownership", () => {
+  it.each(["u8", "f32"])("copies %s subviews into an independent, zero-padded snapshot", (kind) => {
+    const alpha = kind === "u8"
+      ? new Uint8Array([99, 0, 128, 255, 99]).subarray(1, 4)
+      : new Float32Array([99, 0, 0.5, 1, 99]).subarray(1, 4);
+    const scene = roundedScene();
+    scene.surfaces[0].shape = { kind: "mask", mask: { width: 3, height: 1, alpha } };
+    // The repeated mask must still share one record and payload.
+    scene.surfaces[1].shape = scene.surfaces[0].shape;
+    const bytes = encodeScene(scene, 1).bytes;
+    const header = parseHeader(bytes);
+    const layout = sceneSectionLayout(header);
+    expect(header.maskCount).toBe(1);
+    const expected = new Uint8Array(16);
+    if (kind === "u8") expected.set([0, 128, 255]);
+    else {
+      const view = new DataView(expected.buffer);
+      [0, 0.5, 1].forEach((value, i) => view.setFloat32(i * 4, value, true));
+    }
+    expect(bytes.subarray(layout.maskPixelsOffset)).toEqual(expected);
+    alpha.fill(0);
+    expect(bytes.subarray(layout.maskPixelsOffset)).toEqual(expected);
+    expect(encodeScene(scene, 1).bytes).not.toEqual(bytes);
+  });
+});
