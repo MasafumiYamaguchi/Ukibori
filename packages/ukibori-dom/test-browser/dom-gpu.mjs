@@ -256,6 +256,24 @@ function makeStage() {
   return { stage, button };
 }
 
+function makeGlyphStage() {
+  const stage = document.createElement("div");
+  stage.style.setProperty("--glyph-color", "rgb(255, 0, 0)");
+  document.body.appendChild(stage);
+  const glyph = document.createElement("span");
+  glyph.textContent = "PLAY";
+  glyph.style.color = "var(--glyph-color)";
+  stage.appendChild(glyph);
+  const rect = { ...BUTTON_RECT, x: BUTTON_RECT.left, y: BUTTON_RECT.top };
+  glyph.getBoundingClientRect = () => ({
+    ...rect,
+    right: rect.x + rect.width,
+    bottom: rect.y + rect.height,
+    toJSON: () => rect,
+  });
+  return { stage, glyph };
+}
+
 /** The lazily created WebGPU canvas (overlay-internal accessor, test seam). */
 function gpuCanvasOf(layer) {
   return layer.overlay.gpuCanvas();
@@ -280,10 +298,13 @@ function wrapPipelineDebugReadback(layer) {
   pipeline.render = (input) => original({ ...input, debugReadback: true });
 }
 
-/** One RGBA pixel out of tightly packed staging rows (alpha at index 3 for both rgba8unorm and bgra8unorm byte layouts). */
+/** One normalized RGBA pixel out of tightly packed staging rows. */
 function stagingPixel(rows, width, [x, y]) {
   const p = (y * width + x) * 4;
-  return [rows[p], rows[p + 1], rows[p + 2], rows[p + 3]];
+  const pixel = [rows[p], rows[p + 1], rows[p + 2], rows[p + 3]];
+  return navigator.gpu.getPreferredCanvasFormat() === "bgra8unorm"
+    ? [pixel[2], pixel[1], pixel[0], pixel[3]]
+    : pixel;
 }
 
 function assertFrameHealthy(layer, gpuCanvas, timeline, dpr, phaseLabel) {
@@ -478,6 +499,95 @@ async function runDprChangeScenario() {
     assertFrameHealthy(layer, gpuCanvas, timeline, 1.5, `${label} at dpr 1.5`);
     const surface15 = stagingPixel(rows15, Math.floor(REGION.w * 1.5), surfaceCenterPoint(1.5));
     eq(surface15[3], 255, `${label} at dpr 1.5 surface alpha`);
+  } finally {
+    layer.dispose();
+    stage.remove();
+  }
+}
+
+/** #56 real-WebGPU proof: live inherited CSS color becomes material albedo. */
+async function runGlyphColorScenario() {
+  const label = "glyph css color";
+  const { stage, glyph } = makeGlyphStage();
+  const layer = await UkiboriDom.create({
+    backend: "webgpu",
+    dpr: 1,
+    observe: false,
+    schedule,
+    overlay: { stage },
+  });
+  try {
+    const device = layer.gpuDevice;
+    wrapPipelineDebugReadback(layer);
+    const gpuCanvas = gpuCanvasOf(layer);
+    const mask = { width: 40, height: 11, alpha: new Float32Array(40 * 11).fill(1) };
+    layer.register(glyph, {
+      id: "glyph-color",
+      shape: { kind: "mask", mask },
+      elevation: 2,
+      thickness: 2,
+      bevelWidth: 1,
+      profile: { kind: "bevel" },
+      material: "metal",
+      castsShadow: false,
+      receivesShadow: false,
+      delegateTextInk: true,
+    });
+    flush();
+    const context = gpuCanvas.getContext("webgpu");
+    const redHandle = submitPresentedCopy(device, context, REGION.w, REGION.h);
+    await settle(device);
+    const redRows = await stagingReadback(redHandle);
+    const red = stagingPixel(redRows, REGION.w, surfaceCenterPoint(1));
+    check(red[0] > red[2] + 20, `${label}: red CSS did not produce red albedo rgba(${red})`);
+    eq(glyph.getAttribute("data-ukibori-physical-ink"), "", `${label}: opaque red delegation`);
+    eq(getComputedStyle(glyph).color, "rgb(255, 0, 0)", `${label}: suppression preserves computed color`);
+    check(
+      getComputedStyle(glyph).webkitTextFillColor === "rgba(0, 0, 0, 0)",
+      `${label}: DOM glyph fill is not transparent while delegated`,
+    );
+
+    // Inherited CSS-variable/theme-style update. Explicit invalidate is the
+    // observe:false test equivalent of the production document observer.
+    stage.style.setProperty("--glyph-color", "rgb(0, 0, 255)");
+    layer.invalidate("glyph-color");
+    flush();
+    const blueHandle = submitPresentedCopy(device, context, REGION.w, REGION.h);
+    await settle(device);
+    const blueRows = await stagingReadback(blueHandle);
+    const blue = stagingPixel(blueRows, REGION.w, surfaceCenterPoint(1));
+    check(blue[2] > blue[0] + 20, `${label}: blue update did not produce blue albedo rgba(${blue})`);
+
+    stage.style.setProperty("--glyph-color", "rgba(0, 0, 255, 0.5)");
+    layer.invalidate("glyph-color");
+    flush();
+    eq(glyph.getAttribute("data-ukibori-physical-ink"), null, `${label}: alpha fallback`);
+    const alphaHandle = submitPresentedCopy(device, context, REGION.w, REGION.h);
+    await settle(device);
+    const alphaRows = await stagingReadback(alphaHandle);
+    const alphaPhysical = stagingPixel(alphaRows, REGION.w, surfaceCenterPoint(1));
+    eq(alphaPhysical[3], 0, `${label}: alpha fallback left a physical glyph`);
+    eq(getComputedStyle(glyph).color, "rgba(0, 0, 255, 0.5)", `${label}: native alpha color visible`);
+
+    stage.style.setProperty("--glyph-color", "rgb(17, 17, 17)");
+    layer.invalidate("glyph-color");
+    flush();
+    const blackHandle = submitPresentedCopy(device, context, REGION.w, REGION.h);
+    await settle(device);
+    const blackRows = await stagingReadback(blackHandle);
+    const black = stagingPixel(blackRows, REGION.w, surfaceCenterPoint(1));
+    eq(black[3], 255, `${label}: #111 recovery physical alpha`);
+    check(
+      Math.max(black[0], black[1], black[2]) - Math.min(black[0], black[1], black[2]) <= 2,
+      `${label}: #111 physical pigment is not neutral rgba(${black})`,
+    );
+    check(black[0] > 0 && black[0] < red[0], `${label}: #111 lost black pigment/specular response rgba(${black})`);
+    eq(glyph.getAttribute("data-ukibori-physical-ink"), "", `${label}: opaque recovery delegation`);
+    eq(getComputedStyle(glyph).color, "rgb(17, 17, 17)", `${label}: #111 computed color preserved`);
+    note(
+      `${label}: red=rgba(${red}) blue=rgba(${blue}) alphaPhysical=rgba(${alphaPhysical}) ` +
+        `black=rgba(${black}) recovery=true`,
+    );
   } finally {
     layer.dispose();
     stage.remove();
@@ -882,6 +992,7 @@ async function main() {
     await runFixedDprScenario(1.5);
     await runFixedDprScenario(2);
     await runDprChangeScenario();
+    await runGlyphColorScenario();
     const notesText =
       notes.map((n) => `  # ${n}`).join("\n") +
       (gpuErrors.length > 0

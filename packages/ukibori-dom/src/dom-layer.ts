@@ -19,11 +19,13 @@ import type {
   Material,
 } from "ukibori-renderer";
 import { computeRegion, renderTargetSize, sanitizeDpr, scaleShadowOptions } from "./coords";
+import { linearRgbEqual, readOpaqueComputedTextColor } from "./computed-text-color";
 import { compositeSurfaceImage } from "./compositor";
 import { geometriesEqual, measureSurfaceElement } from "./measure";
 import { OverlayCanvas, isManagedMutation, restorePhysicalInk, restoreSurface, suppressPhysicalInk, suppressSurface } from "./overlay";
 import type { Overlay } from "./overlay";
 import { SurfaceRegistry, assertValidId } from "./registry";
+import type { SurfaceEntry } from "./registry";
 import { buildScene } from "./scene-builder";
 import { SvgPathRasterCache } from "./svg-path";
 import type {
@@ -588,8 +590,29 @@ export class UkiboriDom {
    * delegation is the UkiboriText-specific "this DOM text was rasterized into
    * THIS mask" semantic.
    */
-  private static delegatesInk(options: DomSurfaceOptions): boolean {
+  private static requestsInkDelegation(options: DomSurfaceOptions): boolean {
     return options.delegateTextInk === true && options.shape?.kind === "mask";
+  }
+
+  /** #56 synchronize live CSS color, visual participation and #52 ownership. */
+  private syncPhysicalInk(entry: SurfaceEntry): boolean {
+    const requested = UkiboriDom.requestsInkDelegation(entry.options);
+    const nextColor = requested ? readOpaqueComputedTextColor(entry.element) : null;
+
+    const previousColor = entry.computedTextColor;
+    entry.computedTextColor = nextColor ?? undefined;
+    const shouldDelegate = requested && nextColor !== null;
+    const stateChanged =
+      shouldDelegate !== entry.inkDelegated || shouldDelegate !== entry.visualGlyphDelegated;
+    entry.visualGlyphDelegated = shouldDelegate;
+    if (!entry.inkDelegated && shouldDelegate) {
+      suppressPhysicalInk(entry.element);
+      entry.inkDelegated = true;
+    } else if (entry.inkDelegated && !shouldDelegate) {
+      restorePhysicalInk(entry.element);
+      entry.inkDelegated = false;
+    }
+    return stateChanged || !linearRgbEqual(previousColor, entry.computedTextColor);
   }
 
   /**
@@ -633,13 +656,11 @@ export class UkiboriDom {
         geometry: null,
         dirty: true,
         inkDelegated: false,
+        visualGlyphDelegated: false,
       };
       this.registry.add(entry);
-      inkDelegated = UkiboriDom.delegatesInk(entry.options);
-      if (inkDelegated) {
-        suppressPhysicalInk(element);
-        entry.inkDelegated = true;
-      }
+      this.syncPhysicalInk(entry);
+      inkDelegated = entry.inkDelegated;
     } catch (error) {
       restoreSurface(element);
       if (inkDelegated) {
@@ -697,16 +718,8 @@ export class UkiboriDom {
     // merge; identical states do nothing, so retained property updates
     // (text/material/elevation/... changes, mask object swaps) never
     // multiply the attribute refcount.
-    const wasDelegated = entry.inkDelegated;
     entry.options = { ...entry.options, ...patch, id: entry.options.id };
-    const shouldDelegate = UkiboriDom.delegatesInk(entry.options);
-    if (!wasDelegated && shouldDelegate) {
-      suppressPhysicalInk(entry.element);
-      entry.inkDelegated = true;
-    } else if (wasDelegated && !shouldDelegate) {
-      restorePhysicalInk(entry.element);
-      entry.inkDelegated = false;
-    }
+    this.syncPhysicalInk(entry);
     // Any option change feeds the scene (geometry, elevation, material...).
     this.sceneDirty = true;
     this.registry.markDirty(id);
@@ -942,6 +955,12 @@ export class UkiboriDom {
     // rebake). A dynamic-only update must leave this at 0.
     let rebakedEntries = 0;
     for (const entry of this.registry.entries()) {
+      // #56: class/style/inherited/custom-property changes schedule a render
+      // through the existing document observer. Refresh the live computed
+      // color before the unchanged-geometry early exit.
+      if (this.syncPhysicalInk(entry)) {
+        this.sceneDirty = true;
+      }
       if (entry.dirty || entry.geometry === null) {
         entry.dirty = false;
         let geometry;

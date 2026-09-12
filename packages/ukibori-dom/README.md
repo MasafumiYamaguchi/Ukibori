@@ -266,6 +266,34 @@ identity also binds to the typography-relevant style/className props and a
 computed typography fingerprint, so a style-driven typography change
 re-rasterizes (or falls back) instead of leaving a stale physical glyph.
 
+### #56 computed CSS text color
+
+For a faithful delegated glyph, the live
+`getComputedStyle(element).color` is also part of the visual contract. The DOM
+layer parses browser-normalized opaque sRGB, converts it exactly once to
+linear RGB, and composes it over the resolved material's `baseColor` before
+scene creation. The resolved `roughness`, `metallic`, and `ior` are preserved;
+CSS owns pigment/albedo while the material owns physical response. The scene
+builder emits a scene-local effective material ref, so the unchanged CPU
+resolver and GPU material ABI consume the same values.
+
+The color is refreshed before the unchanged-geometry retained-render exit,
+covering inline/class/inherited/custom-property/theme mutations through the
+existing invalidation observer. Since renderer materials and the presented
+color buffer are RGB-only/opaque, a partially transparent or unsupported
+computed color releases ink delegation, excludes that explicit glyph from
+the physical scene (including object-id/shadow participation), and leaves the
+DOM text as the sole visual source. DOM attribute/class/style mutations,
+including inherited custom-property theme changes, refresh automatically.
+Pure CSSOM edits (`insertRule()` or direct `cssRules[].style` mutation) do not
+reliably emit MutationObserver records and therefore require
+`layer.invalidate(id)`; there is deliberately no polling style scan.
+
+Chromium ink suppression uses transparent `-webkit-text-fill-color` and
+`-webkit-text-stroke-color` plus no `text-shadow`, while leaving `color`
+untouched and readable. This mechanism is currently browser-specific to the
+supported Chromium path.
+
 A registered element that measures to zero / non-positive size (e.g.
 `display: none`, detached, still laying out) is a **temporarily
 non-renderable scene node**: it is excluded from the scene and region while

@@ -1,4 +1,4 @@
-import { createScene, DEFAULT_LIGHT_DIRECTION, normalizeVec3 } from "ukibori-renderer";
+import { createScene, DEFAULT_LIGHT_DIRECTION, normalizeVec3, resolveMaterial } from "ukibori-renderer";
 import type { Material, Scene, SurfaceNode } from "ukibori-renderer";
 import { renderTargetSize } from "./coords";
 import type { SurfaceRegistry } from "./registry";
@@ -69,6 +69,9 @@ export function buildScene(input: BuildSceneInput): Scene {
   const { registry, region, dpr, light, materials } = input;
   const { width, height } = renderTargetSize(region, dpr);
   const surfaces: SurfaceNode[] = [];
+  let effectiveMaterials: Record<string, Material> | undefined = materials;
+  const coloredMaterialRefs = new Map<string, string>();
+  let coloredMaterialSerial = 0;
   for (const entry of registry.entries()) {
     if (entry.geometry === null) {
       continue;
@@ -90,6 +93,45 @@ export function buildScene(input: BuildSceneInput): Scene {
     const svgMask = options.shape.kind === "svgPath"
       ? svgMaskFor(options.shape, geo.w, geo.h, dpr, input.svgPathCache ?? defaultSvgMaskCache)
       : null;
+    // #56 faithful DOM fallback: an explicit UkiboriText glyph whose color
+    // cannot be represented is wholly absent from the physical scene. This
+    // also removes object-id ownership and any cast/receive shadow effects.
+    if (
+      options.delegateTextInk === true &&
+      options.shape.kind === "mask" &&
+      !entry.visualGlyphDelegated
+    ) {
+      continue;
+    }
+    let material = options.material;
+    if (entry.visualGlyphDelegated && entry.computedTextColor !== undefined) {
+      // #56: compose CSS pigment over the resolved preset/custom material.
+      // Roughness, metallic and IOR remain owned by the material. A generated
+      // scene-local ref feeds the existing CPU resolver and GPU material ABI,
+      // keeping both backends on one effective-material path.
+      const color = entry.computedTextColor;
+      const key = `${material}\u0000${color.r}\u0000${color.g}\u0000${color.b}`;
+      const existing = coloredMaterialRefs.get(key);
+      if (existing !== undefined) {
+        material = existing;
+      } else {
+        if (effectiveMaterials === materials) {
+          effectiveMaterials = { ...(materials ?? {}) };
+        }
+        const materialTable = effectiveMaterials ?? (effectiveMaterials = {});
+        let generated = `@ukibori-dom/text-color/${coloredMaterialSerial++}`;
+        while (Object.prototype.hasOwnProperty.call(materialTable, generated)) {
+          generated = `@ukibori-dom/text-color/${coloredMaterialSerial++}`;
+        }
+        const base = resolveMaterial(materials, material);
+        materialTable[generated] = {
+          ...base,
+          baseColor: { r: color.r, g: color.g, b: color.b },
+        };
+        coloredMaterialRefs.set(key, generated);
+        material = generated;
+      }
+    }
     surfaces.push({
       id: options.id,
       position: {
@@ -113,7 +155,7 @@ export function buildScene(input: BuildSceneInput): Scene {
               }
             : { kind: "roundedRect", radius: geo.radius * dpr },
       profile: options.profile ?? { kind: "bevel" },
-      material: options.material,
+      material,
       castsShadow: options.castsShadow ?? true,
       receivesShadow: options.receivesShadow ?? true,
     });
@@ -144,7 +186,7 @@ export function buildScene(input: BuildSceneInput): Scene {
     width,
     height,
     surfaces,
-    materials,
+    materials: effectiveMaterials,
     light: {
       direction,
       intensity: sanitizeNonNegative(light.intensity),
