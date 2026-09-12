@@ -1173,3 +1173,21 @@ it("updates emissive values without recomputing retained geometry or shadows", (
   expect(pipeline.getSnapshot().lightingPass.provenance).toBe(prior);
   pipeline.dispose();
 });
+
+it("retains emissive effects across repaint, updates only presentation on controls, and frees buffers", () => {
+  const { pipeline, device } = setup();
+  const scene = sceneA();
+  pipeline.render({ scene, dpr: 1 });
+  const before = pipeline.getSnapshot().heightPass.provenance;
+  const compositeOptions = { emissive: { bloom: { radius: 12 }, illumination: { radius: 24 } } };
+  const enabled = pipeline.render({ scene, dpr: 1, compositeOptions });
+  expect(enabled.invalidation.executed).toEqual(["presentation"]);
+  expect(pipeline.getSnapshot().heightPass.provenance).toBe(before);
+  pipeline.present();
+  expect(pipeline.render({ scene, dpr: 1, compositeOptions }).invalidation.executed).toEqual([]);
+  const changed = pipeline.render({ scene, dpr: 1, compositeOptions: { emissive: { bloom: { radius: 18 } } } });
+  expect(changed.invalidation.executed).toEqual(["presentation"]);
+  expect(pipeline.render({ scene, dpr: 1 }).invalidation.executed).toEqual(["presentation"]);
+  pipeline.dispose();
+  expect(device.created.every(buffer => buffer.destroyed)).toBe(true);
+});

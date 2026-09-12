@@ -174,4 +174,35 @@ The deterministic comparison is available at `/profile-debug.html` in the demo.
 
 `materials`の変更は既存レイヤーへ反映され、propを取り除くと組み込みマテリアルに戻ります。DOM APIでは`UkiboriDom.create({ materials })`と`layer.setMaterials(materials)`、rendererでは`createScene({ materials })`から同じマテリアルを使用できます。CSS近似モードはemissiveの物理描画には対応しません。
 
-周囲を照らす面光源やブルームは含みません。デモは`npm run dev`の`/emissive-debug.html`で、発光・外部照明・露出を変更できます。
+周囲への近似照明とブルームは、以下の`compositing.emissive`で有効にできます。デモは`npm run dev`の`/emissive-debug.html`で、発光・外部照明・露出を変更できます。
+
+### Emissive illumination and bloom
+
+Enable nearby illumination and HDR bloom independently through `compositing`:
+
+```tsx
+<Ukibori
+  materials={{ led: {
+    baseColor: { r: 0.02, g: 0.02, b: 0.02 }, roughness: 0.5, metallic: 0,
+    emissive: { r: 0.1, g: 2, b: 4 },
+  } }}
+  compositing={{ emissive: {
+    illumination: { intensity: 1.5, radius: 72 },
+    bloom: { intensity: 0.6, radius: 32, threshold: 1 },
+    quality: 4,
+  } }}
+>
+  <Surface material="led" elevation={2}>Light</Surface>
+</Ukibori>
+```
+
+Lengths are CSS pixels in React/DOM. Both effects are off when omitted; set either
+intensity to zero to disable it. Bloom filters exposed HDR **emission**, including
+values above 1, with a separable Gaussian. It does not bloom ordinary reflected
+highlights. Nearby illumination is a visible-source screen-space approximation,
+with receiver normals and four height checks for occlusion. It cannot account for
+hidden/offscreen emitters or indirect bounces. `quality` (2–6, default 4) controls
+illumination sampling; thin emitters can fall between samples.
+
+Try `demo/emissive-debug.html` to adjust emission, nearby illumination and bloom
+separately. See [implementation details](EMISSIVE_EFFECTS_IMPLEMENTATION_REPORT.md).

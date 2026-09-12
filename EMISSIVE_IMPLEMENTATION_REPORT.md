@@ -1,5 +1,8 @@
 # Emissive material implementation
 
+This report describes the self-emission PR. Optional nearby illumination and bloom
+are documented in [the subsequent effects report](EMISSIVE_EFFECTS_IMPLEMENTATION_REPORT.md).
+
 This PR is stacked on **PR #65** (`codex/issue-61-height-profiles`), so the profile
 ABI v3 precedes the material ABI v4. It does not include performance PRs #66–#68,
 and Issue #12 remains excluded. Merge #65 before this PR (or retain their order

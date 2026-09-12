@@ -1,3 +1,5 @@
+import { sanitizeEmissiveEffects } from "../emissive-effects";
+import type { EmissiveEffectsOptions, EffectiveEmissiveEffects } from "../emissive-effects";
 import { NO_OWNER } from "../compose";
 
 /**
@@ -39,6 +41,7 @@ export const DEFAULT_SHADOW_ALPHA = 0.3;
 
 /** CPU-compatible composite options (mirrors the DOM `CompositeOptions`). */
 export interface CompositeOptions {
+  readonly emissive?: EmissiveEffectsOptions;
   /** RGB 0..255 tint for cast shadows on the base plane (default near-black) */
   readonly shadowColor?: readonly [number, number, number];
   /** 0..1 opacity of cast shadows on the base plane (default 0.3) */
@@ -47,6 +50,7 @@ export interface CompositeOptions {
 
 /** The sanitized effective composite options (pinned by tests). */
 export interface EffectiveCompositeOptions {
+  readonly emissive?: EffectiveEmissiveEffects;
   readonly shadowColor: readonly [number, number, number];
   readonly shadowAlpha: number;
 }
@@ -70,7 +74,7 @@ export function sanitizeCompositeOptions(
     typeof options.shadowAlpha === "number" && Number.isFinite(options.shadowAlpha)
       ? clamp01(options.shadowAlpha)
       : DEFAULT_SHADOW_ALPHA;
-  return { shadowColor, shadowAlpha: alpha };
+  return { shadowColor, shadowAlpha: alpha, ...(options.emissive ? { emissive: sanitizeEmissiveEffects(options.emissive) } : {}) };
 }
 
 /**

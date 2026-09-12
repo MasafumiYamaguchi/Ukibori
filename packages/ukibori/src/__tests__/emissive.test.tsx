@@ -32,3 +32,23 @@ it("forwards emissive material updates and removal while retaining the layer and
   expect(setter).toHaveBeenLastCalledWith({});
   expect(layer).toBe(first);
 });
+
+it("updates bloom controls in place and clears them without replacing the layer", async () => {
+  stubElementRects(); stubCanvas2d();
+  let layer: UkiboriDom | null = null;
+  const compositing = { emissive: { bloom: { intensity: 0.5, radius: 3 } } };
+  const tree = (options?: typeof compositing) => <Ukibori backend="cpu" dpr={1} compositing={options}
+    schedule={cb => cb()} onReady={value => { layer = value; }}>
+    <Surface sceneId="receiver" material="matte" elevation={1}>Receiver</Surface>
+  </Ukibori>;
+  const { rerender } = render(tree(compositing)); await flush();
+  const first = layer!;
+  const setter = vi.spyOn(first, "setCompositing");
+  compositing.emissive.bloom.intensity = 0;
+  rerender(tree(compositing)); await flush();
+  expect(layer).toBe(first);
+  expect(setter).toHaveBeenLastCalledWith(compositing);
+  rerender(tree()); await flush();
+  expect(setter).toHaveBeenLastCalledWith({});
+  expect(layer).toBe(first);
+});

@@ -293,6 +293,8 @@ export interface PresentationPassInput {
   readonly canvasFormat: Canvas8BitFormat;
   /** CPU-compatible composite options; sanitized like the CPU compositor */
   readonly options?: CompositeOptions;
+  /** Color already contains premultiplied shadows and emissive effects. */
+  readonly precomposited?: boolean;
   /**
    * Test-only: additionally request `COPY_SRC` on the canvas texture
    * usage so the harness can read the presented bytes. The default
@@ -477,7 +479,7 @@ export class PresentationPass {
     // One reusable/growing uniform allocation; every GPUBufferBinding below
     // carries an explicit validated size.
     this.ensureAllocation("uniform", PRESENTATION_PARAMS_BYTE_LENGTH);
-    this.packUniform(renderWidth, renderHeight, composite);
+    this.packUniform(renderWidth, renderHeight, composite, input.precomposited === true);
     this.device.queue.writeBuffer(this.allocation("uniform"), 0, this.uniformBytes);
 
     const cached = this.ensurePipeline(canvasFormat);
@@ -871,6 +873,7 @@ export class PresentationPass {
     width: number,
     height: number,
     composite: EffectiveCompositeOptions,
+    precomposited: boolean,
   ): void {
     const view = new DataView(this.uniformBytes.buffer);
     view.setUint32(0, width, true);
@@ -882,7 +885,7 @@ export class PresentationPass {
     view.setUint32(12, composite.shadowColor[1] | 0, true);
     view.setUint32(16, composite.shadowColor[2] | 0, true);
     view.setUint32(20, compositeShadowAlphaByte(composite.shadowAlpha), true);
-    view.setUint32(24, 0, true);
+    view.setUint32(24, precomposited ? 1 : 0, true);
     view.setUint32(28, 0, true);
   }
 

@@ -7,6 +7,8 @@ import {
   composeSdfHeightField,
   lightScene,
   normalizeVec3,
+  sanitizeEmissiveEffects, emissiveEffectsActive, scaleEmissiveEffects, renderEmissiveEffects,
+  sanitizeCompositeOptions,
 } from "ukibori-renderer";
 import type {
   GpuCanvasContextLike,
@@ -979,7 +981,9 @@ export class UkiboriDom {
     }
     this.forceRender = false;
 
-    const region = computeRegion(this.registry.measuredBoxes(), this.margin);
+    const effects = sanitizeEmissiveEffects(this.compositeOptions.emissive);
+    const effectsMargin = Math.max(effects.lightIntensity > 0 ? effects.lightRadius : 0, effects.bloomIntensity > 0 ? effects.bloomRadius : 0);
+    const region = computeRegion(this.registry.measuredBoxes(), Math.max(this.margin, Math.ceil(effectsMargin)));
     if (region === null) {
       // Nothing to render: show the cleared (transparent) CPU canvas and hide
       // any WebGPU canvas — the GPU pipeline itself stays alive for reuse.
@@ -1085,7 +1089,7 @@ export class UkiboriDom {
         dpr: SCENE_IS_DEVICE_SPACE_DPR,
         shadowOptions: scaleShadowOptions(this.shadowOptions, dpr),
         lightingOptions: undefined,
-        compositeOptions: this.compositeOptions,
+        compositeOptions: { ...this.compositeOptions, emissive: scaleEmissiveEffects(this.compositeOptions.emissive, dpr) },
       });
       this.overlay.setBackend("webgpu");
       // CSS placement only — the backing store was sized by the pipeline
@@ -1165,7 +1169,7 @@ export class UkiboriDom {
       return false;
     }
 
-    const image = compositeSurfaceImage(
+    let image = compositeSurfaceImage(
       {
         color: buffers.color,
         objectId: this.lastObjectId!,
@@ -1174,6 +1178,18 @@ export class UkiboriDom {
       this.compositeOptions,
     );
 
+    const effects = sanitizeEmissiveEffects(scaleEmissiveEffects(this.compositeOptions.emissive, dpr));
+    if (emissiveEffectsActive(effects)) {
+      const composite = sanitizeCompositeOptions(this.compositeOptions);
+      const premultiplied = renderEmissiveEffects(scene, { ...buffers, objectId: this.lastObjectId! }, effects, composite.shadowColor, composite.shadowAlpha);
+      const data = new Uint8ClampedArray(premultiplied.length);
+      for (let i = 0; i < data.length; i += 4) {
+        const alpha = premultiplied[i + 3];
+        for (let c = 0; c < 3; c++) data[i + c] = alpha ? premultiplied[i + c] * 255 / alpha : 0;
+        data[i + 3] = alpha;
+      }
+      image = { width: buffers.color.spec.width, height: buffers.color.spec.height, data };
+    }
     this.overlay.setBackend("cpu");
     // Backing store FIRST (guarded same-value writes), then CSS placement,
     // then the paint: the 2D bitmap reset from a real resize happens before

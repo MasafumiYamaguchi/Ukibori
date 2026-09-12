@@ -1,0 +1,58 @@
+{
+  "basePullRequest": 69,
+  "validationDate": "2026-09-12",
+  "native": {
+    "adapter": "SwiftShader driver 5.0.0",
+    "emission": {
+      "fixtures": 126,
+      "comparedBytes": 77952,
+      "colorParity": "exact"
+    },
+    "effects": {
+      "fixtures": 72,
+      "comparedBytes": 801792,
+      "maxByteError": 0,
+      "tolerance": 1,
+      "presentationTransitions": 5
+    }
+  },
+  "browser": {
+    "browser": "153.0.8010.0",
+    "parity": {
+      "fixtures": 72,
+      "comparedBytes": 801792,
+      "maxByteError": 0,
+      "tolerance": 1,
+      "presentationTransitions": 5
+    },
+    "errors": []
+  },
+  "testSuites": {
+    "renderer": 1096,
+    "dom": 161,
+    "react": 209
+  },
+  "build": "passed",
+  "typecheck": "passed",
+  "cpuGoldens": "unchanged, verified without regeneration",
+  "gpuScope": "Software Vulkan / SwiftShader; no hardware vendor performance claim",
+  "browserCanvas": {
+    "renderWidth": 903,
+    "renderHeight": 288,
+    "backend": "webgpu",
+    "fallbackReason": null,
+    "checks": [
+      "initial emissive glow",
+      "emission zero",
+      "HDR emission",
+      "retained presentation"
+    ],
+    "linuxFlags": [
+      "--use-gl=angle",
+      "--use-angle=vulkan",
+      "--enable-features=Vulkan",
+      "--disable-vulkan-surface",
+      "--enable-unsafe-webgpu"
+    ]
+  }
+}

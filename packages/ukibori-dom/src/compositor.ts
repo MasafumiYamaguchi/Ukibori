@@ -38,7 +38,7 @@ export const DEFAULT_SHADOW_ALPHA = 0.3;
 
 export function sanitizeCompositeOptions(
   options: CompositeOptions,
-): Required<CompositeOptions> {
+): Pick<Required<CompositeOptions>, "shadowColor" | "shadowAlpha"> {
   const effective = sharedSanitize(options);
   return {
     shadowColor: effective.shadowColor,
