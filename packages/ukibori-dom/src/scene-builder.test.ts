@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { normalizeVec3 } from "ukibori-renderer";
+import { normalizeVec3, encodeScene, parseHeader, sceneSectionLayout, resolveMaterial } from "ukibori-renderer";
+import { MATERIAL_OFFSET_BASE_COLOR, MATERIAL_OFFSET_ROUGHNESS, MATERIAL_OFFSET_METALLIC, MATERIAL_OFFSET_IOR } from "../../renderer/src/gpu/layout";
+import { parseOpaqueComputedSrgb } from "./computed-text-color";
 import { buildScene } from "./scene-builder";
 import { SurfaceRegistry } from "./registry";
 import type { DomSurfaceOptions, Region } from "./types";
@@ -27,6 +29,7 @@ function addSurface(
     geometry: { x, y, w, h, radius: options.shape?.kind === "roundedRect" ? 6 : 0 },
     dirty: false,
     inkDelegated: false,
+    visualGlyphDelegated: false,
   });
 }
 
@@ -147,6 +150,133 @@ describe("buildScene", () => {
     expect(scene.materials?.custom.roughness).toBe(0.5);
   });
 
+  it("composes delegated CSS baseColor over preset physical parameters", () => {
+    const registry = new SurfaceRegistry();
+    addSurface(registry, "glyph", 40, 60, 100, 32, { material: "metal" });
+    const entry = registry.get("glyph")!;
+    entry.inkDelegated = true;
+    entry.visualGlyphDelegated = true;
+    entry.computedTextColor = { r: 0.01, g: 0.02, b: 0.03 };
+    const scene = buildScene({ registry, region: REGION, dpr: 1, light: LIGHT });
+    const effective = scene.materials?.[scene.surfaces[0].material];
+    expect(scene.surfaces[0].material).toMatch(/^@ukibori-dom\/text-color\//);
+    expect(effective).toEqual({
+      baseColor: { r: 0.01, g: 0.02, b: 0.03 },
+      roughness: 0.2,
+      metallic: 1,
+      ior: 1.5,
+    });
+  });
+
+  it("lets CSS win only for baseColor of a delegated custom material", () => {
+    const registry = new SurfaceRegistry();
+    addSurface(registry, "glyph", 40, 60, 100, 32, { material: "custom" });
+    const entry = registry.get("glyph")!;
+    entry.inkDelegated = true;
+    entry.visualGlyphDelegated = true;
+    entry.computedTextColor = { r: 1, g: 0, b: 0 };
+    const scene = buildScene({
+      registry,
+      region: REGION,
+      dpr: 1,
+      light: LIGHT,
+      materials: {
+        custom: { baseColor: { r: 0.4, g: 0.5, b: 0.6 }, roughness: 0.37, metallic: 0.62, ior: 1.7 },
+      },
+    });
+    const effective = scene.materials?.[scene.surfaces[0].material];
+    expect(effective).toEqual({
+      baseColor: { r: 1, g: 0, b: 0 },
+      roughness: 0.37,
+      metallic: 0.62,
+      ior: 1.7,
+    });
+    expect(scene.materials?.custom.baseColor).toEqual({ r: 0.4, g: 0.5, b: 0.6 });
+  });
+
+  it("excludes an explicit glyph completely while CSS color fidelity falls back", () => {
+    const registry = new SurfaceRegistry();
+    const mask = { width: 4, height: 4, alpha: new Float32Array(16).fill(1) };
+    addSurface(registry, "glyph", 40, 60, 16, 16, {
+      shape: { kind: "mask", mask },
+      delegateTextInk: true,
+    });
+    const entry = registry.get("glyph")!;
+    expect(entry.visualGlyphDelegated).toBe(false);
+    expect(buildScene({ registry, region: REGION, dpr: 1, light: LIGHT }).surfaces).toEqual([]);
+
+    entry.inkDelegated = true;
+    entry.visualGlyphDelegated = true;
+    entry.computedTextColor = { r: 0.0056053917, g: 0.0056053917, b: 0.0056053917 };
+    const recovered = buildScene({ registry, region: REGION, dpr: 1, light: LIGHT });
+    expect(recovered.surfaces).toHaveLength(1);
+    expect(recovered.materials?.[recovered.surfaces[0].material].baseColor.r).toBeCloseTo(0.0056053917);
+  });
+
+  it("keeps CSS pigment independent from silicone/matte/metal physical response", () => {
+    const colors = [
+      { r: 0, g: 0, b: 0 },
+      { r: 1, g: 1, b: 1 },
+      { r: 0.21404114, g: 0.21404114, b: 0.21404114 },
+      { r: 1, g: 0, b: 0 },
+      { r: 0, g: 0, b: 1 },
+    ];
+    for (const material of ["silicone", "matte", "metal"]) {
+      for (const color of colors) {
+        const registry = new SurfaceRegistry();
+        addSurface(registry, "glyph", 40, 60, 16, 16, { material });
+        const entry = registry.get("glyph")!;
+        entry.inkDelegated = true;
+        entry.visualGlyphDelegated = true;
+        entry.computedTextColor = color;
+        const scene = buildScene({ registry, region: REGION, dpr: 1, light: LIGHT });
+        const effective = scene.materials?.[scene.surfaces[0].material];
+        expect(effective?.baseColor).toEqual(color);
+      }
+    }
+    // Different presets retain distinct response parameters even for the
+    // same pigment; resolveMaterial coverage pins their canonical values.
+    const responses = ["silicone", "matte", "metal"].map((material) => {
+      const registry = new SurfaceRegistry();
+      addSurface(registry, "glyph", 40, 60, 16, 16, { material });
+      const entry = registry.get("glyph")!;
+      entry.inkDelegated = true;
+      entry.visualGlyphDelegated = true;
+      entry.computedTextColor = colors[3];
+      const scene = buildScene({ registry, region: REGION, dpr: 1, light: LIGHT });
+      const value = scene.materials?.[scene.surfaces[0].material];
+      return [value?.roughness, value?.metallic, value?.ior].join("/");
+    });
+    expect(new Set(responses).size).toBe(3);
+  });
+
+  it("packs the same once-linearized CSS pigment and response used by CPU lighting", () => {
+    for (const material of ["silicone", "matte", "metal"]) {
+      for (const css of ["rgb(0,0,0)", "rgb(17,17,17)", "rgb(128,128,128)", "rgb(255,255,255)", "rgb(255,0,0)", "rgb(0,0,255)"]) {
+        const registry = new SurfaceRegistry();
+        addSurface(registry, "glyph", 40, 60, 16, 16, { material });
+        const entry = registry.get("glyph")!;
+        entry.visualGlyphDelegated = entry.inkDelegated = true;
+        entry.computedTextColor = parseOpaqueComputedSrgb(css)!;
+        const scene = buildScene({ registry, region: REGION, dpr: 1, light: LIGHT });
+        const cpu = resolveMaterial(scene.materials, scene.surfaces[0].material);
+        const { bytes } = encodeScene(scene, 1);
+        const layout = sceneSectionLayout(parseHeader(bytes));
+        const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+        for (const [offset, expected] of [
+          [MATERIAL_OFFSET_BASE_COLOR, cpu.baseColor.r],
+          [MATERIAL_OFFSET_BASE_COLOR + 4, cpu.baseColor.g],
+          [MATERIAL_OFFSET_BASE_COLOR + 8, cpu.baseColor.b],
+          [MATERIAL_OFFSET_ROUGHNESS, cpu.roughness],
+          [MATERIAL_OFFSET_METALLIC, cpu.metallic],
+          [MATERIAL_OFFSET_IOR, cpu.ior!],
+        ]) {
+          expect(view.getFloat32(layout.materialsOffset + offset, true)).toBe(Math.fround(expected));
+        }
+      }
+    }
+  });
+
   it("skips unmeasured surfaces", () => {
     const registry = new SurfaceRegistry();
     registry.add({
@@ -161,10 +291,10 @@ describe("buildScene", () => {
       },
       geometry: null,
       dirty: true,
-    inkDelegated: false,
+      inkDelegated: false,
+      visualGlyphDelegated: false,
     });
     const scene = buildScene({ registry, region: REGION, dpr: 1, light: LIGHT });
     expect(scene.surfaces).toHaveLength(0);
   });
 });
-

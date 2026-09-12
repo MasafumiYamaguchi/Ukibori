@@ -95,6 +95,7 @@ describe("SVG path authoring raster", () => {
       id: "gear", element, options: {
         id: "gear", shape: SHAPE, elevation: 1, thickness: 2, material: "silicone",
       }, geometry: { x: 0, y: 0, w: 32, h: 32, radius: 0 }, dirty: false, inkDelegated: false,
+      visualGlyphDelegated: false,
     });
     const input = { registry, region: { x: 0, y: 0, w: 32, h: 32 }, dpr: 1,
       light: { direction: { x: 0, y: 0, z: 1 }, intensity: 1 } };
@@ -141,6 +142,7 @@ describe("SVG path authoring raster", () => {
       id: "fractional", element: document.createElement("div"),
       options: { id: "fractional", shape, elevation: 0, thickness: 0, material: "matte" },
       geometry: { x: 0, y: 0, w: 100.10, h: 50.25, radius: 0 }, dirty: false, inkDelegated: false,
+      visualGlyphDelegated: false,
     });
     const cacheInput = {
       registry, region: { x: 0, y: 0, w: 101, h: 51 },
@@ -190,6 +192,7 @@ describe("SVG path authoring raster", () => {
       id: `fractional-${dpr}-${width}`, element: document.createElement("div"),
       options: { id: `fractional-${dpr}-${width}`, shape: { ...SHAPE, d: `M0 0H100V50H0Z ${dpr}-${width}` }, elevation: 0, thickness: 0, material: "matte" },
       geometry: { x: 0, y: 0, w: width === 127 ? 127.34375 : 100.5, h: height === 64 ? 63.671875 : 50.25, radius: 0 }, dirty: false, inkDelegated: false,
+      visualGlyphDelegated: false,
     });
     expect(() => buildScene({ registry, region: { x: 0, y: 0, w: 102, h: 52 }, dpr,
       light: { direction: { x: 0, y: 0, z: 1 }, intensity: 1 } })).not.toThrow();

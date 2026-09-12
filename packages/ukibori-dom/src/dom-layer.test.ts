@@ -79,6 +79,10 @@ let button: HTMLButtonElement;
 
 beforeEach(() => {
   host = document.createElement("div");
+  // Real browsers resolve the initial CanvasText system color to a used
+  // rgb() value. jsdom leaves the keyword unresolved, so pin an explicit
+  // opaque inherited color for physical-ink delegation tests (#56).
+  host.style.color = "rgb(0, 0, 0)";
   document.body.appendChild(host);
   button = document.createElement("button");
   button.type = "button";
@@ -370,15 +374,75 @@ describe("UkiboriDom — DOM integration", () => {
       expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
     });
 
-    it("never removes a pre-existing application-owned ink attribute", () => {
+    it("never removes a pre-existing application-owned ink attribute, even transiently", async () => {
       const span = maskElement();
       span.setAttribute("data-ukibori-physical-ink", "");
+      const mutations: MutationRecord[] = [];
+      const observer = new MutationObserver((records) => mutations.push(...records));
+      observer.observe(span, { attributes: true, attributeOldValue: true });
       const layer = makeLayer();
       layer.register(span, MASK_OPTIONS);
+      layer.invalidate("glyph");
+      layer.invalidate("glyph");
+      await Promise.resolve();
+      expect(mutations.filter((record) => record.attributeName === "data-ukibori-physical-ink")).toEqual([]);
       layer.unregister("glyph");
       // The layer only owns what it created.
       expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
       layer.dispose();
+      observer.disconnect();
+    });
+
+    it("does not cycle the managed ink attribute while refreshing computed color", async () => {
+      const span = maskElement();
+      const layer = makeLayer();
+      const mutations: MutationRecord[] = [];
+      const observer = new MutationObserver((records) => mutations.push(...records));
+      observer.observe(span, { attributes: true, attributeOldValue: true });
+      layer.register(span, MASK_OPTIONS);
+      await Promise.resolve();
+      mutations.length = 0;
+
+      span.style.color = "rgb(255, 0, 0)";
+      layer.invalidate("glyph");
+      span.style.color = "rgb(0, 0, 255)";
+      layer.invalidate("glyph");
+      await Promise.resolve();
+
+      expect(mutations.filter((record) => record.attributeName === "data-ukibori-physical-ink")).toEqual([]);
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      observer.disconnect();
+      layer.dispose();
+    });
+
+    it("refreshes inherited color on baked glyphs through the document observer without remeasuring", async () => {
+      const span = maskElement();
+      stubRectFor(span, { left: 0, top: 0, width: 8, height: 8 });
+      const fake = makeFakeOverlay();
+      const layer = new UkiboriDom({
+        overlay: { factory: () => fake.overlay },
+        schedule: (cb) => cb(),
+        observe: true,
+        margin: 0,
+      });
+      try {
+        layer.register(span, { ...MASK_OPTIONS, bakeId: "baked", castsShadow: false });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        const measurements = vi.mocked(span.getBoundingClientRect).mock.calls.length;
+        host.style.color = "rgba(0, 0, 255, 0.5)";
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(span.hasAttribute("data-ukibori-physical-ink")).toBe(false);
+        expect(vi.mocked(span.getBoundingClientRect).mock.calls.length).toBe(measurements);
+        host.style.color = "rgb(0, 0, 255)";
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        expect(span.hasAttribute("data-ukibori-physical-ink")).toBe(true);
+        expect(vi.mocked(span.getBoundingClientRect).mock.calls.length).toBe(measurements);
+        const painted = fake.calls.filter((call) => call.type === "paint").at(-1)!.image!;
+        const center = (4 * painted.width + 4) * 4;
+        expect(painted.data[center + 2]).toBeGreaterThan(painted.data[center]);
+      } finally {
+        layer.dispose();
+      }
     });
 
     it("leaves no ink suppression behind when registration fails", () => {
@@ -424,6 +488,59 @@ describe("UkiboriDom — DOM integration", () => {
       const range = document.createRange();
       range.selectNodeContents(span);
       expect(range.toString()).toBe("PLAY");
+      layer.dispose();
+    });
+
+    it("updates live opaque CSS color and falls back/reacquires for alpha", () => {
+      const span = maskElement();
+      span.style.color = "rgb(255, 0, 0)";
+      const layer = makeLayer();
+      layer.register(span, MASK_OPTIONS);
+      layer.render();
+      const first = layer.debugBuffers()!.color;
+      const objectId = layer.debugObjectId()!;
+      let sample: { x: number; y: number } | undefined;
+      for (let y = 0; y < objectId.spec.height && sample === undefined; y++) {
+        for (let x = 0; x < objectId.spec.width; x++) {
+          if (objectId.get(x, y, 0) === 0) {
+            sample = { x, y };
+            break;
+          }
+        }
+      }
+      expect(sample).toBeDefined();
+      const red = first.get(sample!.x, sample!.y, 0);
+      const redBlue = first.get(sample!.x, sample!.y, 2);
+      expect(red).toBeGreaterThan(redBlue);
+
+      // The suppression rule leaves computed `color` intact, so live author
+      // color is readable without touching the managed attribute.
+      span.style.color = "rgb(0, 0, 255)";
+      layer.invalidate("glyph");
+      const blueField = layer.debugBuffers()!.color;
+      expect(blueField.get(sample!.x, sample!.y, 2)).toBeGreaterThan(
+        blueField.get(sample!.x, sample!.y, 0),
+      );
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+
+      span.style.color = "rgba(0, 0, 255, 0.5)";
+      layer.invalidate("glyph");
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      const fallbackObjectId = layer.debugObjectId()!;
+      for (let y = 0; y < fallbackObjectId.spec.height; y++) {
+        for (let x = 0; x < fallbackObjectId.spec.width; x++) {
+          expect(fallbackObjectId.get(x, y, 0)).toBe(0xffffffff);
+        }
+      }
+
+      span.style.color = "rgb(17, 17, 17)";
+      layer.invalidate("glyph");
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      const recoveredObjectId = layer.debugObjectId()!;
+      expect(recoveredObjectId.get(sample!.x, sample!.y, 0)).toBe(0);
+      const recovered = layer.debugBuffers()!.color;
+      const blackish = recovered.get(sample!.x, sample!.y, 0);
+      expect(blackish).toBeLessThan(red);
       layer.dispose();
     });
   });
