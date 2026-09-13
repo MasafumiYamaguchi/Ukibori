@@ -436,6 +436,7 @@ describe("sanitizeCompositeOptions — CPU-compatible composite option sanitizat
     expect(sanitizeCompositeOptions()).toEqual({
       shadowColor: [12, 16, 28],
       shadowAlpha: 0.3,
+      physicalBasePlane: false,
     });
   });
 
@@ -1071,6 +1072,7 @@ describe("PresentationPass — device-loss fail-closed behavior, disposal and ow
     expect(snapshot.composite).toEqual({
       shadowColor: [200, 100, 50],
       shadowAlpha: 0.25,
+      physicalBasePlane: false,
     });
     expect(snapshot.workSubmitted).toBe(1);
     expect(snapshot.configurationGeneration).toBe(1);

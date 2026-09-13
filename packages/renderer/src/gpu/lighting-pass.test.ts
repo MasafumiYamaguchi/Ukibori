@@ -1157,7 +1157,9 @@ describe("LightingPass shader — #16 BRDF formulas pinned in WGSL", () => {
     expect(LIGHTING_PASS_WGSL).toContain("let hLen = sqrt(lx * lx + ly * ly + (lz + 1.0) * (lz + 1.0));");
     expect(LIGHTING_PASS_WGSL).toContain("let nDotVH = hz; // V = (0,0,1) -> V·H == H.z");
     // base material + defensive invalid-id fallback; NO_OWNER never indexes
-    expect(LIGHTING_PASS_WGSL).toContain("m.baseColor = vec3<f32>(0.6, 0.6, 0.6);");
+    expect(LIGHTING_PASS_WGSL).toContain(
+      "m.baseColor = vec3<f32>(sceneHeader.baseColorR, sceneHeader.baseColorG, sceneHeader.baseColorB);",
+    );
     expect(LIGHTING_PASS_WGSL).toContain("if (owner == NO_OWNER) {");
     expect(LIGHTING_PASS_WGSL).toContain("if (owner < sceneHeader.materialCount) {");
     expect(LIGHTING_PASS_WGSL).toContain("return materials[owner];");

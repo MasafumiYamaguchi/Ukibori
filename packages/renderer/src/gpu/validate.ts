@@ -137,17 +137,27 @@ export function validateEncodedScene(bytes: Uint8Array): ValidationResult {
     (header.coordinateFlags & ~SCENE_FLAG_KNOWN_MASK) === 0,
     `unknown coordinate flag bits: 0x${(header.coordinateFlags & ~SCENE_FLAG_KNOWN_MASK).toString(16)}`,
   );
-  for (let offset = 52; offset < 64; offset += 4) {
-    check(readU32(offset) === 0, `header reserved u32 at ${offset} must be 0`);
+  // #75 ABI v5: header 52..64 carries the base-plane linear albedo (f32 x3)
+  // and offset 92 its roughness. The encoder writes createScene-sanitized
+  // values (albedo clamped to [0,1]); malformed bytes are rejected.
+  for (const [offset, label] of [[52, "r"], [56, "g"], [60, "b"]] as const) {
+    const channel = readF32(offset);
+    check(
+      Number.isFinite(channel) && channel >= 0 && channel <= 1,
+      `header base-plane albedo ${label} at ${offset} must be a finite f32 in [0,1], got ${channel}`,
+    );
   }
-  // Offset 88 carries the #41 light angular radius (radians, f32): finite
-  // and >= 0 after packing; offset 92 stays reserved-zero.
+  // Offset 88 carries the #41 light angular radius (radians, f32): finite >= 0.
   const angularRadius = readF32(88);
   check(
     Number.isFinite(angularRadius) && angularRadius >= 0,
     `light angular radius at offset 88 must be a finite non-negative f32, got ${angularRadius}`,
   );
-  check(readU32(92) === 0, "header reserved u32 at offset 92 must be 0");
+  const baseRoughness = readF32(92);
+  check(
+    Number.isFinite(baseRoughness) && baseRoughness >= 0 && baseRoughness <= 1,
+    `header base-plane roughness at offset 92 must be a finite f32 in [0,1], got ${baseRoughness}`,
+  );
   // Offset 112..124 carries the #45 directional-light linear RGB color
   // (f32): every channel must be finite and >= 0 (the encoder only emits
   // createScene-sanitized channels; negative/NaN bytes are malformed). The

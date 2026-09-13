@@ -2,7 +2,7 @@ export const EMISSIVE_EFFECTS_WGSL = /* wgsl */ `
 struct Params { width:u32, height:u32, quality:u32, materialCount:u32,
  dpr:f32, exposure:f32, lightIntensity:f32, lightRadius:f32,
  bloomIntensity:f32, bloomRadius:f32, threshold:f32, shadowAlpha:f32,
- shadowR:f32, shadowG:f32, shadowB:f32, pad:f32 }
+ shadowR:f32, shadowG:f32, shadowB:f32, physicalBasePlane:f32 }
 @group(0) @binding(0) var<storage,read> colors:array<u32>;
 @group(0) @binding(1) var<storage,read> owners:array<u32>;
 @group(0) @binding(2) var<storage,read> materialIds:array<u32>;
@@ -22,7 +22,7 @@ fn indexOf(s:vec2<i32>)->u32{return u32(s.y)*p.width+u32(s.x);}
 @compute @workgroup_size(8,8)
 fn main(@builtin(global_invocation_id) id:vec3<u32>){
  if(id.x>=p.width||id.y>=p.height){return;}
- let g=id.y*p.width+id.x;let xy=vec2<f32>(id.xy);let owned=owners[g]!=NONE;
+ let g=id.y*p.width+id.x;let xy=vec2<f32>(id.xy);let owned=owners[g]!=NONE||p.physicalBasePlane>0.5;
  var light=vec3<f32>(0.0);
  let q=i32(p.quality);
  if(p.lightIntensity>0.0&&p.lightRadius>0.0){for(var ky=-q;ky<=q;ky++){for(var kx=-q;kx<=q;kx++){

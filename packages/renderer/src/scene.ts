@@ -1,6 +1,6 @@
 import { sanitizeEnvironment, sanitizeExposure } from "./environment";
 import type { EnvironmentLight } from "./environment";
-import { isFiniteNumber, normalizeVec3 } from "./math";
+import { clamp, isFiniteNumber, normalizeVec3 } from "./math";
 import { resolveMaterial, sanitizeMaterialTable } from "./material";
 import type { Material } from "./material";
 import { sanitizeAngularRadius } from "./shadow-sampling";
@@ -232,6 +232,19 @@ export interface Scene {
    * creation. A surface referencing an unknown material throws.
    */
   materials?: Record<string, Material>;
+  /**
+   * #75 OPTIONAL physical base-plane albedo (LINEAR rgb, albedo-clamped to
+   * [0, 1]). When present, pixels no surface owns are shaded as a physical
+   * receiver with this albedo (matte: roughness from {@link BASE_PLANE_ROUGHNESS},
+   * metallic 0, normal (0,0,1)) instead of the legacy fixed `shadowColor`
+   * compositing tint. `undefined` keeps the historical base material and the
+   * legacy tint presentation for non-DOM/raw callers.
+   *
+   * The DOM layer derives this from the page/stage background color and
+   * converts it to linear exactly once (the explicit renderer/DOM contract);
+   * the renderer never reads DOM state itself.
+   */
+  background?: LinearRgb;
 }
 
 export interface SceneInput {
@@ -242,7 +255,15 @@ export interface SceneInput {
   environment?: Partial<EnvironmentLight>;
   exposure?: number;
   materials?: Record<string, Material>;
+  /** #75 optional physical base-plane albedo (LINEAR rgb, [0,1]). */
+  background?: LinearRgb;
 }
+
+/**
+ * #75 matte base-plane response: high roughness (broad, subdued specular) and
+ * dielectric metallic. Fixed until a floor-material API is required.
+ */
+export const BASE_PLANE_ROUGHNESS = 0.9;
 
 export const DEFAULT_LIGHT_DIRECTION: Vec3 = { x: 0, y: 0, z: 1 };
 
@@ -301,7 +322,15 @@ export function createScene(input: SceneInput): Scene {
     light: { direction, intensity, color, angularRadius },
     environment: sanitizeEnvironment(input.environment),
     exposure: sanitizeExposure(input.exposure),
+    ...(input.background === undefined ? {} : { background: sanitizeBackground(input.background) }),
   };
+}
+
+/** #75: base-plane albedo channels are clamped to [0, 1] like any material baseColor. */
+function sanitizeBackground(color: Partial<LinearRgb> | undefined): LinearRgb {
+  const channel = (v: number | undefined): number =>
+    typeof v === "number" && Number.isFinite(v) ? clamp(v, 0, 1) : 0.6;
+  return { r: channel(color?.r), g: channel(color?.g), b: channel(color?.b) };
 }
 
 function validateSurface(node: SurfaceNode): SurfaceNode {

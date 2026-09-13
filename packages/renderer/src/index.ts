@@ -496,6 +496,6 @@ export type {
   PartialPlanReport,
 } from "./gpu/pipeline";
 
-export { sanitizeEmissiveEffects, emissiveEffectsActive, scaleEmissiveEffects, renderEmissiveEffects } from "./emissive-effects";
+export { sanitizeEmissiveEffects, emissiveEffectsActive, scaleEmissiveEffects, renderEmissiveEffects, computeEmissiveIncidentField } from "./emissive-effects";
 export type { EmissiveEffectsOptions, EffectiveEmissiveEffects, EmissiveEffectFields } from "./emissive-effects";
 export { EmissiveEffectsPass } from "./gpu/emissive-effects-pass";

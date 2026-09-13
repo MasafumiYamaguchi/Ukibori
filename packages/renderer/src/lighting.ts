@@ -20,6 +20,7 @@ import { NO_OWNER } from "./compose";
 import { COLOR_SPEC, NORMAL_SPEC } from "./types";
 import type { LinearRgb } from "./types";
 import type { ShadowOptions } from "./shadow";
+import { BASE_PLANE_ROUGHNESS } from "./scene";
 import type { Scene } from "./scene";
 
 /**
@@ -274,7 +275,16 @@ export function shadePreparedFields(
     material,
     environment: evaluateEnvironment(material, environment),
   });
-  const baseMaterial = prepare(BASE_MATERIAL);
+  // #75: when the scene declares a physical base-plane albedo, pixels no
+  // surface owns are shaded with that matte material instead of the historical
+  // 0.6-gray base material. The renderer's base-plane color is then a real
+  // physical receiver (ambient + direct*visibility + environment + emission);
+  // the DOM/presentation layer decides whether to show it or the legacy tint.
+  const basePlaneMaterial: Material =
+    scene.background === undefined
+      ? BASE_MATERIAL
+      : { baseColor: scene.background, roughness: BASE_PLANE_ROUGHNESS, metallic: 0 };
+  const baseMaterial = prepare(basePlaneMaterial);
   const materials = new Map<number, PreparedMaterial>();
   const materialFor = (owner: number): PreparedMaterial => {
     if (owner === NO_OWNER) return baseMaterial;

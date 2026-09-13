@@ -115,7 +115,7 @@ describe("validateEncodedScene — malformed headers", () => {
     );
   });
 
-  it("rejects missing or unknown coordinate flags and nonzero reserved header bytes", () => {
+  it("rejects malformed coordinate flags and base-plane/light header fields", () => {
     expectRejected(mutate(validBytes(), 48, (v) => v.setUint32(48, 0x1, true)), /coordinate flags 0x1 != expected 0x3/);
     expectRejected(mutate(validBytes(), 48, (v) => v.setUint32(48, 0x7, true)), /coordinate flags 0x7 != expected 0x3/);
     expectRejected(mutate(validBytes(), 48, (v) => v.setUint32(48, 0x8, true)), /unknown coordinate flag bits: 0x8/);
@@ -129,7 +129,13 @@ describe("validateEncodedScene — malformed headers", () => {
       mutate(validBytes(), 88, (v) => v.setFloat32(88, Number.NaN, true)),
       /light angular radius at offset 88/,
     );
-    expectRejected(mutate(validBytes(), 92, (v) => v.setUint32(92, 7, true)), /reserved u32 at offset 92/);
+    // #75 ABI v5: offset 92 is the base-plane roughness (finite, [0,1]) and
+    // 52..64 the base-plane albedo (finite, [0,1]).
+    expectRejected(mutate(validBytes(), 92, (v) => v.setFloat32(92, 7, true)), /base-plane roughness at offset 92/);
+    expectRejected(mutate(validBytes(), 52, (v) => v.setFloat32(52, -1, true)), /base-plane albedo r at 52/);
+    expectRejected(mutate(validBytes(), 56, (v) => v.setFloat32(56, 1.5, true)), /base-plane albedo g at 56/);
+    // A valid explicit base-plane material passes.
+    expect(validateEncodedScene(mutate(validBytes(), 52, (v) => v.setFloat32(52, 0.25, true))).ok).toBe(true);
     // Offset 112..124 now carries the #45 lightColor: negative/NaN channels
     // are rejected, the w component (offset 124) must stay zero, and a
     // finite non-negative channel (even an HDR value above 1) passes.

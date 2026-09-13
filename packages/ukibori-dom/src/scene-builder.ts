@@ -1,4 +1,5 @@
 import { createScene, DEFAULT_LIGHT_DIRECTION, normalizeVec3, resolveMaterial } from "ukibori-renderer";
+import type { LinearRgb } from "ukibori-renderer";
 import type { Material, Scene, SurfaceNode } from "ukibori-renderer";
 import { renderTargetSize } from "./coords";
 import type { SurfaceRegistry } from "./registry";
@@ -61,6 +62,8 @@ export interface BuildSceneInput {
   /** exposure multiplier (dimensionless). `undefined` -> renderer default 1. */
   exposure?: number;
   materials?: Record<string, Material>;
+  /** #75 optional physical base-plane albedo (LINEAR rgb). */
+  background?: LinearRgb;
   /** Internal layer-owned cache; omitted callers use a bounded fallback. */
   svgPathCache?: SvgPathMaskCache;
 }
@@ -195,6 +198,7 @@ export function buildScene(input: BuildSceneInput): Scene {
     },
     environment: input.environment,
     exposure: input.exposure,
+    ...(input.background === undefined ? {} : { background: input.background }),
   });
 }
 

@@ -798,6 +798,7 @@ export class GpuScenePipeline {
           lightingNormalBindingFromNormalPass(normalSnapshot).buffer, bindings.materials.buffer, visibility.buffer,
         ], heightSnapshot.width, heightSnapshot.height, parsedFrameHeader.materialCount,
         heightSnapshot.dpr, parsedFrameHeader.exposure, effects, composite.shadowColor, composite.shadowAlpha,
+        composite.physicalBasePlane,
         timestamps ? { querySet: timestamps.querySet, beginningOfPassWriteIndex: timestamps.beginningOfPassWriteIndex } : undefined);
         this.effectsColor = { ...rawColor, buffer: result.buffer, byteLength: result.byteLength };
         effectsAllocations = result.newAllocations;

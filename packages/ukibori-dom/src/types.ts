@@ -198,6 +198,13 @@ export interface CompositeOptions {
   shadowColor?: readonly [number, number, number];
   /** 0..1 opacity of cast shadows on the base plane (default 0.3) */
   shadowAlpha?: number;
+  /**
+   * #75: present the renderer's physical base-plane receiver color
+   * (ambient + direct*visibility + environment + emissive incident) for
+   * pixels no surface owns, instead of the legacy fixed shadow tint. Set
+   * automatically when the layer is given a `background` albedo.
+   */
+  physicalBasePlane?: boolean;
 }
 
 /** RGBA image the overlay paints (ImageData-compatible). */

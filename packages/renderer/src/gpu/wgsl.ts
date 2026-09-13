@@ -64,14 +64,14 @@ struct SceneHeader {
   maskCount: u32,          // 40
   materialCount: u32,      // 44
   coordinateFlags: u32,    // 48 (bit0 origin top-left, bit1 +y down)
-  _reserved0: u32,         // 52
-  _reserved1: u32,         // 56
-  _reserved2: u32,         // 60
+  baseColorR: f32,         // 52 (#75 ABI v5 base-plane linear albedo r)
+  baseColorG: f32,         // 56 (#75 base-plane linear albedo g)
+  baseColorB: f32,         // 60 (#75 base-plane linear albedo b)
   lightDirection: vec4<f32>, // 64 (x, y, z, 0)
   lightIntensity: f32,     // 80
   exposure: f32,           // 84
   lightAngularRadius: f32, // 88 (#41 radians >= 0; 0 = hard shadow)
-  _reserved3: f32,         // 92
+  basePlaneRoughness: f32, // 92 (#75 base-plane matte roughness)
   environment: vec4<f32>,  // 96 (intensity, diffuseIntensity, specularIntensity, 0)
   lightColor: vec4<f32>,   // 112 (#45 linear RGB r, g, b, 0; white default, HDR > 1 allowed)
 }                          // size 128, align 16

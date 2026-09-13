@@ -46,6 +46,15 @@ export interface CompositeOptions {
   readonly shadowColor?: readonly [number, number, number];
   /** 0..1 opacity of cast shadows on the base plane (default 0.3) */
   readonly shadowAlpha?: number;
+  /**
+   * #75: when true the renderer's physical base-plane color (ambient +
+   * direct*visibility + environment + emissive incident) is presented
+   * opaquely for pixels no surface owns, instead of the legacy fixed
+   * `shadowColor`/`shadowAlpha` tint. The physical color already carries the
+   * cast shadow through `visibility`, so the base plane follows the same
+   * lighting equation as owned surfaces. Default false (legacy tint).
+   */
+  readonly physicalBasePlane?: boolean;
 }
 
 /** The sanitized effective composite options (pinned by tests). */
@@ -53,6 +62,7 @@ export interface EffectiveCompositeOptions {
   readonly emissive?: EffectiveEmissiveEffects;
   readonly shadowColor: readonly [number, number, number];
   readonly shadowAlpha: number;
+  readonly physicalBasePlane: boolean;
 }
 
 /**
@@ -74,7 +84,12 @@ export function sanitizeCompositeOptions(
     typeof options.shadowAlpha === "number" && Number.isFinite(options.shadowAlpha)
       ? clamp01(options.shadowAlpha)
       : DEFAULT_SHADOW_ALPHA;
-  return { shadowColor, shadowAlpha: alpha, ...(options.emissive ? { emissive: sanitizeEmissiveEffects(options.emissive) } : {}) };
+  return {
+    shadowColor,
+    shadowAlpha: alpha,
+    physicalBasePlane: options.physicalBasePlane === true,
+    ...(options.emissive ? { emissive: sanitizeEmissiveEffects(options.emissive) } : {}),
+  };
 }
 
 /**
@@ -91,6 +106,13 @@ export function compositePixelBytes(
   options: CompositeOptions = {},
 ): readonly [number, number, number, number] {
   if (owner !== NO_OWNER) {
+    return [colorR, colorG, colorB, 255];
+  }
+  // #75: the physical base plane presents the renderer's own receiver color
+  // (which already includes ambient/environment + direct*visibility + emissive
+  // incident), exactly like an owned surface, so no fixed tint is applied.
+  const physical = options.physicalBasePlane === true;
+  if (physical) {
     return [colorR, colorG, colorB, 255];
   }
   // #41: visibility is CONTINUOUS ([0, 1]); the base-plane shadow tint

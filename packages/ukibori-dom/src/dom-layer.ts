@@ -147,6 +147,15 @@ export interface UkiboriDomOptions {
   shadow?: DomShadowOptions;
   /** compositor mapping (translucent shadows on the base plane) */
   compositing?: CompositeOptions;
+  /**
+   * #75 OPTIONAL physical base-plane albedo (LINEAR rgb). When set, pixels no
+   * surface owns are shaded as a physical receiver (matte) with this albedo
+   * and presented from the renderer's own base-plane color instead of the
+   * legacy fixed shadow tint. Deriving it from the page/stage background color
+   * (sRGB -> linear, once) is a caller/DOM concern; the renderer never reads
+   * DOM state. `undefined` keeps the legacy tint model.
+   */
+  background?: LinearRgb;
   /** scene-region margin reserved for cast shadows (CSS px, default 64) */
   margin?: number;
   /** fixed device-pixel-ratio, or a provider; default `window.devicePixelRatio` */
@@ -227,6 +236,8 @@ export class UkiboriDom {
   private margin: number;
   private dprSource: number | (() => number) | undefined;
   private compositeOptions: CompositeOptions;
+  /** #75 physical base-plane albedo (LINEAR rgb); undefined keeps the legacy tint. */
+  private background: LinearRgb | undefined;
   private shadowOptions: DomShadowOptions;
   /** Per-layer SVG mask ownership prevents cache retention after dispose. */
   private readonly svgPathCache = new SvgPathRasterCache();
@@ -305,7 +316,14 @@ export class UkiboriDom {
         ? margin
         : DEFAULT_MARGIN;
     this.dprSource = options.dpr;
-    this.compositeOptions = options.compositing ?? {};
+    this.background = options.background;
+    // #75: a declared base-plane albedo makes the base plane a physical
+    // receiver, so the presentation uses the renderer's base-plane color
+    // instead of the legacy fixed shadow tint (unless explicitly overridden).
+    this.compositeOptions =
+      options.background === undefined
+        ? options.compositing ?? {}
+        : { physicalBasePlane: true, ...(options.compositing ?? {}) };
     this.shadowOptions = options.shadow ?? {};
     this.light = {
       direction: normalizeVec3(
@@ -1030,6 +1048,7 @@ export class UkiboriDom {
         environment: this.environment,
         exposure: this.exposure,
         materials: this.materials,
+        background: this.background,
         svgPathCache: this.svgPathCache,
       });
     } catch (error) {
@@ -1200,7 +1219,15 @@ export class UkiboriDom {
     const effects = sanitizeEmissiveEffects(scaleEmissiveEffects(this.compositeOptions.emissive, dpr));
     if (emissiveEffectsActive(effects)) {
       const composite = sanitizeCompositeOptions(this.compositeOptions);
-      const premultiplied = renderEmissiveEffects(scene, { ...buffers, objectId: this.lastObjectId! }, effects, composite.shadowColor, composite.shadowAlpha);
+      const premultiplied = renderEmissiveEffects(
+        scene,
+        { ...buffers, objectId: this.lastObjectId! },
+        effects,
+        composite.shadowColor,
+        composite.shadowAlpha,
+        1,
+        composite.physicalBasePlane,
+      );
       const data = new Uint8ClampedArray(premultiplied.length);
       for (let i = 0; i < data.length; i += 4) {
         const alpha = premultiplied[i + 3];

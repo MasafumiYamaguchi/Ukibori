@@ -62,8 +62,17 @@ export const ABI_MAGIC = 0x554b4942; // "UKIB" tag, little-endian u32
 // ABI v3 (#61): surface offset 44 is power exponent; flags bits 2/3 are
 // inset/outward-power, and profile enums 2..5 are defined. Re-encode v1/v2.
 // ABI v4: material offset 32 contains emissive RGB; record stride is unchanged.
-export const ABI_VERSION = 4;
+// ABI v5 (#75): header 52..64 = base-plane albedo (linear RGB f32 x3, the
+//   default 0.6 gray when the scene has no `background`); header 92 =
+//   base-plane roughness (default 0.5). Provides a physical base-plane
+//   receiver material to the lighting pass.
+export const ABI_VERSION = 5;
 export const HEADER_SIZE = 128;
+
+/** #75 header base-plane albedo (linear RGB f32 x3 at offset 52). */
+export const HEADER_OFFSET_BASE_COLOR = 52;
+/** #75 header base-plane roughness (f32 at offset 92). */
+export const HEADER_OFFSET_BASE_ROUGHNESS = 92;
 
 /**
  * Scene header (HEADER_SIZE = 128 bytes, alignment 16).

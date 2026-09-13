@@ -4,7 +4,7 @@ const SHARED = /* wgsl */ `
 struct Params { width:u32, height:u32, quality:u32, materialCount:u32,
  dpr:f32, exposure:f32, lightIntensity:f32, lightRadius:f32,
  bloomIntensity:f32, bloomRadius:f32, threshold:f32, shadowAlpha:f32,
- shadowR:f32, shadowG:f32, shadowB:f32, pad:f32 }
+ shadowR:f32, shadowG:f32, shadowB:f32, physicalBasePlane:f32 }
 fn encode(x:f32)->f32{let v=clamp(x,0.0,1.0);if(v<=0.0031308){return 12.92*v;}return 1.055*pow(v,1.0/2.4)-0.055;}
 fn decode(v:f32)->f32{if(v<=0.04045){return v/12.92;}return pow((v+0.055)/1.055,2.4);}
 `;
@@ -45,7 +45,7 @@ fn main(@builtin(global_invocation_id) id:vec3<u32>){
  }
  let g=id.y*p.width+id.x;let raw=unpack4x8unorm(colors[g]);let glow=sum/total*p.bloomIntensity;
  var rgb=vec3<f32>(0.0);var alpha=1.0;
- if(owners[g]!=0xffffffffu){rgb=vec3<f32>(encode(decode(raw.r)+glow.r),encode(decode(raw.g)+glow.g),encode(decode(raw.b)+glow.b));}
+ if(owners[g]!=0xffffffffu||p.physicalBasePlane>0.5){rgb=vec3<f32>(encode(decode(raw.r)+glow.r),encode(decode(raw.g)+glow.g),encode(decode(raw.b)+glow.b));}
  else{
   let a0=p.shadowAlpha*(1.0-clamp(visibility[g],0.0,1.0));let shadow=vec3<f32>(p.shadowR,p.shadowG,p.shadowB)*a0;
   let spill=max(vec3<f32>(0.0),raw.rgb-shadow);

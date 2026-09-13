@@ -72,7 +72,7 @@ struct PresentationParams {
   shadowB: u32,          // 16 sanitized shadow color byte
   shadowAlphaByte: u32,  // 20 floor(alpha * 255 + 0.5)
   precomposited: u32,    // 24
-  _pad1: u32,            // 28
+  physicalBasePlane: u32,// 28 (#75: 1 = present the physical base-plane color)
 }                        // size 32, align 16
 
 const NO_OWNER: u32 = 0xffffffffu;
@@ -121,6 +121,17 @@ fn fs_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
     let g = f32((packed >> 8u) & 0xffu) * UNORM_SCALE;
     let b = f32((packed >> 16u) & 0xffu) * UNORM_SCALE;
     return vec4<f32>(r, g, b, 1.0);
+  }
+  // #75: the physical base plane presents the renderer's own receiver color
+  // (ambient + direct*visibility + environment + emissive incident) exactly
+  // like an owned surface — no fixed tint. The color already carries the cast
+  // shadow through visibility.
+  if (params.physicalBasePlane != 0u) {
+    let packed = colorField[index];
+    let pr = f32(packed & 0xffu) * UNORM_SCALE;
+    let pg = f32((packed >> 8u) & 0xffu) * UNORM_SCALE;
+    let pb = f32((packed >> 16u) & 0xffu) * UNORM_SCALE;
+    return vec4<f32>(pr, pg, pb, 1.0);
   }
   // #41: CONTINUOUS visibility — the base-plane tint scales with the
   // occlusion strength. Hard inputs ({0, 1}) reproduce the historical bytes

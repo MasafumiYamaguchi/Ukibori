@@ -46,6 +46,37 @@ export async function runEmissiveEffectsParity(api, device) {
       }
     }
 
+    // #74: a directional cast shadow whose caster crosses the emissive
+    // surroundings. The shadow visibility must scale only the direct term on
+    // BOTH paths; the emissive incident is added independently. CPU and GPU
+    // must agree byte-for-byte (tolerance 1).
+    for (const physical of [false,true]) for (const dpr of [1,1.5]) for (const exposure of [0,1]) {
+      const scene = api.createScene({ width:64,height:32,exposure,
+        ...(physical?{background:{r:0.25,g:0.3,b:0.5}}:{}),
+        surfaces:[surface('receiver',4,8,44,16,1,'receiver'),surface('led',30,4,10,10,6,'led'),surface('blocker',50,0,4,32,18,'receiver')],
+        materials:{receiver:{baseColor:{r:0.7,g:0.7,b:0.7},roughness:1,metallic:0},led:{baseColor:{r:0,g:0.1,b:0.2},roughness:1,metallic:0,emissive:{r:1,g:6,b:10}}},
+        light:{direction:{x:0.9,y:-0.35,z:0.25},intensity:1,color:{r:1,g:1,b:1}},environment:{intensity:0} });
+      const encoded=api.encodeScene(scene,dpr);uploader.upload(encoded);const bindings=uploader.getBindings();
+      height.dispatch(encoded,bindings);const hp=height.getSnapshot();
+      normal.dispatch({height:api.normalHeightBindingFromHeightPass(hp)});
+      shadow.dispatch({scene:encoded,bindings,...api.shadowHeightBindingsFromHeightPass(hp)});
+      const np=normal.getSnapshot(),sp=shadow.getSnapshot();
+      lighting.dispatch({scene:encoded,bindings,materialId:api.lightingMaterialIdBindingFromHeightPass(hp),normal:api.lightingNormalBindingFromNormalPass(np),visibility:api.lightingVisibilityBindingFromShadowPass(sp),options:{ambient:0}});
+      const lp=lighting.getSnapshot(),ho=height.getOutputs();
+      const field=async(output,format,channels,Type)=>{const f=new api.HostBuffer({width:hp.width,height:hp.height,format,channels});f.data.set(await read(output,Type));return f;};
+      const fields={color:await field(lp.color,'u8',4,Uint8Array),height:await field(ho.height,'f32',1,Float32Array),objectId:await field(ho.objectId,'u32',1,Uint32Array),normal:await field(np.output,'f32',3,Float32Array),visibility:await field(sp.output,'f32',1,Float32Array)};
+      for(const options of [{illumination:{radius:24,intensity:2}},{bloom:{radius:12,threshold:1},illumination:{radius:24,intensity:2}}]){
+        const e=api.sanitizeEmissiveEffects(options);
+        const output=effects.dispatch([lp.color.buffer,ho.objectId.buffer,ho.materialId.buffer,ho.height.buffer,np.output.buffer,bindings.materials.buffer,sp.output.buffer],hp.width,hp.height,api.parseHeader(encoded.bytes).materialCount,dpr,exposure,e,[12,16,28],0.3,physical);
+        const actual=await read(output,Uint8Array),expected=api.renderEmissiveEffects(scene,fields,e,[12,16,28],0.3,dpr,physical);
+        for(let i=0;i<actual.length;i++){
+          const error=Math.abs(actual[i]-expected[i]);maxByteError=Math.max(maxByteError,error);
+          if(error>1)throw new Error(`#74/#75 directional physical=${physical} dpr=${dpr} exposure=${exposure} ${JSON.stringify(options)} byte ${i}: CPU=${expected[i]}, GPU=${actual[i]}`);
+        }
+        comparedBytes+=actual.length;fixtures++;
+      }
+    }
+
     // Exercise the actual pipeline and fragment presentation, including retention.
     const canvas = { width: 16, height: 8 };
     let texture;

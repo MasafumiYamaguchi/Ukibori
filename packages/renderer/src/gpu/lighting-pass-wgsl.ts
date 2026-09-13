@@ -243,8 +243,12 @@ fn luminance(v: vec3<f32>) -> f32 {
 // base material (defensive — valid #25 output never emits one).
 fn baseMaterial() -> MaterialRecord {
   var m: MaterialRecord;
-  m.baseColor = vec3<f32>(0.6, 0.6, 0.6);
-  m.roughness = 0.5;
+  // #75 ABI v5: the base-plane receiver material is encoded in the header
+  // (defaults to the historical 0.6 gray / 0.5 roughness when the scene has
+  // no background), so base-plane pixels follow the same physical lighting
+  // equation as owned surfaces.
+  m.baseColor = vec3<f32>(sceneHeader.baseColorR, sceneHeader.baseColorG, sceneHeader.baseColorB);
+  m.roughness = sceneHeader.basePlaneRoughness;
   m.metallic = 0.0;
   m.ior = 1.5;
   m.flags = 0u;

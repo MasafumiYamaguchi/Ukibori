@@ -38,11 +38,12 @@ export const DEFAULT_SHADOW_ALPHA = 0.3;
 
 export function sanitizeCompositeOptions(
   options: CompositeOptions,
-): Pick<Required<CompositeOptions>, "shadowColor" | "shadowAlpha"> {
+): Pick<Required<CompositeOptions>, "shadowColor" | "shadowAlpha" | "physicalBasePlane"> {
   const effective = sharedSanitize(options);
   return {
     shadowColor: effective.shadowColor,
     shadowAlpha: effective.shadowAlpha,
+    physicalBasePlane: effective.physicalBasePlane,
   };
 }
 

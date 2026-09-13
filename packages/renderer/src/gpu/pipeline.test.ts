@@ -392,6 +392,7 @@ describe("GpuScenePipeline —full-chain orchestrator", () => {
     expect(snapshot.presentationPass.composite).toEqual({
       shadowColor: [255, 0, 0],
       shadowAlpha: 0.5,
+      physicalBasePlane: false,
     });
     expect(snapshot.presentationPass.debug).toBe(true);
   });

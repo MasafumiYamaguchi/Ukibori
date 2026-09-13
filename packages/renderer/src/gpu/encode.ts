@@ -1,6 +1,7 @@
 import { NO_OWNER } from "../compose";
-import { resolveMaterial } from "../material";
+import { BASE_MATERIAL, resolveMaterial } from "../material";
 import { isFiniteNumber } from "../math";
+import { BASE_PLANE_ROUGHNESS } from "../scene";
 import type { MaskSource, Scene } from "../scene";
 import type { EncodedHeader } from "./layout";
 import {
@@ -10,6 +11,8 @@ import {
   ALPHA_FORMAT_U8,
   FLAG_CASTS_SHADOW,
   FLAG_RECEIVES_SHADOW,
+  HEADER_OFFSET_BASE_COLOR,
+  HEADER_OFFSET_BASE_ROUGHNESS,
   HEADER_SIZE,
   MASK_OFFSET_ALPHA_BYTE_LENGTH,
   MASK_OFFSET_ALPHA_FORMAT,
@@ -184,6 +187,19 @@ export function encodeScene(scene: Scene, dpr: number): EncodedScene {
   writeF32(view, 96, Math.fround(scene.environment.intensity));
   writeF32(view, 100, Math.fround(scene.environment.diffuseIntensity));
   writeF32(view, 104, Math.fround(scene.environment.specularIntensity));
+  // #75 ABI v5: the base-plane receiver material. `scene.background` (linear
+  // albedo) selects a physically shaded matte base plane; without it the
+  // historical base material is encoded so non-background scenes keep their
+  // exact base-plane lighting bytes.
+  const baseColor = scene.background ?? BASE_MATERIAL.baseColor;
+  writeF32(view, HEADER_OFFSET_BASE_COLOR + 0, Math.fround(baseColor.r));
+  writeF32(view, HEADER_OFFSET_BASE_COLOR + 4, Math.fround(baseColor.g));
+  writeF32(view, HEADER_OFFSET_BASE_COLOR + 8, Math.fround(baseColor.b));
+  writeF32(
+    view,
+    HEADER_OFFSET_BASE_ROUGHNESS,
+    Math.fround(scene.background === undefined ? BASE_MATERIAL.roughness : BASE_PLANE_ROUGHNESS),
+  );
   // #45 directional-light linear RGB color at 112..124 (w stays 0 — the
   // buffer is zero-filled). createScene already sanitized the channels to
   // canonical f32 values (missing/non-finite/negative/f32-overflow -> 1,
