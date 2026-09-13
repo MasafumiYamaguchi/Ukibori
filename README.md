@@ -109,11 +109,27 @@ DOM所有のアクセシブルなテキスト(`<span>`)を描画し、その**�
 
 ## デモページ
 
-- `/` — #21 React APIデモ(物理層 + PLAY glyph + backend切替)
+メインの`/`はハッシュルートで構成されたダッシュボードです。空または未知のハッシュはPlaygroundとして表示され、各ルートは排他的にマウントされます(切り替えるとローカルstateはリセットされます)。
+
+| ハッシュ | 内容 |
+| --- | --- |
+| `#playground` | #21 React APIプレイグラウンド(全物理コントロール + 実DOM button/input + PLAY glyph。Live cardはsliderのelevation/thicknessに追従) |
+| `#features` | Feature Lab(順序付き合成、height profile、SVG shape + fillRule、nested Bake、オンデマンドdebugStateスナップショット、UkiboriText色) |
+| `#diagnostics/<id>` | standalone診断ページを1つだけsame-origin iframeで表示(`renderer` / `scheduler` / `wasm` / `dom` / `profiles` / `emissive`) |
+| `#product` | `/neumorphism.html`をsame-origin iframeで表示 |
+
+ダッシュボード下部のCoverage indexが、実装グループを対応するタブ / standaloneページ / リポジトリ内レポートへ対応付けます。
+
+standaloneページは従来どおり直接アクセスできます:
+
+- `/` — ダッシュボード(上記ハッシュルート)
 - `/renderer-debug.html` — レンダラー中間bufferデバッグ(#14–#19)
 - `/scheduler-debug.html` — #31/#32 dirtyスケジューラ + tileプランナデバッグ
 - `/wasm-debug.html` — #33 WASM CPUフォールバック診断(選択状態 / ステージ実績 / 転送量 / メモリ / パリティ / TS・WASM・WebGPUベンチマーク)
 - `/dom-debug.html` — #20 DOM統合デモ(実DOM button + text)
+- `/profile-debug.html` — #61 height profile比較(step / linear / smooth / convex / concave / power)
+- `/emissive-debug.html` — emissive materials / nearby illumination / bloom デバッグ
+- `/neumorphism.html` — ニューモーフィズム・ウェルネスダッシュボード
 
 ## #33 WASM-assisted CPU fallback (WASM CPUフォールバック)
 

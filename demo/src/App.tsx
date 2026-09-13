@@ -1,562 +1,91 @@
-import { useId, useState } from "react";
-import type { Material, UkiboriBackend } from "ukibori";
-import { Surface, Ukibori, UkiboriText } from "ukibori";
+import { useMemo, useSyncExternalStore } from "react";
+import { CoverageIndex } from "./dashboard/CoverageIndex";
+import { Diagnostics } from "./dashboard/Diagnostics";
+import { FeatureLab } from "./dashboard/FeatureLab";
+import { Playground } from "./dashboard/Playground";
+import { Product } from "./dashboard/Product";
+import type { DashboardRoute } from "./dashboard/routes";
+import { parseDashboardHash } from "./dashboard/routes";
 
 /**
- * #21 React API demo: the physical renderer driven through <Ukibori> /
- * <Surface> / <UkiboriText>. The DOM stays authoritative (real buttons,
- * DOM text); the physical layer (SDF -> height field -> material lighting +
- * cast shadows) renders onto the provider's stage-root overlay.
+ * Demo dashboard shell.
+ *
+ * The URL hash selects exactly one view:
+ *   #playground, #features, #diagnostics/<id>, #product
+ *
+ * An empty or invalid hash safely shows the Playground. Navigation uses real
+ * links (so direct loads and back/forward work) and marks the active entry
+ * with aria-current="page" — no fake tab ARIA. Only the active heavy panel
+ * (its provider or its iframe) stays mounted, so switching views may reset
+ * local state by design.
  */
 
-const MATERIALS = ["silicone", "matte", "metal", "emissive"] as const;
+const NAV_ITEMS = [
+  { hash: "#playground", label: "Playground", view: "playground" },
+  { hash: "#features", label: "Feature lab", view: "features" },
+  { hash: "#diagnostics/renderer", label: "Diagnostics", view: "diagnostics" },
+  { hash: "#product", label: "Product", view: "product" },
+] as const;
 
-// #45 directional-light color presets: linear RGB (HDR values allowed).
-const LIGHT_COLORS: Record<string, { r: number; g: number; b: number }> = {
-  white: { r: 1, g: 1, b: 1 },
-  "warm amber": { r: 1, g: 0.55, b: 0.25 },
-  "cool blue": { r: 0.4, g: 0.6, b: 1 },
-  magenta: { r: 1, g: 0.2, b: 0.6 },
-};
-type LightColorName = keyof typeof LIGHT_COLORS;
-
-const TWO_DECIMALS = (value: number) => value.toFixed(2);
-const PX = (value: number) => `${value}px`;
-
-interface SliderControlProps {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step: number;
-  format?: (value: number) => string;
-  onChange: (value: number) => void;
+function subscribeToHash(onChange: () => void): () => void {
+  window.addEventListener("hashchange", onChange);
+  return () => window.removeEventListener("hashchange", onChange);
 }
 
-function SliderControl({
-  label,
-  value,
-  min,
-  max,
-  step,
-  format = String,
-  onChange,
-}: SliderControlProps) {
-  const id = useId();
-  return (
-    <div className="field">
-      <div className="field-head">
-        <label htmlFor={id}>{label}</label>
-        <output htmlFor={id}>{format(value)}</output>
-      </div>
-      <input
-        id={id}
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-    </div>
-  );
+function readHash(): string {
+  return window.location.hash;
+}
+
+function readServerHash(): string {
+  return "";
+}
+
+function useDashboardRoute(): DashboardRoute {
+  const hash = useSyncExternalStore(subscribeToHash, readHash, readServerHash);
+  return useMemo(() => parseDashboardHash(hash), [hash]);
 }
 
 export function App() {
-  const [light, setLight] = useState({ x: -0.6, y: -0.8, z: 1 });
-  const [intensity, setIntensity] = useState(1);
-  const [lightColor, setLightColor] = useState<LightColorName>("white");
-  const [angularRadius, setAngularRadius] = useState(0);
-  const [shadowSamples, setShadowSamples] = useState<1 | 4 | 8 | 16>(8);
-  const [shadowView, setShadowView] = useState<"reconstructed" | "raw">("reconstructed");
-  const [reconstructionRadius, setReconstructionRadius] = useState(2);
-  const [environment, setEnvironment] = useState(0.5);
-  const [environmentSpecular, setEnvironmentSpecular] = useState(1);
-  const [exposure, setExposure] = useState(1);
-  const [elevation, setElevation] = useState(6);
-  const [thickness, setThickness] = useState(2);
-  const [radius, setRadius] = useState(16);
-  const [material, setMaterial] = useState<(typeof MATERIALS)[number]>("silicone");
-  const [backend, setBackend] = useState<UkiboriBackend>("auto");
-  const [showPlay, setShowPlay] = useState(true);
-  const [emission, setEmission] = useState(2);
-  const [nearbyLight, setNearbyLight] = useState(1.5);
-  const [bloom, setBloom] = useState(0.6);
-
-  const materials: Record<string, Material> = {
-    emissive: {
-      baseColor: { r: 0.025, g: 0.025, b: 0.025 },
-      roughness: 0.5,
-      metallic: 0,
-      emissive: { r: 0.06 * emission, g: 0.65 * emission, b: emission },
-    },
-  };
-
-  const setLightAxis = (axis: "x" | "y" | "z") => (value: number) =>
-    setLight((prev) => ({ ...prev, [axis]: value }));
-
-  const buttonElevation = Math.min(elevation, 16);
-
+  const route = useDashboardRoute();
   return (
-    <Ukibori
-      light={light}
-      intensity={intensity}
-      lightColor={LIGHT_COLORS[lightColor]}
-      angularRadius={angularRadius}
-      shadow={{
-        samples: shadowSamples,
-        reconstruction: {
-          enabled: shadowView === "reconstructed",
-          radius: reconstructionRadius,
-        },
-      }}
-      environment={{ intensity: environment, specularIntensity: environmentSpecular }}
-      exposure={exposure}
-      materials={materials}
-      compositing={{
-        emissive: {
-          illumination: { intensity: nearbyLight, radius: 72 },
-          bloom: { intensity: bloom, radius: 32, threshold: 1 },
-          quality: 4,
-        },
-      }}
-      backend={backend}
-      className="demo-root"
-      gpuProfiling={import.meta.env.DEV}
-      onReady={(layer) => {
-        if (!import.meta.env.DEV) return;
+    <div className="dashboard">
+      <header className="dash-header">
+        <p className="dash-kicker">Ukibori 浮彫 · physically informed 2.5D UI layer</p>
+        <h1>Ukibori demo dashboard</h1>
+        <p className="dash-lede">
+          One entry point for the physical renderer: the React playground, a public-API feature
+          lab, the retained diagnostics pages and the product showcase. The URL hash selects one
+          view at a time, and only that view — plus its provider or iframe — stays mounted.
+        </p>
+        <nav className="dash-nav" aria-label="Dashboard sections">
+          {NAV_ITEMS.map((item) => (
+            <a
+              key={item.hash}
+              className="dash-nav-link"
+              href={item.hash}
+              aria-current={route.view === item.view ? "page" : undefined}
+            >
+              {item.label}
+            </a>
+          ))}
+        </nav>
+      </header>
 
-        if (layer !== null) {
-          (window as any).__ukibori = layer;
-        } else {
-          delete (window as any).__ukibori;
-        }
-      }}
-    >
-      <div className="demo">
-        <header className="demo-header">
-          <h1>
-            Ukibori <span className="demo-sub">浮彫 — physical 2.5D layer over real DOM</span>
-          </h1>
-          <p>
-            DOM UI → 2.5D height field → physical material lighting + cross-element cast
-            shadows. The buttons below are real DOM elements; the physical layer renders onto a
-            <code> pointer-events: none </code>
-            overlay owned by the provider.
-          </p>
-        </header>
+      <main className="dash-main" id="dashboard-main">
+        {route.view === "playground" ? <Playground /> : null}
+        {route.view === "features" ? <FeatureLab /> : null}
+        {route.view === "diagnostics" ? <Diagnostics id={route.id} /> : null}
+        {route.view === "product" ? <Product /> : null}
+        <CoverageIndex />
+      </main>
 
-        <div className="demo-layout">
-          <aside className="demo-controls" aria-label="Physical layer controls">
-            <h2>Physical layer</h2>
-            <div className="field">
-              <div className="field-head">
-                <label htmlFor="backend-select">Backend</label>
-              </div>
-              <select
-                id="backend-select"
-                value={backend}
-                onChange={(event) => setBackend(event.target.value as UkiboriBackend)}
-              >
-                <option value="auto">auto — WebGPU direct canvas, CPU fallback</option>
-                <option value="webgpu">webgpu — WebGPU only (falls back to the labeled CSS approximation on failure)</option>
-                <option value="cpu">cpu — physical (CPU renderer)</option>
-                <option value="css">css — approximation fallback (not physical)</option>
-              </select>
-              <p className="hint">
-                auto requests a real navigator.gpu adapter/device and presents the #29/#31 GPU
-                pipeline directly to the overlay canvas (no readback). Any GPU failure switches
-                once to the honest CPU reference path. The CSS path is the explicitly labeled
-                box-shadow approximation.
-              </p>
-            </div>
-            <SliderControl
-              label="Light x"
-              value={light.x}
-              min={-1}
-              max={1}
-              step={0.05}
-              format={TWO_DECIMALS}
-              onChange={setLightAxis("x")}
-            />
-            <SliderControl
-              label="Light y"
-              value={light.y}
-              min={-1}
-              max={1}
-              step={0.05}
-              format={TWO_DECIMALS}
-              onChange={setLightAxis("y")}
-            />
-            <SliderControl
-              label="Light z (height)"
-              value={light.z}
-              min={0}
-              max={1}
-              step={0.05}
-              format={TWO_DECIMALS}
-              onChange={setLightAxis("z")}
-            />
-            <SliderControl
-              label="Intensity"
-              value={intensity}
-              min={0}
-              max={2}
-              step={0.05}
-              format={TWO_DECIMALS}
-              onChange={setIntensity}
-            />
-            <div className="field">
-              <div className="field-head">
-                <label htmlFor="color-select">Light color</label>
-              </div>
-              <select
-                id="color-select"
-                value={lightColor}
-                onChange={(event) => setLightColor(event.target.value as LightColorName)}
-              >
-                {Object.keys(LIGHT_COLORS).map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-              <p className="hint">
-                #45 linear RGB directional-light color: tints ONLY the direct
-                contribution — ambient, environment and shadow visibility are
-                unaffected.
-              </p>
-            </div>
-            <div className="field">
-              <div className="field-head">
-                <label htmlFor="samples-select">Soft shadow samples</label>
-              </div>
-              <select
-                id="samples-select"
-                value={shadowSamples}
-                onChange={(event) =>
-                  setShadowSamples(Number(event.target.value) as 1 | 4 | 8 | 16)
-                }
-              >
-                {([1, 4, 8, 16] as const).map((n) => (
-                  <option key={n} value={n}>
-                    {n} sample{n === 1 ? "" : "s"}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <SliderControl
-              label="Light size (soft shadow)"
-              value={angularRadius}
-              min={0}
-              max={0.5}
-              step={0.05}
-              format={(value) => `${value.toFixed(2)} rad`}
-              onChange={setAngularRadius}
-            />
-            <div className="field">
-              <div className="field-head">
-                <label htmlFor="view-select">Shadow view</label>
-              </div>
-              <select
-                id="view-select"
-                value={shadowView}
-                onChange={(event) =>
-                  setShadowView(event.target.value as "reconstructed" | "raw")
-                }
-              >
-                <option value="reconstructed">reconstructed — #43 edge-aware penumbra</option>
-                <option value="raw">raw — #41 decorrelated sampling (no filter)</option>
-              </select>
-            </div>
-            <SliderControl
-              label="Reconstruction radius"
-              value={reconstructionRadius}
-              min={0.5}
-              max={4}
-              step={0.5}
-              format={PX}
-              onChange={setReconstructionRadius}
-            />
-            <p className="hint">
-              #41 area-light soft shadows: a positive light size (angular radius, radians)
-              softens cast shadows through deterministic multi-direction sampling; 0 keeps the
-              exact hard-shadow semantics. The sample count controls the penumbra quality
-              (effective only while the light size is positive).
-            </p>
-            <p className="hint">
-              #43 edge-aware reconstruction: with the soft path active the sampled field is
-              smoothed by a small gated box filter (height + ownership edge gates) before
-              lighting — switch to "raw" to see the decorrelated #41 field without the filter.
-              The radius is in CSS pixels; hard-shadow frames always bypass the filter.
-            </p>
-            <SliderControl
-              label="Environment"
-              value={environment}
-              min={0}
-              max={2}
-              step={0.05}
-              format={TWO_DECIMALS}
-              onChange={setEnvironment}
-            />
-            <SliderControl
-              label="Environment specular share"
-              value={environmentSpecular}
-              min={0}
-              max={1}
-              step={0.05}
-              format={TWO_DECIMALS}
-              onChange={setEnvironmentSpecular}
-            />
-            <SliderControl
-              label="Exposure"
-              value={exposure}
-              min={0}
-              max={4}
-              step={0.05}
-              format={TWO_DECIMALS}
-              onChange={setExposure}
-            />
-            <SliderControl
-              label="Emissive intensity"
-              value={emission}
-              min={0}
-              max={4}
-              step={0.05}
-              format={TWO_DECIMALS}
-              onChange={setEmission}
-            />
-            <SliderControl
-              label="Nearby emissive light"
-              value={nearbyLight}
-              min={0}
-              max={3}
-              step={0.05}
-              format={TWO_DECIMALS}
-              onChange={setNearbyLight}
-            />
-            <SliderControl
-              label="Emissive bloom"
-              value={bloom}
-              min={0}
-              max={2}
-              step={0.05}
-              format={TWO_DECIMALS}
-              onChange={setBloom}
-            />
-            <p className="hint">
-              The cyan emissive material uses linear HDR RGB. Nearby light and bloom are
-              independent screen-space effects; set either control to 0 to disable it.
-            </p>
-            <p className="hint">
-              Environment is a uniform shared fill (0 = off) applied with exposure before sRGB
-              encoding — physical path only, kept independent of the directional light.
-            </p>
-            <SliderControl
-              label="Elevation"
-              value={elevation}
-              min={0}
-              max={100}
-              step={1}
-              format={PX}
-              onChange={setElevation}
-            />
-            <SliderControl
-              label="Thickness"
-              value={thickness}
-              min={0}
-              max={10}
-              step={0.5}
-              format={PX}
-              onChange={setThickness}
-            />
-            <SliderControl
-              label="Radius"
-              value={radius}
-              min={0}
-              max={60}
-              step={1}
-              format={PX}
-              onChange={setRadius}
-            />
-            <div className="field">
-              <div className="field-head">
-                <label htmlFor="material-select">Material</label>
-              </div>
-              <select
-                id="material-select"
-                value={material}
-                onChange={(event) => setMaterial(event.target.value as (typeof MATERIALS)[number])}
-              >
-                {MATERIALS.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <div className="btn-row">
-                <button
-                  className="btn"
-                  type="button"
-                  onClick={() => setShowPlay((v) => !v)}
-                >
-                  {showPlay ? "Hide PLAY glyph" : "Show PLAY glyph"}
-                </button>
-              </div>
-            </div>
-            <div className="light-preview" aria-label="Light direction preview">
-              <svg viewBox="-1.3 -1.3 2.6 2.6" role="img" aria-label="Light direction from above">
-                <circle r={1.1} fill="none" stroke="currentColor" strokeOpacity={0.25} />
-                <line
-                  x1={0}
-                  y1={0}
-                  x2={light.x}
-                  y2={light.y}
-                  stroke="currentColor"
-                  strokeOpacity={0.35}
-                />
-                <circle cx={light.x} cy={light.y} r={0.24} fill="var(--accent, #f2b93b)" />
-              </svg>
-              <p>
-                direction ({light.x.toFixed(2)}, {light.y.toFixed(2)}, {light.z.toFixed(2)})
-              </p>
-            </div>
-          </aside>
-
-          <main className="demo-showcase">
-            <section>
-              <h2>Live card — {material} / elevation {elevation}px</h2>
-              <Surface
-                id="live-card"
-                shape={{ kind: "roundedRect", radius }}
-                variant="raised"
-                elevation={0}
-                thickness={3}
-                bevelWidth={5}
-                radius={radius}
-                material={material}
-                className="demo-card"
-              >
-                <p className="demo-card-title">The shared light is visible here</p>
-                <p>
-                  elevation {elevation} · thickness {thickness} · radius {radius} · intensity{" "}
-                  {intensity.toFixed(2)}
-                </p>
-              </Surface>
-            </section>
-
-            <section className="demo-section" aria-label="Raised surfaces">
-              <h2>Raised surfaces — one shared light</h2>
-              <div className="demo-grid">
-                {MATERIALS.map((name) => (
-                  <Surface
-                    key={name}
-                    id={`tile-${name}`}
-                    shape={{ kind: "roundedRect", radius }}
-                    variant="raised"
-                    elevation={elevation}
-                    thickness={thickness}
-                    bevelWidth={3.5}
-                    radius={radius}
-                    material={name}
-                    className="demo-tile"
-                  >
-                    {name}
-                  </Surface>
-                ))}
-              </div>
-            </section>
-
-            <section className="demo-section" aria-label="Buttons and input">
-              <h2>Buttons &amp; input — real DOM, physical layer</h2>
-              <div className="demo-row">
-                <Surface
-                  as="button"
-                  id="primary"
-                  type="button"
-                  shape={{ kind: "roundedRect", radius }}
-                  variant="raised"
-                  elevation={buttonElevation}
-                  thickness={thickness}
-                  bevelWidth={3.5}
-                  radius={radius}
-                  material={material}
-                  className="demo-btn"
-                  onClick={() => alert(`Primary button (${material} / physical layer)`)}
-                >
-                  Primary
-                </Surface>
-                <Surface
-                  as="button"
-                  id="secondary"
-                  type="button"
-                  shape={{ kind: "roundedRect", radius }}
-                  variant="raised"
-                  elevation={buttonElevation}
-                  thickness={thickness}
-                  bevelWidth={3.5}
-                  radius={radius}
-                  material="matte"
-                  className="demo-btn"
-                  onClick={() => alert("Secondary button (matte)")}
-                >
-                  Secondary
-                </Surface>
-                <Surface
-                  as="input"
-                  id="field"
-                  type="text"
-                  placeholder="Type something…"
-                  aria-label="Demo text input"
-                  shape={{ kind: "roundedRect", radius }}
-                  variant="raised"
-                  elevation={buttonElevation}
-                  thickness={thickness}
-                  bevelWidth={3.5}
-                  radius={radius}
-                  material={material}
-                  className="demo-input"
-                />
-              </div>
-            </section>
-
-            <section className="demo-section" aria-label="Glyph demo">
-              <h2>Glyph (#19 mask path) — DOM text + physical relief</h2>
-              <Surface
-                id="glyph-panel"
-                shape={{ kind: "roundedRect", radius }}
-                variant="raised"
-                elevation={0}
-                thickness={3}
-                bevelWidth={5}
-                radius={radius}
-                material="matte"
-                className="demo-play-panel"
-              >
-                {showPlay ? (
-                  <UkiboriText
-                    id="play"
-                    text="PLAY"
-                    elevation={3}
-                    thickness={0.8}
-                    bevelWidth={1.1}
-                    material="metal"
-                    className="ukibori-text"
-                  />
-                ) : (
-                  <span className="ukibori-text">PLAY</span>
-                )}
-                <p className="plain-note">
-                  The text stays DOM-owned and accessible; its glyph is rasterized into a #19
-                  mask and renders as physical relief with cast shadows.
-                </p>
-              </Surface>
-            </section>
-          </main>
-        </div>
-      </div>
-    </Ukibori>
+      <footer className="dash-footer">
+        <p>
+          Hash routes: <code>#playground</code>, <code>#features</code>,{" "}
+          <code>#diagnostics/&lt;id&gt;</code>, <code>#product</code>. An empty or unknown hash
+          shows the Playground. Legacy standalone pages stay available at their own URLs.
+        </p>
+      </footer>
+    </div>
   );
 }
