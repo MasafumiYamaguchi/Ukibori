@@ -14,7 +14,7 @@ Branch: `feat/issue-52-glyph-lighting` (base: master `52fa1bd`)
 
 ## Ablation results
 
-- **DOM visible vs DOM ink suppressed** (real Chrome, real WebGPU, demo-equivalent panel + PLAY glyph at `elevation 3 / thickness 0.8 / bevelWidth 1.1`, material metal):
+- **DOM visible vs DOM ink suppressed** (real Chrome, real WebGPU, demo-equivalent panel + PLAY glyph at `elevation 3 / thickness 0.8 / bevelWidth 1.1`, material metal — the pre-follow-up fixture; the current Playground fixture is thickness 2, see the follow-up section):
   - Canvas-side glyph-region `|Δ|` between opposite lights: left↔right mean 2.65 / max 75.3 u8, top↔bottom mean 1.24 / max 75.3 u8 (DPR 1) — identical in both ink states.
   - Screenshots: ink visible = flat text (physical relief fully covered; only the pre-existing offset "ghost" sliver shows); ink suppressed = relief with a directional highlight that flips left↔right and top↔bottom.
 - **DPR 1 / 1.5 / 2**: response max stays ~75 u8 at every DPR (mean over the measured box dilutes because the box holds more panel pixels); the silhouette stays a CSS-px raster by the documented #19/#20 contract.
@@ -192,7 +192,10 @@ Committed artifacts: `packages/ukibori-dom/test-browser/glyph-ablation-artifacts
 
 - Light directions: left / right / top / bottom screenshots in both ink states (DPR 1), plus left at DPR 2.
 - Glyph families / font sizes: structural characterization in Node (thin stroke "L", thick stroke "H", counter "P" at small/medium/large grids); the real-font browser harness uses "PLAY" (counter + mixed stroke widths) plus the alignment matrix's thin "illii" and thick "OM" at 32/64/96 px.
-- DPR: 1 / 1.5 / 2 in the ablation matrix (canvas response persists; silhouette stays CSS-px) and in the alignment matrix (CSS-space alignment is DPR-invariant, verified).
+- DPR: 1 / 1.5 / 2 in the ablation matrix (canvas response persists; the
+  render target scales, the source mask stays exactly 2x — see the follow-up
+  section) and in the alignment matrix (CSS-space alignment is DPR-invariant,
+  verified).
 - Direction flip: highlight moves with the light direction (artifacts `*-noink.png` left vs right).
 - Alignment: mask-ready transition visual position (DOM ink vs relief) — `alignment/` artifacts.
 
@@ -212,9 +215,13 @@ Committed artifacts: `packages/ukibori-dom/test-browser/glyph-ablation-artifacts
 
 1. **CSS-px silhouette staircase**: glyph edges keep the mask raster's CSS-px
    quantization at every DPR (crisper DOM text vs slightly coarser relief).
-   Follow-up candidate together with raster-scale metadata (supersampling).
+   **Addressed by the fixed-2x source-mask follow-up below: the mask is now
+   exactly 2x the logical CSS box on every display, so the silhouette
+   samples at half a CSS pixel (DPR-independent).**
 2. **Thin strokes** respond weakly (≈1 mask px strokes leave almost no bevel
    band); improving them ties into the same resolution follow-up.
+   **Reduced by the same fixed-2x mask (a ~1-CSS-px stroke keeps several mask
+   pixels of bevel band).**
 3. **Interior plateau** has no directional shading — physically correct for a
    flat plateau; a stronger relief impression can be tuned via user-supplied
    `thickness`/`bevelWidth` (e.g. the demo's PLAY glyph parameters).
@@ -269,9 +276,140 @@ Committed artifacts: `packages/ukibori-dom/test-browser/glyph-ablation-artifacts
 
 ## Verification summary
 
-- `ukibori-renderer` typecheck / tests (incl. the 5 characterization tests) / build: pass
-- `ukibori-dom` typecheck / tests (126, incl. the transition-safe ownership policy tests) / build: pass; real-WebGPU DOM harness: `UKIBORI_DOM_GPU_PASS`
-- `ukibori` typecheck / tests (196, incl. the intent + alignment + generic-mask React tests, the review-round-2 identity/fidelity tests and the review-round-3 typography-fidelity tests) / build: pass
-- `demo` build: pass
-- Ablation runner (light + alignment modes): OK, artifacts committed
-- Real-Chrome alignment matrix: dCenter 0.00 / ≤ 0.5 px across the faithful cases (see `alignment/after`); the text-transform fixture pins the DOM-visible fallback and the letter-spacing fixture pins the mirror (mask ink coincides with the DOM ink exactly)
+- `ukibori-renderer` typecheck / tests / build: pass — 1017 tests across 54
+  suites (incl. the mapping-contract characterization and the legacy
+  thin-relief rail). The 4 pre-existing `.mjs` collection-SyntaxError suites
+  (`wasm-browser-contract`, `gpu/issue30-contract`,
+  `gpu/test-browser-contract`, `wasm/determinism`) remain; no new
+  deterministic failures.
+- `ukibori-dom` typecheck / tests / build: pass — 213 tests (incl. the
+  transition-safe ownership policy tests, the demo-bias (0.15) CPU glyph
+  shadow references, the shadow/bias-decision assertion suite and the
+  Playground fixture CSS-parity test).
+- `ukibori` typecheck / tests / build: pass — 215 tests (fixed-2x
+  supersampling, identity/fidelity, alignment and typography tests).
+- `demo` typecheck / build: pass.
+- Real-browser harness (real Chrome 152 / Windows, real WebGPU backend):
+  light-response mode + numeric shadow verification + alignment mode all
+  `GLYPH_ABLATION_RUN_OK`; artifacts refreshed under
+  `glyph-ablation-artifacts/after` and `alignment/after`.
+- Real-Chrome alignment matrix: dCenter <= 0.5 px across every faithful case
+  at DPR 1/1.5/2 with the production fixed-2x masks (e.g. 362x128 for PLAY 64);
+  the text-transform fixture pins the DOM-visible fallback and the
+  letter-spacing fixture pins the mirror.
+- Real-Chrome shadow verification (presented-frame readback, executed twice
+  with fail-fast assertions; nonzero exit and no `GLYPH_ABLATION_RUN_OK`
+  otherwise): shadow exists at default / reversed / grazing lights; the LOCAL
+  caster-to-shadow displacement reverses (default (0.68, 0.90) vs reversed
+  (-0.29, -0.39) CSS px; normalized cosine -1.000); the GATE reach (90th
+  percentile of the horizontal local attribution, robust to counter-spanning
+  outliers) is 2 px at z=1 and 4 -> 6 px at z=0.35 (naive projection
+  `thickness * |Lxy| / Lz` = 2.0 / 5.7 px; grazing strictly larger at both
+  biases), with the raw max and the 3D ray length retained as informational.
+  Bias 0.15 adds receiver shadow pixels over 0.5 (198 -> 208 at the default
+  light, 529 -> 713 at grazing) and changes 0/1786 glyph-surface pixels at the
+  default light with the side roundedRect bit-identical, and the runner
+  ASSERTS both the positive gains and the side-panel tolerance, so the
+  Playground override is RETAINED (renderer default 0.5 unchanged) as a
+  regression-gated decision.
+- Real-Chrome light matrix: the captured render target is asserted to scale
+  with the requested DPR (552x336 / 829x504 / 1105x672 at DPR 1 / 1.5 / 2,
+  checked against `debugState().dpr` and `floor(region * dpr)`), so mislabeled
+  DPR evidence cannot pass.
+
+## Follow-up: fixed-2x glyph source-mask supersampling
+
+Branch `codex/glyph-supersampling-shadow`, base master `adc0d5f`. Reduces
+remaining limitations 1 (CSS-px silhouette staircase) and 2 (weak thin-stroke
+response), inside `UkiboriText`, with **zero renderer production changes**.
+An earlier draft keyed the raster scale off `window.devicePixelRatio`; the
+final policy is DEVICE-INDEPENDENT: the source mask is rasterized at FIXED
+exactly 2x the logical CSS box on every browser/device, capped at 2x, with no
+DPR state, resize listener, resolution media query, raster-identity device
+scale or DPR rerasterization lifecycle.
+
+- `rasterizeText` rasterizes at exactly `2 ×` the LOGICAL integer CSS box
+  (`GLYPH_RASTER_SCALE = 2`, never read from `window.devicePixelRatio`) with a
+  common integer multiplier (gcd) for the dimensions. The physical footprint
+  is unchanged: `SurfaceNode.size` maps the raster onto the same logical box
+  (the renderer's 1e-6 isotropic mapping validation holds), so raster
+  resolution is never scene scale.
+- Exact isotropy: `mask.width / mask.height` equals the logical aspect by
+  construction (integer box × the same multiplier); a 160x85 box rasterizes
+  to 320x170 at DPR 1, 1.5 and 2. `ctx.setTransform(scale, ...)` maps the
+  logical drawing space onto the denser raster once, so textAlign/baseline
+  anchoring and DOM-ink alignment are unchanged.
+- DPR independence: a mounted glyph never needs a re-raster when the display
+  ratio changes; the raster identity no longer carries any device scale and
+  the resize / `matchMedia("(resolution: Ndppx)")` lifecycle is removed. The
+  DOM box and the scene `SurfaceNode.size/position`, absolute
+  elevation/thickness, typography/fallback behavior and the canvas draw
+  mapping are all preserved.
+- Playground fixture (demo/src/dashboard/Playground.tsx): panel elevation 0 /
+  thickness 3 / bevelWidth 5 / radius 16 / matte; PLAY glyph as
+  `<UkiboriText>` with ABSOLUTE elevation 3 (on the panel top) / thickness 2 /
+  bevelWidth 1.1 / metal, styled by the real demo CSS (font-size 3.2rem,
+  weight 800, letter-spacing 0.12em, line-height 1, ui-monospace stack;
+  logical glyph box 145x51, fixed-2x mask 290x102); provider shadow pipeline
+  `{ angularRadius: 0, samples: 8, reconstruction: { enabled: true,
+  radius: 2 }, bias: 0.15 }`. The reduced 0.15 bias is RETAINED on corrected
+  real-browser evidence: vs the 0.5 default it adds cast-shadow receiver
+  pixels at both Playground lights (198 -> 208 shadow pixels at the default
+  light; 529 -> 713 at z=0.35 grazing), changes 0 of 1786 glyph-surface
+  pixels at the default light, and leaves the second roundedRect surface
+  bit-identical (mean 188.11, 0 changed pixels). The runner ASSERTS this
+  adoption decision (positive default and grazing receiver gains, side-panel
+  changes within the small tolerance), so the override cannot silently regress
+  to "0.5 is sufficient".
+- Feature Lab fixture (demo/src/dashboard/FeatureLab.tsx): a SEPARATE surface
+  with panel elevation 0 / thickness 4 / bevelWidth 10 / panel material and a
+  PLAY glyph at ABSOLUTE elevation 4 / thickness 2 / bevelWidth 1.4 /
+  metal, light (-0.5,-0.7,1). The Playground measurements do NOT transfer to
+  this different geometry, so Feature Lab uses the RENDERER DEFAULT shadow
+  bias (no `bias` override). Its purpose is color fidelity / feature
+  integration, not glyph-shadow visibility.
+- (An earlier draft conclusion that 0.5 was "sufficient" came from a
+  bounding-box metric that excluded shadows inside the ink box and counted
+  silhouette-halo pixels as receivers; it was superseded by the per-pixel
+  production-mask segmentation.)
+
+Coverage: renderer mapping-contract characterization (`glyph.test.ts`: a 2x
+raster on the same footprint yields identical scene-unit heights and passes
+`createScene`; the thickness-0.8 reduced-bias rail is kept as LEGACY
+thin-relief characterization, not the current fixture); React tests for
+fixed-2x at DPR 1 (logical 120x40 → mask 240x80, DOM 120x40), DPR 2 (same
+240x80, never 4x), fractional/invalid/missing DPR (still 240x80), no
+re-raster on a DPR change, logical DOM box / scene footprint preservation,
+and all alignment/fallback/typography tests. The real-browser harness
+(`glyph-lighting.mjs`) was REWRITTEN to render the actual production React
+components (`<Ukibori>` / `<Surface>` / `<UkiboriText>` from the built
+`ukibori` package) and only reads the retained registry — no copied
+`rasterizeText`, no mirror. The harness styles the glyph with the ACTUAL
+Playground declarations (`.demo-play-panel` + `.ukibori-text` copied from
+`demo/src/index.css`; parity pinned by
+`test-browser/glyph-lighting-css.test.mjs`) and records the COMPUTED
+typography / logical glyph box / fixed-2x mask in the report; the shadow gate
+asserts them (weight 800, 3.2rem, 0.12em, line-height 1, monospace fallback,
+mask exactly 2x the logical box). Its numeric shadow verification uses the
+production mask per pixel: glyph-surface pixels (`alpha >= 0.5`) are never
+receivers, the antialiased silhouette halo (`0 < alpha < 0.5`) is excluded,
+and each remaining shadow candidate is attributed to the nearest production
+caster boundary along the light ray — the robust 90th-percentile LOCAL
+receiver-plane reach is the GATE metric (raw max and 3D ray distance
+informational) — with direction taken from the local caster-to-shadow
+displacement. The verification runs twice consecutively with fail-fast
+assertions (empty case, wrong direction, non-increasing grazing reach,
+implausible length, unstable passes, non-beneficial bias 0.15, side-panel
+bias side effects) and the runner exits nonzero without `RUN_OK` on any
+failure; the light matrix separately asserts that the render target scales
+with the requested DPR (552x336 / 829x504 / 1105x672, rounding-tolerant for
+the fractional content-sized region). `Browser.getVersion`,
+`layer.debugState()` and the WebGPU adapter details are written into the
+reports. The alignment matrix measures DOM ink with the overlay canvas hidden
+(pure DOM ink): all faithful cases dCenter
+≤ 0.5 px at DPR 1/1.5/2 with all fixed-2x masks (e.g. 362x128 for PLAY 64).
+Evidence:
+`packages/ukibori-dom/test-browser/glyph-ablation-artifacts/after/`
+(`glyph-ablation-report.json`, `light-response-report.json`,
+`shadow-verification-report.json`) and
+`alignment/after/alignment-report.json`.

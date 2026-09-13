@@ -182,6 +182,13 @@ export function FeatureLab() {
       light={{ x: -0.5, y: -0.7, z: 1 }}
       intensity={1}
       materials={FEATURE_MATERIALS}
+      // Renderer default shadow options: the Feature Lab's purpose is color
+      // fidelity / feature integration, not glyph-shadow visibility, so it
+      // does NOT override the provider-global bias. The Playground's 0.15
+      // override is justified by its own real-browser fixture (panel 0/3,
+      // glyph elevation 3 / thickness 2 / bevel 1.1); those measurements do
+      // NOT transfer to this Feature Lab fixture (panel 0/4, glyph elevation
+      // 4 / thickness 2 / bevel 1.4, light (-0.5,-0.7,1)).
       gpuProfiling
       className="fl-root"
       onReady={setLayer}
@@ -510,8 +517,11 @@ export function FeatureLab() {
             <UkiboriText
               id="fl-text"
               text="PLAY"
-              elevation={3}
-              thickness={1}
+              // Absolute scene z (#13): the panel top is elevation 0 +
+              // thickness 4 = z 4, so the glyph base must be 4 (not a
+              // parent-relative offset) and thickness 2 puts its top at z 6.
+              elevation={4}
+              thickness={2}
               bevelWidth={1.4}
               material="metal"
               style={{ color: selectedTextColor.value }}

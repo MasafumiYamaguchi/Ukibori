@@ -20,6 +20,12 @@ import { SliderControl } from "./SliderControl";
 
 const MATERIALS = ["silicone", "matte", "metal", "emissive"] as const;
 
+// Playground Glyph fixture: the panel top is a fixed elevation 0 + thickness
+// 3 = scene z 3, and the PLAY glyph sits at the ABSOLUTE scene z 3 (its base
+// exactly on the panel top) with a fixed 2px relief.
+const GLYPH_PANEL_TOP = 3;
+const GLYPH_THICKNESS = 2;
+
 // #45 directional-light color presets: linear RGB (HDR values allowed).
 const LIGHT_COLORS: Record<string, { r: number; g: number; b: number }> = {
   white: { r: 1, g: 1, b: 1 },
@@ -79,6 +85,16 @@ export function Playground() {
           enabled: shadowView === "reconstructed",
           radius: reconstructionRadius,
         },
+        // Fixed 2px glyph relief (GLYPH_THICKNESS = 2): the demo-local 0.15
+        // bias is RETAINED on real-browser evidence and the adoption decision
+        // is a regression assertion, not just "it still renders". Against the
+        // 0.5 default, 0.15 adds cast-shadow receiver pixels at both demo
+        // lights (198 -> 208 at the default light, 529 -> 713 at grazing)
+        // while changing 0 glyph-surface pixels and leaving the other
+        // roundedRect surface bit-identical (glyph-lighting
+        // shadow-verification-report.json; gate in
+        // scripts/glyph-ablation.mjs shadowAssertionFailures).
+        bias: 0.15,
       }}
       environment={{ intensity: environment, specularIntensity: environmentSpecular }}
       exposure={exposure}
@@ -499,7 +515,7 @@ export function Playground() {
                 shape={{ kind: "roundedRect", radius }}
                 variant="raised"
                 elevation={0}
-                thickness={3}
+                thickness={GLYPH_PANEL_TOP}
                 bevelWidth={5}
                 radius={radius}
                 material="matte"
@@ -509,8 +525,8 @@ export function Playground() {
                   <UkiboriText
                     id="play"
                     text="PLAY"
-                    elevation={3}
-                    thickness={0.8}
+                    elevation={GLYPH_PANEL_TOP}
+                    thickness={GLYPH_THICKNESS}
                     bevelWidth={1.1}
                     material="metal"
                     className="ukibori-text"
@@ -520,7 +536,9 @@ export function Playground() {
                 )}
                 <p className="plain-note">
                   The text stays DOM-owned and accessible; its glyph is rasterized into a #19
-                  mask and renders as physical relief with cast shadows.
+                  mask and renders as physical relief with cast shadows. This Glyph demo uses a
+                  fixed 2px relief independent of the general Surface elevation and thickness
+                  controls.
                 </p>
               </Surface>
             </section>

@@ -3,335 +3,1645 @@
     "dpr-1-ink-visible": {
       "left": {
         "mean": [
-          188.5,
-          189.5,
-          189.8
+          174.6,
+          175,
+          174.7
         ],
         "box": {
-          "x": 58,
-          "y": 78,
-          "w": 164,
-          "h": 89
+          "x": 84,
+          "y": 121,
+          "w": 150,
+          "h": 55
         },
         "canvas": [
-          508,
-          308
-        ]
+          552,
+          336
+        ],
+        "dpr": 1,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 74898
       },
       "right": {
         "mean": [
-          187.7,
-          188.7,
-          189
+          173,
+          173.5,
+          173.3
         ],
         "box": {
-          "x": 58,
-          "y": 78,
-          "w": 164,
-          "h": 89
+          "x": 84,
+          "y": 121,
+          "w": 150,
+          "h": 55
         },
         "canvas": [
-          508,
-          308
-        ]
+          552,
+          336
+        ],
+        "dpr": 1,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 74898
       },
       "delta-right-left": {
-        "n": 14062,
-        "mean": 2.431517565068969,
-        "max": 75.33333333333333
+        "n": 8250,
+        "mean": 2.3981818181818153,
+        "max": 135.66666666666666
       },
       "top": {
         "mean": [
-          187.8,
-          188.9,
-          189.1
+          173.1,
+          173.5,
+          173.3
         ],
         "box": {
-          "x": 58,
-          "y": 78,
-          "w": 164,
-          "h": 89
+          "x": 84,
+          "y": 121,
+          "w": 150,
+          "h": 55
         },
         "canvas": [
-          508,
-          308
-        ]
+          552,
+          336
+        ],
+        "dpr": 1,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 74898
       },
       "bottom": {
         "mean": [
-          187.5,
-          188.6,
-          188.8
+          173.2,
+          173.6,
+          173.4
         ],
         "box": {
-          "x": 58,
-          "y": 78,
-          "w": 164,
-          "h": 89
+          "x": 84,
+          "y": 121,
+          "w": 150,
+          "h": 55
         },
         "canvas": [
-          508,
-          308
-        ]
+          552,
+          336
+        ],
+        "dpr": 1,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 74898
       },
       "delta-bottom-top": {
-        "n": 14062,
-        "mean": 0.8788223581282923,
-        "max": 75.33333333333333
+        "n": 8250,
+        "mean": 0.6871515151515153,
+        "max": 35.666666666666664
       }
     },
     "dpr-1.5-ink-visible": {
       "left": {
         "mean": [
-          188.1,
-          189.1,
-          189.4
+          173.3,
+          173.7,
+          173.5
         ],
         "box": {
-          "x": 87,
-          "y": 117,
-          "w": 246,
-          "h": 134
+          "x": 126,
+          "y": 181,
+          "w": 225,
+          "h": 83
         },
         "canvas": [
-          762,
-          462
-        ]
+          829,
+          504
+        ],
+        "dpr": 1.5,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 169019
       },
       "right": {
         "mean": [
-          187.3,
-          188.4,
-          188.6
+          173.3,
+          173.8,
+          173.5
         ],
         "box": {
-          "x": 87,
-          "y": 117,
-          "w": 246,
-          "h": 134
+          "x": 126,
+          "y": 181,
+          "w": 225,
+          "h": 83
         },
         "canvas": [
-          762,
-          462
-        ]
+          829,
+          504
+        ],
+        "dpr": 1.5,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 169019
       },
       "delta-right-left": {
-        "n": 31758,
-        "mean": 1.6869870058987935,
-        "max": 75.33333333333333
+        "n": 18675,
+        "mean": 1.0192235609103106,
+        "max": 134.66666666666666
       },
       "top": {
         "mean": [
-          187.6,
-          188.7,
-          189
+          173.3,
+          173.7,
+          173.5
         ],
         "box": {
-          "x": 87,
-          "y": 117,
-          "w": 246,
-          "h": 134
+          "x": 126,
+          "y": 181,
+          "w": 225,
+          "h": 83
         },
         "canvas": [
-          762,
-          462
-        ]
+          829,
+          504
+        ],
+        "dpr": 1.5,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 169019
       },
       "bottom": {
         "mean": [
-          187.4,
-          188.5,
-          188.8
+          173.4,
+          173.8,
+          173.6
         ],
         "box": {
-          "x": 87,
-          "y": 117,
-          "w": 246,
-          "h": 134
+          "x": 126,
+          "y": 181,
+          "w": 225,
+          "h": 83
         },
         "canvas": [
-          762,
-          462
-        ]
+          829,
+          504
+        ],
+        "dpr": 1.5,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 169019
       },
       "delta-bottom-top": {
-        "n": 31758,
-        "mean": 0.5264605243823074,
-        "max": 75.33333333333333
+        "n": 18675,
+        "mean": 0.49604640785363896,
+        "max": 136
       }
     },
     "dpr-2-ink-visible": {
       "left": {
         "mean": [
-          187.9,
-          188.9,
-          189.2
+          172.9,
+          173.3,
+          173.1
         ],
         "box": {
-          "x": 116,
-          "y": 156,
-          "w": 328,
-          "h": 178
+          "x": 168,
+          "y": 242,
+          "w": 299,
+          "h": 110
         },
         "canvas": [
-          1016,
-          616
-        ]
+          1105,
+          672
+        ],
+        "dpr": 2,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 300388
       },
       "right": {
         "mean": [
-          187.1,
-          188.2,
-          188.5
+          172.9,
+          173.3,
+          173.1
         ],
         "box": {
-          "x": 116,
-          "y": 156,
-          "w": 328,
-          "h": 178
+          "x": 168,
+          "y": 242,
+          "w": 299,
+          "h": 110
         },
         "canvas": [
-          1016,
-          616
-        ]
+          1105,
+          672
+        ],
+        "dpr": 2,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 300388
       },
       "delta-right-left": {
-        "n": 56248,
-        "mean": 1.2326304935286354,
-        "max": 75.33333333333333
+        "n": 32890,
+        "mean": 0.6551130029390848,
+        "max": 57.666666666666664
       },
       "top": {
         "mean": [
-          187.4,
-          188.5,
-          188.8
+          172.9,
+          173.3,
+          173.1
         ],
         "box": {
-          "x": 116,
-          "y": 156,
-          "w": 328,
-          "h": 178
+          "x": 168,
+          "y": 242,
+          "w": 299,
+          "h": 110
         },
         "canvas": [
-          1016,
-          616
-        ]
+          1105,
+          672
+        ],
+        "dpr": 2,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 300388
       },
       "bottom": {
         "mean": [
-          187.4,
-          188.4,
-          188.7
+          173,
+          173.4,
+          173.2
         ],
         "box": {
-          "x": 116,
-          "y": 156,
-          "w": 328,
-          "h": 178
+          "x": 168,
+          "y": 242,
+          "w": 299,
+          "h": 110
         },
         "canvas": [
-          1016,
-          616
-        ]
+          1105,
+          672
+        ],
+        "dpr": 2,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 300388
       },
       "delta-bottom-top": {
-        "n": 56248,
-        "mean": 0.2518489546294962,
-        "max": 75.33333333333333
+        "n": 32890,
+        "mean": 0.4090909090909103,
+        "max": 118.33333333333333
       }
     },
     "dpr-1-ink-suppressed": {
       "left": {
         "mean": [
-          188.5,
-          189.5,
-          189.8
+          174.6,
+          175,
+          174.7
         ],
         "box": {
-          "x": 58,
-          "y": 78,
-          "w": 164,
-          "h": 89
+          "x": 84,
+          "y": 121,
+          "w": 150,
+          "h": 55
         },
         "canvas": [
-          508,
-          308
-        ]
+          552,
+          336
+        ],
+        "dpr": 1,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 74898
       },
       "right": {
         "mean": [
-          187.7,
-          188.7,
-          189
+          173,
+          173.5,
+          173.3
         ],
         "box": {
-          "x": 58,
-          "y": 78,
-          "w": 164,
-          "h": 89
+          "x": 84,
+          "y": 121,
+          "w": 150,
+          "h": 55
         },
         "canvas": [
-          508,
-          308
-        ]
+          552,
+          336
+        ],
+        "dpr": 1,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 74898
       },
       "delta-right-left": {
-        "n": 14062,
-        "mean": 2.431517565068969,
-        "max": 75.33333333333333
+        "n": 8250,
+        "mean": 2.3981818181818153,
+        "max": 135.66666666666666
       },
       "top": {
         "mean": [
-          187.8,
-          188.9,
-          189.1
+          173.1,
+          173.5,
+          173.3
         ],
         "box": {
-          "x": 58,
-          "y": 78,
-          "w": 164,
-          "h": 89
+          "x": 84,
+          "y": 121,
+          "w": 150,
+          "h": 55
         },
         "canvas": [
-          508,
-          308
-        ]
+          552,
+          336
+        ],
+        "dpr": 1,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 74898
       },
       "bottom": {
         "mean": [
-          187.5,
-          188.6,
-          188.8
+          173.2,
+          173.6,
+          173.4
         ],
         "box": {
-          "x": 58,
-          "y": 78,
-          "w": 164,
-          "h": 89
+          "x": 84,
+          "y": 121,
+          "w": 150,
+          "h": 55
         },
         "canvas": [
-          508,
-          308
-        ]
+          552,
+          336
+        ],
+        "dpr": 1,
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "panelOpaque": true,
+        "opaqueCount": 74898
       },
       "delta-bottom-top": {
-        "n": 14062,
-        "mean": 0.8788223581282923,
-        "max": 75.33333333333333
+        "n": 8250,
+        "mean": 0.6871515151515153,
+        "max": 35.666666666666664
       }
     },
     "dpr-2-ink-suppressed": {}
   },
   "alignment": {
-    "maskInk": {
-      "top": 24,
-      "bottom": 68,
-      "height": 85
+    "box": {
+      "left": 42.390625,
+      "top": 69.1875,
+      "width": 145,
+      "height": 51
     },
-    "domLineBox": {
-      "top": 0,
-      "bottom": 85,
-      "height": 85
+    "maskInk": {
+      "left": 3.5,
+      "top": 7.5,
+      "right": 138,
+      "bottom": 43
+    },
+    "maskSize": [
+      290,
+      102
+    ],
+    "maskSizeCss": [
+      145,
+      51
+    ],
+    "rasterScale": 2,
+    "canDelegateInk": true,
+    "lineRectCount": 1,
+    "inkAttrPresent": true,
+    "typography": {
+      "font": "800 51.2px / 51.2px ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+      "fontFamily": "ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+      "fontSize": "51.2px",
+      "fontWeight": "800",
+      "lineHeight": "51.2px",
+      "letterSpacing": "6.144px",
+      "wordSpacing": "0px",
+      "textTransform": "none",
+      "direction": "ltr",
+      "writingMode": "horizontal-tb",
+      "fontKerning": "auto",
+      "fontStretch": "100%",
+      "fontVariantCaps": "normal",
+      "fontVariantPosition": "normal",
+      "fontFeatureSettings": "normal",
+      "fontVariationSettings": "normal",
+      "textRendering": "auto",
+      "textDecorationLine": "none",
+      "textEmphasisStyle": "none",
+      "webkitTextStrokeWidth": "0px",
+      "canvasSupport": {
+        "letterSpacing": true,
+        "wordSpacing": true,
+        "fontKerning": true,
+        "fontStretch": true,
+        "fontVariantCaps": true,
+        "textRendering": true,
+        "direction": true
+      }
+    },
+    "lineBox": {
+      "top": -5,
+      "height": 60,
+      "left": 0
+    },
+    "canvas": [
+      552,
+      336
+    ]
+  },
+  "browser": {
+    "protocolVersion": "1.3",
+    "product": "Chrome/152.0.7977.84",
+    "revision": "@4334922f44c77b1208072c4deac29db3af39bbea",
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+    "jsVersion": "15.2.124.21"
+  },
+  "runtime": {
+    "backend": "webgpu",
+    "gpuFallbackReason": null,
+    "dpr": 1,
+    "renderSize": {
+      "width": 552,
+      "height": 336
+    },
+    "region": {
+      "x": -44,
+      "y": -54,
+      "w": 552.78125,
+      "h": 336.375
+    },
+    "lastRenderMs": 1,
+    "windowDevicePixelRatio": 1,
+    "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+    "hardwareConcurrency": 16,
+    "adapter": {
+      "vendor": "nvidia",
+      "architecture": "blackwell",
+      "device": "",
+      "description": ""
+    }
+  },
+  "shadowVerification": {
+    "runtime": {
+      "backend": "webgpu",
+      "gpuFallbackReason": null,
+      "dpr": 1,
+      "renderSize": {
+        "width": 552,
+        "height": 336
+      },
+      "region": {
+        "x": -44,
+        "y": -54,
+        "w": 552.78125,
+        "h": 336.375
+      },
+      "lastRenderMs": 1,
+      "windowDevicePixelRatio": 1,
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+      "hardwareConcurrency": 16,
+      "adapter": {
+        "vendor": "nvidia",
+        "architecture": "blackwell",
+        "device": "",
+        "description": ""
+      }
+    },
+    "fixture": {
+      "panel": {
+        "elevation": 0,
+        "thickness": 3,
+        "bevelWidth": 5,
+        "radius": 16,
+        "material": "matte"
+      },
+      "glyph": {
+        "elevation": 3,
+        "thickness": 2,
+        "bevelWidth": 1.1,
+        "material": "metal"
+      },
+      "shadowPipeline": {
+        "angularRadius": 0,
+        "samples": 8,
+        "reconstruction": {
+          "enabled": true,
+          "radius": 2
+        }
+      },
+      "raster": "fixed 2x source mask (independent of devicePixelRatio)",
+      "dpr": 1,
+      "canvas": [
+        552,
+        336
+      ],
+      "layoutSource": "demo/src/index.css .demo-play-panel + .ukibori-text",
+      "layoutDifferences": [
+        "panel positioned on the fixed capture stage instead of the demo showcase grid",
+        "trailing .plain-note paragraph omitted (follows the glyph; cannot affect the glyph box)"
+      ],
+      "typography": {
+        "font": "800 51.2px / 51.2px ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+        "fontFamily": "ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+        "fontSize": "51.2px",
+        "fontWeight": "800",
+        "lineHeight": "51.2px",
+        "letterSpacing": "6.144px",
+        "wordSpacing": "0px",
+        "textTransform": "none",
+        "direction": "ltr",
+        "writingMode": "horizontal-tb",
+        "fontKerning": "auto",
+        "fontStretch": "100%",
+        "fontVariantCaps": "normal",
+        "fontVariantPosition": "normal",
+        "fontFeatureSettings": "normal",
+        "fontVariationSettings": "normal",
+        "textRendering": "auto",
+        "textDecorationLine": "none",
+        "textEmphasisStyle": "none",
+        "webkitTextStrokeWidth": "0px",
+        "canvasSupport": {
+          "letterSpacing": true,
+          "wordSpacing": true,
+          "fontKerning": true,
+          "fontStretch": true,
+          "fontVariantCaps": true,
+          "textRendering": true,
+          "direction": true
+        }
+      },
+      "glyphBox": {
+        "left": 42.390625,
+        "top": 69.1875,
+        "width": 145,
+        "height": 51
+      },
+      "mask": {
+        "width": 290,
+        "height": 102,
+        "logical": [
+          145,
+          51
+        ]
+      },
+      "expectedTypography": {
+        "fontWeight": "800",
+        "fontSizeRem": 3.2,
+        "letterSpacingEm": 0.12,
+        "lineHeightRatio": 1,
+        "fontFamilyIncludes": [
+          "monospace",
+          "cascadia",
+          "consolas"
+        ]
+      }
+    },
+    "thresholds": {
+      "shadowLuma": 2,
+      "changeLuma": 6
+    },
+    "cases": {
+      "default": {
+        "bias0.5": {
+          "count": 198,
+          "unattributed": 5,
+          "histogram": [
+            203,
+            177,
+            88,
+            2,
+            0
+          ],
+          "horizontalHistogram": [
+            98,
+            83,
+            15,
+            1,
+            1,
+            0
+          ],
+          "meanDelta": 8.72,
+          "maxDelta": 18.299000000000007,
+          "horizontalMean": 1.13,
+          "horizontalMax": 4.1,
+          "localP90": 2,
+          "localP95": 3,
+          "rayMean": 1.6,
+          "rayMax": 5.8,
+          "rayFactor": 1.414,
+          "displacement": {
+            "x": 0.68,
+            "y": 0.9
+          },
+          "meanAlignmentWithLight": 1,
+          "panelBox": {
+            "x": 63,
+            "y": 103,
+            "w": 426,
+            "h": 170
+          },
+          "inkBox": {
+            "x": 86,
+            "y": 123,
+            "w": 146,
+            "h": 51
+          },
+          "canvas": [
+            552,
+            336
+          ]
+        },
+        "bias0.15": {
+          "count": 208,
+          "unattributed": 5,
+          "histogram": [
+            213,
+            187,
+            93,
+            8,
+            0
+          ],
+          "horizontalHistogram": [
+            98,
+            93,
+            15,
+            1,
+            1,
+            0
+          ],
+          "meanDelta": 9.16,
+          "maxDelta": 24,
+          "horizontalMean": 1.14,
+          "horizontalMax": 4.1,
+          "localP90": 2,
+          "localP95": 3,
+          "rayMean": 1.61,
+          "rayMax": 5.8,
+          "rayFactor": 1.414,
+          "displacement": {
+            "x": 0.68,
+            "y": 0.91
+          },
+          "meanAlignmentWithLight": 1,
+          "panelBox": {
+            "x": 63,
+            "y": 103,
+            "w": 426,
+            "h": 170
+          },
+          "inkBox": {
+            "x": 86,
+            "y": 123,
+            "w": 146,
+            "h": 51
+          },
+          "canvas": [
+            552,
+            336
+          ]
+        }
+      },
+      "reversed": {
+        "bias0.5": {
+          "count": 135,
+          "unattributed": 0,
+          "histogram": [
+            135,
+            93,
+            91,
+            40,
+            0
+          ],
+          "horizontalHistogram": [
+            126,
+            7,
+            1,
+            0,
+            0,
+            1
+          ],
+          "meanDelta": 10.16,
+          "maxDelta": 17.299000000000007,
+          "horizontalMean": 0.49,
+          "horizontalMax": 15.2,
+          "localP90": 1,
+          "localP95": 2,
+          "rayMean": 0.69,
+          "rayMax": 21.5,
+          "rayFactor": 1.414,
+          "displacement": {
+            "x": -0.29,
+            "y": -0.39
+          },
+          "meanAlignmentWithLight": 1,
+          "panelBox": {
+            "x": 63,
+            "y": 103,
+            "w": 426,
+            "h": 170
+          },
+          "inkBox": {
+            "x": 86,
+            "y": 123,
+            "w": 146,
+            "h": 51
+          },
+          "canvas": [
+            552,
+            336
+          ]
+        },
+        "bias0.15": {
+          "count": 177,
+          "unattributed": 0,
+          "histogram": [
+            177,
+            154,
+            110,
+            44,
+            0
+          ],
+          "horizontalHistogram": [
+            135,
+            40,
+            1,
+            0,
+            0,
+            1
+          ],
+          "meanDelta": 11.1,
+          "maxDelta": 24,
+          "horizontalMean": 0.67,
+          "horizontalMax": 15.2,
+          "localP90": 2,
+          "localP95": 2,
+          "rayMean": 0.95,
+          "rayMax": 21.5,
+          "rayFactor": 1.414,
+          "displacement": {
+            "x": -0.4,
+            "y": -0.54
+          },
+          "meanAlignmentWithLight": 1,
+          "panelBox": {
+            "x": 63,
+            "y": 103,
+            "w": 426,
+            "h": 170
+          },
+          "inkBox": {
+            "x": 86,
+            "y": 123,
+            "w": 146,
+            "h": 51
+          },
+          "canvas": [
+            552,
+            336
+          ]
+        }
+      },
+      "grazing": {
+        "bias0.5": {
+          "count": 529,
+          "unattributed": 5,
+          "histogram": [
+            534,
+            390,
+            317,
+            0,
+            0
+          ],
+          "horizontalHistogram": [
+            102,
+            197,
+            83,
+            136,
+            11,
+            0
+          ],
+          "meanDelta": 8.32,
+          "maxDelta": 12,
+          "horizontalMean": 2,
+          "horizontalMax": 4.1,
+          "localP90": 4,
+          "localP95": 4,
+          "rayMean": 2.12,
+          "rayMax": 4.34,
+          "rayFactor": 1.059,
+          "displacement": {
+            "x": 1.2,
+            "y": 1.6
+          },
+          "meanAlignmentWithLight": 1,
+          "panelBox": {
+            "x": 63,
+            "y": 103,
+            "w": 426,
+            "h": 170
+          },
+          "inkBox": {
+            "x": 86,
+            "y": 123,
+            "w": 146,
+            "h": 51
+          },
+          "canvas": [
+            552,
+            336
+          ]
+        },
+        "bias0.15": {
+          "count": 713,
+          "unattributed": 5,
+          "histogram": [
+            718,
+            571,
+            491,
+            0,
+            0
+          ],
+          "horizontalHistogram": [
+            102,
+            200,
+            85,
+            187,
+            139,
+            0
+          ],
+          "meanDelta": 9.07,
+          "maxDelta": 12,
+          "horizontalMean": 2.55,
+          "horizontalMax": 5,
+          "localP90": 6,
+          "localP95": 6,
+          "rayMean": 2.7,
+          "rayMax": 5.3,
+          "rayFactor": 1.059,
+          "displacement": {
+            "x": 1.53,
+            "y": 2.04
+          },
+          "meanAlignmentWithLight": 1,
+          "panelBox": {
+            "x": 63,
+            "y": 103,
+            "w": 426,
+            "h": 170
+          },
+          "inkBox": {
+            "x": 86,
+            "y": 123,
+            "w": 146,
+            "h": 51
+          },
+          "canvas": [
+            552,
+            336
+          ]
+        }
+      }
+    },
+    "biasDecision": {
+      "threshold": 6,
+      "defaultReceiverGain": 10,
+      "grazingReceiverGain": 184,
+      "defaultBeneficial": true,
+      "grazingBeneficial": true,
+      "sidePanelSurfaceChanged": 0,
+      "sidePanelReceiverChanged": 0,
+      "sidePanelTolerance": 8
+    },
+    "biasImpact": {
+      "perLight": {
+        "default": {
+          "light": {
+            "x": -0.6,
+            "y": -0.8,
+            "z": 1
+          },
+          "surfacePixels": 1786,
+          "glyphSurface": {
+            "darker": 0,
+            "lighter": 0
+          },
+          "receivers": {
+            "darker": 13,
+            "lighter": 0
+          },
+          "halo": 104
+        },
+        "reversed": {
+          "light": {
+            "x": 0.6,
+            "y": 0.8,
+            "z": 1
+          },
+          "surfacePixels": 1786,
+          "glyphSurface": {
+            "darker": 0,
+            "lighter": 0
+          },
+          "receivers": {
+            "darker": 39,
+            "lighter": 0
+          },
+          "halo": 104
+        },
+        "grazing": {
+          "light": {
+            "x": -0.6,
+            "y": -0.8,
+            "z": 0.35
+          },
+          "surfacePixels": 1786,
+          "glyphSurface": {
+            "darker": 0,
+            "lighter": 0
+          },
+          "receivers": {
+            "darker": 64,
+            "lighter": 0
+          },
+          "halo": 104
+        }
+      },
+      "sidePanel": {
+        "means": {
+          "bias05": 188.11,
+          "bias015": 188.11
+        },
+        "surfaceDarker": 0,
+        "surfaceLighter": 0,
+        "receiverDarker": 0,
+        "receiverLighter": 0,
+        "halo": 0
+      },
+      "inkBox": {
+        "x": 86,
+        "y": 123,
+        "w": 146,
+        "h": 51
+      }
+    },
+    "verification": {
+      "shadowExistsAt05": [
+        198,
+        135,
+        529
+      ],
+      "shadowExistsAt015": [
+        208,
+        177,
+        713
+      ],
+      "horizontalMaxAt05": [
+        4.1,
+        15.2,
+        4.1
+      ],
+      "horizontalMaxAt015": [
+        4.1,
+        15.2,
+        5
+      ],
+      "reachAt05": [
+        2,
+        1,
+        4
+      ],
+      "reachAt015": [
+        2,
+        2,
+        6
+      ],
+      "rayMaxAt05": [
+        5.8,
+        21.5,
+        4.34
+      ],
+      "rayMaxAt015": [
+        5.8,
+        21.5,
+        5.3
+      ],
+      "displacementAt05": [
+        {
+          "x": 0.68,
+          "y": 0.9
+        },
+        {
+          "x": -0.29,
+          "y": -0.39
+        },
+        {
+          "x": 1.2,
+          "y": 1.6
+        }
+      ],
+      "displacementAt015": [
+        {
+          "x": 0.68,
+          "y": 0.91
+        },
+        {
+          "x": -0.4,
+          "y": -0.54
+        },
+        {
+          "x": 1.53,
+          "y": 2.04
+        }
+      ],
+      "defaultDirectionOk": true,
+      "reversedDirectionOk": true,
+      "directionReverses": true,
+      "grazingDistanceIncreasesAt05": true,
+      "grazingDistanceIncreasesAt015": true
+    },
+    "browser": {
+      "protocolVersion": "1.3",
+      "product": "Chrome/152.0.7977.84",
+      "revision": "@4334922f44c77b1208072c4deac29db3af39bbea",
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+      "jsVersion": "15.2.124.21"
+    },
+    "assertions": {
+      "passed": true,
+      "stable": true,
+      "differences": [],
+      "pass1": [],
+      "pass2": []
+    },
+    "secondPass": {
+      "cases": {
+        "default": {
+          "bias0.5": {
+            "count": 198,
+            "unattributed": 5,
+            "histogram": [
+              203,
+              177,
+              88,
+              2,
+              0
+            ],
+            "horizontalHistogram": [
+              98,
+              83,
+              15,
+              1,
+              1,
+              0
+            ],
+            "meanDelta": 8.72,
+            "maxDelta": 18.299000000000007,
+            "horizontalMean": 1.13,
+            "horizontalMax": 4.1,
+            "localP90": 2,
+            "localP95": 3,
+            "rayMean": 1.6,
+            "rayMax": 5.8,
+            "rayFactor": 1.414,
+            "displacement": {
+              "x": 0.68,
+              "y": 0.9
+            },
+            "meanAlignmentWithLight": 1,
+            "panelBox": {
+              "x": 63,
+              "y": 103,
+              "w": 426,
+              "h": 170
+            },
+            "inkBox": {
+              "x": 86,
+              "y": 123,
+              "w": 146,
+              "h": 51
+            },
+            "canvas": [
+              552,
+              336
+            ]
+          },
+          "bias0.15": {
+            "count": 208,
+            "unattributed": 5,
+            "histogram": [
+              213,
+              187,
+              93,
+              8,
+              0
+            ],
+            "horizontalHistogram": [
+              98,
+              93,
+              15,
+              1,
+              1,
+              0
+            ],
+            "meanDelta": 9.16,
+            "maxDelta": 24,
+            "horizontalMean": 1.14,
+            "horizontalMax": 4.1,
+            "localP90": 2,
+            "localP95": 3,
+            "rayMean": 1.61,
+            "rayMax": 5.8,
+            "rayFactor": 1.414,
+            "displacement": {
+              "x": 0.68,
+              "y": 0.91
+            },
+            "meanAlignmentWithLight": 1,
+            "panelBox": {
+              "x": 63,
+              "y": 103,
+              "w": 426,
+              "h": 170
+            },
+            "inkBox": {
+              "x": 86,
+              "y": 123,
+              "w": 146,
+              "h": 51
+            },
+            "canvas": [
+              552,
+              336
+            ]
+          }
+        },
+        "reversed": {
+          "bias0.5": {
+            "count": 135,
+            "unattributed": 0,
+            "histogram": [
+              135,
+              93,
+              91,
+              40,
+              0
+            ],
+            "horizontalHistogram": [
+              126,
+              7,
+              1,
+              0,
+              0,
+              1
+            ],
+            "meanDelta": 10.16,
+            "maxDelta": 17.299000000000007,
+            "horizontalMean": 0.49,
+            "horizontalMax": 15.2,
+            "localP90": 1,
+            "localP95": 2,
+            "rayMean": 0.69,
+            "rayMax": 21.5,
+            "rayFactor": 1.414,
+            "displacement": {
+              "x": -0.29,
+              "y": -0.39
+            },
+            "meanAlignmentWithLight": 1,
+            "panelBox": {
+              "x": 63,
+              "y": 103,
+              "w": 426,
+              "h": 170
+            },
+            "inkBox": {
+              "x": 86,
+              "y": 123,
+              "w": 146,
+              "h": 51
+            },
+            "canvas": [
+              552,
+              336
+            ]
+          },
+          "bias0.15": {
+            "count": 177,
+            "unattributed": 0,
+            "histogram": [
+              177,
+              154,
+              110,
+              44,
+              0
+            ],
+            "horizontalHistogram": [
+              135,
+              40,
+              1,
+              0,
+              0,
+              1
+            ],
+            "meanDelta": 11.1,
+            "maxDelta": 24,
+            "horizontalMean": 0.67,
+            "horizontalMax": 15.2,
+            "localP90": 2,
+            "localP95": 2,
+            "rayMean": 0.95,
+            "rayMax": 21.5,
+            "rayFactor": 1.414,
+            "displacement": {
+              "x": -0.4,
+              "y": -0.54
+            },
+            "meanAlignmentWithLight": 1,
+            "panelBox": {
+              "x": 63,
+              "y": 103,
+              "w": 426,
+              "h": 170
+            },
+            "inkBox": {
+              "x": 86,
+              "y": 123,
+              "w": 146,
+              "h": 51
+            },
+            "canvas": [
+              552,
+              336
+            ]
+          }
+        },
+        "grazing": {
+          "bias0.5": {
+            "count": 529,
+            "unattributed": 5,
+            "histogram": [
+              534,
+              390,
+              317,
+              0,
+              0
+            ],
+            "horizontalHistogram": [
+              102,
+              197,
+              83,
+              136,
+              11,
+              0
+            ],
+            "meanDelta": 8.32,
+            "maxDelta": 12,
+            "horizontalMean": 2,
+            "horizontalMax": 4.1,
+            "localP90": 4,
+            "localP95": 4,
+            "rayMean": 2.12,
+            "rayMax": 4.34,
+            "rayFactor": 1.059,
+            "displacement": {
+              "x": 1.2,
+              "y": 1.6
+            },
+            "meanAlignmentWithLight": 1,
+            "panelBox": {
+              "x": 63,
+              "y": 103,
+              "w": 426,
+              "h": 170
+            },
+            "inkBox": {
+              "x": 86,
+              "y": 123,
+              "w": 146,
+              "h": 51
+            },
+            "canvas": [
+              552,
+              336
+            ]
+          },
+          "bias0.15": {
+            "count": 713,
+            "unattributed": 5,
+            "histogram": [
+              718,
+              571,
+              491,
+              0,
+              0
+            ],
+            "horizontalHistogram": [
+              102,
+              200,
+              85,
+              187,
+              139,
+              0
+            ],
+            "meanDelta": 9.07,
+            "maxDelta": 12,
+            "horizontalMean": 2.55,
+            "horizontalMax": 5,
+            "localP90": 6,
+            "localP95": 6,
+            "rayMean": 2.7,
+            "rayMax": 5.3,
+            "rayFactor": 1.059,
+            "displacement": {
+              "x": 1.53,
+              "y": 2.04
+            },
+            "meanAlignmentWithLight": 1,
+            "panelBox": {
+              "x": 63,
+              "y": 103,
+              "w": 426,
+              "h": 170
+            },
+            "inkBox": {
+              "x": 86,
+              "y": 123,
+              "w": 146,
+              "h": 51
+            },
+            "canvas": [
+              552,
+              336
+            ]
+          }
+        }
+      },
+      "verification": {
+        "shadowExistsAt05": [
+          198,
+          135,
+          529
+        ],
+        "shadowExistsAt015": [
+          208,
+          177,
+          713
+        ],
+        "horizontalMaxAt05": [
+          4.1,
+          15.2,
+          4.1
+        ],
+        "horizontalMaxAt015": [
+          4.1,
+          15.2,
+          5
+        ],
+        "reachAt05": [
+          2,
+          1,
+          4
+        ],
+        "reachAt015": [
+          2,
+          2,
+          6
+        ],
+        "rayMaxAt05": [
+          5.8,
+          21.5,
+          4.34
+        ],
+        "rayMaxAt015": [
+          5.8,
+          21.5,
+          5.3
+        ],
+        "displacementAt05": [
+          {
+            "x": 0.68,
+            "y": 0.9
+          },
+          {
+            "x": -0.29,
+            "y": -0.39
+          },
+          {
+            "x": 1.2,
+            "y": 1.6
+          }
+        ],
+        "displacementAt015": [
+          {
+            "x": 0.68,
+            "y": 0.91
+          },
+          {
+            "x": -0.4,
+            "y": -0.54
+          },
+          {
+            "x": 1.53,
+            "y": 2.04
+          }
+        ],
+        "defaultDirectionOk": true,
+        "reversedDirectionOk": true,
+        "directionReverses": true,
+        "grazingDistanceIncreasesAt05": true,
+        "grazingDistanceIncreasesAt015": true
+      },
+      "biasDecision": {
+        "threshold": 6,
+        "defaultReceiverGain": 10,
+        "grazingReceiverGain": 184,
+        "defaultBeneficial": true,
+        "grazingBeneficial": true,
+        "sidePanelSurfaceChanged": 0,
+        "sidePanelReceiverChanged": 0,
+        "sidePanelTolerance": 8
+      },
+      "biasImpact": {
+        "perLight": {
+          "default": {
+            "light": {
+              "x": -0.6,
+              "y": -0.8,
+              "z": 1
+            },
+            "surfacePixels": 1786,
+            "glyphSurface": {
+              "darker": 0,
+              "lighter": 0
+            },
+            "receivers": {
+              "darker": 13,
+              "lighter": 0
+            },
+            "halo": 104
+          },
+          "reversed": {
+            "light": {
+              "x": 0.6,
+              "y": 0.8,
+              "z": 1
+            },
+            "surfacePixels": 1786,
+            "glyphSurface": {
+              "darker": 0,
+              "lighter": 0
+            },
+            "receivers": {
+              "darker": 39,
+              "lighter": 0
+            },
+            "halo": 104
+          },
+          "grazing": {
+            "light": {
+              "x": -0.6,
+              "y": -0.8,
+              "z": 0.35
+            },
+            "surfacePixels": 1786,
+            "glyphSurface": {
+              "darker": 0,
+              "lighter": 0
+            },
+            "receivers": {
+              "darker": 64,
+              "lighter": 0
+            },
+            "halo": 104
+          }
+        },
+        "sidePanel": {
+          "means": {
+            "bias05": 188.11,
+            "bias015": 188.11
+          },
+          "surfaceDarker": 0,
+          "surfaceLighter": 0,
+          "receiverDarker": 0,
+          "receiverLighter": 0,
+          "halo": 0
+        },
+        "inkBox": {
+          "x": 86,
+          "y": 123,
+          "w": 146,
+          "h": 51
+        }
+      },
+      "runtime": {
+        "backend": "webgpu",
+        "gpuFallbackReason": null,
+        "dpr": 1,
+        "renderSize": {
+          "width": 552,
+          "height": 336
+        },
+        "region": {
+          "x": -44,
+          "y": -54,
+          "w": 552.78125,
+          "h": 336.375
+        },
+        "lastRenderMs": 0.8999999985098839,
+        "windowDevicePixelRatio": 1,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
+        "hardwareConcurrency": 16,
+        "adapter": {
+          "vendor": "nvidia",
+          "architecture": "blackwell",
+          "device": "",
+          "description": ""
+        }
+      }
     }
   }
 }

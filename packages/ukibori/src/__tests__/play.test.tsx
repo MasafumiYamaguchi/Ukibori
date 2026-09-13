@@ -26,6 +26,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   document.body.style.color = "";
 });
 
@@ -191,6 +192,7 @@ describe("UkiboriText #52 physical ink compositing policy", () => {
         const functional = {
           clearRect: () => undefined,
           fillText: () => undefined,
+          setTransform: () => undefined,
           getImageData: () => ({ width: 0, height: 0, data: new Uint8ClampedArray(0) }),
           putImageData: () => undefined,
         } as unknown as CanvasRenderingContext2D;
@@ -343,6 +345,7 @@ describe("UkiboriText #52 physical ink compositing policy", () => {
           fillText: (text: string) => {
             lastText = text;
           },
+          setTransform: () => undefined,
           measureText: (text: string) => ({
             text,
             width: text.length * 10,
@@ -522,6 +525,7 @@ describe("UkiboriText #52 physical ink compositing policy", () => {
           fillStyle: "#000",
           clearRect: () => undefined,
           fillText: () => undefined,
+          setTransform: () => undefined,
           measureText: (text: string) => ({
             text,
             width: text.length * 10,
@@ -930,6 +934,7 @@ describe("UkiboriText sizing policy (bare usage)", () => {
         const functional = {
           clearRect: () => undefined,
           fillText: () => undefined,
+          setTransform: () => undefined,
           getImageData: () => ({ width: 0, height: 0, data: new Uint8ClampedArray(0) }),
           putImageData: () => undefined,
         } as unknown as CanvasRenderingContext2D;
@@ -981,12 +986,13 @@ describe("UkiboriText layout policy", () => {
     expect(span.style.height).toBe("40px");
     const entry = layer!.registry.get("play")!;
     const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
-    // The mask footprint and the DOM box are the same integer dimensions.
-    expect(mask.width).toBe(120);
-    expect(mask.height).toBe(40);
+    // Fixed 2x supersampling: the raster doubles the logical box on every
+    // device while the DOM footprint stays the logical dims.
+    expect(mask.width).toBe(240);
+    expect(mask.height).toBe(80);
   });
 
-  it("user width/height influence the initial measurement but the mask dims stay authoritative", async () => {
+  it("user width/height influence the initial measurement but the logical box stays authoritative", async () => {
     stubElementRects({ left: 10, top: 20, width: 80.4, height: 39.6 });
     stubCanvas2d();
     let layer: UkiboriDom | null = null;
@@ -1005,16 +1011,162 @@ describe("UkiboriText layout policy", () => {
     await flushAsync();
     expect(errors).toHaveLength(0);
     const span = screen.getByText("PLAY");
-    // The final DOM box equals the integer mask footprint  Ethe aspects can
-    // never diverge, and no scene error occurs.
+    // The final DOM box equals the integer logical footprint — the aspects
+    // can never diverge, and no scene error occurs.
     expect(span.style.width).toBe("80px");
     expect(span.style.height).toBe("40px");
     expect(span.style.display).toBe("inline-block");
     const entry = layer!.registry.get("play")!;
     const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
-    expect(mask.width).toBe(80);
-    expect(mask.height).toBe(40);
+    // Fixed 2x supersampling over the logical 80x40 footprint.
+    expect(mask.width).toBe(160);
+    expect(mask.height).toBe(80);
     expect(layer!.debugBuffers()).not.toBeNull();
+  });
+});
+
+describe("UkiboriText supersampling policy (fixed 2x)", () => {
+  it("rasterizes at fixed 2x on a DPR 1 device while the DOM box keeps the logical footprint", async () => {
+    stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
+    stubCanvas2d();
+    stubTextLineBox();
+    vi.stubGlobal("devicePixelRatio", 1);
+    let layer: UkiboriDom | null = null;
+    const errors: unknown[] = [];
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} onError={(e) => errors.push(e)}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(errors).toHaveLength(0);
+    const span = screen.getByText("PLAY");
+    // The DOM box stays the LOGICAL integer footprint...
+    expect(span.style.display).toBe("inline-block");
+    expect(span.style.width).toBe("120px");
+    expect(span.style.height).toBe("40px");
+    // ...while the source mask doubles it: fixed 2x on DPR 1.
+    const entry = layer!.registry.get("play")!;
+    const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
+    expect(mask.width).toBe(240);
+    expect(mask.height).toBe(80);
+    expect(mask.width / mask.height).toBeCloseTo(120 / 40, 12);
+    // The physical scene builds on the logical footprint (the renderer's
+    // 1e-6 isotropic mapping validation holds on the 2x mask).
+    expect(layer!.debugBuffers()).not.toBeNull();
+  });
+
+  it("rasterizes at the same fixed 2x on a DPR 2 device (never 4x)", async () => {
+    stubElementRects({ left: 10, top: 20, width: 103.3, height: 24.6 });
+    stubCanvas2d();
+    stubTextLineBox();
+    vi.stubGlobal("devicePixelRatio", 2);
+    let layer: UkiboriDom | null = null;
+    const errors: unknown[] = [];
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} onError={(e) => errors.push(e)}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(errors).toHaveLength(0);
+    const span = screen.getByText("PLAY");
+    expect(span.style.display).toBe("inline-block");
+    expect(span.style.width).toBe("103px");
+    expect(span.style.height).toBe("25px");
+    // DPR 2 is intentionally IGNORED: the raster stays exactly 2x the
+    // logical box (a DPR-derived policy would produce 4x). The gcd-derived
+    // dimensions preserve the footprint aspect exactly.
+    const entry = layer!.registry.get("play")!;
+    const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
+    expect(mask.width).toBe(206);
+    expect(mask.height).toBe(50);
+    expect(mask.width / mask.height).toBeCloseTo(103 / 25, 12);
+    expect(layer!.debugBuffers()).not.toBeNull();
+  });
+
+  it("keeps the exact footprint aspect for a fractional devicePixelRatio (DPR 1.5 still 2x)", async () => {
+    stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
+    stubCanvas2d();
+    stubTextLineBox();
+    vi.stubGlobal("devicePixelRatio", 1.5);
+    let layer: UkiboriDom | null = null;
+    const errors: unknown[] = [];
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} onError={(e) => errors.push(e)}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(errors).toHaveLength(0);
+    const span = screen.getByText("PLAY");
+    expect(span.style.width).toBe("120px");
+    expect(span.style.height).toBe("40px");
+    const entry = layer!.registry.get("play")!;
+    const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
+    // A fractional DPR has no effect: the mask is exactly 2x, not 1.5x.
+    expect(mask.width).toBe(240);
+    expect(mask.height).toBe(80);
+    expect(mask.width / mask.height).toBeCloseTo(120 / 40, 12);
+  });
+
+  it("ignores a missing, non-finite or non-positive devicePixelRatio (still fixed 2x)", async () => {
+    for (const value of [undefined, Number.NaN, Number.POSITIVE_INFINITY, 0, -2]) {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+      stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
+      stubCanvas2d();
+      stubTextLineBox();
+      vi.stubGlobal("devicePixelRatio", value);
+      let layer: UkiboriDom | null = null;
+      const errors: unknown[] = [];
+      const view = render(
+        <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} onError={(e) => errors.push(e)}>
+          <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+        </Ukibori>,
+      );
+      await flushAsync();
+      expect(errors).toHaveLength(0);
+      const entry = layer!.registry.get("play")!;
+      const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
+      expect(mask.width).toBe(240);
+      expect(mask.height).toBe(80);
+      view.unmount();
+    }
+  });
+
+  it("does not re-rasterize when the devicePixelRatio changes after mount (fixed 2x, no DPR lifecycle)", async () => {
+    stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
+    stubCanvas2d();
+    stubTextLineBox();
+    vi.stubGlobal("devicePixelRatio", 1);
+    let layer: UkiboriDom | null = null;
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY");
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+    const entryBefore = layer!.registry.get("play")!;
+    const before = (entryBefore.options.shape as { kind: "mask"; mask: unknown }).mask;
+    expect((before as { width: number }).width).toBe(240);
+    expect((before as { height: number }).height).toBe(80);
+
+    // A DPR move is not part of any raster identity anymore: even with a
+    // resize notice the retained registration and mask must survive.
+    vi.stubGlobal("devicePixelRatio", 2);
+    await act(async () => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    await flushAsync();
+    expect(layer!.registry.get("play")).toBe(entryBefore);
+    const after = (layer!.registry.get("play")!.options.shape as { kind: "mask"; mask: unknown }).mask;
+    expect(after).toBe(before);
+    expect(span.style.width).toBe("120px");
+    expect(span.style.height).toBe("40px");
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
   });
 });
 

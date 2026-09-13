@@ -24,6 +24,27 @@ const P_MASK = maskFromAscii([
   "#....",
 ]);
 
+/**
+ * The SAME P silhouette supersampled 2x (every source cell doubled, 10x12):
+ * the glyph supersampling follow-up feeds exactly this kind of denser raster
+ * onto the SAME logical footprint. The doubled raster keeps the exact 5/6
+ * aspect, so the renderer's isotropic mapping validation accepts it.
+ */
+const P_MASK_2X = maskFromAscii([
+  "##########",
+  "##########",
+  "##....####",
+  "##....####",
+  "##....####",
+  "##....####",
+  "##########",
+  "##########",
+  "##........",
+  "##........",
+  "##........",
+  "##........",
+]);
+
 /** C-like icon mask, open to the left (open counter). */
 const C_MASK = maskFromAscii(["####.", "....#", "####."]);
 
@@ -80,6 +101,21 @@ describe("maskSurfaceHeight", () => {
     expect(maskSurfaceHeight(s, 7.5, 6.5)).toBe(-Infinity);
     // outside the footprint
     expect(maskSurfaceHeight(s, 15, 15)).toBe(-Infinity);
+  });
+
+  it("maps a supersampled raster onto the same physical footprint (resolution is not scene scale)", () => {
+    // The 2x raster maps onto the SAME 5x6 surface size: mask pixel centers
+    // scale by size.x / mask.width, so scene-unit heights are unchanged.
+    const low = glyphSurface({ profile: { kind: "flat" } });
+    const high: SurfaceNode = { ...low, shape: { kind: "mask", mask: P_MASK_2X } };
+    expect(maskSurfaceHeight(high, 5.5, 5.5)).toBe(maskSurfaceHeight(low, 5.5, 5.5));
+    expect(maskSurfaceHeight(high, 5.5, 5.5)).toBe(6.8);
+    // The 2x counter pixel (2x coordinates (5, 3)) is the same hole.
+    expect(maskSurfaceHeight(high, 7.5, 6.5)).toBe(-Infinity);
+    // The denser raster keeps the exact isotropic aspect, so a scene that
+    // accepts the 1x mask also accepts the supersampled one.
+    expect(() => buttonScene(low)).not.toThrow();
+    expect(() => buttonScene(high)).not.toThrow();
   });
 
   it("follows the bevel profile inside strokes", () => {
@@ -233,5 +269,85 @@ describe("glyph cast shadows", () => {
     const c = composeSdfHeightField(scene);
     // bounding-box substitute would put the glyph relief over the counter
     expect(c.height.get(6, 6)).toBe(6); // the counter stays at the button top
+  });
+});
+
+describe("legacy thin-relief characterization (0.8 CSS px, pre-#52 fixture)", () => {
+  // LEGACY characterization: 0.8 was the glyph relief thickness before the
+  // #52 supersampling follow-up. The CURRENT Playground/FeatureLab fixture is
+  // thickness 2 and keeps the reduced 0.15 demo bias (real-browser evidence:
+  // glyph-lighting shadow report). This 0.8 relief is thinner than the 0.5
+  // default acne guard and casts NO shadow with it; with the reduced 0.15
+  // bias the ~0.65-scene-unit shadow band becomes countable under a grazing
+  // light. Kept as the thin-relief / bias-sensitivity rail — it does NOT
+  // describe the current demo fixture.
+  function thinGlyphScene(lx: number): Scene {
+    return createScene({
+      width: 16,
+      height: 16,
+      surfaces: [
+        {
+          id: "btn",
+          position: { x: 3, y: 3 },
+          size: { x: 10, y: 10 },
+          elevation: 4,
+          thickness: 2,
+          shape: { kind: "roundedRect", radius: 0 },
+          profile: { kind: "flat" },
+          material: "silicone",
+          castsShadow: true,
+          receivesShadow: true,
+        },
+        glyphSurface({
+          position: { x: 6, y: 4 },
+          elevation: 6,
+          thickness: 0.8,
+          bevelWidth: 0,
+          profile: { kind: "flat" },
+        }),
+      ],
+      light: { direction: { x: lx, y: -0.2, z: 0.2 }, intensity: 1 },
+    });
+  }
+
+  /** Shadowed BUTTON-owner pixels (objectId 0), split by side of the glyph. */
+  function receiverShadow(lx: number, bias: number) {
+    const scene = thinGlyphScene(lx);
+    const composed = composeSdfHeightField(scene);
+    const visibility = computeVisibility(scene, composed.height, {
+      objectId: composed.objectId,
+      casterHeight: composed.height,
+      bias,
+    });
+    let left = 0;
+    let right = 0;
+    let total = 0;
+    for (let y = 0; y < 16; y++) {
+      for (let x = 0; x < 16; x++) {
+        if (composed.objectId.get(x, y, 0) !== 0 || visibility.get(x, y, 0) !== 0) {
+          continue;
+        }
+        total++;
+        if (x < 6) left++;
+        if (x >= 11) right++;
+      }
+    }
+    return { left, right, total };
+  }
+
+  it("casts a non-empty silhouette shadow with thickness 0.8 and bias 0.15", () => {
+    const shadow = receiverShadow(0.6, 0.15);
+    expect(shadow.total).toBeGreaterThan(0);
+    // Without the demo-local bias the thin relief produces no shadow at all.
+    expect(receiverShadow(0.6, 0.5).total).toBe(0);
+  });
+
+  it("flips the thin-glyph shadow to the opposite side when the horizontal light reverses", () => {
+    const fromRight = receiverShadow(0.6, 0.15);
+    const fromLeft = receiverShadow(-0.6, 0.15);
+    expect(fromRight.left).toBeGreaterThan(0);
+    expect(fromRight.right).toBe(0);
+    expect(fromLeft.right).toBeGreaterThan(0);
+    expect(fromLeft.left).toBe(0);
   });
 });
