@@ -544,6 +544,152 @@ describe("UkiboriDom — DOM integration", () => {
       layer.dispose();
     });
 
+    it("casts real CPU glyph shadows for the Playground fixture (panel 0/3, absolute-z glyph 3/2, bias 0.15)", () => {
+      // Playground-equivalent CPU reference (#13 absolute-z): the glyph panel
+      // is elevation 0 + thickness 3 (fixed GLYPH_PANEL_TOP), so its top is
+      // scene z 3; the PLAY glyph uses ABSOLUTE elevation 3 (its base exactly
+      // on the panel top) and fixed thickness 2 (GLYPH_THICKNESS), so its
+      // relief top is scene z 5. The demo-local thin-glyph bias (0.15) is
+      // configured explicitly like the demo provider; the renderer DEFAULT
+      // bias (0.5) stays unchanged.
+      const panel = document.createElement("div");
+      host.appendChild(panel);
+      stubRectFor(panel, { left: 0, top: 0, width: 300, height: 300 });
+      const span = maskElement();
+      stubRectFor(span, { left: 100, top: 100, width: 100, height: 100 });
+      span.style.color = "rgb(255, 0, 0)";
+      const fake = makeFakeOverlay();
+      const layer = new UkiboriDom({
+        overlay: { factory: () => fake.overlay },
+        schedule: (cb) => cb(),
+        observe: false,
+        margin: 0,
+        onError: () => undefined,
+      });
+      const LIGHT = { x: -0.6, y: -0.8, z: 1 };
+      layer.setLight(LIGHT, 1);
+      layer.setShadow({ bias: 0.15 });
+      layer.register(panel, {
+        id: "pg-panel",
+        shape: { kind: "roundedRect", radius: 16 },
+        elevation: 0,
+        thickness: 3,
+        bevelWidth: 5,
+        profile: { kind: "smooth" },
+        material: "matte",
+      });
+      // Registration order: panel = surface 0 (receiver), glyph = surface 1.
+      layer.register(span, { ...MASK_OPTIONS, id: "pg-glyph", elevation: 3, thickness: 2 });
+      // Exact absolute-base contract from the registry options: the panel is
+      // elevation 0 + thickness 3, the glyph is ABSOLUTE elevation 3 +
+      // thickness 2 (the height-buffer checks below independently confirm the
+      // composed field).
+      const panelOptions = layer.registry.get("pg-panel")!.options;
+      expect(panelOptions.elevation).toBe(0);
+      expect(panelOptions.thickness).toBe(3);
+      const glyphOptions = layer.registry.get("pg-glyph")!.options;
+      expect(glyphOptions.elevation).toBe(3);
+      expect(glyphOptions.thickness).toBe(2);
+      layer.render();
+
+      const region = layer.debugState().region!;
+      const sceneX = (docX: number) => Math.round(docX - region.x);
+      const sceneY = (docY: number) => Math.round(docY - region.y);
+      const glyphCenterX = sceneX(150);
+      const glyphCenterY = sceneY(150);
+      const glyphPixels = () => {
+        const height = layer.debugBuffers()!.height;
+        const objectId = layer.debugObjectId()!;
+        const out: Array<{ x: number; y: number; height: number }> = [];
+        for (let y = 0; y < height.spec.height; y++) {
+          for (let x = 0; x < height.spec.width; x++) {
+            if (objectId.get(x, y, 0) === 1) {
+              out.push({ x, y, height: height.get(x, y, 0) });
+            }
+          }
+        }
+        return out;
+      };
+      const receiverShadowPixels = () => {
+        const buffers = layer.debugBuffers()!;
+        const visibility = buffers.visibility!;
+        const objectId = layer.debugObjectId()!;
+        const out: Array<{ x: number; y: number }> = [];
+        // The glyph footprint (scene 100..200) inflated by 24px: the panel is
+        // a flat top there (its own bevel self-shadow lives at the 300px
+        // rim), so every shadowed panel pixel in the window is glyph-derived.
+        for (let y = sceneY(76); y <= sceneY(224); y++) {
+          for (let x = sceneX(76); x <= sceneX(224); x++) {
+            if (objectId.get(x, y, 0) === 0 && visibility.get(x, y, 0) < 0.5) {
+              out.push({ x, y });
+            }
+          }
+        }
+        return out;
+      };
+      const centroid = (pixels: Array<{ x: number; y: number }>) => ({
+        x: pixels.reduce((sum, p) => sum + p.x, 0) / pixels.length,
+        y: pixels.reduce((sum, p) => sum + p.y, 0) / pixels.length,
+      });
+      const maxProjection = (pixels: Array<{ x: number; y: number }>, dx: number, dy: number) => {
+        const length = Math.hypot(dx, dy);
+        const ux = dx / length;
+        const uy = dy / length;
+        return Math.max(
+          ...pixels.map((p) => (p.x - glyphCenterX) * ux + (p.y - glyphCenterY) * uy),
+        );
+      };
+
+      // 1. Physical ownership and relief contract: the panel plateau owns its
+      // flat top at scene z 3; the glyph owns its own footprint at ABSOLUTE
+      // z 3..5 (a parent-relative elevation would start near z 6 and top
+      // near z 8).
+      const panelProbeX = sceneX(20);
+      const panelProbeY = sceneY(150);
+      expect(layer.debugObjectId()!.get(panelProbeX, panelProbeY, 0)).toBe(0);
+      expect(layer.debugBuffers()!.height.get(panelProbeX, panelProbeY, 0)).toBeCloseTo(3, 3);
+      const glyphs = glyphPixels();
+      expect(glyphs.length).toBeGreaterThan(0);
+      const glyphHeights = glyphs.map((p) => p.height);
+      const glyphTop = Math.max(...glyphHeights);
+      const glyphBase = Math.min(...glyphHeights);
+      expect(glyphTop).toBeCloseTo(5, 3);
+      expect(glyphTop).toBeGreaterThan(3);
+      expect(glyphBase).toBeGreaterThanOrEqual(3);
+      expect(glyphBase).toBeLessThan(4.5);
+
+      // 2. The glyph casts a real silhouette shadow onto the panel's own
+      // pixels at the Playground's default light (-0.6, -0.8, 1); the shadow
+      // falls opposite the light's XY projection.
+      const shadowPrimary = receiverShadowPixels();
+      expect(shadowPrimary.length).toBeGreaterThan(0);
+      const centerPrimary = centroid(shadowPrimary);
+      expect(centerPrimary.x).toBeGreaterThan(glyphCenterX);
+      expect(centerPrimary.y).toBeGreaterThan(glyphCenterY);
+      const reachPrimary = maxProjection(shadowPrimary, -LIGHT.x, -LIGHT.y);
+
+      // 3. Reversing BOTH light axes moves the shadow to the opposite side
+      // (real scene-space displacement, no fixed bias direction).
+      layer.setLight({ x: 0.6, y: 0.8, z: 1 }, 1);
+      layer.render();
+      const shadowReversed = receiverShadowPixels();
+      expect(shadowReversed.length).toBeGreaterThan(0);
+      const centerReversed = centroid(shadowReversed);
+      expect(centerReversed.x).toBeLessThan(glyphCenterX);
+      expect(centerReversed.y).toBeLessThan(glyphCenterY);
+
+      // 4. Lowering the positive light z (more grazing light, same x/y)
+      // stretches the projection: the silhouette shadow reaches farther from
+      // the glyph center along the shadow direction than at z 1.
+      layer.setLight({ x: LIGHT.x, y: LIGHT.y, z: 0.35 }, 1);
+      layer.render();
+      const shadowLow = receiverShadowPixels();
+      expect(shadowLow.length).toBeGreaterThan(0);
+      const reachLow = maxProjection(shadowLow, -LIGHT.x, -LIGHT.y);
+      expect(reachLow).toBeGreaterThan(reachPrimary);
+      layer.dispose();
+    });
+
     it("casts real CPU glyph shadows for the Feature Lab panel + absolute-z glyph and drops/restores them across the #56 alpha fallback", () => {
       // Feature Lab fixture (#13 absolute-z): the panel top is elevation 0 +
       // thickness 4 = scene z 4; the PLAY glyph sits at ABSOLUTE elevation 4

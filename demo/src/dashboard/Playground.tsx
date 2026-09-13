@@ -20,6 +20,12 @@ import { SliderControl } from "./SliderControl";
 
 const MATERIALS = ["silicone", "matte", "metal", "emissive"] as const;
 
+// Playground Glyph fixture: the panel top is a fixed elevation 0 + thickness
+// 3 = scene z 3, and the PLAY glyph sits at the ABSOLUTE scene z 3 (its base
+// exactly on the panel top) with a fixed 2px relief.
+const GLYPH_PANEL_TOP = 3;
+const GLYPH_THICKNESS = 2;
+
 // #45 directional-light color presets: linear RGB (HDR values allowed).
 const LIGHT_COLORS: Record<string, { r: number; g: number; b: number }> = {
   white: { r: 1, g: 1, b: 1 },
@@ -79,7 +85,7 @@ export function Playground() {
           enabled: shadowView === "reconstructed",
           radius: reconstructionRadius,
         },
-        // Thin glyph relief (thickness 0.8 CSS px) needs a smaller
+        // Fixed 2px glyph relief (GLYPH_THICKNESS) needs a smaller
         // self-shadow bias than the 0.5 default, or the PLAY glyph's
         // silhouette shadow is erased by the acne guard.
         bias: 0.15,
@@ -503,7 +509,7 @@ export function Playground() {
                 shape={{ kind: "roundedRect", radius }}
                 variant="raised"
                 elevation={0}
-                thickness={3}
+                thickness={GLYPH_PANEL_TOP}
                 bevelWidth={5}
                 radius={radius}
                 material="matte"
@@ -513,8 +519,8 @@ export function Playground() {
                   <UkiboriText
                     id="play"
                     text="PLAY"
-                    elevation={3}
-                    thickness={0.8}
+                    elevation={GLYPH_PANEL_TOP}
+                    thickness={GLYPH_THICKNESS}
                     bevelWidth={1.1}
                     material="metal"
                     className="ukibori-text"
@@ -524,7 +530,9 @@ export function Playground() {
                 )}
                 <p className="plain-note">
                   The text stays DOM-owned and accessible; its glyph is rasterized into a #19
-                  mask and renders as physical relief with cast shadows.
+                  mask and renders as physical relief with cast shadows. This Glyph demo uses a
+                  fixed 2px relief independent of the general Surface elevation and thickness
+                  controls.
                 </p>
               </Surface>
             </section>
