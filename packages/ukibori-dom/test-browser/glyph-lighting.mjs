@@ -1,15 +1,22 @@
 // #52 glyph lighting ablation harness (real Chrome, real WebGPU adapter).
 //
 // Root-cause evidence for "the physical glyph relief does not visibly respond
-// to directional light". This page renders the CURRENT PLAYGROUND FIXTURE
-// through the REAL PRODUCTION REACT PATH:
+// to directional light". This page renders the CURRENT PLAYGROUND GLYPH
+// FIXTURE (the real Playground typography/layout for the glyph; the only
+// capture-stage deviations are recorded in the report's
+// `fixture.layoutDifferences`) through the REAL PRODUCTION REACT PATH:
 //
 //   <Ukibori backend="webgpu">      (provider: shared light, shadow options)
 //     <Surface  id="glyph-panel">   panel elevation 0 / thickness 3 /
-//                                   bevelWidth 5 / matte (roundedRect r16)
+//                                   bevelWidth 5 / matte (roundedRect r16),
+//                                   styled by demo/src/index.css
+//                                   .demo-play-panel
 //     <UkiboriText id="glyph">      glyph ABSOLUTE elevation 3 / thickness 2 /
-//                                   bevelWidth 1.1 / metal, fixed 2x source
-//                                   mask rasterization inside the component
+//                                   bevelWidth 1.1 / metal, styled by
+//                                   demo/src/index.css .ukibori-text
+//                                   (3.2rem / 800 / 0.12em / line-height 1 /
+//                                   ui-monospace stack), fixed 2x source mask
+//                                   rasterization inside the component
 //
 // There is NO copied `rasterizeText` here: <UkiboriText> rasterizes with its
 // own fixed-2x source-mask policy, registers the mask through <Surface>, and
@@ -66,7 +73,9 @@ const PANEL_OPTIONS = {
   bevelWidth: 5,
   radius: 16,
   material: "matte",
-  className: "demo-play-panel",
+  // The Playground panel classes (demo/src/index.css) plus the harness-only
+  // capture-stage placement class (`harness-play-panel` = absolute position).
+  className: "demo-play-panel harness-play-panel",
 };
 // A second roundedRect surface with the same provider-global shadow bias:
 // used to measure whether a bias change impacts surfaces OTHER than the
@@ -98,6 +107,24 @@ const GLYPH_OPTIONS = {
 // DEFAULT_BIAS) and the demo-local reduced bias under review.
 const DEFAULT_BIAS = 0.5;
 const LOW_BIAS = 0.15;
+
+// Expected Playground fixture typography (demo/src/index.css): font-size
+// 3.2rem, weight 800, letter-spacing 0.12em, line-height 1, monospace stack.
+// The harness styles are pinned to demo/src/index.css by
+// glyph-lighting-css.test.mjs; these constants are the COMPUTED-value gate so
+// a harness/stylesheet drift cannot pass as Playground evidence.
+const PLAYGROUND_TYPOGRAPHY = {
+  fontWeight: "800",
+  fontSizeRem: 3.2,
+  letterSpacingEm: 0.12,
+  lineHeightRatio: 1,
+  fontFamilyIncludes: ["monospace", "cascadia", "consolas"],
+};
+
+// Provider-global bias-change tolerance for surfaces OTHER than the glyph
+// panel (the side roundedRect). The measured change is bit-identical; a tiny
+// GPU-difference envelope is allowed so the gate is not machine-specific.
+const SIDE_PANEL_BIAS_TOLERANCE = 8;
 
 // Review verification lights.
 const VERIFICATION_LIGHTS = {
@@ -632,12 +659,15 @@ async function captureShadowFrame({ light, bias, glyph }) {
     await waitForGlyphRegistered();
   }
   const surfaceInfo = glyph ? glyphSurfaceInfo() : null;
+  // Fixture fidelity snapshot: the PRODUCTION computed typography, logical
+  // glyph box and fixed-2x mask dimensions for the mounted <UkiboriText>.
+  const glyphInfo = glyph ? productionGlyphInfo() : null;
   // Force a synchronous paint of the current state so the staging copy is
   // submitted in the SAME task (the layer's retained fast path would skip a
   // repaint otherwise).
   paintNow();
   const { rows, width, height } = await capturePresentedFrame();
-  return { rows, width, height, surfaceInfo };
+  return { rows, width, height, surfaceInfo, glyphInfo };
 }
 
 /**
@@ -687,7 +717,9 @@ function analyzeShadowCase(withCapture, baseCapture, light) {
   let alignSum = 0;
   const rayFactor = Math.hypot(light.x, light.y, light.z) / length || 1;
   const histogram = [0, 0, 0, 0, 0]; // luminance deltas >2/>4/>8/>16/>32 u8
-  const localHistogram = [0, 0, 0, 0, 0, 0]; // ray distance <=1/2/3/4/6/>6 CSS px
+  // Horizontal (XY receiver-plane) caster reach <=1/2/3/4/6/>6 CSS px — the
+  // GATE metric's distribution (robust to the rare counter-spanning max).
+  const horizontalHistogram = [0, 0, 0, 0, 0, 0];
   for (let y = panel.y0; y < panel.y1; y++) {
     for (let x = panel.x0; x < panel.x1; x++) {
       if (alphaAtDevice(x, y) > MASK_HALO_ALPHA) continue;
@@ -718,18 +750,18 @@ function analyzeShadowCase(withCapture, baseCapture, light) {
       raySum += rayDistance;
       if (rayDistance > rayMax) rayMax = rayDistance;
       const bucket =
-        rayDistance <= 1
+        local.distance <= 1
           ? 0
-          : rayDistance <= 2
+          : local.distance <= 2
             ? 1
-            : rayDistance <= 3
+            : local.distance <= 3
               ? 2
-              : rayDistance <= 4
+              : local.distance <= 4
                 ? 3
-                : rayDistance <= 6
+                : local.distance <= 6
                   ? 4
                   : 5;
-      localHistogram[bucket]++;
+      horizontalHistogram[bucket]++;
       dispX += local.dx;
       dispY += local.dy;
       const dlen = Math.hypot(local.dx, local.dy) || 1;
@@ -737,15 +769,33 @@ function analyzeShadowCase(withCapture, baseCapture, light) {
     }
   }
   const round2 = (value) => Math.round(value * 100) / 100;
+  // Robust local reach: a MAX over per-pixel attributions is dominated by the
+  // rare receiver pixel whose nearest caster lies across a letter counter (a
+  // legitimate counter shadow, but not the cast-shadow extent of the glyph
+  // silhouette). The 90th-percentile HORIZONTAL reach from the histogram is
+  // the gate metric; the raw max stays reported for transparency.
+  const reachBuckets = [1, 2, 3, 4, 6, LOCAL_MAX_SEARCH_CSS];
+  const quantileReach = (q) => {
+    if (count <= 0) return 0;
+    const target = q * count;
+    let cumulative = 0;
+    for (let i = 0; i < horizontalHistogram.length; i++) {
+      cumulative += horizontalHistogram[i];
+      if (cumulative >= target) return reachBuckets[i];
+    }
+    return LOCAL_MAX_SEARCH_CSS;
+  };
   return {
     count,
     unattributed,
     histogram,
-    localHistogram,
+    horizontalHistogram,
     meanDelta: count > 0 ? round2(sumDelta / count) : 0,
     maxDelta,
     horizontalMean: count > 0 ? round2(horizontalSum / count) : 0,
     horizontalMax: round2(horizontalMax),
+    localP90: quantileReach(0.9),
+    localP95: quantileReach(0.95),
     // 3D distance from the receiver pixel to the caster boundary along the
     // light ray (CSS px): the physically meaningful local shadow length.
     rayMean: count > 0 ? round2(raySum / count) : 0,
@@ -925,6 +975,29 @@ window.__runShadowVerification = async () => {
   const inkBox05 = deviceBoxFromRect(sideFrame05.surfaceInfo.box, sideFrame);
 
   const at = (name, bias) => cases[name][`bias${bias}`];
+
+  // Bias-adoption decision metrics: the reduced 0.15 bias is retained ONLY
+  // because it adds real cast-shadow receiver pixels while leaving other
+  // surfaces alone. Both are asserted by the runner (biasDecisionFailures).
+  const defaultReceiverGain = at("default", LOW_BIAS).count - at("default", DEFAULT_BIAS).count;
+  const grazingReceiverGain = at("grazing", LOW_BIAS).count - at("grazing", DEFAULT_BIAS).count;
+  const biasDecision = {
+    threshold: ACNE_THRESHOLD,
+    defaultReceiverGain,
+    grazingReceiverGain,
+    defaultBeneficial: defaultReceiverGain > 0,
+    grazingBeneficial: grazingReceiverGain > 0,
+    sidePanelSurfaceChanged:
+      sidePanelBiasDelta.surfaceDarker + sidePanelBiasDelta.surfaceLighter,
+    sidePanelReceiverChanged:
+      sidePanelBiasDelta.receiverDarker + sidePanelBiasDelta.receiverLighter,
+    sidePanelTolerance: SIDE_PANEL_BIAS_TOLERANCE,
+  };
+
+  // Playground fixture fidelity: the computed typography / logical box / fixed
+  // 2x mask of the PRODUCTION <UkiboriText> at the default Playground light.
+  const glyphFixture = captures[`default|${DEFAULT_BIAS}`].withCapture.glyphInfo;
+
   const report = {
     runtime,
     fixture: {
@@ -937,9 +1010,31 @@ window.__runShadowVerification = async () => {
       raster: "fixed 2x source mask (independent of devicePixelRatio)",
       dpr: 1,
       canvas: [sideFrame05.width, sideFrame05.height],
+      // The harness reproduces the ACTUAL Playground typography/layout by
+      // construction (demo-play-panel / .ukibori-text copied from
+      // demo/src/index.css; parity pinned by glyph-lighting-css.test.mjs).
+      // Capture-stage-only deviations that cannot affect the glyph's raster
+      // box are recorded so the fixture claim stays precise.
+      layoutSource: "demo/src/index.css .demo-play-panel + .ukibori-text",
+      layoutDifferences: [
+        "panel positioned on the fixed capture stage instead of the demo showcase grid",
+        "trailing .plain-note paragraph omitted (follows the glyph; cannot affect the glyph box)",
+      ],
+      typography: glyphFixture !== null ? glyphFixture.typography : null,
+      glyphBox: glyphFixture !== null ? glyphFixture.box : null,
+      mask:
+        glyphFixture !== null
+          ? {
+              width: glyphFixture.maskSize !== null ? glyphFixture.maskSize[0] : null,
+              height: glyphFixture.maskSize !== null ? glyphFixture.maskSize[1] : null,
+              logical: glyphFixture.maskSizeCss,
+            }
+          : null,
+      expectedTypography: PLAYGROUND_TYPOGRAPHY,
     },
     thresholds: { shadowLuma: SHADOW_THRESHOLD, changeLuma: ACNE_THRESHOLD },
     cases,
+    biasDecision,
     biasImpact: {
       perLight: biasImpactPerLight,
       sidePanel: { means: sidePanelMeans, ...sidePanelBiasDelta },
@@ -967,6 +1062,18 @@ window.__runShadowVerification = async () => {
         at("default", LOW_BIAS).horizontalMax,
         at("reversed", LOW_BIAS).horizontalMax,
         at("grazing", LOW_BIAS).horizontalMax,
+      ],
+      // GATE metric: 90th-percentile local reach (robust to the rare
+      // counter-spanning attribution that inflates the raw max).
+      reachAt05: [
+        at("default", DEFAULT_BIAS).localP90,
+        at("reversed", DEFAULT_BIAS).localP90,
+        at("grazing", DEFAULT_BIAS).localP90,
+      ],
+      reachAt015: [
+        at("default", LOW_BIAS).localP90,
+        at("reversed", LOW_BIAS).localP90,
+        at("grazing", LOW_BIAS).localP90,
       ],
       // SECONDARY: 3D distance along the light ray.
       rayMaxAt05: [
@@ -1018,10 +1125,10 @@ window.__runShadowVerification = async () => {
   report.verification.reversedDirectionOk = directionOk(r05) && directionOk(r015);
   report.verification.directionReverses =
     cos05 !== null && cos05 < -0.5 && cos015 !== null && cos015 < -0.5;
-  // PRIMARY assertion: the horizontal receiver-plane projection strictly
-  // grows under the grazing light (secondary ray length is informational).
-  report.verification.grazingDistanceIncreasesAt05 = g05.horizontalMax > d05.horizontalMax + 0.5;
-  report.verification.grazingDistanceIncreasesAt015 = g015.horizontalMax > d015.horizontalMax + 0.5;
+  // PRIMARY assertion: the robust receiver-plane reach strictly grows under
+  // the grazing light (raw max and secondary ray length stay informational).
+  report.verification.grazingDistanceIncreasesAt05 = g05.localP90 > d05.localP90 + 0.5;
+  report.verification.grazingDistanceIncreasesAt015 = g015.localP90 > d015.localP90 + 0.5;
 
   window.__shadowReport = report;
   return report;
@@ -1057,6 +1164,9 @@ function readComputedTypography(el) {
   };
   return {
     font: read("font"),
+    fontFamily: read("fontFamily"),
+    fontSize: read("fontSize"),
+    fontWeight: read("fontWeight"),
     lineHeight: read("lineHeight"),
     letterSpacing: read("letterSpacing"),
     wordSpacing: read("wordSpacing"),

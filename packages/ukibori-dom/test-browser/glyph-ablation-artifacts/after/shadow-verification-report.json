@@ -4,16 +4,16 @@
     "gpuFallbackReason": null,
     "dpr": 1,
     "renderSize": {
-      "width": 508,
-      "height": 348
+      "width": 552,
+      "height": 336
     },
     "region": {
       "x": -44,
       "y": -54,
-      "w": 508,
-      "h": 348
+      "w": 552.78125,
+      "h": 336.375
     },
-    "lastRenderMs": 1.5,
+    "lastRenderMs": 1,
     "windowDevicePixelRatio": 1,
     "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
     "hardwareConcurrency": 16,
@@ -49,9 +49,70 @@
     "raster": "fixed 2x source mask (independent of devicePixelRatio)",
     "dpr": 1,
     "canvas": [
-      508,
-      348
-    ]
+      552,
+      336
+    ],
+    "layoutSource": "demo/src/index.css .demo-play-panel + .ukibori-text",
+    "layoutDifferences": [
+      "panel positioned on the fixed capture stage instead of the demo showcase grid",
+      "trailing .plain-note paragraph omitted (follows the glyph; cannot affect the glyph box)"
+    ],
+    "typography": {
+      "font": "800 51.2px / 51.2px ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+      "fontFamily": "ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+      "fontSize": "51.2px",
+      "fontWeight": "800",
+      "lineHeight": "51.2px",
+      "letterSpacing": "6.144px",
+      "wordSpacing": "0px",
+      "textTransform": "none",
+      "direction": "ltr",
+      "writingMode": "horizontal-tb",
+      "fontKerning": "auto",
+      "fontStretch": "100%",
+      "fontVariantCaps": "normal",
+      "fontVariantPosition": "normal",
+      "fontFeatureSettings": "normal",
+      "fontVariationSettings": "normal",
+      "textRendering": "auto",
+      "textDecorationLine": "none",
+      "textEmphasisStyle": "none",
+      "webkitTextStrokeWidth": "0px",
+      "canvasSupport": {
+        "letterSpacing": true,
+        "wordSpacing": true,
+        "fontKerning": true,
+        "fontStretch": true,
+        "fontVariantCaps": true,
+        "textRendering": true,
+        "direction": true
+      }
+    },
+    "glyphBox": {
+      "left": 42.390625,
+      "top": 69.1875,
+      "width": 145,
+      "height": 51
+    },
+    "mask": {
+      "width": 290,
+      "height": 102,
+      "logical": [
+        145,
+        51
+      ]
+    },
+    "expectedTypography": {
+      "fontWeight": "800",
+      "fontSizeRem": 3.2,
+      "letterSpacingEm": 0.12,
+      "lineHeightRatio": 1,
+      "fontFamilyIncludes": [
+        "monospace",
+        "cascadia",
+        "consolas"
+      ]
+    }
   },
   "thresholds": {
     "shadowLuma": 2,
@@ -60,292 +121,314 @@
   "cases": {
     "default": {
       "bias0.5": {
-        "count": 287,
-        "unattributed": 1,
+        "count": 198,
+        "unattributed": 5,
         "histogram": [
-          288,
-          284,
-          166,
-          50,
+          203,
+          177,
+          88,
+          2,
           0
         ],
-        "localHistogram": [
-          189,
+        "horizontalHistogram": [
+          98,
           83,
           15,
-          0,
-          0,
+          1,
+          1,
           0
         ],
-        "meanDelta": 9.42,
-        "maxDelta": 24,
-        "horizontalMean": 0.66,
-        "horizontalMax": 1.7,
-        "rayMean": 0.94,
-        "rayMax": 2.4,
+        "meanDelta": 8.72,
+        "maxDelta": 18.299000000000007,
+        "horizontalMean": 1.13,
+        "horizontalMax": 4.1,
+        "localP90": 2,
+        "localP95": 3,
+        "rayMean": 1.6,
+        "rayMax": 5.8,
         "rayFactor": 1.414,
         "displacement": {
-          "x": 0.4,
-          "y": 0.53
+          "x": 0.68,
+          "y": 0.9
         },
         "meanAlignmentWithLight": 1,
         "panelBox": {
-          "x": 64,
-          "y": 104,
-          "w": 380,
-          "h": 180
+          "x": 63,
+          "y": 103,
+          "w": 426,
+          "h": 170
         },
         "inkBox": {
-          "x": 104,
-          "y": 144,
-          "w": 160,
-          "h": 85
+          "x": 86,
+          "y": 123,
+          "w": 146,
+          "h": 51
         },
         "canvas": [
-          508,
-          348
+          552,
+          336
         ]
       },
       "bias0.15": {
-        "count": 322,
-        "unattributed": 2,
+        "count": 208,
+        "unattributed": 5,
         "histogram": [
-          324,
-          320,
-          170,
-          70,
-          1
-        ],
-        "localHistogram": [
-          189,
-          89,
-          44,
-          0,
-          0,
+          213,
+          187,
+          93,
+          8,
           0
         ],
-        "meanDelta": 10.8,
+        "horizontalHistogram": [
+          98,
+          93,
+          15,
+          1,
+          1,
+          0
+        ],
+        "meanDelta": 9.16,
         "maxDelta": 24,
-        "horizontalMean": 0.76,
-        "horizontalMax": 1.7,
-        "rayMean": 1.08,
-        "rayMax": 2.4,
+        "horizontalMean": 1.14,
+        "horizontalMax": 4.1,
+        "localP90": 2,
+        "localP95": 3,
+        "rayMean": 1.61,
+        "rayMax": 5.8,
         "rayFactor": 1.414,
         "displacement": {
-          "x": 0.46,
-          "y": 0.61
+          "x": 0.68,
+          "y": 0.91
         },
         "meanAlignmentWithLight": 1,
         "panelBox": {
-          "x": 64,
-          "y": 104,
-          "w": 380,
-          "h": 180
+          "x": 63,
+          "y": 103,
+          "w": 426,
+          "h": 170
         },
         "inkBox": {
-          "x": 104,
-          "y": 144,
-          "w": 160,
-          "h": 85
+          "x": 86,
+          "y": 123,
+          "w": 146,
+          "h": 51
         },
         "canvas": [
-          508,
-          348
+          552,
+          336
         ]
       }
     },
     "reversed": {
       "bias0.5": {
-        "count": 119,
+        "count": 135,
         "unattributed": 0,
         "histogram": [
-          119,
-          116,
-          74,
-          1,
-          1
-        ],
-        "localHistogram": [
-          85,
-          21,
-          13,
-          0,
-          0,
+          135,
+          93,
+          91,
+          40,
           0
         ],
-        "meanDelta": 8.22,
-        "maxDelta": 74.70100000000001,
-        "horizontalMean": 0.88,
-        "horizontalMax": 1.7,
-        "rayMean": 1.24,
-        "rayMax": 2.4,
+        "horizontalHistogram": [
+          126,
+          7,
+          1,
+          0,
+          0,
+          1
+        ],
+        "meanDelta": 10.16,
+        "maxDelta": 17.299000000000007,
+        "horizontalMean": 0.49,
+        "horizontalMax": 15.2,
+        "localP90": 1,
+        "localP95": 2,
+        "rayMean": 0.69,
+        "rayMax": 21.5,
         "rayFactor": 1.414,
         "displacement": {
-          "x": -0.53,
-          "y": -0.7
+          "x": -0.29,
+          "y": -0.39
         },
         "meanAlignmentWithLight": 1,
         "panelBox": {
-          "x": 64,
-          "y": 104,
-          "w": 380,
-          "h": 180
+          "x": 63,
+          "y": 103,
+          "w": 426,
+          "h": 170
         },
         "inkBox": {
-          "x": 104,
-          "y": 144,
-          "w": 160,
-          "h": 85
+          "x": 86,
+          "y": 123,
+          "w": 146,
+          "h": 51
         },
         "canvas": [
-          508,
-          348
+          552,
+          336
         ]
       },
       "bias0.15": {
-        "count": 179,
+        "count": 177,
         "unattributed": 0,
         "histogram": [
-          179,
-          176,
-          74,
-          1,
-          1
-        ],
-        "localHistogram": [
-          85,
-          27,
-          67,
-          0,
-          0,
+          177,
+          154,
+          110,
+          44,
           0
         ],
-        "meanDelta": 7.25,
-        "maxDelta": 74.70100000000001,
-        "horizontalMean": 1.13,
-        "horizontalMax": 1.7,
-        "rayMean": 1.6,
-        "rayMax": 2.4,
+        "horizontalHistogram": [
+          135,
+          40,
+          1,
+          0,
+          0,
+          1
+        ],
+        "meanDelta": 11.1,
+        "maxDelta": 24,
+        "horizontalMean": 0.67,
+        "horizontalMax": 15.2,
+        "localP90": 2,
+        "localP95": 2,
+        "rayMean": 0.95,
+        "rayMax": 21.5,
         "rayFactor": 1.414,
         "displacement": {
-          "x": -0.68,
-          "y": -0.91
+          "x": -0.4,
+          "y": -0.54
         },
         "meanAlignmentWithLight": 1,
         "panelBox": {
-          "x": 64,
-          "y": 104,
-          "w": 380,
-          "h": 180
+          "x": 63,
+          "y": 103,
+          "w": 426,
+          "h": 170
         },
         "inkBox": {
-          "x": 104,
-          "y": 144,
-          "w": 160,
-          "h": 85
+          "x": 86,
+          "y": 123,
+          "w": 146,
+          "h": 51
         },
         "canvas": [
-          508,
-          348
+          552,
+          336
         ]
       }
     },
     "grazing": {
       "bias0.5": {
-        "count": 725,
-        "unattributed": 2,
+        "count": 529,
+        "unattributed": 5,
         "histogram": [
-          727,
-          554,
-          468,
-          1,
-          1
-        ],
-        "localHistogram": [
-          305,
-          99,
-          208,
-          110,
-          3,
+          534,
+          390,
+          317,
+          0,
           0
         ],
-        "meanDelta": 8.68,
+        "horizontalHistogram": [
+          102,
+          197,
+          83,
+          136,
+          11,
+          0
+        ],
+        "meanDelta": 8.32,
         "maxDelta": 12,
-        "horizontalMean": 1.64,
-        "horizontalMax": 3.8,
-        "rayMean": 1.73,
-        "rayMax": 4.03,
+        "horizontalMean": 2,
+        "horizontalMax": 4.1,
+        "localP90": 4,
+        "localP95": 4,
+        "rayMean": 2.12,
+        "rayMax": 4.34,
         "rayFactor": 1.059,
         "displacement": {
-          "x": 0.98,
-          "y": 1.31
+          "x": 1.2,
+          "y": 1.6
         },
         "meanAlignmentWithLight": 1,
         "panelBox": {
-          "x": 64,
-          "y": 104,
-          "w": 380,
-          "h": 180
+          "x": 63,
+          "y": 103,
+          "w": 426,
+          "h": 170
         },
         "inkBox": {
-          "x": 104,
-          "y": 144,
-          "w": 160,
-          "h": 85
+          "x": 86,
+          "y": 123,
+          "w": 146,
+          "h": 51
         },
         "canvas": [
-          508,
-          348
+          552,
+          336
         ]
       },
       "bias0.15": {
-        "count": 972,
-        "unattributed": 2,
+        "count": 713,
+        "unattributed": 5,
         "histogram": [
-          974,
-          794,
-          696,
-          1,
-          1
-        ],
-        "localHistogram": [
-          306,
-          106,
-          224,
-          174,
-          162,
+          718,
+          571,
+          491,
+          0,
           0
         ],
-        "meanDelta": 9.25,
+        "horizontalHistogram": [
+          102,
+          200,
+          85,
+          187,
+          139,
+          0
+        ],
+        "meanDelta": 9.07,
         "maxDelta": 12,
-        "horizontalMean": 2.19,
-        "horizontalMax": 4.4,
-        "rayMean": 2.32,
-        "rayMax": 4.66,
+        "horizontalMean": 2.55,
+        "horizontalMax": 5,
+        "localP90": 6,
+        "localP95": 6,
+        "rayMean": 2.7,
+        "rayMax": 5.3,
         "rayFactor": 1.059,
         "displacement": {
-          "x": 1.31,
-          "y": 1.75
+          "x": 1.53,
+          "y": 2.04
         },
         "meanAlignmentWithLight": 1,
         "panelBox": {
-          "x": 64,
-          "y": 104,
-          "w": 380,
-          "h": 180
+          "x": 63,
+          "y": 103,
+          "w": 426,
+          "h": 170
         },
         "inkBox": {
-          "x": 104,
-          "y": 144,
-          "w": 160,
-          "h": 85
+          "x": 86,
+          "y": 123,
+          "w": 146,
+          "h": 51
         },
         "canvas": [
-          508,
-          348
+          552,
+          336
         ]
       }
     }
+  },
+  "biasDecision": {
+    "threshold": 6,
+    "defaultReceiverGain": 10,
+    "grazingReceiverGain": 184,
+    "defaultBeneficial": true,
+    "grazingBeneficial": true,
+    "sidePanelSurfaceChanged": 0,
+    "sidePanelReceiverChanged": 0,
+    "sidePanelTolerance": 8
   },
   "biasImpact": {
     "perLight": {
@@ -355,16 +438,16 @@
           "y": -0.8,
           "z": 1
         },
-        "surfacePixels": 3269,
+        "surfacePixels": 1786,
         "glyphSurface": {
-          "darker": 6,
+          "darker": 0,
           "lighter": 0
         },
         "receivers": {
-          "darker": 53,
+          "darker": 13,
           "lighter": 0
         },
-        "halo": 120
+        "halo": 104
       },
       "reversed": {
         "light": {
@@ -372,16 +455,16 @@
           "y": 0.8,
           "z": 1
         },
-        "surfacePixels": 3269,
+        "surfacePixels": 1786,
         "glyphSurface": {
-          "darker": 79,
+          "darker": 0,
           "lighter": 0
         },
         "receivers": {
-          "darker": 1,
+          "darker": 39,
           "lighter": 0
         },
-        "halo": 120
+        "halo": 104
       },
       "grazing": {
         "light": {
@@ -389,16 +472,16 @@
           "y": -0.8,
           "z": 0.35
         },
-        "surfacePixels": 3269,
+        "surfacePixels": 1786,
         "glyphSurface": {
-          "darker": 2,
+          "darker": 0,
           "lighter": 0
         },
         "receivers": {
-          "darker": 93,
-          "lighter": 1
+          "darker": 64,
+          "lighter": 0
         },
-        "halo": 120
+        "halo": 104
       }
     },
     "sidePanel": {
@@ -413,69 +496,79 @@
       "halo": 0
     },
     "inkBox": {
-      "x": 104,
-      "y": 144,
-      "w": 160,
-      "h": 85
+      "x": 86,
+      "y": 123,
+      "w": 146,
+      "h": 51
     }
   },
   "verification": {
     "shadowExistsAt05": [
-      287,
-      119,
-      725
+      198,
+      135,
+      529
     ],
     "shadowExistsAt015": [
-      322,
-      179,
-      972
+      208,
+      177,
+      713
     ],
     "horizontalMaxAt05": [
-      1.7,
-      1.7,
-      3.8
+      4.1,
+      15.2,
+      4.1
     ],
     "horizontalMaxAt015": [
-      1.7,
-      1.7,
-      4.4
+      4.1,
+      15.2,
+      5
+    ],
+    "reachAt05": [
+      2,
+      1,
+      4
+    ],
+    "reachAt015": [
+      2,
+      2,
+      6
     ],
     "rayMaxAt05": [
-      2.4,
-      2.4,
-      4.03
+      5.8,
+      21.5,
+      4.34
     ],
     "rayMaxAt015": [
-      2.4,
-      2.4,
-      4.66
+      5.8,
+      21.5,
+      5.3
     ],
     "displacementAt05": [
       {
-        "x": 0.4,
-        "y": 0.53
+        "x": 0.68,
+        "y": 0.9
       },
       {
-        "x": -0.53,
-        "y": -0.7
+        "x": -0.29,
+        "y": -0.39
       },
       {
-        "x": 0.98,
-        "y": 1.31
+        "x": 1.2,
+        "y": 1.6
       }
     ],
     "displacementAt015": [
       {
-        "x": 0.46,
-        "y": 0.61
+        "x": 0.68,
+        "y": 0.91
       },
       {
-        "x": -0.68,
-        "y": -0.91
+        "x": -0.4,
+        "y": -0.54
       },
       {
-        "x": 1.31,
-        "y": 1.75
+        "x": 1.53,
+        "y": 2.04
       }
     ],
     "defaultDirectionOk": true,
@@ -502,350 +595,372 @@
     "cases": {
       "default": {
         "bias0.5": {
-          "count": 287,
-          "unattributed": 2,
+          "count": 198,
+          "unattributed": 5,
           "histogram": [
-            289,
-            285,
-            167,
-            51,
-            1
-          ],
-          "localHistogram": [
-            189,
-            83,
-            15,
-            0,
-            0,
+            203,
+            177,
+            88,
+            2,
             0
           ],
-          "meanDelta": 9.42,
-          "maxDelta": 24,
-          "horizontalMean": 0.66,
-          "horizontalMax": 1.7,
-          "rayMean": 0.94,
-          "rayMax": 2.4,
+          "horizontalHistogram": [
+            98,
+            83,
+            15,
+            1,
+            1,
+            0
+          ],
+          "meanDelta": 8.72,
+          "maxDelta": 18.299000000000007,
+          "horizontalMean": 1.13,
+          "horizontalMax": 4.1,
+          "localP90": 2,
+          "localP95": 3,
+          "rayMean": 1.6,
+          "rayMax": 5.8,
           "rayFactor": 1.414,
           "displacement": {
-            "x": 0.4,
-            "y": 0.53
+            "x": 0.68,
+            "y": 0.9
           },
           "meanAlignmentWithLight": 1,
           "panelBox": {
-            "x": 64,
-            "y": 104,
-            "w": 380,
-            "h": 180
+            "x": 63,
+            "y": 103,
+            "w": 426,
+            "h": 170
           },
           "inkBox": {
-            "x": 104,
-            "y": 144,
-            "w": 160,
-            "h": 85
+            "x": 86,
+            "y": 123,
+            "w": 146,
+            "h": 51
           },
           "canvas": [
-            508,
-            348
+            552,
+            336
           ]
         },
         "bias0.15": {
-          "count": 322,
-          "unattributed": 2,
+          "count": 208,
+          "unattributed": 5,
           "histogram": [
-            324,
-            320,
-            170,
-            70,
-            1
-          ],
-          "localHistogram": [
-            189,
-            89,
-            44,
-            0,
-            0,
+            213,
+            187,
+            93,
+            8,
             0
           ],
-          "meanDelta": 10.8,
+          "horizontalHistogram": [
+            98,
+            93,
+            15,
+            1,
+            1,
+            0
+          ],
+          "meanDelta": 9.16,
           "maxDelta": 24,
-          "horizontalMean": 0.76,
-          "horizontalMax": 1.7,
-          "rayMean": 1.08,
-          "rayMax": 2.4,
+          "horizontalMean": 1.14,
+          "horizontalMax": 4.1,
+          "localP90": 2,
+          "localP95": 3,
+          "rayMean": 1.61,
+          "rayMax": 5.8,
           "rayFactor": 1.414,
           "displacement": {
-            "x": 0.46,
-            "y": 0.61
+            "x": 0.68,
+            "y": 0.91
           },
           "meanAlignmentWithLight": 1,
           "panelBox": {
-            "x": 64,
-            "y": 104,
-            "w": 380,
-            "h": 180
+            "x": 63,
+            "y": 103,
+            "w": 426,
+            "h": 170
           },
           "inkBox": {
-            "x": 104,
-            "y": 144,
-            "w": 160,
-            "h": 85
+            "x": 86,
+            "y": 123,
+            "w": 146,
+            "h": 51
           },
           "canvas": [
-            508,
-            348
+            552,
+            336
           ]
         }
       },
       "reversed": {
         "bias0.5": {
-          "count": 119,
+          "count": 135,
           "unattributed": 0,
           "histogram": [
-            119,
-            116,
-            74,
-            1,
-            1
-          ],
-          "localHistogram": [
-            85,
-            21,
-            13,
-            0,
-            0,
+            135,
+            93,
+            91,
+            40,
             0
           ],
-          "meanDelta": 8.22,
-          "maxDelta": 74.70100000000001,
-          "horizontalMean": 0.88,
-          "horizontalMax": 1.7,
-          "rayMean": 1.24,
-          "rayMax": 2.4,
+          "horizontalHistogram": [
+            126,
+            7,
+            1,
+            0,
+            0,
+            1
+          ],
+          "meanDelta": 10.16,
+          "maxDelta": 17.299000000000007,
+          "horizontalMean": 0.49,
+          "horizontalMax": 15.2,
+          "localP90": 1,
+          "localP95": 2,
+          "rayMean": 0.69,
+          "rayMax": 21.5,
           "rayFactor": 1.414,
           "displacement": {
-            "x": -0.53,
-            "y": -0.7
+            "x": -0.29,
+            "y": -0.39
           },
           "meanAlignmentWithLight": 1,
           "panelBox": {
-            "x": 64,
-            "y": 104,
-            "w": 380,
-            "h": 180
+            "x": 63,
+            "y": 103,
+            "w": 426,
+            "h": 170
           },
           "inkBox": {
-            "x": 104,
-            "y": 144,
-            "w": 160,
-            "h": 85
+            "x": 86,
+            "y": 123,
+            "w": 146,
+            "h": 51
           },
           "canvas": [
-            508,
-            348
+            552,
+            336
           ]
         },
         "bias0.15": {
-          "count": 179,
+          "count": 177,
           "unattributed": 0,
           "histogram": [
-            179,
-            176,
-            74,
-            1,
-            1
-          ],
-          "localHistogram": [
-            85,
-            27,
-            67,
-            0,
-            0,
+            177,
+            154,
+            110,
+            44,
             0
           ],
-          "meanDelta": 7.25,
-          "maxDelta": 74.70100000000001,
-          "horizontalMean": 1.13,
-          "horizontalMax": 1.7,
-          "rayMean": 1.6,
-          "rayMax": 2.4,
+          "horizontalHistogram": [
+            135,
+            40,
+            1,
+            0,
+            0,
+            1
+          ],
+          "meanDelta": 11.1,
+          "maxDelta": 24,
+          "horizontalMean": 0.67,
+          "horizontalMax": 15.2,
+          "localP90": 2,
+          "localP95": 2,
+          "rayMean": 0.95,
+          "rayMax": 21.5,
           "rayFactor": 1.414,
           "displacement": {
-            "x": -0.68,
-            "y": -0.91
+            "x": -0.4,
+            "y": -0.54
           },
           "meanAlignmentWithLight": 1,
           "panelBox": {
-            "x": 64,
-            "y": 104,
-            "w": 380,
-            "h": 180
+            "x": 63,
+            "y": 103,
+            "w": 426,
+            "h": 170
           },
           "inkBox": {
-            "x": 104,
-            "y": 144,
-            "w": 160,
-            "h": 85
+            "x": 86,
+            "y": 123,
+            "w": 146,
+            "h": 51
           },
           "canvas": [
-            508,
-            348
+            552,
+            336
           ]
         }
       },
       "grazing": {
         "bias0.5": {
-          "count": 725,
-          "unattributed": 2,
+          "count": 529,
+          "unattributed": 5,
           "histogram": [
-            727,
-            554,
-            468,
-            1,
-            1
-          ],
-          "localHistogram": [
-            305,
-            99,
-            208,
-            110,
-            3,
+            534,
+            390,
+            317,
+            0,
             0
           ],
-          "meanDelta": 8.68,
+          "horizontalHistogram": [
+            102,
+            197,
+            83,
+            136,
+            11,
+            0
+          ],
+          "meanDelta": 8.32,
           "maxDelta": 12,
-          "horizontalMean": 1.64,
-          "horizontalMax": 3.8,
-          "rayMean": 1.73,
-          "rayMax": 4.03,
+          "horizontalMean": 2,
+          "horizontalMax": 4.1,
+          "localP90": 4,
+          "localP95": 4,
+          "rayMean": 2.12,
+          "rayMax": 4.34,
           "rayFactor": 1.059,
           "displacement": {
-            "x": 0.98,
-            "y": 1.31
+            "x": 1.2,
+            "y": 1.6
           },
           "meanAlignmentWithLight": 1,
           "panelBox": {
-            "x": 64,
-            "y": 104,
-            "w": 380,
-            "h": 180
+            "x": 63,
+            "y": 103,
+            "w": 426,
+            "h": 170
           },
           "inkBox": {
-            "x": 104,
-            "y": 144,
-            "w": 160,
-            "h": 85
+            "x": 86,
+            "y": 123,
+            "w": 146,
+            "h": 51
           },
           "canvas": [
-            508,
-            348
+            552,
+            336
           ]
         },
         "bias0.15": {
-          "count": 972,
-          "unattributed": 2,
+          "count": 713,
+          "unattributed": 5,
           "histogram": [
-            974,
-            794,
-            696,
-            1,
-            1
-          ],
-          "localHistogram": [
-            306,
-            106,
-            224,
-            174,
-            162,
+            718,
+            571,
+            491,
+            0,
             0
           ],
-          "meanDelta": 9.25,
+          "horizontalHistogram": [
+            102,
+            200,
+            85,
+            187,
+            139,
+            0
+          ],
+          "meanDelta": 9.07,
           "maxDelta": 12,
-          "horizontalMean": 2.19,
-          "horizontalMax": 4.4,
-          "rayMean": 2.32,
-          "rayMax": 4.66,
+          "horizontalMean": 2.55,
+          "horizontalMax": 5,
+          "localP90": 6,
+          "localP95": 6,
+          "rayMean": 2.7,
+          "rayMax": 5.3,
           "rayFactor": 1.059,
           "displacement": {
-            "x": 1.31,
-            "y": 1.75
+            "x": 1.53,
+            "y": 2.04
           },
           "meanAlignmentWithLight": 1,
           "panelBox": {
-            "x": 64,
-            "y": 104,
-            "w": 380,
-            "h": 180
+            "x": 63,
+            "y": 103,
+            "w": 426,
+            "h": 170
           },
           "inkBox": {
-            "x": 104,
-            "y": 144,
-            "w": 160,
-            "h": 85
+            "x": 86,
+            "y": 123,
+            "w": 146,
+            "h": 51
           },
           "canvas": [
-            508,
-            348
+            552,
+            336
           ]
         }
       }
     },
     "verification": {
       "shadowExistsAt05": [
-        287,
-        119,
-        725
+        198,
+        135,
+        529
       ],
       "shadowExistsAt015": [
-        322,
-        179,
-        972
+        208,
+        177,
+        713
       ],
       "horizontalMaxAt05": [
-        1.7,
-        1.7,
-        3.8
+        4.1,
+        15.2,
+        4.1
       ],
       "horizontalMaxAt015": [
-        1.7,
-        1.7,
-        4.4
+        4.1,
+        15.2,
+        5
+      ],
+      "reachAt05": [
+        2,
+        1,
+        4
+      ],
+      "reachAt015": [
+        2,
+        2,
+        6
       ],
       "rayMaxAt05": [
-        2.4,
-        2.4,
-        4.03
+        5.8,
+        21.5,
+        4.34
       ],
       "rayMaxAt015": [
-        2.4,
-        2.4,
-        4.66
+        5.8,
+        21.5,
+        5.3
       ],
       "displacementAt05": [
         {
-          "x": 0.4,
-          "y": 0.53
+          "x": 0.68,
+          "y": 0.9
         },
         {
-          "x": -0.53,
-          "y": -0.7
+          "x": -0.29,
+          "y": -0.39
         },
         {
-          "x": 0.98,
-          "y": 1.31
+          "x": 1.2,
+          "y": 1.6
         }
       ],
       "displacementAt015": [
         {
-          "x": 0.46,
-          "y": 0.61
+          "x": 0.68,
+          "y": 0.91
         },
         {
-          "x": -0.68,
-          "y": -0.91
+          "x": -0.4,
+          "y": -0.54
         },
         {
-          "x": 1.31,
-          "y": 1.75
+          "x": 1.53,
+          "y": 2.04
         }
       ],
       "defaultDirectionOk": true,
@@ -853,6 +968,16 @@
       "directionReverses": true,
       "grazingDistanceIncreasesAt05": true,
       "grazingDistanceIncreasesAt015": true
+    },
+    "biasDecision": {
+      "threshold": 6,
+      "defaultReceiverGain": 10,
+      "grazingReceiverGain": 184,
+      "defaultBeneficial": true,
+      "grazingBeneficial": true,
+      "sidePanelSurfaceChanged": 0,
+      "sidePanelReceiverChanged": 0,
+      "sidePanelTolerance": 8
     },
     "biasImpact": {
       "perLight": {
@@ -862,16 +987,16 @@
             "y": -0.8,
             "z": 1
           },
-          "surfacePixels": 3269,
+          "surfacePixels": 1786,
           "glyphSurface": {
             "darker": 0,
             "lighter": 0
           },
           "receivers": {
-            "darker": 52,
+            "darker": 13,
             "lighter": 0
           },
-          "halo": 120
+          "halo": 104
         },
         "reversed": {
           "light": {
@@ -879,16 +1004,16 @@
             "y": 0.8,
             "z": 1
           },
-          "surfacePixels": 3269,
+          "surfacePixels": 1786,
           "glyphSurface": {
-            "darker": 79,
+            "darker": 0,
             "lighter": 0
           },
           "receivers": {
-            "darker": 1,
+            "darker": 39,
             "lighter": 0
           },
-          "halo": 120
+          "halo": 104
         },
         "grazing": {
           "light": {
@@ -896,16 +1021,16 @@
             "y": -0.8,
             "z": 0.35
           },
-          "surfacePixels": 3269,
+          "surfacePixels": 1786,
           "glyphSurface": {
-            "darker": 2,
+            "darker": 0,
             "lighter": 0
           },
           "receivers": {
-            "darker": 93,
-            "lighter": 1
+            "darker": 64,
+            "lighter": 0
           },
-          "halo": 120
+          "halo": 104
         }
       },
       "sidePanel": {
@@ -920,10 +1045,10 @@
         "halo": 0
       },
       "inkBox": {
-        "x": 104,
-        "y": 144,
-        "w": 160,
-        "h": 85
+        "x": 86,
+        "y": 123,
+        "w": 146,
+        "h": 51
       }
     },
     "runtime": {
@@ -931,16 +1056,16 @@
       "gpuFallbackReason": null,
       "dpr": 1,
       "renderSize": {
-        "width": 508,
-        "height": 348
+        "width": 552,
+        "height": 336
       },
       "region": {
         "x": -44,
         "y": -54,
-        "w": 508,
-        "h": 348
+        "w": 552.78125,
+        "h": 336.375
       },
-      "lastRenderMs": 0.5,
+      "lastRenderMs": 0.8999999985098839,
       "windowDevicePixelRatio": 1,
       "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/152.0.0.0 Safari/537.36",
       "hardwareConcurrency": 16,

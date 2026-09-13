@@ -161,3 +161,65 @@ describe("glyph-ablation shadow fail-fast assertions", () => {
     expect(compared.differences.join("\n")).toContain("horizontalMax");
   });
 });
+
+describe("glyph-ablation bias-decision / fixture-fidelity assertions", () => {
+  const deepCopy = () => JSON.parse(JSON.stringify(artifact("shadow-verification-report.json")));
+
+  it("accepts the current saved report's bias decision and typography fixture", () => {
+    const report = deepCopy();
+    expect(report.biasDecision.defaultReceiverGain).toBeGreaterThan(0);
+    expect(report.biasDecision.grazingReceiverGain).toBeGreaterThan(0);
+    expect(shadowAssertionFailures(report, "saved")).toEqual([]);
+  });
+
+  it("rejects a bias decision with no default-light benefit", () => {
+    const report = deepCopy();
+    report.biasDecision.defaultReceiverGain = 0;
+    expect(shadowAssertionFailures(report, "saved").join("\n")).toContain(
+      "does not add default-light receiver shadow pixels",
+    );
+  });
+
+  it("rejects a bias decision with no grazing-light benefit", () => {
+    const report = deepCopy();
+    report.biasDecision.grazingReceiverGain = -1;
+    expect(shadowAssertionFailures(report, "saved").join("\n")).toContain(
+      "does not add grazing-light receiver shadow pixels",
+    );
+  });
+
+  it("rejects a side roundedRect change above the tolerance", () => {
+    const report = deepCopy();
+    report.biasDecision.sidePanelTolerance = 2;
+    report.biasDecision.sidePanelReceiverChanged = 3;
+    expect(shadowAssertionFailures(report, "saved").join("\n")).toContain(
+      "side roundedRect receiver change 3 > tolerance 2",
+    );
+  });
+
+  it("rejects a missing biasDecision", () => {
+    const report = deepCopy();
+    delete report.biasDecision;
+    expect(shadowAssertionFailures(report, "saved").join("\n")).toContain("missing biasDecision");
+  });
+
+  it("rejects Playground typography drift (font weight)", () => {
+    const report = deepCopy();
+    report.fixture.typography.fontWeight = "700";
+    expect(shadowAssertionFailures(report, "saved").join("\n")).toContain(
+      "fixture fontWeight 700 != 800",
+    );
+  });
+
+  it("rejects a mask that is not exactly 2x the logical box", () => {
+    const report = deepCopy();
+    report.fixture.mask.logical = [report.fixture.mask.width, report.fixture.mask.height];
+    expect(shadowAssertionFailures(report, "saved").join("\n")).toContain("is not exactly 2x the logical box");
+  });
+
+  it("rejects a missing computed typography fixture", () => {
+    const report = deepCopy();
+    delete report.fixture.typography;
+    expect(shadowAssertionFailures(report, "saved").join("\n")).toContain("missing fixture.typography");
+  });
+});

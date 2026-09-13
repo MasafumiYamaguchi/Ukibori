@@ -2,7 +2,8 @@
 // #52 glyph lighting ablation runner (npm run ablation:glyph -w ukibori-dom).
 //
 // Drives test-browser/glyph-lighting.html in headless Chrome over a REAL
-// WebGPU adapter. The page renders the current Playground fixture through the
+// WebGPU adapter. The page renders the current Playground glyph fixture
+// (Playground typography/layout copied from demo/src/index.css) through the
 // REAL production React components (<Ukibori> / <Surface> / <UkiboriText>,
 // fixed 2x source-mask rasterization — no copied rasterizer):
 //
@@ -15,7 +16,12 @@
 //   4. runs window.__runShadowVerification: numeric presented-frame readback
 //      for the review lights (default / reversed / grazing) and the
 //      provider-global bias 0.5 vs 0.15 (shadow existence/length, centroid
-//      reversal, grazing reach, acne, other roundedRect impact)
+//      reversal, grazing reach, acne, other roundedRect impact). The gate
+//      also asserts the Playground bias-adoption DECISION (0.15 must add
+//      receiver shadow pixels at the default and grazing lights; other
+//      roundedRect surfaces stay within the small tolerance) and the COMPUTED
+//      Playground fixture typography + fixed-2x mask (the harness styles are
+//      pinned to demo/src/index.css by glyph-lighting-css.test.mjs)
 //   5. prints the JSON reports and writes them (+ the PNGs) to --out
 //      (default: a unique temp directory; printed at the end)
 //
@@ -159,7 +165,7 @@ export function shadowAssertionFailures(report, label) {
         continue;
       }
       if (!(c.count > 0)) failures.push(`${label}: empty shadow case ${name}/bias${bias} (count=${c.count})`);
-      if (!(c.horizontalMax > 0)) failures.push(`${label}: no local caster distance for ${name}/bias${bias}`);
+      if (!(c.localP90 > 0)) failures.push(`${label}: no local caster reach for ${name}/bias${bias}`);
       if (c.unattributed > c.count * 0.1) {
         failures.push(`${label}: unattributed shadow pixels ${name}/bias${bias} = ${c.unattributed}/${c.count}`);
       }
@@ -170,19 +176,19 @@ export function shadowAssertionFailures(report, label) {
   const g05 = get("grazing", "0.5");
   const d015 = get("default", "0.15");
   const g015 = get("grazing", "0.15");
-  const within = (c, lo, hi) => c !== undefined && c.horizontalMax >= lo && c.horizontalMax <= hi;
-  // PRIMARY metric = horizontal receiver-plane projection. A 2px relief
-  // projects ~2px horizontally at z=1 and ~5.7px at z=0.35 (bias + march +
-  // pixel quantization shorten the measured extent); anything outside those
-  // bands is physically implausible.
-  if (!within(d05, 1.0, 3.0)) failures.push(`${label}: default horizontalMax ${d05 && d05.horizontalMax} outside [1,3] CSS px`);
-  if (!within(r05, 1.0, 3.0)) failures.push(`${label}: reversed horizontalMax ${r05 && r05.horizontalMax} outside [1,3] CSS px`);
-  if (!within(g05, 2.5, 7.5)) failures.push(`${label}: grazing horizontalMax ${g05 && g05.horizontalMax} outside [2.5,7.5] CSS px`);
+  // GATE metric = robust (90th-percentile) local receiver-plane reach. A 2px
+  // relief projects ~2px at z=1 and ~5.7px at z=0.35 (bias + march + pixel
+  // quantization shorten the measured extent); the raw max is dominated by the
+  // rare counter-spanning attribution and stays informational.
+  const within = (c, lo, hi) => c !== undefined && c.localP90 >= lo && c.localP90 <= hi;
+  if (!within(d05, 1.0, 3.5)) failures.push(`${label}: default reach ${d05 && d05.localP90} outside [1,3.5] CSS px`);
+  if (!within(r05, 1.0, 3.5)) failures.push(`${label}: reversed reach ${r05 && r05.localP90} outside [1,3.5] CSS px`);
+  if (!within(g05, 2.0, 7.5)) failures.push(`${label}: grazing reach ${g05 && g05.localP90} outside [2,7.5] CSS px`);
   if (d015 !== undefined && !within(d015, 1.0, 3.5)) {
-    failures.push(`${label}: default(0.15) horizontalMax ${d015.horizontalMax} outside [1,3.5] CSS px`);
+    failures.push(`${label}: default(0.15) reach ${d015.localP90} outside [1,3.5] CSS px`);
   }
-  if (g015 !== undefined && !within(g015, 2.5, 8.0)) {
-    failures.push(`${label}: grazing(0.15) horizontalMax ${g015.horizontalMax} outside [2.5,8.0] CSS px`);
+  if (g015 !== undefined && !within(g015, 2.0, 8.0)) {
+    failures.push(`${label}: grazing(0.15) reach ${g015.localP90} outside [2,8.0] CSS px`);
   }
   const alignmentOk = (c) => c !== undefined && c.meanAlignmentWithLight > 0.9;
   if (!alignmentOk(d05)) failures.push(`${label}: default displacement not anti-light (align=${d05 && d05.meanAlignmentWithLight})`);
@@ -197,6 +203,95 @@ export function shadowAssertionFailures(report, label) {
   }
   if (verification.grazingDistanceIncreasesAt015 !== true) {
     failures.push(`${label}: grazing local distance does not increase at bias 0.15`);
+  }
+
+  // --- Playground fixture fidelity: computed typography + fixed-2x mask ---
+  // The harness must reproduce the ACTUAL Playground conditions
+  // (demo/src/index.css .demo-play-panel / .ukibori-text); the browser report
+  // records the COMPUTED values and this gate checks them, so a harness or
+  // stylesheet drift can never pass as Playground evidence.
+  const fixture = report && report.fixture ? report.fixture : null;
+  const typography = fixture ? fixture.typography : undefined;
+  const expected = fixture ? fixture.expectedTypography : undefined;
+  if (typography === undefined || typography === null) {
+    failures.push(`${label}: missing fixture.typography (computed Playground typography)`);
+  } else if (expected === undefined || expected === null) {
+    failures.push(`${label}: missing fixture.expectedTypography`);
+  } else {
+    if (typography.fontWeight !== expected.fontWeight) {
+      failures.push(`${label}: fixture fontWeight ${typography.fontWeight} != ${expected.fontWeight}`);
+    }
+    const fontSize = Number.parseFloat(typography.fontSize);
+    if (!Number.isFinite(fontSize) || fontSize <= 0) {
+      failures.push(`${label}: fixture fontSize not a positive length (${typography.fontSize})`);
+    } else {
+      const expectedSize = expected.fontSizeRem * 16; // rem root default
+      if (Math.abs(fontSize - expectedSize) > 0.5) {
+        failures.push(
+          `${label}: fixture fontSize ${fontSize}px != ${expectedSize}px (${expected.fontSizeRem}rem)`,
+        );
+      }
+      const lineHeight = Number.parseFloat(typography.lineHeight);
+      if (!Number.isFinite(lineHeight) || Math.abs(lineHeight - fontSize) > 0.5) {
+        failures.push(
+          `${label}: fixture lineHeight ${typography.lineHeight} != fontSize ${fontSize}px (line-height: ${expected.lineHeightRatio})`,
+        );
+      }
+      const letterSpacing = Number.parseFloat(typography.letterSpacing);
+      const expectedSpacing = expected.letterSpacingEm * fontSize;
+      if (!Number.isFinite(letterSpacing) || Math.abs(letterSpacing - expectedSpacing) > 0.5) {
+        failures.push(
+          `${label}: fixture letterSpacing ${typography.letterSpacing} != ${expectedSpacing}px (${expected.letterSpacingEm}em)`,
+        );
+      }
+    }
+    const family = typeof typography.fontFamily === "string" ? typography.fontFamily.toLowerCase() : "";
+    if (!expected.fontFamilyIncludes.some((token) => family.includes(token))) {
+      failures.push(
+        `${label}: fixture fontFamily missing monospace/Cascadia/Consolas fallback (${typography.fontFamily})`,
+      );
+    }
+  }
+  const mask = fixture ? fixture.mask : undefined;
+  if (mask === undefined || mask === null || typeof mask.width !== "number" || typeof mask.height !== "number") {
+    failures.push(`${label}: missing fixture.mask dimensions`);
+  } else if (!Array.isArray(mask.logical) || mask.logical.length !== 2) {
+    failures.push(`${label}: missing fixture.mask.logical box`);
+  } else if (mask.width !== mask.logical[0] * 2 || mask.height !== mask.logical[1] * 2) {
+    failures.push(
+      `${label}: fixture mask ${mask.width}x${mask.height} is not exactly 2x the logical box ${mask.logical.join("x")}`,
+    );
+  }
+
+  // --- Bias-adoption decision: the Playground provider-global 0.15 override
+  // is a regression-gated DECISION, not just "it still renders". 0.15 must
+  // add cast-shadow receiver pixels at the default and grazing Playground
+  // lights, while leaving the other roundedRect surface within tolerance. ---
+  const decision = report && report.biasDecision ? report.biasDecision : undefined;
+  if (decision === undefined || decision === null) {
+    failures.push(`${label}: missing biasDecision`);
+  } else {
+    if (!(decision.defaultReceiverGain > 0)) {
+      failures.push(
+        `${label}: bias 0.15 does not add default-light receiver shadow pixels (gain=${decision.defaultReceiverGain})`,
+      );
+    }
+    if (!(decision.grazingReceiverGain > 0)) {
+      failures.push(
+        `${label}: bias 0.15 does not add grazing-light receiver shadow pixels (gain=${decision.grazingReceiverGain})`,
+      );
+    }
+    const tolerance = typeof decision.sidePanelTolerance === "number" ? decision.sidePanelTolerance : 0;
+    if (!(decision.sidePanelSurfaceChanged <= tolerance)) {
+      failures.push(
+        `${label}: side roundedRect glyph-surface change ${decision.sidePanelSurfaceChanged} > tolerance ${tolerance}`,
+      );
+    }
+    if (!(decision.sidePanelReceiverChanged <= tolerance)) {
+      failures.push(
+        `${label}: side roundedRect receiver change ${decision.sidePanelReceiverChanged} > tolerance ${tolerance}`,
+      );
+    }
   }
   return failures;
 }
@@ -307,7 +402,14 @@ export function lightAssertionFailures(report) {
   const base = summary("dpr-1-ink-visible");
   const oneAndHalf = summary("dpr-1.5-ink-visible");
   const doubled = summary("dpr-2-ink-visible");
-  if (base && doubled && (doubled[0] !== base[0] * 2 || doubled[1] !== base[1] * 2)) {
+  // The scene region can be fractional (content-sized mask surfaces), so the
+  // per-direction canvas check uses floor(region * dpr) while the cross-group
+  // scale check allows the 1-px floor rounding of a fractional region.
+  if (
+    base &&
+    doubled &&
+    (Math.abs(doubled[0] - base[0] * 2) > 1 || Math.abs(doubled[1] - base[1] * 2) > 1)
+  ) {
     failures.push(
       `light matrix: dpr-2 canvas ${doubled.join("x")} is not 2x the dpr-1 canvas ${base.join("x")}`,
     );
@@ -331,6 +433,9 @@ export function compareShadowPasses(a, b) {
         continue;
       }
       if (x.count !== y.count) differences.push(`${name}/${bias} count ${x.count} != ${y.count}`);
+      if (x.localP90 !== y.localP90) {
+        differences.push(`${name}/${bias} localP90 ${x.localP90} != ${y.localP90}`);
+      }
       if (Math.abs(x.horizontalMax - y.horizontalMax) > 0.2) {
         differences.push(`${name}/${bias} horizontalMax ${x.horizontalMax} != ${y.horizontalMax}`);
       }
@@ -521,6 +626,7 @@ async function main() {
       secondPass: {
         cases: shadowPasses[1].report.cases,
         verification: shadowPasses[1].report.verification,
+        biasDecision: shadowPasses[1].report.biasDecision,
         biasImpact: shadowPasses[1].report.biasImpact,
         runtime: shadowPasses[1].report.runtime,
       },

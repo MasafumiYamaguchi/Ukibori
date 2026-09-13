@@ -9,33 +9,36 @@
       },
       "mask": {
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 84,
-          "height": 43
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 90,
+          "height": 32
         },
         "maskInk": {
-          "left": 2.5,
-          "top": 12.5,
-          "right": 82.5,
-          "bottom": 35
+          "left": 2,
+          "top": 4.5,
+          "right": 86.5,
+          "bottom": 27
         },
         "maskSize": [
-          168,
-          86
+          180,
+          64
         ],
         "maskSizeCss": [
-          84,
-          43
+          90,
+          32
         ],
         "rasterScale": 2,
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
         "typography": {
-          "font": "700 32px \"Segoe UI\", Arial, sans-serif",
-          "lineHeight": "normal",
-          "letterSpacing": "2px",
+          "font": "700 32px / 32px ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontFamily": "ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontSize": "32px",
+          "fontWeight": "700",
+          "lineHeight": "32px",
+          "letterSpacing": "3.84px",
           "wordSpacing": "0px",
           "textTransform": "none",
           "direction": "ltr",
@@ -61,33 +64,33 @@
           }
         },
         "lineBox": {
-          "top": 0,
-          "height": 43,
+          "top": -3,
+          "height": 38,
           "left": 0
         },
         "canvas": [
-          1016,
-          696
+          1105,
+          672
         ]
       },
       "domInk": {
         "absolute": {
-          "left": 63,
-          "top": 102,
-          "right": 142,
-          "bottom": 125
+          "left": 45,
+          "top": 74,
+          "right": 129,
+          "bottom": 96
         },
         "inBox": {
-          "left": 3,
-          "top": 12,
-          "right": 82,
-          "bottom": 35
+          "left": 2.609375,
+          "top": 4.8125,
+          "right": 86.609375,
+          "bottom": 26.8125
         },
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 84,
-          "height": 43
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 90,
+          "height": 32
         }
       }
     },
@@ -100,33 +103,36 @@
       },
       "mask": {
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 160,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 181,
+          "height": 64
         },
         "maskInk": {
-          "left": 5,
-          "top": 24,
-          "right": 158.5,
-          "bottom": 69
+          "left": 4.5,
+          "top": 9.5,
+          "right": 173,
+          "bottom": 54
         },
         "maskSize": [
-          320,
-          170
+          362,
+          128
         ],
         "maskSizeCss": [
-          160,
-          85
+          181,
+          64
         ],
         "rasterScale": 2,
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
         "typography": {
-          "font": "700 64px \"Segoe UI\", Arial, sans-serif",
-          "lineHeight": "normal",
-          "letterSpacing": "2px",
+          "font": "700 64px / 64px ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontFamily": "ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontSize": "64px",
+          "fontWeight": "700",
+          "lineHeight": "64px",
+          "letterSpacing": "7.68px",
           "wordSpacing": "0px",
           "textTransform": "none",
           "direction": "ltr",
@@ -152,33 +158,33 @@
           }
         },
         "lineBox": {
-          "top": 0,
-          "height": 85,
+          "top": -5,
+          "height": 74,
           "left": 0
         },
         "canvas": [
-          1016,
-          696
+          1105,
+          672
         ]
       },
       "domInk": {
         "absolute": {
-          "left": 65,
-          "top": 114,
-          "right": 218,
-          "bottom": 159
+          "left": 47,
+          "top": 79,
+          "right": 215,
+          "bottom": 123
         },
         "inBox": {
-          "left": 5,
-          "top": 24,
-          "right": 158,
-          "bottom": 69
+          "left": 4.609375,
+          "top": 9.8125,
+          "right": 172.609375,
+          "bottom": 53.8125
         },
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 160,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 181,
+          "height": 64
         }
       }
     },
@@ -191,33 +197,36 @@
       },
       "mask": {
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 237,
-          "height": 128
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 271,
+          "height": 96
         },
         "maskInk": {
-          "left": 7.5,
-          "top": 37,
-          "right": 234.5,
-          "bottom": 104
+          "left": 6.5,
+          "top": 14.5,
+          "right": 259,
+          "bottom": 81
         },
         "maskSize": [
-          474,
-          256
+          542,
+          192
         ],
         "maskSizeCss": [
-          237,
-          128
+          271,
+          96
         ],
         "rasterScale": 2,
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
         "typography": {
-          "font": "700 96px \"Segoe UI\", Arial, sans-serif",
-          "lineHeight": "normal",
-          "letterSpacing": "2px",
+          "font": "700 96px / 96px ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontFamily": "ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontSize": "96px",
+          "fontWeight": "700",
+          "lineHeight": "96px",
+          "letterSpacing": "11.52px",
           "wordSpacing": "0px",
           "textTransform": "none",
           "direction": "ltr",
@@ -243,33 +252,33 @@
           }
         },
         "lineBox": {
-          "top": 0,
-          "height": 128,
+          "top": -8,
+          "height": 112,
           "left": 0
         },
         "canvas": [
-          1016,
-          696
+          1105,
+          672
         ]
       },
       "domInk": {
         "absolute": {
-          "left": 68,
-          "top": 127,
-          "right": 294,
-          "bottom": 194
+          "left": 49,
+          "top": 83,
+          "right": 301,
+          "bottom": 150
         },
         "inBox": {
-          "left": 8,
-          "top": 37,
-          "right": 234,
-          "bottom": 104
+          "left": 6.609375,
+          "top": 13.8125,
+          "right": 258.609375,
+          "bottom": 80.8125
         },
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 237,
-          "height": 128
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 271,
+          "height": 96
         }
       }
     },
@@ -282,33 +291,36 @@
       },
       "mask": {
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 88,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 226,
+          "height": 64
         },
         "maskInk": {
-          "left": 4.5,
-          "top": 21.5,
-          "right": 81.5,
-          "bottom": 69
+          "left": 5,
+          "top": 6.5,
+          "right": 215.5,
+          "bottom": 54.5
         },
         "maskSize": [
-          176,
-          170
+          452,
+          128
         ],
         "maskSizeCss": [
-          88,
-          85
+          226,
+          64
         ],
         "rasterScale": 2,
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
         "typography": {
-          "font": "64px \"Segoe UI\", Arial, sans-serif",
-          "lineHeight": "normal",
-          "letterSpacing": "2px",
+          "font": "64px / 64px ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontFamily": "ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontSize": "64px",
+          "fontWeight": "400",
+          "lineHeight": "64px",
+          "letterSpacing": "7.68px",
           "wordSpacing": "0px",
           "textTransform": "none",
           "direction": "ltr",
@@ -334,33 +346,33 @@
           }
         },
         "lineBox": {
-          "top": 0,
-          "height": 85,
+          "top": -5,
+          "height": 74,
           "left": 0
         },
         "canvas": [
-          1016,
-          696
+          1105,
+          672
         ]
       },
       "domInk": {
         "absolute": {
-          "left": 64,
-          "top": 112,
-          "right": 141,
-          "bottom": 159
+          "left": 48,
+          "top": 75,
+          "right": 257,
+          "bottom": 124
         },
         "inBox": {
-          "left": 4,
-          "top": 22,
-          "right": 81,
-          "bottom": 69
+          "left": 5.609375,
+          "top": 5.8125,
+          "right": 214.609375,
+          "bottom": 54.8125
         },
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 88,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 226,
+          "height": 64
         }
       }
     },
@@ -373,33 +385,36 @@
       },
       "mask": {
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 116,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 90,
+          "height": 64
         },
         "maskInk": {
           "left": 1.5,
-          "top": 23.5,
-          "right": 110,
-          "bottom": 70
+          "top": 9,
+          "right": 79.5,
+          "bottom": 54.5
         },
         "maskSize": [
-          232,
-          170
+          180,
+          128
         ],
         "maskSizeCss": [
-          116,
-          85
+          90,
+          64
         ],
         "rasterScale": 2,
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
         "typography": {
-          "font": "900 64px \"Segoe UI\", Arial, sans-serif",
-          "lineHeight": "normal",
-          "letterSpacing": "2px",
+          "font": "900 64px / 64px ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontFamily": "ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontSize": "64px",
+          "fontWeight": "900",
+          "lineHeight": "64px",
+          "letterSpacing": "7.68px",
           "wordSpacing": "0px",
           "textTransform": "none",
           "direction": "ltr",
@@ -425,33 +440,33 @@
           }
         },
         "lineBox": {
-          "top": 0,
-          "height": 85,
+          "top": -5,
+          "height": 74,
           "left": 0
         },
         "canvas": [
-          1016,
-          696
+          1105,
+          672
         ]
       },
       "domInk": {
         "absolute": {
-          "left": 62,
-          "top": 113,
-          "right": 170,
-          "bottom": 160
+          "left": 44,
+          "top": 78,
+          "right": 121,
+          "bottom": 124
         },
         "inBox": {
-          "left": 2,
-          "top": 23,
-          "right": 110,
-          "bottom": 70
+          "left": 1.609375,
+          "top": 8.8125,
+          "right": 78.609375,
+          "bottom": 54.8125
         },
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 116,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 90,
+          "height": 64
         }
       }
     },
@@ -464,33 +479,36 @@
       },
       "mask": {
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 160,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 181,
+          "height": 64
         },
         "maskInk": {
-          "left": 5,
-          "top": 24,
-          "right": 158.5,
-          "bottom": 69
+          "left": 4.5,
+          "top": 9.5,
+          "right": 173,
+          "bottom": 54
         },
         "maskSize": [
-          320,
-          170
+          362,
+          128
         ],
         "maskSizeCss": [
-          160,
-          85
+          181,
+          64
         ],
         "rasterScale": 2,
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
         "typography": {
-          "font": "700 64px \"Segoe UI\", Arial, sans-serif",
-          "lineHeight": "normal",
-          "letterSpacing": "2px",
+          "font": "700 64px / 64px ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontFamily": "ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontSize": "64px",
+          "fontWeight": "700",
+          "lineHeight": "64px",
+          "letterSpacing": "7.68px",
           "wordSpacing": "0px",
           "textTransform": "none",
           "direction": "ltr",
@@ -516,33 +534,33 @@
           }
         },
         "lineBox": {
-          "top": 0,
-          "height": 85,
+          "top": -5,
+          "height": 74,
           "left": 0
         },
         "canvas": [
-          1016,
-          696
+          1105,
+          672
         ]
       },
       "domInk": {
         "absolute": {
-          "left": 65,
-          "top": 114,
-          "right": 218,
-          "bottom": 159
+          "left": 47,
+          "top": 79,
+          "right": 215,
+          "bottom": 123
         },
         "inBox": {
-          "left": 5,
-          "top": 24,
-          "right": 158,
-          "bottom": 69
+          "left": 4.609375,
+          "top": 9.8125,
+          "right": 172.609375,
+          "bottom": 53.8125
         },
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 160,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 181,
+          "height": 64
         }
       }
     },
@@ -555,33 +573,36 @@
       },
       "mask": {
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 160,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 181,
+          "height": 64
         },
         "maskInk": {
-          "left": 5,
-          "top": 24,
-          "right": 158.5,
-          "bottom": 69
+          "left": 4.5,
+          "top": 9.5,
+          "right": 173,
+          "bottom": 54
         },
         "maskSize": [
-          320,
-          170
+          362,
+          128
         ],
         "maskSizeCss": [
-          160,
-          85
+          181,
+          64
         ],
         "rasterScale": 2,
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
         "typography": {
-          "font": "700 64px \"Segoe UI\", Arial, sans-serif",
-          "lineHeight": "normal",
-          "letterSpacing": "2px",
+          "font": "700 64px / 64px ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontFamily": "ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontSize": "64px",
+          "fontWeight": "700",
+          "lineHeight": "64px",
+          "letterSpacing": "7.68px",
           "wordSpacing": "0px",
           "textTransform": "none",
           "direction": "ltr",
@@ -607,33 +628,33 @@
           }
         },
         "lineBox": {
-          "top": 0,
-          "height": 85,
+          "top": -5,
+          "height": 74,
           "left": 0
         },
         "canvas": [
-          1016,
-          696
+          1105,
+          672
         ]
       },
       "domInk": {
         "absolute": {
-          "left": 65,
-          "top": 114,
-          "right": 218,
-          "bottom": 159
+          "left": 47,
+          "top": 79,
+          "right": 215,
+          "bottom": 123
         },
         "inBox": {
-          "left": 5,
-          "top": 24,
-          "right": 158,
-          "bottom": 69
+          "left": 4.609375,
+          "top": 9.8125,
+          "right": 172.609375,
+          "bottom": 53.8125
         },
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 160,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 181,
+          "height": 64
         }
       }
     },
@@ -647,33 +668,36 @@
       },
       "mask": {
         "box": {
-          "left": 60,
-          "top": 90,
+          "left": 42.390625,
+          "top": 69.1875,
           "width": 140,
-          "height": 192
+          "height": 144
         },
         "maskInk": {
-          "left": 7.5,
-          "top": 75,
-          "right": 140,
-          "bottom": 109.5
+          "left": 16,
+          "top": 52.5,
+          "right": 125,
+          "bottom": 87
         },
         "maskSize": [
           280,
-          384
+          288
         ],
         "maskSizeCss": [
           140,
-          192
+          144
         ],
         "rasterScale": 2,
         "canDelegateInk": false,
         "lineRectCount": 3,
         "inkAttrPresent": false,
         "typography": {
-          "font": "700 48px \"Segoe UI\", Arial, sans-serif",
-          "lineHeight": "normal",
-          "letterSpacing": "2px",
+          "font": "700 48px / 48px ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontFamily": "ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontSize": "48px",
+          "fontWeight": "700",
+          "lineHeight": "48px",
+          "letterSpacing": "5.76px",
           "wordSpacing": "0px",
           "textTransform": "none",
           "direction": "ltr",
@@ -699,33 +723,33 @@
           }
         },
         "lineBox": {
-          "top": 0,
-          "height": 64,
+          "top": -4,
+          "height": 56,
           "left": 0
         },
         "canvas": [
-          1016,
-          696
+          1105,
+          672
         ]
       },
       "domInk": {
         "absolute": {
-          "left": 54,
-          "top": 108,
-          "right": 189,
-          "bottom": 283
+          "left": 43,
+          "top": 77,
+          "right": 172,
+          "bottom": 206
         },
         "inBox": {
-          "left": -6,
-          "top": 18,
-          "right": 129,
-          "bottom": 193
+          "left": 0.609375,
+          "top": 7.8125,
+          "right": 129.609375,
+          "bottom": 136.8125
         },
         "box": {
-          "left": 60,
-          "top": 90,
+          "left": 42.390625,
+          "top": 69.1875,
           "width": 140,
-          "height": 192
+          "height": 144
         }
       }
     },
@@ -739,33 +763,36 @@
       },
       "mask": {
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 160,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 181,
+          "height": 64
         },
         "maskInk": {
-          "left": 20.5,
-          "top": 12.5,
-          "right": 143.5,
-          "bottom": 75.5
+          "left": 20,
+          "top": 4,
+          "right": 163.5,
+          "bottom": 64
         },
         "maskSize": [
-          320,
-          170
+          362,
+          128
         ],
         "maskSizeCss": [
-          160,
-          85
+          181,
+          64
         ],
         "rasterScale": 2,
         "canDelegateInk": false,
         "lineRectCount": 1,
         "inkAttrPresent": false,
         "typography": {
-          "font": "700 64px \"Segoe UI\", Arial, sans-serif",
-          "lineHeight": "normal",
-          "letterSpacing": "2px",
+          "font": "700 64px / 64px ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontFamily": "ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontSize": "64px",
+          "fontWeight": "700",
+          "lineHeight": "64px",
+          "letterSpacing": "7.68px",
           "wordSpacing": "0px",
           "textTransform": "uppercase",
           "direction": "ltr",
@@ -791,33 +818,33 @@
           }
         },
         "lineBox": {
-          "top": 0,
-          "height": 85,
+          "top": -5,
+          "height": 74,
           "left": 0
         },
         "canvas": [
-          1016,
-          696
+          1105,
+          672
         ]
       },
       "domInk": {
         "absolute": {
-          "left": 65,
-          "top": 114,
-          "right": 218,
-          "bottom": 159
+          "left": 47,
+          "top": 79,
+          "right": 215,
+          "bottom": 123
         },
         "inBox": {
-          "left": 5,
-          "top": 24,
-          "right": 158,
-          "bottom": 69
+          "left": 4.609375,
+          "top": 9.8125,
+          "right": 172.609375,
+          "bottom": 53.8125
         },
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 160,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 181,
+          "height": 64
         }
       }
     },
@@ -831,32 +858,35 @@
       },
       "mask": {
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 160,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 158,
+          "height": 64
         },
         "maskInk": {
-          "left": 5,
-          "top": 24,
-          "right": 158.5,
-          "bottom": 69
+          "left": 4.5,
+          "top": 9.5,
+          "right": 156,
+          "bottom": 54
         },
         "maskSize": [
-          320,
-          170
+          316,
+          128
         ],
         "maskSizeCss": [
-          160,
-          85
+          158,
+          64
         ],
         "rasterScale": 2,
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
         "typography": {
-          "font": "700 64px \"Segoe UI\", Arial, sans-serif",
-          "lineHeight": "normal",
+          "font": "700 64px / 64px ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontFamily": "ui-monospace, \"Cascadia Mono\", Consolas, monospace",
+          "fontSize": "64px",
+          "fontWeight": "700",
+          "lineHeight": "64px",
           "letterSpacing": "2px",
           "wordSpacing": "0px",
           "textTransform": "none",
@@ -883,33 +913,33 @@
           }
         },
         "lineBox": {
-          "top": 0,
-          "height": 85,
+          "top": -5,
+          "height": 74,
           "left": 0
         },
         "canvas": [
-          1016,
-          696
+          1105,
+          672
         ]
       },
       "domInk": {
         "absolute": {
-          "left": 65,
-          "top": 114,
-          "right": 218,
-          "bottom": 159
+          "left": 47,
+          "top": 79,
+          "right": 198,
+          "bottom": 123
         },
         "inBox": {
-          "left": 5,
-          "top": 24,
-          "right": 158,
-          "bottom": 69
+          "left": 4.609375,
+          "top": 9.8125,
+          "right": 155.609375,
+          "bottom": 53.8125
         },
         "box": {
-          "left": 60,
-          "top": 90,
-          "width": 160,
-          "height": 85
+          "left": 42.390625,
+          "top": 69.1875,
+          "width": 158,
+          "height": 64
         }
       }
     }

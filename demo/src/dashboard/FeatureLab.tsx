@@ -182,12 +182,13 @@ export function FeatureLab() {
       light={{ x: -0.5, y: -0.7, z: 1 }}
       intensity={1}
       materials={FEATURE_MATERIALS}
-      // Demo-local shadow bias, retained on real-browser evidence: for the
-      // 2px PLAY relief the reduced 0.15 bias adds cast-shadow receiver
-      // pixels over the 0.5 default (287 -> 322 at the default light,
-      // 725 -> 972 at grazing) while affecting only 6 glyph-surface pixels
-      // at the default light. The renderer default itself is unchanged.
-      shadow={{ bias: 0.15 }}
+      // Renderer default shadow options: the Feature Lab's purpose is color
+      // fidelity / feature integration, not glyph-shadow visibility, so it
+      // does NOT override the provider-global bias. The Playground's 0.15
+      // override is justified by its own real-browser fixture (panel 0/3,
+      // glyph elevation 3 / thickness 2 / bevel 1.1); those measurements do
+      // NOT transfer to this Feature Lab fixture (panel 0/4, glyph elevation
+      // 4 / thickness 2 / bevel 1.4, light (-0.5,-0.7,1)).
       gpuProfiling
       className="fl-root"
       onReady={setLayer}

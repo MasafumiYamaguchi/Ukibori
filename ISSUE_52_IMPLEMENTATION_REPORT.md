@@ -282,9 +282,10 @@ Committed artifacts: `packages/ukibori-dom/test-browser/glyph-ablation-artifacts
   (`wasm-browser-contract`, `gpu/issue30-contract`,
   `gpu/test-browser-contract`, `wasm/determinism`) remain; no new
   deterministic failures.
-- `ukibori-dom` typecheck / tests / build: pass — 187 tests (incl. the
-  transition-safe ownership policy tests and the demo-bias (0.15) CPU glyph
-  shadow references).
+- `ukibori-dom` typecheck / tests / build: pass — 213 tests (incl. the
+  transition-safe ownership policy tests, the demo-bias (0.15) CPU glyph
+  shadow references, the shadow/bias-decision assertion suite and the
+  Playground fixture CSS-parity test).
 - `ukibori` typecheck / tests / build: pass — 215 tests (fixed-2x
   supersampling, identity/fidelity, alignment and typography tests).
 - `demo` typecheck / build: pass.
@@ -293,23 +294,26 @@ Committed artifacts: `packages/ukibori-dom/test-browser/glyph-ablation-artifacts
   `GLYPH_ABLATION_RUN_OK`; artifacts refreshed under
   `glyph-ablation-artifacts/after` and `alignment/after`.
 - Real-Chrome alignment matrix: dCenter <= 0.5 px across every faithful case
-  at DPR 1/1.5/2 with the production fixed-2x masks (320x170 for PLAY 64);
+  at DPR 1/1.5/2 with the production fixed-2x masks (e.g. 362x128 for PLAY 64);
   the text-transform fixture pins the DOM-visible fallback and the
   letter-spacing fixture pins the mirror.
 - Real-Chrome shadow verification (presented-frame readback, executed twice
   with fail-fast assertions; nonzero exit and no `GLYPH_ABLATION_RUN_OK`
   otherwise): shadow exists at default / reversed / grazing lights; the LOCAL
-  caster-to-shadow displacement reverses (default (0.40, 0.53) vs reversed
-  (-0.53, -0.70) CSS px; normalized cosine -0.998); the PRIMARY horizontal
-  receiver-plane projection is 1.7 px at z=1 and 3.8 -> 4.4 px at z=0.35
-  (naive projection `thickness * |Lxy| / Lz` = 2.0 / 5.7 px; grazing strictly
-  larger at both biases), with the 3D ray length (2.4 / 4.03 -> 4.66 px)
-  retained as secondary. Bias 0.15 adds receiver shadow pixels over 0.5
-  (287 -> 322 at the default light, 725 -> 972 at grazing) and changes only
-  6/3269 glyph-surface pixels at the default light, so the demo overrides are
-  RETAINED (renderer default 0.5 unchanged).
+  caster-to-shadow displacement reverses (default (0.68, 0.90) vs reversed
+  (-0.29, -0.39) CSS px; normalized cosine -1.000); the GATE reach (90th
+  percentile of the horizontal local attribution, robust to counter-spanning
+  outliers) is 2 px at z=1 and 4 -> 6 px at z=0.35 (naive projection
+  `thickness * |Lxy| / Lz` = 2.0 / 5.7 px; grazing strictly larger at both
+  biases), with the raw max and the 3D ray length retained as informational.
+  Bias 0.15 adds receiver shadow pixels over 0.5 (198 -> 208 at the default
+  light, 529 -> 713 at grazing) and changes 0/1786 glyph-surface pixels at the
+  default light with the side roundedRect bit-identical, and the runner
+  ASSERTS both the positive gains and the side-panel tolerance, so the
+  Playground override is RETAINED (renderer default 0.5 unchanged) as a
+  regression-gated decision.
 - Real-Chrome light matrix: the captured render target is asserted to scale
-  with the requested DPR (508x348 / 762x522 / 1016x696 at DPR 1 / 1.5 / 2,
+  with the requested DPR (552x336 / 829x504 / 1105x672 at DPR 1 / 1.5 / 2,
   checked against `debugState().dpr` and `floor(region * dpr)`), so mislabeled
   DPR evidence cannot pass.
 
@@ -341,20 +345,33 @@ scale or DPR rerasterization lifecycle.
   DOM box and the scene `SurfaceNode.size/position`, absolute
   elevation/thickness, typography/fallback behavior and the canvas draw
   mapping are all preserved.
-- Current demo fixture: the Playground/FeatureLab PLAY glyph is ABSOLUTE
-  elevation 3 / thickness 2 / bevelWidth 1.1 on a panel elevation 0 /
-  thickness 3, with the provider shadow pipeline `{ angularRadius: 0,
-  samples: 8, reconstruction: { enabled: true, radius: 2 }, bias: 0.15 }`.
-  The reduced 0.15 demo bias is RETAINED on corrected real-browser evidence:
-  vs the 0.5 default it adds cast-shadow receiver pixels at the demo lights
-  (287 -> 322 shadow pixels at the default light with 53 receiver pixels
-  darker; 725 -> 972 at z=0.35 grazing) and changes only 6 of 3269
-  glyph-surface pixels at the default light. The second roundedRect surface
-  is bit-identical at both biases (mean 188.11, 0 changed pixels) — no
-  provider-global side effect. (An earlier draft conclusion that 0.5 was
-  "sufficient" came from a bounding-box metric that excluded shadows inside
-  the ink box and counted silhouette-halo pixels as receivers; it was
-  superseded by the per-pixel production-mask segmentation below.)
+- Playground fixture (demo/src/dashboard/Playground.tsx): panel elevation 0 /
+  thickness 3 / bevelWidth 5 / radius 16 / matte; PLAY glyph as
+  `<UkiboriText>` with ABSOLUTE elevation 3 (on the panel top) / thickness 2 /
+  bevelWidth 1.1 / metal, styled by the real demo CSS (font-size 3.2rem,
+  weight 800, letter-spacing 0.12em, line-height 1, ui-monospace stack;
+  logical glyph box 145x51, fixed-2x mask 290x102); provider shadow pipeline
+  `{ angularRadius: 0, samples: 8, reconstruction: { enabled: true,
+  radius: 2 }, bias: 0.15 }`. The reduced 0.15 bias is RETAINED on corrected
+  real-browser evidence: vs the 0.5 default it adds cast-shadow receiver
+  pixels at both Playground lights (198 -> 208 shadow pixels at the default
+  light; 529 -> 713 at z=0.35 grazing), changes 0 of 1786 glyph-surface
+  pixels at the default light, and leaves the second roundedRect surface
+  bit-identical (mean 188.11, 0 changed pixels). The runner ASSERTS this
+  adoption decision (positive default and grazing receiver gains, side-panel
+  changes within the small tolerance), so the override cannot silently regress
+  to "0.5 is sufficient".
+- Feature Lab fixture (demo/src/dashboard/FeatureLab.tsx): a SEPARATE surface
+  with panel elevation 0 / thickness 4 / bevelWidth 10 / panel material and a
+  PLAY glyph at ABSOLUTE elevation 4 / thickness 2 / bevelWidth 1.4 /
+  metal, light (-0.5,-0.7,1). The Playground measurements do NOT transfer to
+  this different geometry, so Feature Lab uses the RENDERER DEFAULT shadow
+  bias (no `bias` override). Its purpose is color fidelity / feature
+  integration, not glyph-shadow visibility.
+- (An earlier draft conclusion that 0.5 was "sufficient" came from a
+  bounding-box metric that excluded shadows inside the ink box and counted
+  silhouette-halo pixels as receivers; it was superseded by the per-pixel
+  production-mask segmentation.)
 
 Coverage: renderer mapping-contract characterization (`glyph.test.ts`: a 2x
 raster on the same footprint yields identical scene-unit heights and passes
@@ -367,22 +384,30 @@ and all alignment/fallback/typography tests. The real-browser harness
 (`glyph-lighting.mjs`) was REWRITTEN to render the actual production React
 components (`<Ukibori>` / `<Surface>` / `<UkiboriText>` from the built
 `ukibori` package) and only reads the retained registry — no copied
-`rasterizeText`, no mirror. Its numeric shadow verification uses the
+`rasterizeText`, no mirror. The harness styles the glyph with the ACTUAL
+Playground declarations (`.demo-play-panel` + `.ukibori-text` copied from
+`demo/src/index.css`; parity pinned by
+`test-browser/glyph-lighting-css.test.mjs`) and records the COMPUTED
+typography / logical glyph box / fixed-2x mask in the report; the shadow gate
+asserts them (weight 800, 3.2rem, 0.12em, line-height 1, monospace fallback,
+mask exactly 2x the logical box). Its numeric shadow verification uses the
 production mask per pixel: glyph-surface pixels (`alpha >= 0.5`) are never
 receivers, the antialiased silhouette halo (`0 < alpha < 0.5`) is excluded,
 and each remaining shadow candidate is attributed to the nearest production
-caster boundary along the light ray — the LOCAL horizontal receiver-plane
-projection is the PRIMARY metric (3D ray distance secondary) — with direction
-taken from the local caster-to-shadow displacement. The verification runs
-twice consecutively with fail-fast assertions (empty case, wrong direction,
-non-increasing grazing horizontal projection, implausible length, unstable
-passes) and the runner exits nonzero without `RUN_OK` on any failure; the
-light matrix separately asserts that the render target scales with the
-requested DPR (508x348 / 762x522 / 1016x696). `Browser.getVersion`,
+caster boundary along the light ray — the robust 90th-percentile LOCAL
+receiver-plane reach is the GATE metric (raw max and 3D ray distance
+informational) — with direction taken from the local caster-to-shadow
+displacement. The verification runs twice consecutively with fail-fast
+assertions (empty case, wrong direction, non-increasing grazing reach,
+implausible length, unstable passes, non-beneficial bias 0.15, side-panel
+bias side effects) and the runner exits nonzero without `RUN_OK` on any
+failure; the light matrix separately asserts that the render target scales
+with the requested DPR (552x336 / 829x504 / 1105x672, rounding-tolerant for
+the fractional content-sized region). `Browser.getVersion`,
 `layer.debugState()` and the WebGPU adapter details are written into the
 reports. The alignment matrix measures DOM ink with the overlay canvas hidden
 (pure DOM ink): all faithful cases dCenter
-≤ 0.5 px at DPR 1/1.5/2 with all fixed-2x masks (e.g. 320x170 for PLAY 64).
+≤ 0.5 px at DPR 1/1.5/2 with all fixed-2x masks (e.g. 362x128 for PLAY 64).
 Evidence:
 `packages/ukibori-dom/test-browser/glyph-ablation-artifacts/after/`
 (`glyph-ablation-report.json`, `light-response-report.json`,

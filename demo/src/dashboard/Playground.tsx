@@ -86,11 +86,14 @@ export function Playground() {
           radius: reconstructionRadius,
         },
         // Fixed 2px glyph relief (GLYPH_THICKNESS = 2): the demo-local 0.15
-        // bias is retained on real-browser evidence — vs the 0.5 default it
-        // adds cast-shadow receiver pixels at the demo lights (287 -> 322 at
-        // the default light, 725 -> 972 at grazing) with only 6 glyph-surface
-        // pixels affected at the default light (glyph-lighting shadow
-        // verification report).
+        // bias is RETAINED on real-browser evidence and the adoption decision
+        // is a regression assertion, not just "it still renders". Against the
+        // 0.5 default, 0.15 adds cast-shadow receiver pixels at both demo
+        // lights (198 -> 208 at the default light, 529 -> 713 at grazing)
+        // while changing 0 glyph-surface pixels and leaving the other
+        // roundedRect surface bit-identical (glyph-lighting
+        // shadow-verification-report.json; gate in
+        // scripts/glyph-ablation.mjs shadowAssertionFailures).
         bias: 0.15,
       }}
       environment={{ intensity: environment, specularIntensity: environmentSpecular }}

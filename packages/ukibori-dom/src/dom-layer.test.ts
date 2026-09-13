@@ -692,12 +692,12 @@ describe("UkiboriDom — DOM integration", () => {
     });
 
     it("casts real CPU glyph shadows for the Feature Lab panel + absolute-z glyph and drops/restores them across the #56 alpha fallback", () => {
-      // Feature Lab fixture (#13 absolute-z): the panel top is elevation 0 +
+      // Feature Lab geometry (#13 absolute-z): the panel top is elevation 0 +
       // thickness 4 = scene z 4; the PLAY glyph sits at ABSOLUTE elevation 4
       // (its base exactly on the panel top, NOT parent-relative) with
-      // thickness 2, so its relief top is scene z 6. The demo keeps the
-      // reduced 0.15 bias on real-browser evidence; this reference configures
-      // it explicitly like the demo provider.
+      // thickness 2, so its relief top is scene z 6. The demo Feature Lab
+      // itself uses the renderer DEFAULT bias; this CPU reference deliberately
+      // configures a reduced 0.15 bias as a low-bias shadow-visibility rail.
       const panel = document.createElement("div");
       host.appendChild(panel);
       stubRectFor(panel, { left: 0, top: 0, width: 300, height: 300 });
@@ -716,8 +716,8 @@ describe("UkiboriDom — DOM integration", () => {
       // lower-right (and the opposite way when the light is reversed).
       const LIGHT = { x: -1, y: -0.6, z: 0.25 };
       layer.setLight(LIGHT, 1);
-      // Feature Lab's demo-local bias (0.15), configured explicitly like the
-      // demo provider; the renderer default (0.5) is unchanged.
+      // Explicit reduced-bias rail (the Feature Lab provider itself uses the
+      // renderer default); the renderer default (0.5) is unchanged.
       layer.setShadow({ bias: 0.15 });
       layer.register(panel, {
         id: "fl-panel",

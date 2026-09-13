@@ -6,16 +6,36 @@
     <style>
       body { margin: 0; background: #ffffff; }
       #stage { position: relative; width: 420px; height: 260px; background: #e4e8ef; }
-      /* Current Playground fixture geometry (production React components
-         render the actual DOM; only layout/typography is styled here). */
-      .demo-play-panel { position: absolute; left: 20px; top: 50px; width: 380px; height: 180px; }
-      .demo-side-panel { position: absolute; left: 20px; top: 10px; width: 160px; height: 24px; }
-      .ukibori-text {
-        position: absolute; left: 40px; top: 40px;
-        font: 700 64px "Segoe UI", Arial, sans-serif;
-        color: #222222;
-        letter-spacing: 2px;
+      /* Current Playground fixture typography/layout. These two rules are
+         copied VERBATIM from demo/src/index.css (the parity is pinned by
+         test-browser/glyph-lighting-css.test.mjs) so the harness exercises the
+         ACTUAL Playground conditions: the glyph geometry is the canvas-raster
+         text mask, so font family/weight/size, letter-spacing, line-height and
+         the panel's flex/padding layout are part of the physical evidence. */
+      .demo-play-panel {
+        min-height: 130px;
+        padding: 1.2rem 1.4rem;
+        color: #1f2430;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.8rem;
       }
+      .ukibori-text {
+        display: block;
+        font-size: 3.2rem;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        line-height: 1;
+        color: #1f2430;
+        font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+      }
+      /* Capture-stage placement ONLY: the Playground lays the panel out in its
+         showcase grid; here the identical panel markup is pinned on the fixed
+         420x260 stage. This does not change typography or the glyph's logical
+         box (the flex-start glyph width is content-sized either way). */
+      .harness-play-panel { position: absolute; left: 20px; top: 50px; width: 380px; }
+      .demo-side-panel { position: absolute; left: 20px; top: 10px; width: 160px; height: 24px; }
       #result { white-space: pre-wrap; font: 12px monospace; }
     </style>
   </head>
