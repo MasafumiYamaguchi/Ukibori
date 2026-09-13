@@ -50,32 +50,25 @@ import type { UkiboriTextProps } from "../types";
  * measured box is rounded to integer CSS-pixel dimensions, the span's box is
  * fixed to those LOGICAL dimensions via an explicit layout policy
  * (`display: inline-block` by default so `width`/`height` actually apply in
- * real browser layout), and the glyph is rasterized at the DEVICE scale
- * (`window.devicePixelRatio` clamped to `[1, GLYPH_RASTER_SCALE_MAX]`) ×
- * the logical box. DPR 1 intentionally stays 1× (the mask equals the CSS-px
- * box, so its quantization is unchanged), and a requested DPR of 2 always
- * yields an exact 2× raster — half-CSS-pixel boundary sampling, where a
- * ~1-CSS-px stroke keeps several mask pixels of bevel band. Other requested
- * DPRs above 1 reduce the silhouette quantization only when the selected
- * effective scale is above 1: a fractional DPR is quantized to the nearest
- * exact-aspect common multiplier and can stay 1× for small/coprime logical
- * boxes. The physical footprint remains the LOGICAL box: the #19 mask mapping
- * maps the raster onto the surface size, so raster resolution is never scene
- * scale. The mask
+ * real browser layout), and the glyph is rasterized at a FIXED 2× scale —
+ * exactly 2 on every device, independent of `window.devicePixelRatio` — over
+ * the logical box. The mask resolution is therefore device-independent:
+ * every display samples the silhouette at half a CSS pixel, where a
+ * ~1-CSS-px stroke keeps several mask pixels of bevel band. The physical
+ * footprint remains the LOGICAL box: the #19 mask mapping maps the raster
+ * onto the surface size, so raster resolution is never scene scale. The mask
  * aspect equals the span's box aspect EXACTLY — the mask dimensions are
- * derived with a common integer multiplier, so independent rounding can
- * never violate the renderer's isotropic mapping validation, even for
- * fractional initial text dimensions or a fractional DPR. A user-supplied
- * `width`/`height` may influence the INITIAL measurement, but the final DOM
- * box always equals the logical footprint, so the aspects can never diverge.
+ * derived with a common integer multiplier (gcd), so independent rounding
+ * can never violate the renderer's isotropic mapping validation, even for
+ * fractional initial text dimensions. A user-supplied `width`/`height` may
+ * influence the INITIAL measurement, but the final DOM box always equals the
+ * logical footprint, so the aspects can never diverge.
  *
  * Before an identity-matched raster exists — or if rasterization failed —
  * the component stays PLAIN DOM TEXT: `shape` is `null`, nothing is
  * registered, and no rounded-rectangle substitute is created.
  * Re-rasterization happens on text/font changes, on typography-relevant
- * style/className changes, after `document.fonts.ready`, and whenever the
- * device pixel ratio changes (resize plus a re-armed resolution media query)
- * so a mounted glyph can never retain a stale resolution.
+ * style/className changes, and after `document.fonts.ready`.
  */
 
 /** Rasterization outcome bound to the exact input identity it was made from. */
@@ -107,33 +100,17 @@ interface RasterState {
   canDelegateInk: boolean;
   /**
    * Logical integer CSS-pixel box of the glyph (the DOM footprint). The
-   * physical scene maps the supersampled `mask` onto exactly this box
-   * (× DPR), so the raster resolution never changes the physical size.
+   * physical scene maps the fixed 2× `mask` onto exactly this box, so the
+   * raster resolution never changes the physical size.
    */
   cssWidth: number;
   cssHeight: number;
-  /**
-   * Effective supersampling factor actually used (mask px per CSS px): the
-   * common-multiplier dimension choice rounds the clamped device request to
-   * an exactly aspect-preserving integer raster.
-   */
-  rasterScale: number;
-  /**
-   * Identity half of the raster: the CLAMPED device scale at generation time
-   * (1 for a missing/non-finite/non-positive `devicePixelRatio`, otherwise
-   * `[1, GLYPH_RASTER_SCALE_MAX]`). A DPR change after mount makes this stale
-   * and the rasterization effect re-runs.
-   */
-  deviceScale: number;
 }
 
 export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
   function UkiboriText({ text, font, className, style, ...surfaceProps }, forwardedRef) {
     const innerRef = useRef<HTMLElement | null>(null);
     const [raster, setRaster] = useState<RasterState | null>(null);
-    // Device supersample request (clamped DPR). State, not a render-time
-    // read: a DPR change after mount must re-run the rasterization effect.
-    const [deviceScale, setDeviceScale] = useState<number>(currentDeviceRasterScale);
     // Effect-local view of the current raster (for the identity/dedupe gate
     // without adding `raster` to the effect dependencies).
     const rasterRef = useRef<RasterState | null>(null);
@@ -143,37 +120,6 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
     // fields or the className re-trigger the rasterization effect, so a
     // stale raster can never stay "current" across a style change.
     const typographyKey = typographyKeyFromProps(style, className);
-
-    // DPR-change detection: `resize` covers most moves between displays and
-    // browser-zoom changes; the media query is RE-ARMED for the current ratio
-    // on every change (so 1x -> 2x -> 3x is tracked even though the clamped
-    // scale saturates at the cap). Listeners are cleaned up on unmount.
-    useEffect(() => {
-      if (typeof window === "undefined") {
-        return;
-      }
-      const update = () => setDeviceScale(currentDeviceRasterScale());
-      let media: MediaQueryList | null = null;
-      const handleMediaChange = () => {
-        media?.removeEventListener("change", handleMediaChange);
-        update();
-        armMediaQuery();
-      };
-      const armMediaQuery = () => {
-        if (typeof window.matchMedia !== "function") {
-          return;
-        }
-        media = window.matchMedia(`(resolution: ${window.devicePixelRatio}dppx)`);
-        media.addEventListener?.("change", handleMediaChange);
-      };
-      update();
-      armMediaQuery();
-      window.addEventListener("resize", update);
-      return () => {
-        window.removeEventListener("resize", update);
-        media?.removeEventListener("change", handleMediaChange);
-      };
-    }, []);
 
     useEffect(() => {
       const element = innerRef.current;
@@ -186,7 +132,7 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
           return;
         }
         try {
-          const result = rasterizeText(text, element, font, deviceScale);
+          const result = rasterizeText(text, element, font);
           const next: RasterState = {
             text,
             font,
@@ -196,8 +142,6 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
             canDelegateInk: result.canDelegateInk,
             cssWidth: result.cssWidth,
             cssHeight: result.cssHeight,
-            rasterScale: result.rasterScale,
-            deviceScale: result.deviceScale,
           };
           rasterRef.current = next;
           setRaster(next);
@@ -213,17 +157,17 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
         }
       };
       // #52 review round 3 identity/dedupe gate: re-rasterize when the prop
-      // identity or the device scale changed; SKIP only when both match AND
-      // the live computed typography fingerprint is unchanged (an effect
-      // re-run without a real DOM typography change must not regenerate the
-      // mask).
+      // identity changed; SKIP only when it matches AND the live computed
+      // typography fingerprint is unchanged (an effect re-run without a real
+      // DOM typography change must not regenerate the mask). The fixed 2×
+      // raster scale has no device-dependent half: a DPR move never
+      // invalidates the raster.
       const previous = rasterRef.current;
       const identityUnchanged =
         previous !== null &&
         previous.text === text &&
         previous.font === font &&
         previous.typographyKey === typographyKey &&
-        previous.deviceScale === deviceScale &&
         currentTypographyFingerprint(element) === previous.fingerprint;
       if (!identityUnchanged) {
         rasterize();
@@ -237,19 +181,18 @@ export const UkiboriText = forwardRef<HTMLElement, UkiboriTextProps>(
       return () => {
         cancelled = true;
       };
-    }, [text, font, typographyKey, deviceScale]);
+    }, [text, font, typographyKey]);
 
     // Render-time identity gate: only an identity-matched raster represents
-    // the current text/font/typography/device-scale inputs. Everything else
-    // (props or DPR changed since the last raster, failed rasterization,
-    // fidelity-degraded raster) is the plain DOM fallback — the physical
-    // glyph cannot outlive its own input.
+    // the current text/font/typography inputs. Everything else (props changed
+    // since the last raster, failed rasterization, fidelity-degraded raster)
+    // is the plain DOM fallback — the physical glyph cannot outlive its own
+    // input.
     const rasterMatches =
       raster !== null &&
       raster.text === text &&
       raster.font === font &&
-      raster.typographyKey === typographyKey &&
-      raster.deviceScale === deviceScale;
+      raster.typographyKey === typographyKey;
     // The physical geometry exists whenever an identity-matched raster
     // exists (even a fidelity-degraded one stays valid GEOMETRY); the
     // visual representation authority (DOM ink delegation) additionally
@@ -313,10 +256,6 @@ interface RasterizeResult {
   /** Logical integer CSS-pixel box (the physical footprint, pre-supersample). */
   cssWidth: number;
   cssHeight: number;
-  /** Effective supersampling factor (mask px per CSS px). */
-  rasterScale: number;
-  /** Clamped device scale this raster was generated for (identity half). */
-  deviceScale: number;
 }
 
 /**
@@ -325,59 +264,31 @@ interface RasterizeResult {
  * The raster used to be generated at exactly the rounded CSS-pixel box, so
  * the physical silhouette was a CSS-px staircase at every DPR and a ~1-CSS-px
  * stroke arrived as a 1-mask-px binary boundary with almost no bevel band to
- * shade. The raster is now generated at the DEVICE scale — up to
- * `GLYPH_RASTER_SCALE_MAX` × the LOGICAL box — while the DOM box and the
- * renderer footprint stay the logical size: `SurfaceNode.size` maps the
- * raster onto the physical footprint, so resolution is not scene scale
- * (pinned by renderer tests and `renderer-debug`'s 240x48 PLAY mask on a
- * 56x11.2 footprint).
+ * shade. The raster is now generated at a FIXED 2× scale — exactly 2 on
+ * every browser and device, never derived from `window.devicePixelRatio` or
+ * any display state — while the DOM box and the renderer footprint stay the
+ * logical size: `SurfaceNode.size` maps the raster onto the physical
+ * footprint, so resolution is not scene scale (pinned by renderer tests and
+ * `renderer-debug`'s 240x48 PLAY mask on a 56x11.2 footprint).
  *
- * The requested scale comes from `window.devicePixelRatio`, clamped to
- * `[1, 2]`. DPR 1 intentionally stays 1× — the mask is the CSS-px box and
- * its quantization remains. A requested DPR of 2 always yields an exact 2×
- * raster (the cap), sampling the boundary at half a CSS pixel, matching the
- * render grid. Other requested DPRs above 1 reduce the quantization only when
- * the selected effective scale is above 1: the nearest exact-aspect common
- * multiplier can stay 1× for small/coprime logical boxes, so a fractional
- * DPR is not by itself a guarantee of supersampling. A missing, non-finite
- * or non-positive ratio falls back to 1 (no undersampling; this is the only
- * allocation policy). The mask dimensions come from a COMMON integer
- * multiplier over the logical box (gcd reduction), so
+ * The fixed 2× request samples the boundary at half a CSS pixel on every
+ * display, matching the render grid. The mask dimensions come from a COMMON
+ * integer multiplier over the logical box (gcd reduction), so
  * `mask.width / mask.height` equals the logical footprint aspect exactly —
  * the renderer's isotropic mapping validation (1e-6) can never fail because
- * of independent per-axis rounding, even for a fractional DPR.
- *
- * A DPR change after mount MUST invalidate the raster (1× is wrong on a 2×
- * display): `resize` plus a re-armed `(resolution: Ndppx)` media query
- * update the stored device scale, the raster identity includes it, and the
- * rasterization effect re-runs — a stale resolution can never stay current.
+ * of independent per-axis rounding.
  */
-const GLYPH_RASTER_SCALE_MAX = 2;
+const GLYPH_RASTER_SCALE = 2;
 
 /**
- * The device supersample request: `window.devicePixelRatio` clamped to
- * `[1, GLYPH_RASTER_SCALE_MAX]`. Missing, non-finite or non-positive ratios
- * request exactly 1× (never undersample).
- */
-function currentDeviceRasterScale(): number {
-  if (typeof window === "undefined") {
-    return 1;
-  }
-  const dpr = window.devicePixelRatio;
-  if (typeof dpr !== "number" || !Number.isFinite(dpr) || dpr <= 0) {
-    return 1;
-  }
-  return Math.min(GLYPH_RASTER_SCALE_MAX, Math.max(1, dpr));
-}
-
-/**
- * Integer mask dimensions for a logical box and a (possibly fractional)
- * requested scale. A common integer multiplier preserves the exact aspect:
- * with `g = gcd(cssWidth, cssHeight)`, every candidate is
+ * Integer mask dimensions for a logical box and the fixed 2× request. A
+ * common integer multiplier preserves the exact aspect: with
+ * `g = gcd(cssWidth, cssHeight)`, every candidate is
  * `(m * cssWidth / g, m * cssHeight / g)`, whose ratio is always
  * `cssWidth / cssHeight`; `m` picks the candidate closest to the requested
- * scale (and never below 1×). The returned `scale` is the EFFECTIVE scale
- * actually used, which is stored in the raster identity.
+ * scale (and never below 1×). At the fixed 2× request this is exactly
+ * `(2 * cssWidth, 2 * cssHeight)`; the returned `scale` drives the canvas
+ * `setTransform`.
  */
 function supersampledMaskSize(
   cssWidth: number,
@@ -404,12 +315,7 @@ function greatestCommonDivisor(a: number, b: number): number {
   return x === 0 ? 1 : x;
 }
 
-function rasterizeText(
-  text: string,
-  element: HTMLElement,
-  font: string | undefined,
-  deviceScale: number,
-): RasterizeResult {
+function rasterizeText(text: string, element: HTMLElement, font: string | undefined): RasterizeResult {
   // #52 review round 3: read the element's computed typography ONCE — it
   // feeds the raster font, the fidelity gate and the raster identity
   // fingerprint.
@@ -417,7 +323,7 @@ function rasterizeText(
   const rect = element.getBoundingClientRect();
   const cssWidth = Math.max(1, Math.round(rect.width));
   const cssHeight = Math.max(1, Math.round(rect.height));
-  const raster = supersampledMaskSize(cssWidth, cssHeight, deviceScale);
+  const raster = supersampledMaskSize(cssWidth, cssHeight, GLYPH_RASTER_SCALE);
   const canvas = document.createElement("canvas");
   canvas.width = raster.width;
   canvas.height = raster.height;
@@ -446,7 +352,7 @@ function rasterizeText(
   // with the canvas TextMetrics font bounding ascent/descent (the same font
   // metrics CSS line layout resolves). The text is drawn with an ALPHABETIC
   // baseline left-anchored at the line box origin — the same anchor the DOM
-  // inline layout uses — so no magic pixel offsets, no DPR-dependent
+  // inline layout uses — so no magic pixel offsets, no display-dependent
   // correction and no font-specific constants are involved.
   //
   // Delegation fidelity (#52): the ink is delegated ONLY when this live
@@ -516,8 +422,6 @@ function rasterizeText(
     fingerprint: typographyFingerprint(typography),
     cssWidth,
     cssHeight,
-    rasterScale: raster.scale,
-    deviceScale,
   };
 }
 

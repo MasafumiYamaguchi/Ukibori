@@ -182,10 +182,11 @@ export function FeatureLab() {
       light={{ x: -0.5, y: -0.7, z: 1 }}
       intensity={1}
       materials={FEATURE_MATERIALS}
-      // Demo-local shadow bias: the 1px-scale glyph relief (thickness 2) is
-      // still thinner than the renderer's 0.5 default acne guard, so the thin
-      // PLAY silhouette needs the same reduced bias as the Playground (0.15).
-      // The renderer default itself is unchanged.
+      // Demo-local shadow bias, retained on real-browser evidence: for the
+      // 2px PLAY relief the reduced 0.15 bias adds cast-shadow receiver
+      // pixels over the 0.5 default (287 -> 322 at the default light,
+      // 725 -> 972 at grazing) while affecting only 6 glyph-surface pixels
+      // at the default light. The renderer default itself is unchanged.
       shadow={{ bias: 0.15 }}
       gpuProfiling
       className="fl-root"

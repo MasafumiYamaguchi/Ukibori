@@ -544,14 +544,15 @@ describe("UkiboriDom — DOM integration", () => {
       layer.dispose();
     });
 
-    it("casts real CPU glyph shadows for the Playground fixture (panel 0/3, absolute-z glyph 3/2, bias 0.15)", () => {
+    it("casts real CPU glyph shadows for the Playground fixture (panel 0/3, absolute-z glyph 3/2, demo bias 0.15)", () => {
       // Playground-equivalent CPU reference (#13 absolute-z): the glyph panel
       // is elevation 0 + thickness 3 (fixed GLYPH_PANEL_TOP), so its top is
       // scene z 3; the PLAY glyph uses ABSOLUTE elevation 3 (its base exactly
       // on the panel top) and fixed thickness 2 (GLYPH_THICKNESS), so its
-      // relief top is scene z 5. The demo-local thin-glyph bias (0.15) is
-      // configured explicitly like the demo provider; the renderer DEFAULT
-      // bias (0.5) stays unchanged.
+      // relief top is scene z 5. The demo keeps the reduced 0.15 bias on
+      // real-browser evidence (more cast-shadow receiver pixels than the 0.5
+      // default at the demo lights); this reference configures it explicitly
+      // like the demo provider.
       const panel = document.createElement("div");
       host.appendChild(panel);
       stubRectFor(panel, { left: 0, top: 0, width: 300, height: 300 });
@@ -694,10 +695,9 @@ describe("UkiboriDom — DOM integration", () => {
       // Feature Lab fixture (#13 absolute-z): the panel top is elevation 0 +
       // thickness 4 = scene z 4; the PLAY glyph sits at ABSOLUTE elevation 4
       // (its base exactly on the panel top, NOT parent-relative) with
-      // thickness 2, so its relief top is scene z 6. This test reproduces
-      // Feature Lab's demo-local thin-glyph bias below (0.15) — the same
-      // option the demo provider passes — while the renderer DEFAULT bias
-      // (0.5) remains unchanged.
+      // thickness 2, so its relief top is scene z 6. The demo keeps the
+      // reduced 0.15 bias on real-browser evidence; this reference configures
+      // it explicitly like the demo provider.
       const panel = document.createElement("div");
       host.appendChild(panel);
       stubRectFor(panel, { left: 0, top: 0, width: 300, height: 300 });
@@ -716,8 +716,8 @@ describe("UkiboriDom — DOM integration", () => {
       // lower-right (and the opposite way when the light is reversed).
       const LIGHT = { x: -1, y: -0.6, z: 0.25 };
       layer.setLight(LIGHT, 1);
-      // Feature Lab's demo-local thin-glyph bias, configured explicitly like
-      // the demo provider does. The renderer default (0.5) stays unchanged.
+      // Feature Lab's demo-local bias (0.15), configured explicitly like the
+      // demo provider; the renderer default (0.5) is unchanged.
       layer.setShadow({ bias: 0.15 });
       layer.register(panel, {
         id: "fl-panel",

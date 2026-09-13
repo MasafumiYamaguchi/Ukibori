@@ -968,8 +968,7 @@ describe("UkiboriText layout policy", () => {
   it("uses inline-block so width/height apply in real browser layout", async () => {
     // A bare span (no demo CSS): the default display must make the fixed
     // width/height take effect, otherwise the DOM footprint could diverge
-    // from the mask footprint (inline spans ignore width/height). jsdom's
-    // device scale is 1, so the logical box and the raster coincide here.
+    // from the mask footprint (inline spans ignore width/height).
     stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
     stubCanvas2d();
     let layer: UkiboriDom | null = null;
@@ -987,9 +986,10 @@ describe("UkiboriText layout policy", () => {
     expect(span.style.height).toBe("40px");
     const entry = layer!.registry.get("play")!;
     const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
-    // DPR 1: the raster footprint and the DOM box are the same integer dims.
-    expect(mask.width).toBe(120);
-    expect(mask.height).toBe(40);
+    // Fixed 2x supersampling: the raster doubles the logical box on every
+    // device while the DOM footprint stays the logical dims.
+    expect(mask.width).toBe(240);
+    expect(mask.height).toBe(80);
   });
 
   it("user width/height influence the initial measurement but the logical box stays authoritative", async () => {
@@ -1018,36 +1018,45 @@ describe("UkiboriText layout policy", () => {
     expect(span.style.display).toBe("inline-block");
     const entry = layer!.registry.get("play")!;
     const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
-    // DPR 1: the raster equals the logical footprint.
-    expect(mask.width).toBe(80);
-    expect(mask.height).toBe(40);
+    // Fixed 2x supersampling over the logical 80x40 footprint.
+    expect(mask.width).toBe(160);
+    expect(mask.height).toBe(80);
     expect(layer!.debugBuffers()).not.toBeNull();
   });
 });
 
-describe("UkiboriText supersampling policy (device scale)", () => {
-  it("rasterizes at 1x on a DPR 1 device (mask == logical footprint)", async () => {
+describe("UkiboriText supersampling policy (fixed 2x)", () => {
+  it("rasterizes at fixed 2x on a DPR 1 device while the DOM box keeps the logical footprint", async () => {
     stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
     stubCanvas2d();
     stubTextLineBox();
     vi.stubGlobal("devicePixelRatio", 1);
     let layer: UkiboriDom | null = null;
+    const errors: unknown[] = [];
     render(
-      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} onError={(e) => errors.push(e)}>
         <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
       </Ukibori>,
     );
     await flushAsync();
+    expect(errors).toHaveLength(0);
     const span = screen.getByText("PLAY");
+    // The DOM box stays the LOGICAL integer footprint...
+    expect(span.style.display).toBe("inline-block");
     expect(span.style.width).toBe("120px");
     expect(span.style.height).toBe("40px");
+    // ...while the source mask doubles it: fixed 2x on DPR 1.
     const entry = layer!.registry.get("play")!;
     const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
-    expect(mask.width).toBe(120);
-    expect(mask.height).toBe(40);
+    expect(mask.width).toBe(240);
+    expect(mask.height).toBe(80);
+    expect(mask.width / mask.height).toBeCloseTo(120 / 40, 12);
+    // The physical scene builds on the logical footprint (the renderer's
+    // 1e-6 isotropic mapping validation holds on the 2x mask).
+    expect(layer!.debugBuffers()).not.toBeNull();
   });
 
-  it("rasterizes at 2x on a DPR 2 device while the DOM box keeps the logical footprint", async () => {
+  it("rasterizes at the same fixed 2x on a DPR 2 device (never 4x)", async () => {
     stubElementRects({ left: 10, top: 20, width: 103.3, height: 24.6 });
     stubCanvas2d();
     stubTextLineBox();
@@ -1062,23 +1071,21 @@ describe("UkiboriText supersampling policy (device scale)", () => {
     await flushAsync();
     expect(errors).toHaveLength(0);
     const span = screen.getByText("PLAY");
-    // The DOM box stays the LOGICAL integer footprint...
     expect(span.style.display).toBe("inline-block");
     expect(span.style.width).toBe("103px");
     expect(span.style.height).toBe("25px");
-    // ...while the raster doubles; the gcd-derived dimensions preserve the
-    // footprint aspect exactly (no independent rounding).
+    // DPR 2 is intentionally IGNORED: the raster stays exactly 2x the
+    // logical box (a DPR-derived policy would produce 4x). The gcd-derived
+    // dimensions preserve the footprint aspect exactly.
     const entry = layer!.registry.get("play")!;
     const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
     expect(mask.width).toBe(206);
     expect(mask.height).toBe(50);
     expect(mask.width / mask.height).toBeCloseTo(103 / 25, 12);
-    // The physical scene builds: the renderer's 1e-6 isotropic validation
-    // holds on the supersampled mask.
     expect(layer!.debugBuffers()).not.toBeNull();
   });
 
-  it("keeps the exact footprint aspect for a fractional device scale (DPR 1.5)", async () => {
+  it("keeps the exact footprint aspect for a fractional devicePixelRatio (DPR 1.5 still 2x)", async () => {
     stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
     stubCanvas2d();
     stubTextLineBox();
@@ -1097,13 +1104,13 @@ describe("UkiboriText supersampling policy (device scale)", () => {
     expect(span.style.height).toBe("40px");
     const entry = layer!.registry.get("play")!;
     const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
-    // gcd(120, 40) = 40 -> the nearest common-multiplier raster is 1.5x.
-    expect(mask.width).toBe(180);
-    expect(mask.height).toBe(60);
+    // A fractional DPR has no effect: the mask is exactly 2x, not 1.5x.
+    expect(mask.width).toBe(240);
+    expect(mask.height).toBe(80);
     expect(mask.width / mask.height).toBeCloseTo(120 / 40, 12);
   });
 
-  it("falls back to 1x for a missing, non-finite or non-positive device scale", async () => {
+  it("ignores a missing, non-finite or non-positive devicePixelRatio (still fixed 2x)", async () => {
     for (const value of [undefined, Number.NaN, Number.POSITIVE_INFINITY, 0, -2]) {
       vi.restoreAllMocks();
       vi.unstubAllGlobals();
@@ -1122,13 +1129,13 @@ describe("UkiboriText supersampling policy (device scale)", () => {
       expect(errors).toHaveLength(0);
       const entry = layer!.registry.get("play")!;
       const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
-      expect(mask.width).toBe(120);
-      expect(mask.height).toBe(40);
+      expect(mask.width).toBe(240);
+      expect(mask.height).toBe(80);
       view.unmount();
     }
   });
 
-  it("re-rasterizes when the device scale changes after mount (1x -> 2x, no stale raster)", async () => {
+  it("does not re-rasterize when the devicePixelRatio changes after mount (fixed 2x, no DPR lifecycle)", async () => {
     stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
     stubCanvas2d();
     stubTextLineBox();
@@ -1142,20 +1149,21 @@ describe("UkiboriText supersampling policy (device scale)", () => {
     await flushAsync();
     const span = screen.getByText("PLAY");
     expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
-    const before = (layer!.registry.get("play")!.options.shape as { kind: "mask"; mask: unknown }).mask;
-    expect((before as { width: number }).width).toBe(120);
+    const entryBefore = layer!.registry.get("play")!;
+    const before = (entryBefore.options.shape as { kind: "mask"; mask: unknown }).mask;
+    expect((before as { width: number }).width).toBe(240);
+    expect((before as { height: number }).height).toBe(80);
 
-    // Move to a 2x display: the resize notice must invalidate the 1x raster.
+    // A DPR move is not part of any raster identity anymore: even with a
+    // resize notice the retained registration and mask must survive.
     vi.stubGlobal("devicePixelRatio", 2);
     await act(async () => {
       window.dispatchEvent(new Event("resize"));
     });
     await flushAsync();
+    expect(layer!.registry.get("play")).toBe(entryBefore);
     const after = (layer!.registry.get("play")!.options.shape as { kind: "mask"; mask: unknown }).mask;
-    expect(after).not.toBe(before);
-    expect((after as { width: number }).width).toBe(240);
-    expect((after as { height: number }).height).toBe(80);
-    // The DOM box and the delegation are unchanged.
+    expect(after).toBe(before);
     expect(span.style.width).toBe("120px");
     expect(span.style.height).toBe("40px");
     expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");

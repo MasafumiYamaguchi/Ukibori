@@ -10,33 +10,46 @@
       "mask": {
         "box": {
           "left": 60,
-          "top": 80,
+          "top": 90,
           "width": 84,
           "height": 43
         },
         "maskInk": {
-          "left": 2,
-          "top": 12,
-          "right": 82,
+          "left": 2.5,
+          "top": 12.5,
+          "right": 82.5,
           "bottom": 35
         },
         "maskSize": [
+          168,
+          86
+        ],
+        "maskSizeCss": [
           84,
           43
         ],
+        "rasterScale": 2,
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
         "typography": {
-          "textTransform": "none",
+          "font": "700 32px \"Segoe UI\", Arial, sans-serif",
+          "lineHeight": "normal",
           "letterSpacing": "2px",
           "wordSpacing": "0px",
-          "fontStretch": "100%",
-          "fontKerning": "auto",
-          "fontVariantCaps": "normal",
-          "textRendering": "auto",
+          "textTransform": "none",
           "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "fontKerning": "auto",
+          "fontStretch": "100%",
+          "fontVariantCaps": "normal",
+          "fontVariantPosition": "normal",
+          "fontFeatureSettings": "normal",
+          "fontVariationSettings": "normal",
+          "textRendering": "auto",
           "textDecorationLine": "none",
+          "textEmphasisStyle": "none",
+          "webkitTextStrokeWidth": "0px",
           "canvasSupport": {
             "letterSpacing": true,
             "wordSpacing": true,
@@ -53,26 +66,26 @@
           "left": 0
         },
         "canvas": [
-          508,
-          308
+          1016,
+          696
         ]
       },
       "domInk": {
         "absolute": {
-          "left": 62,
-          "top": 92,
+          "left": 63,
+          "top": 102,
           "right": 142,
-          "bottom": 115
+          "bottom": 125
         },
         "inBox": {
-          "left": 2,
+          "left": 3,
           "top": 12,
           "right": 82,
           "bottom": 35
         },
         "box": {
           "left": 60,
-          "top": 80,
+          "top": 90,
           "width": 84,
           "height": 43
         }
@@ -88,423 +101,46 @@
       "mask": {
         "box": {
           "left": 60,
-          "top": 80,
+          "top": 90,
           "width": 160,
           "height": 85
         },
         "maskInk": {
           "left": 5,
           "top": 24,
-          "right": 159,
+          "right": 158.5,
           "bottom": 69
         },
         "maskSize": [
+          320,
+          170
+        ],
+        "maskSizeCss": [
           160,
           85
         ],
+        "rasterScale": 2,
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
         "typography": {
-          "textTransform": "none",
+          "font": "700 64px \"Segoe UI\", Arial, sans-serif",
+          "lineHeight": "normal",
           "letterSpacing": "2px",
           "wordSpacing": "0px",
-          "fontStretch": "100%",
-          "fontKerning": "auto",
-          "fontVariantCaps": "normal",
-          "textRendering": "auto",
-          "direction": "ltr",
-          "textDecorationLine": "none",
-          "canvasSupport": {
-            "letterSpacing": true,
-            "wordSpacing": true,
-            "fontKerning": true,
-            "fontStretch": true,
-            "fontVariantCaps": true,
-            "textRendering": true,
-            "direction": true
-          }
-        },
-        "lineBox": {
-          "top": 0,
-          "height": 85,
-          "left": 0
-        },
-        "canvas": [
-          508,
-          308
-        ]
-      },
-      "domInk": {
-        "absolute": {
-          "left": 65,
-          "top": 104,
-          "right": 219,
-          "bottom": 149
-        },
-        "inBox": {
-          "left": 5,
-          "top": 24,
-          "right": 159,
-          "bottom": 69
-        },
-        "box": {
-          "left": 60,
-          "top": 80,
-          "width": 160,
-          "height": 85
-        }
-      }
-    },
-    {
-      "case": {
-        "text": "PLAY",
-        "fontWeight": 700,
-        "fontPx": 96,
-        "dpr": 1
-      },
-      "mask": {
-        "box": {
-          "left": 60,
-          "top": 80,
-          "width": 237,
-          "height": 128
-        },
-        "maskInk": {
-          "left": 7,
-          "top": 37,
-          "right": 235,
-          "bottom": 104
-        },
-        "maskSize": [
-          237,
-          128
-        ],
-        "canDelegateInk": true,
-        "lineRectCount": 1,
-        "inkAttrPresent": true,
-        "typography": {
           "textTransform": "none",
-          "letterSpacing": "2px",
-          "wordSpacing": "0px",
-          "fontStretch": "100%",
-          "fontKerning": "auto",
-          "fontVariantCaps": "normal",
-          "textRendering": "auto",
           "direction": "ltr",
-          "textDecorationLine": "none",
-          "canvasSupport": {
-            "letterSpacing": true,
-            "wordSpacing": true,
-            "fontKerning": true,
-            "fontStretch": true,
-            "fontVariantCaps": true,
-            "textRendering": true,
-            "direction": true
-          }
-        },
-        "lineBox": {
-          "top": 0,
-          "height": 128,
-          "left": 0
-        },
-        "canvas": [
-          508,
-          308
-        ]
-      },
-      "domInk": {
-        "absolute": {
-          "left": 68,
-          "top": 117,
-          "right": 295,
-          "bottom": 184
-        },
-        "inBox": {
-          "left": 8,
-          "top": 37,
-          "right": 235,
-          "bottom": 104
-        },
-        "box": {
-          "left": 60,
-          "top": 80,
-          "width": 237,
-          "height": 128
-        }
-      }
-    },
-    {
-      "case": {
-        "text": "illii",
-        "fontWeight": 400,
-        "fontPx": 64,
-        "dpr": 1
-      },
-      "mask": {
-        "box": {
-          "left": 60,
-          "top": 80,
-          "width": 88,
-          "height": 85
-        },
-        "maskInk": {
-          "left": 4,
-          "top": 22,
-          "right": 81,
-          "bottom": 69
-        },
-        "maskSize": [
-          88,
-          85
-        ],
-        "canDelegateInk": true,
-        "lineRectCount": 1,
-        "inkAttrPresent": true,
-        "typography": {
-          "textTransform": "none",
-          "letterSpacing": "2px",
-          "wordSpacing": "0px",
-          "fontStretch": "100%",
+          "writingMode": "horizontal-tb",
           "fontKerning": "auto",
-          "fontVariantCaps": "normal",
-          "textRendering": "auto",
-          "direction": "ltr",
-          "textDecorationLine": "none",
-          "canvasSupport": {
-            "letterSpacing": true,
-            "wordSpacing": true,
-            "fontKerning": true,
-            "fontStretch": true,
-            "fontVariantCaps": true,
-            "textRendering": true,
-            "direction": true
-          }
-        },
-        "lineBox": {
-          "top": 0,
-          "height": 85,
-          "left": 0
-        },
-        "canvas": [
-          508,
-          308
-        ]
-      },
-      "domInk": {
-        "absolute": {
-          "left": 64,
-          "top": 102,
-          "right": 141,
-          "bottom": 149
-        },
-        "inBox": {
-          "left": 4,
-          "top": 22,
-          "right": 81,
-          "bottom": 69
-        },
-        "box": {
-          "left": 60,
-          "top": 80,
-          "width": 88,
-          "height": 85
-        }
-      }
-    },
-    {
-      "case": {
-        "text": "OM",
-        "fontWeight": 900,
-        "fontPx": 64,
-        "dpr": 1
-      },
-      "mask": {
-        "box": {
-          "left": 60,
-          "top": 80,
-          "width": 116,
-          "height": 85
-        },
-        "maskInk": {
-          "left": 2,
-          "top": 23,
-          "right": 110,
-          "bottom": 70
-        },
-        "maskSize": [
-          116,
-          85
-        ],
-        "canDelegateInk": true,
-        "lineRectCount": 1,
-        "inkAttrPresent": true,
-        "typography": {
-          "textTransform": "none",
-          "letterSpacing": "2px",
-          "wordSpacing": "0px",
           "fontStretch": "100%",
-          "fontKerning": "auto",
           "fontVariantCaps": "normal",
+          "fontVariantPosition": "normal",
+          "fontFeatureSettings": "normal",
+          "fontVariationSettings": "normal",
           "textRendering": "auto",
-          "direction": "ltr",
           "textDecorationLine": "none",
-          "canvasSupport": {
-            "letterSpacing": true,
-            "wordSpacing": true,
-            "fontKerning": true,
-            "fontStretch": true,
-            "fontVariantCaps": true,
-            "textRendering": true,
-            "direction": true
-          }
-        },
-        "lineBox": {
-          "top": 0,
-          "height": 85,
-          "left": 0
-        },
-        "canvas": [
-          508,
-          308
-        ]
-      },
-      "domInk": {
-        "absolute": {
-          "left": 62,
-          "top": 103,
-          "right": 170,
-          "bottom": 150
-        },
-        "inBox": {
-          "left": 2,
-          "top": 23,
-          "right": 110,
-          "bottom": 70
-        },
-        "box": {
-          "left": 60,
-          "top": 80,
-          "width": 116,
-          "height": 85
-        }
-      }
-    },
-    {
-      "case": {
-        "text": "PLAY",
-        "fontWeight": 700,
-        "fontPx": 64,
-        "dpr": 1.5
-      },
-      "mask": {
-        "box": {
-          "left": 60,
-          "top": 80,
-          "width": 160,
-          "height": 85
-        },
-        "maskInk": {
-          "left": 5,
-          "top": 24,
-          "right": 159,
-          "bottom": 69
-        },
-        "maskSize": [
-          160,
-          85
-        ],
-        "canDelegateInk": true,
-        "lineRectCount": 1,
-        "inkAttrPresent": true,
-        "typography": {
-          "textTransform": "none",
-          "letterSpacing": "2px",
-          "wordSpacing": "0px",
-          "fontStretch": "100%",
-          "fontKerning": "auto",
-          "fontVariantCaps": "normal",
-          "textRendering": "auto",
-          "direction": "ltr",
-          "textDecorationLine": "none",
-          "canvasSupport": {
-            "letterSpacing": true,
-            "wordSpacing": true,
-            "fontKerning": true,
-            "fontStretch": true,
-            "fontVariantCaps": true,
-            "textRendering": true,
-            "direction": true
-          }
-        },
-        "lineBox": {
-          "top": 0,
-          "height": 85,
-          "left": 0
-        },
-        "canvas": [
-          762,
-          462
-        ]
-      },
-      "domInk": {
-        "absolute": {
-          "left": 65,
-          "top": 104,
-          "right": 219,
-          "bottom": 149
-        },
-        "inBox": {
-          "left": 5,
-          "top": 24,
-          "right": 159,
-          "bottom": 69
-        },
-        "box": {
-          "left": 60,
-          "top": 80,
-          "width": 160,
-          "height": 85
-        }
-      }
-    },
-    {
-      "case": {
-        "text": "PLAY",
-        "fontWeight": 700,
-        "fontPx": 64,
-        "dpr": 2
-      },
-      "mask": {
-        "box": {
-          "left": 60,
-          "top": 80,
-          "width": 160,
-          "height": 85
-        },
-        "maskInk": {
-          "left": 5,
-          "top": 24,
-          "right": 159,
-          "bottom": 69
-        },
-        "maskSize": [
-          160,
-          85
-        ],
-        "canDelegateInk": true,
-        "lineRectCount": 1,
-        "inkAttrPresent": true,
-        "typography": {
-          "textTransform": "none",
-          "letterSpacing": "2px",
-          "wordSpacing": "0px",
-          "fontStretch": "100%",
-          "fontKerning": "auto",
-          "fontVariantCaps": "normal",
-          "textRendering": "auto",
-          "direction": "ltr",
-          "textDecorationLine": "none",
+          "textEmphasisStyle": "none",
+          "webkitTextStrokeWidth": "0px",
           "canvasSupport": {
             "letterSpacing": true,
             "wordSpacing": true,
@@ -522,25 +158,480 @@
         },
         "canvas": [
           1016,
-          616
+          696
         ]
       },
       "domInk": {
         "absolute": {
           "left": 65,
-          "top": 104,
-          "right": 219,
-          "bottom": 149
+          "top": 114,
+          "right": 218,
+          "bottom": 159
         },
         "inBox": {
           "left": 5,
           "top": 24,
-          "right": 159,
+          "right": 158,
           "bottom": 69
         },
         "box": {
           "left": 60,
-          "top": 80,
+          "top": 90,
+          "width": 160,
+          "height": 85
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "PLAY",
+        "fontWeight": 700,
+        "fontPx": 96,
+        "dpr": 1
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 90,
+          "width": 237,
+          "height": 128
+        },
+        "maskInk": {
+          "left": 7.5,
+          "top": 37,
+          "right": 234.5,
+          "bottom": 104
+        },
+        "maskSize": [
+          474,
+          256
+        ],
+        "maskSizeCss": [
+          237,
+          128
+        ],
+        "rasterScale": 2,
+        "canDelegateInk": true,
+        "lineRectCount": 1,
+        "inkAttrPresent": true,
+        "typography": {
+          "font": "700 96px \"Segoe UI\", Arial, sans-serif",
+          "lineHeight": "normal",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "textTransform": "none",
+          "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "fontKerning": "auto",
+          "fontStretch": "100%",
+          "fontVariantCaps": "normal",
+          "fontVariantPosition": "normal",
+          "fontFeatureSettings": "normal",
+          "fontVariationSettings": "normal",
+          "textRendering": "auto",
+          "textDecorationLine": "none",
+          "textEmphasisStyle": "none",
+          "webkitTextStrokeWidth": "0px",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
+        "lineBox": {
+          "top": 0,
+          "height": 128,
+          "left": 0
+        },
+        "canvas": [
+          1016,
+          696
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 68,
+          "top": 127,
+          "right": 294,
+          "bottom": 194
+        },
+        "inBox": {
+          "left": 8,
+          "top": 37,
+          "right": 234,
+          "bottom": 104
+        },
+        "box": {
+          "left": 60,
+          "top": 90,
+          "width": 237,
+          "height": 128
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "illii",
+        "fontWeight": 400,
+        "fontPx": 64,
+        "dpr": 1
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 90,
+          "width": 88,
+          "height": 85
+        },
+        "maskInk": {
+          "left": 4.5,
+          "top": 21.5,
+          "right": 81.5,
+          "bottom": 69
+        },
+        "maskSize": [
+          176,
+          170
+        ],
+        "maskSizeCss": [
+          88,
+          85
+        ],
+        "rasterScale": 2,
+        "canDelegateInk": true,
+        "lineRectCount": 1,
+        "inkAttrPresent": true,
+        "typography": {
+          "font": "64px \"Segoe UI\", Arial, sans-serif",
+          "lineHeight": "normal",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "textTransform": "none",
+          "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "fontKerning": "auto",
+          "fontStretch": "100%",
+          "fontVariantCaps": "normal",
+          "fontVariantPosition": "normal",
+          "fontFeatureSettings": "normal",
+          "fontVariationSettings": "normal",
+          "textRendering": "auto",
+          "textDecorationLine": "none",
+          "textEmphasisStyle": "none",
+          "webkitTextStrokeWidth": "0px",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
+        "lineBox": {
+          "top": 0,
+          "height": 85,
+          "left": 0
+        },
+        "canvas": [
+          1016,
+          696
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 64,
+          "top": 112,
+          "right": 141,
+          "bottom": 159
+        },
+        "inBox": {
+          "left": 4,
+          "top": 22,
+          "right": 81,
+          "bottom": 69
+        },
+        "box": {
+          "left": 60,
+          "top": 90,
+          "width": 88,
+          "height": 85
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "OM",
+        "fontWeight": 900,
+        "fontPx": 64,
+        "dpr": 1
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 90,
+          "width": 116,
+          "height": 85
+        },
+        "maskInk": {
+          "left": 1.5,
+          "top": 23.5,
+          "right": 110,
+          "bottom": 70
+        },
+        "maskSize": [
+          232,
+          170
+        ],
+        "maskSizeCss": [
+          116,
+          85
+        ],
+        "rasterScale": 2,
+        "canDelegateInk": true,
+        "lineRectCount": 1,
+        "inkAttrPresent": true,
+        "typography": {
+          "font": "900 64px \"Segoe UI\", Arial, sans-serif",
+          "lineHeight": "normal",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "textTransform": "none",
+          "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "fontKerning": "auto",
+          "fontStretch": "100%",
+          "fontVariantCaps": "normal",
+          "fontVariantPosition": "normal",
+          "fontFeatureSettings": "normal",
+          "fontVariationSettings": "normal",
+          "textRendering": "auto",
+          "textDecorationLine": "none",
+          "textEmphasisStyle": "none",
+          "webkitTextStrokeWidth": "0px",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
+        "lineBox": {
+          "top": 0,
+          "height": 85,
+          "left": 0
+        },
+        "canvas": [
+          1016,
+          696
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 62,
+          "top": 113,
+          "right": 170,
+          "bottom": 160
+        },
+        "inBox": {
+          "left": 2,
+          "top": 23,
+          "right": 110,
+          "bottom": 70
+        },
+        "box": {
+          "left": 60,
+          "top": 90,
+          "width": 116,
+          "height": 85
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "PLAY",
+        "fontWeight": 700,
+        "fontPx": 64,
+        "dpr": 1.5
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 90,
+          "width": 160,
+          "height": 85
+        },
+        "maskInk": {
+          "left": 5,
+          "top": 24,
+          "right": 158.5,
+          "bottom": 69
+        },
+        "maskSize": [
+          320,
+          170
+        ],
+        "maskSizeCss": [
+          160,
+          85
+        ],
+        "rasterScale": 2,
+        "canDelegateInk": true,
+        "lineRectCount": 1,
+        "inkAttrPresent": true,
+        "typography": {
+          "font": "700 64px \"Segoe UI\", Arial, sans-serif",
+          "lineHeight": "normal",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "textTransform": "none",
+          "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "fontKerning": "auto",
+          "fontStretch": "100%",
+          "fontVariantCaps": "normal",
+          "fontVariantPosition": "normal",
+          "fontFeatureSettings": "normal",
+          "fontVariationSettings": "normal",
+          "textRendering": "auto",
+          "textDecorationLine": "none",
+          "textEmphasisStyle": "none",
+          "webkitTextStrokeWidth": "0px",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
+        "lineBox": {
+          "top": 0,
+          "height": 85,
+          "left": 0
+        },
+        "canvas": [
+          1016,
+          696
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 65,
+          "top": 114,
+          "right": 218,
+          "bottom": 159
+        },
+        "inBox": {
+          "left": 5,
+          "top": 24,
+          "right": 158,
+          "bottom": 69
+        },
+        "box": {
+          "left": 60,
+          "top": 90,
+          "width": 160,
+          "height": 85
+        }
+      }
+    },
+    {
+      "case": {
+        "text": "PLAY",
+        "fontWeight": 700,
+        "fontPx": 64,
+        "dpr": 2
+      },
+      "mask": {
+        "box": {
+          "left": 60,
+          "top": 90,
+          "width": 160,
+          "height": 85
+        },
+        "maskInk": {
+          "left": 5,
+          "top": 24,
+          "right": 158.5,
+          "bottom": 69
+        },
+        "maskSize": [
+          320,
+          170
+        ],
+        "maskSizeCss": [
+          160,
+          85
+        ],
+        "rasterScale": 2,
+        "canDelegateInk": true,
+        "lineRectCount": 1,
+        "inkAttrPresent": true,
+        "typography": {
+          "font": "700 64px \"Segoe UI\", Arial, sans-serif",
+          "lineHeight": "normal",
+          "letterSpacing": "2px",
+          "wordSpacing": "0px",
+          "textTransform": "none",
+          "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "fontKerning": "auto",
+          "fontStretch": "100%",
+          "fontVariantCaps": "normal",
+          "fontVariantPosition": "normal",
+          "fontFeatureSettings": "normal",
+          "fontVariationSettings": "normal",
+          "textRendering": "auto",
+          "textDecorationLine": "none",
+          "textEmphasisStyle": "none",
+          "webkitTextStrokeWidth": "0px",
+          "canvasSupport": {
+            "letterSpacing": true,
+            "wordSpacing": true,
+            "fontKerning": true,
+            "fontStretch": true,
+            "fontVariantCaps": true,
+            "textRendering": true,
+            "direction": true
+          }
+        },
+        "lineBox": {
+          "top": 0,
+          "height": 85,
+          "left": 0
+        },
+        "canvas": [
+          1016,
+          696
+        ]
+      },
+      "domInk": {
+        "absolute": {
+          "left": 65,
+          "top": 114,
+          "right": 218,
+          "bottom": 159
+        },
+        "inBox": {
+          "left": 5,
+          "top": 24,
+          "right": 158,
+          "bottom": 69
+        },
+        "box": {
+          "left": 60,
+          "top": 90,
           "width": 160,
           "height": 85
         }
@@ -557,33 +648,46 @@
       "mask": {
         "box": {
           "left": 60,
-          "top": 80,
+          "top": 90,
           "width": 140,
           "height": 192
         },
         "maskInk": {
-          "left": 8,
+          "left": 7.5,
           "top": 75,
           "right": 140,
-          "bottom": 109
+          "bottom": 109.5
         },
         "maskSize": [
+          280,
+          384
+        ],
+        "maskSizeCss": [
           140,
           192
         ],
+        "rasterScale": 2,
         "canDelegateInk": false,
         "lineRectCount": 3,
         "inkAttrPresent": false,
         "typography": {
-          "textTransform": "none",
+          "font": "700 48px \"Segoe UI\", Arial, sans-serif",
+          "lineHeight": "normal",
           "letterSpacing": "2px",
           "wordSpacing": "0px",
-          "fontStretch": "100%",
-          "fontKerning": "auto",
-          "fontVariantCaps": "normal",
-          "textRendering": "auto",
+          "textTransform": "none",
           "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "fontKerning": "auto",
+          "fontStretch": "100%",
+          "fontVariantCaps": "normal",
+          "fontVariantPosition": "normal",
+          "fontFeatureSettings": "normal",
+          "fontVariationSettings": "normal",
+          "textRendering": "auto",
           "textDecorationLine": "none",
+          "textEmphasisStyle": "none",
+          "webkitTextStrokeWidth": "0px",
           "canvasSupport": {
             "letterSpacing": true,
             "wordSpacing": true,
@@ -600,26 +704,26 @@
           "left": 0
         },
         "canvas": [
-          508,
-          360
+          1016,
+          696
         ]
       },
       "domInk": {
         "absolute": {
-          "left": 56,
-          "top": 98,
+          "left": 54,
+          "top": 108,
           "right": 189,
-          "bottom": 278
+          "bottom": 283
         },
         "inBox": {
-          "left": -4,
+          "left": -6,
           "top": 18,
           "right": 129,
-          "bottom": 198
+          "bottom": 193
         },
         "box": {
           "left": 60,
-          "top": 80,
+          "top": 90,
           "width": 140,
           "height": 192
         }
@@ -636,33 +740,46 @@
       "mask": {
         "box": {
           "left": 60,
-          "top": 80,
+          "top": 90,
           "width": 160,
           "height": 85
         },
         "maskInk": {
-          "left": 21,
-          "top": 13,
-          "right": 144,
-          "bottom": 76
+          "left": 20.5,
+          "top": 12.5,
+          "right": 143.5,
+          "bottom": 75.5
         },
         "maskSize": [
+          320,
+          170
+        ],
+        "maskSizeCss": [
           160,
           85
         ],
+        "rasterScale": 2,
         "canDelegateInk": false,
         "lineRectCount": 1,
         "inkAttrPresent": false,
         "typography": {
-          "textTransform": "uppercase",
+          "font": "700 64px \"Segoe UI\", Arial, sans-serif",
+          "lineHeight": "normal",
           "letterSpacing": "2px",
           "wordSpacing": "0px",
-          "fontStretch": "100%",
-          "fontKerning": "auto",
-          "fontVariantCaps": "normal",
-          "textRendering": "auto",
+          "textTransform": "uppercase",
           "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "fontKerning": "auto",
+          "fontStretch": "100%",
+          "fontVariantCaps": "normal",
+          "fontVariantPosition": "normal",
+          "fontFeatureSettings": "normal",
+          "fontVariationSettings": "normal",
+          "textRendering": "auto",
           "textDecorationLine": "none",
+          "textEmphasisStyle": "none",
+          "webkitTextStrokeWidth": "0px",
           "canvasSupport": {
             "letterSpacing": true,
             "wordSpacing": true,
@@ -679,26 +796,26 @@
           "left": 0
         },
         "canvas": [
-          508,
-          308
+          1016,
+          696
         ]
       },
       "domInk": {
         "absolute": {
           "left": 65,
-          "top": 104,
-          "right": 219,
-          "bottom": 149
+          "top": 114,
+          "right": 218,
+          "bottom": 159
         },
         "inBox": {
           "left": 5,
           "top": 24,
-          "right": 159,
+          "right": 158,
           "bottom": 69
         },
         "box": {
           "left": 60,
-          "top": 80,
+          "top": 90,
           "width": 160,
           "height": 85
         }
@@ -715,33 +832,46 @@
       "mask": {
         "box": {
           "left": 60,
-          "top": 80,
+          "top": 90,
           "width": 160,
           "height": 85
         },
         "maskInk": {
           "left": 5,
           "top": 24,
-          "right": 159,
+          "right": 158.5,
           "bottom": 69
         },
         "maskSize": [
+          320,
+          170
+        ],
+        "maskSizeCss": [
           160,
           85
         ],
+        "rasterScale": 2,
         "canDelegateInk": true,
         "lineRectCount": 1,
         "inkAttrPresent": true,
         "typography": {
-          "textTransform": "none",
+          "font": "700 64px \"Segoe UI\", Arial, sans-serif",
+          "lineHeight": "normal",
           "letterSpacing": "2px",
           "wordSpacing": "0px",
-          "fontStretch": "100%",
-          "fontKerning": "auto",
-          "fontVariantCaps": "normal",
-          "textRendering": "auto",
+          "textTransform": "none",
           "direction": "ltr",
+          "writingMode": "horizontal-tb",
+          "fontKerning": "auto",
+          "fontStretch": "100%",
+          "fontVariantCaps": "normal",
+          "fontVariantPosition": "normal",
+          "fontFeatureSettings": "normal",
+          "fontVariationSettings": "normal",
+          "textRendering": "auto",
           "textDecorationLine": "none",
+          "textEmphasisStyle": "none",
+          "webkitTextStrokeWidth": "0px",
           "canvasSupport": {
             "letterSpacing": true,
             "wordSpacing": true,
@@ -758,26 +888,26 @@
           "left": 0
         },
         "canvas": [
-          508,
-          308
+          1016,
+          696
         ]
       },
       "domInk": {
         "absolute": {
           "left": 65,
-          "top": 104,
-          "right": 219,
-          "bottom": 149
+          "top": 114,
+          "right": 218,
+          "bottom": 159
         },
         "inBox": {
           "left": 5,
           "top": 24,
-          "right": 159,
+          "right": 158,
           "bottom": 69
         },
         "box": {
           "left": 60,
-          "top": 80,
+          "top": 90,
           "width": 160,
           "height": 85
         }

@@ -6,8 +6,12 @@
     <style>
       body { margin: 0; background: #ffffff; }
       #stage { position: relative; width: 420px; height: 260px; background: #e4e8ef; }
-      #glyph {
-        position: absolute; left: 60px; top: 80px;
+      /* Current Playground fixture geometry (production React components
+         render the actual DOM; only layout/typography is styled here). */
+      .demo-play-panel { position: absolute; left: 20px; top: 50px; width: 380px; height: 180px; }
+      .demo-side-panel { position: absolute; left: 20px; top: 10px; width: 160px; height: 24px; }
+      .ukibori-text {
+        position: absolute; left: 40px; top: 40px;
         font: 700 64px "Segoe UI", Arial, sans-serif;
         color: #222222;
         letter-spacing: 2px;
@@ -16,7 +20,7 @@
     </style>
   </head>
   <body>
-    <div id="stage"><span id="glyph">PLAY</span></div>
+    <div id="stage"></div>
     <pre id="result">PENDING</pre>
     <script type="module" src="./glyph-lighting-app.js"></script>
   </body>

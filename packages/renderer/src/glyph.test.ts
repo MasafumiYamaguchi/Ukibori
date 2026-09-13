@@ -272,12 +272,15 @@ describe("glyph cast shadows", () => {
   });
 });
 
-describe("thin glyph shadow contract (demo-local bias)", () => {
-  // The demo's PLAY glyph relief is thickness 0.8 (Playground/UkiboriText)
-  // and the Playground passes shadow bias 0.15; the renderer default bias
-  // (0.5) is larger than the whole relief and leaves NO cast shadow. A
-  // grazing light makes the ~0.65-scene-unit shadow band countable; the
-  // direction flip is the same light-response contract as the thick glyphs.
+describe("legacy thin-relief characterization (0.8 CSS px, pre-#52 fixture)", () => {
+  // LEGACY characterization: 0.8 was the glyph relief thickness before the
+  // #52 supersampling follow-up. The CURRENT Playground/FeatureLab fixture is
+  // thickness 2 and keeps the reduced 0.15 demo bias (real-browser evidence:
+  // glyph-lighting shadow report). This 0.8 relief is thinner than the 0.5
+  // default acne guard and casts NO shadow with it; with the reduced 0.15
+  // bias the ~0.65-scene-unit shadow band becomes countable under a grazing
+  // light. Kept as the thin-relief / bias-sensitivity rail — it does NOT
+  // describe the current demo fixture.
   function thinGlyphScene(lx: number): Scene {
     return createScene({
       width: 16,

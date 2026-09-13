@@ -85,9 +85,12 @@ export function Playground() {
           enabled: shadowView === "reconstructed",
           radius: reconstructionRadius,
         },
-        // Fixed 2px glyph relief (GLYPH_THICKNESS) needs a smaller
-        // self-shadow bias than the 0.5 default, or the PLAY glyph's
-        // silhouette shadow is erased by the acne guard.
+        // Fixed 2px glyph relief (GLYPH_THICKNESS = 2): the demo-local 0.15
+        // bias is retained on real-browser evidence — vs the 0.5 default it
+        // adds cast-shadow receiver pixels at the demo lights (287 -> 322 at
+        // the default light, 725 -> 972 at grazing) with only 6 glyph-surface
+        // pixels affected at the default light (glyph-lighting shadow
+        // verification report).
         bias: 0.15,
       }}
       environment={{ intensity: environment, specularIntensity: environmentSpecular }}
