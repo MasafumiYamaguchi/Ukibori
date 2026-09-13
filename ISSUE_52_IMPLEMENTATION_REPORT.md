@@ -213,8 +213,13 @@ Committed artifacts: `packages/ukibori-dom/test-browser/glyph-ablation-artifacts
 1. **CSS-px silhouette staircase**: glyph edges keep the mask raster's CSS-px
    quantization at every DPR (crisper DOM text vs slightly coarser relief).
    Follow-up candidate together with raster-scale metadata (supersampling).
+   **Reduced when the effective rasterScale is > 1 in the device-scale
+   supersampling follow-up below (DPR 1 intentionally keeps the 1x CSS-px
+   mask; requested DPR 2 always yields exact 2x).**
 2. **Thin strokes** respond weakly (≈1 mask px strokes leave almost no bevel
    band); improving them ties into the same resolution follow-up.
+   **Reduced when the effective rasterScale is > 1 in the device-scale
+   supersampling follow-up below.**
 3. **Interior plateau** has no directional shading — physically correct for a
    flat plateau; a stronger relief impression can be tuned via user-supplied
    `thickness`/`bevelWidth` (e.g. the demo's PLAY glyph parameters).
@@ -275,3 +280,48 @@ Committed artifacts: `packages/ukibori-dom/test-browser/glyph-ablation-artifacts
 - `demo` build: pass
 - Ablation runner (light + alignment modes): OK, artifacts committed
 - Real-Chrome alignment matrix: dCenter 0.00 / ≤ 0.5 px across the faithful cases (see `alignment/after`); the text-transform fixture pins the DOM-visible fallback and the letter-spacing fixture pins the mirror (mask ink coincides with the DOM ink exactly)
+
+## Follow-up: device-scale glyph supersampling
+
+Branch `codex/glyph-supersampling-shadow`, base master `adc0d5f`. Reduces
+remaining limitations 1 (CSS-px silhouette staircase) and 2 (weak thin-stroke
+response) whenever the selected effective `rasterScale` is > 1, inside
+`UkiboriText`, with **zero renderer production changes**. The exact-aspect
+common-multiplier quantization means DPR 1 intentionally stays 1× (the CSS-px
+quantization remains) and a requested DPR 2 always yields exactly 2×;
+fractional DPR is quantized to the nearest exact-aspect common multiplier and
+can stay 1× for small/coprime logical boxes:
+
+- `rasterizeText` rasterizes at `window.devicePixelRatio` clamped to `[1, 2]`
+  (missing / non-finite / non-positive → 1) over the LOGICAL integer CSS box.
+  The physical footprint is unchanged: `SurfaceNode.size` (measured box ×
+  DPR) maps the raster onto the same box, exactly as `renderer-debug`'s
+  240x48 PLAY mask maps onto its 56x11.2 footprint.
+- Exact isotropy: the mask dimensions use a common integer multiplier over
+  the logical box (gcd reduction), so `mask.width / mask.height` equals the
+  logical aspect for integer AND fractional DPR (e.g. 160x85 → 256x136 at
+  DPR 1.5) and independent per-axis rounding can never trip the renderer's
+  1e-6 aspect validation. The effective scale is stored in the raster state.
+- A mounted glyph cannot keep a stale resolution: `resize` plus a re-armed
+  `(resolution: Ndppx)` media query update the clamped device scale, the
+  raster identity includes it, and the rasterization effect re-runs with the
+  listeners cleaned up on unmount. The canvas draws in logical CSS space via
+  `setTransform`, so DOM-ink alignment is unchanged.
+- The demo passes `bias: 0.15` (Playground) so the thin glyph relief
+  (thickness 0.8) actually casts its silhouette shadow past the acne guard.
+
+Coverage: renderer mapping-contract test (`glyph.test.ts`: a 2x raster on the
+same footprint yields identical scene-unit heights and passes `createScene`)
+plus the demo-local shadow regression (thickness 0.8 + bias 0.15 casts a
+non-empty receiver shadow that flips sides with the horizontal light, while
+the default bias 0.5 erases it); React tests for DPR 1 → 1x and DPR 2 → 2x,
+fractional DPR 1.5 → exactly aspect-preserving dims (the nearest common
+multiplier — small/coprime boxes can quantize to 1x), fallback for
+missing/non-finite/non-positive DPR, and resize-driven 1x → 2x
+re-rasterization (`play.test.tsx`). Real-Chrome WebGPU
+mirror (`glyph-lighting.mjs`, updated): DPR 2 runs rasterize 320x170 over the
+160x85 CSS box; the canvas light response stays in the same regime as the 1x
+run, and the alignment matrix reports dCenter ≤ 0.25 px at DPR 1/1.5/2 with
+the delegation and typography-fidelity outcomes unchanged. The harness ink
+toggle was also aligned with #56 (attribute-driven suppression instead of
+`color: transparent`, which now excludes the glyph from the physical scene).

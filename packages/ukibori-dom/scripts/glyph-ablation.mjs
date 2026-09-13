@@ -15,6 +15,10 @@
 // Evidence-only tool: exit code 0 when the harness ran, 1 when the harness
 // itself failed. Whether the numbers settle the root cause is a report-level
 // judgement, not an exit code.
+//
+// Environment: GLYPH_ABLATION_DEVICE_SCALE=2 launches Chrome with
+// --force-device-scale-factor=2, so the page reports devicePixelRatio 2 and
+// the mirror rasterizes at 2x (supersampling before/after evidence).
 
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
@@ -58,6 +62,9 @@ const CHROME_FLAGS = [
   "--headless=new",
   "--enable-unsafe-webgpu",
   ...(process.platform === "darwin" ? ["--use-angle=metal"] : []),
+  ...(process.env.GLYPH_ABLATION_DEVICE_SCALE
+    ? [`--force-device-scale-factor=${process.env.GLYPH_ABLATION_DEVICE_SCALE}`]
+    : []),
   "--no-first-run",
   "--no-default-browser-check",
   "--window-size=520,560",

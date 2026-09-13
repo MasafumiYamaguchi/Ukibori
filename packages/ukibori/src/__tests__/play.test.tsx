@@ -26,6 +26,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
   document.body.style.color = "";
 });
 
@@ -191,6 +192,7 @@ describe("UkiboriText #52 physical ink compositing policy", () => {
         const functional = {
           clearRect: () => undefined,
           fillText: () => undefined,
+          setTransform: () => undefined,
           getImageData: () => ({ width: 0, height: 0, data: new Uint8ClampedArray(0) }),
           putImageData: () => undefined,
         } as unknown as CanvasRenderingContext2D;
@@ -343,6 +345,7 @@ describe("UkiboriText #52 physical ink compositing policy", () => {
           fillText: (text: string) => {
             lastText = text;
           },
+          setTransform: () => undefined,
           measureText: (text: string) => ({
             text,
             width: text.length * 10,
@@ -522,6 +525,7 @@ describe("UkiboriText #52 physical ink compositing policy", () => {
           fillStyle: "#000",
           clearRect: () => undefined,
           fillText: () => undefined,
+          setTransform: () => undefined,
           measureText: (text: string) => ({
             text,
             width: text.length * 10,
@@ -930,6 +934,7 @@ describe("UkiboriText sizing policy (bare usage)", () => {
         const functional = {
           clearRect: () => undefined,
           fillText: () => undefined,
+          setTransform: () => undefined,
           getImageData: () => ({ width: 0, height: 0, data: new Uint8ClampedArray(0) }),
           putImageData: () => undefined,
         } as unknown as CanvasRenderingContext2D;
@@ -963,7 +968,8 @@ describe("UkiboriText layout policy", () => {
   it("uses inline-block so width/height apply in real browser layout", async () => {
     // A bare span (no demo CSS): the default display must make the fixed
     // width/height take effect, otherwise the DOM footprint could diverge
-    // from the mask footprint (inline spans ignore width/height).
+    // from the mask footprint (inline spans ignore width/height). jsdom's
+    // device scale is 1, so the logical box and the raster coincide here.
     stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
     stubCanvas2d();
     let layer: UkiboriDom | null = null;
@@ -981,12 +987,12 @@ describe("UkiboriText layout policy", () => {
     expect(span.style.height).toBe("40px");
     const entry = layer!.registry.get("play")!;
     const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
-    // The mask footprint and the DOM box are the same integer dimensions.
+    // DPR 1: the raster footprint and the DOM box are the same integer dims.
     expect(mask.width).toBe(120);
     expect(mask.height).toBe(40);
   });
 
-  it("user width/height influence the initial measurement but the mask dims stay authoritative", async () => {
+  it("user width/height influence the initial measurement but the logical box stays authoritative", async () => {
     stubElementRects({ left: 10, top: 20, width: 80.4, height: 39.6 });
     stubCanvas2d();
     let layer: UkiboriDom | null = null;
@@ -1005,16 +1011,154 @@ describe("UkiboriText layout policy", () => {
     await flushAsync();
     expect(errors).toHaveLength(0);
     const span = screen.getByText("PLAY");
-    // The final DOM box equals the integer mask footprint  Ethe aspects can
-    // never diverge, and no scene error occurs.
+    // The final DOM box equals the integer logical footprint — the aspects
+    // can never diverge, and no scene error occurs.
     expect(span.style.width).toBe("80px");
     expect(span.style.height).toBe("40px");
     expect(span.style.display).toBe("inline-block");
     const entry = layer!.registry.get("play")!;
     const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
+    // DPR 1: the raster equals the logical footprint.
     expect(mask.width).toBe(80);
     expect(mask.height).toBe(40);
     expect(layer!.debugBuffers()).not.toBeNull();
+  });
+});
+
+describe("UkiboriText supersampling policy (device scale)", () => {
+  it("rasterizes at 1x on a DPR 1 device (mask == logical footprint)", async () => {
+    stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
+    stubCanvas2d();
+    stubTextLineBox();
+    vi.stubGlobal("devicePixelRatio", 1);
+    let layer: UkiboriDom | null = null;
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY");
+    expect(span.style.width).toBe("120px");
+    expect(span.style.height).toBe("40px");
+    const entry = layer!.registry.get("play")!;
+    const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
+    expect(mask.width).toBe(120);
+    expect(mask.height).toBe(40);
+  });
+
+  it("rasterizes at 2x on a DPR 2 device while the DOM box keeps the logical footprint", async () => {
+    stubElementRects({ left: 10, top: 20, width: 103.3, height: 24.6 });
+    stubCanvas2d();
+    stubTextLineBox();
+    vi.stubGlobal("devicePixelRatio", 2);
+    let layer: UkiboriDom | null = null;
+    const errors: unknown[] = [];
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} onError={(e) => errors.push(e)}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(errors).toHaveLength(0);
+    const span = screen.getByText("PLAY");
+    // The DOM box stays the LOGICAL integer footprint...
+    expect(span.style.display).toBe("inline-block");
+    expect(span.style.width).toBe("103px");
+    expect(span.style.height).toBe("25px");
+    // ...while the raster doubles; the gcd-derived dimensions preserve the
+    // footprint aspect exactly (no independent rounding).
+    const entry = layer!.registry.get("play")!;
+    const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
+    expect(mask.width).toBe(206);
+    expect(mask.height).toBe(50);
+    expect(mask.width / mask.height).toBeCloseTo(103 / 25, 12);
+    // The physical scene builds: the renderer's 1e-6 isotropic validation
+    // holds on the supersampled mask.
+    expect(layer!.debugBuffers()).not.toBeNull();
+  });
+
+  it("keeps the exact footprint aspect for a fractional device scale (DPR 1.5)", async () => {
+    stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
+    stubCanvas2d();
+    stubTextLineBox();
+    vi.stubGlobal("devicePixelRatio", 1.5);
+    let layer: UkiboriDom | null = null;
+    const errors: unknown[] = [];
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} onError={(e) => errors.push(e)}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    expect(errors).toHaveLength(0);
+    const span = screen.getByText("PLAY");
+    expect(span.style.width).toBe("120px");
+    expect(span.style.height).toBe("40px");
+    const entry = layer!.registry.get("play")!;
+    const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
+    // gcd(120, 40) = 40 -> the nearest common-multiplier raster is 1.5x.
+    expect(mask.width).toBe(180);
+    expect(mask.height).toBe(60);
+    expect(mask.width / mask.height).toBeCloseTo(120 / 40, 12);
+  });
+
+  it("falls back to 1x for a missing, non-finite or non-positive device scale", async () => {
+    for (const value of [undefined, Number.NaN, Number.POSITIVE_INFINITY, 0, -2]) {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+      stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
+      stubCanvas2d();
+      stubTextLineBox();
+      vi.stubGlobal("devicePixelRatio", value);
+      let layer: UkiboriDom | null = null;
+      const errors: unknown[] = [];
+      const view = render(
+        <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)} onError={(e) => errors.push(e)}>
+          <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+        </Ukibori>,
+      );
+      await flushAsync();
+      expect(errors).toHaveLength(0);
+      const entry = layer!.registry.get("play")!;
+      const mask = (entry.options.shape as { kind: "mask"; mask: { width: number; height: number } }).mask;
+      expect(mask.width).toBe(120);
+      expect(mask.height).toBe(40);
+      view.unmount();
+    }
+  });
+
+  it("re-rasterizes when the device scale changes after mount (1x -> 2x, no stale raster)", async () => {
+    stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
+    stubCanvas2d();
+    stubTextLineBox();
+    vi.stubGlobal("devicePixelRatio", 1);
+    let layer: UkiboriDom | null = null;
+    render(
+      <Ukibori schedule={(cb) => cb()} onReady={(l) => (layer = l)}>
+        <UkiboriText sceneId="play" text="PLAY" elevation={3} thickness={0.8} />
+      </Ukibori>,
+    );
+    await flushAsync();
+    const span = screen.getByText("PLAY");
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+    const before = (layer!.registry.get("play")!.options.shape as { kind: "mask"; mask: unknown }).mask;
+    expect((before as { width: number }).width).toBe(120);
+
+    // Move to a 2x display: the resize notice must invalidate the 1x raster.
+    vi.stubGlobal("devicePixelRatio", 2);
+    await act(async () => {
+      window.dispatchEvent(new Event("resize"));
+    });
+    await flushAsync();
+    const after = (layer!.registry.get("play")!.options.shape as { kind: "mask"; mask: unknown }).mask;
+    expect(after).not.toBe(before);
+    expect((after as { width: number }).width).toBe(240);
+    expect((after as { height: number }).height).toBe(80);
+    // The DOM box and the delegation are unchanged.
+    expect(span.style.width).toBe("120px");
+    expect(span.style.height).toBe("40px");
+    expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
   });
 });
 

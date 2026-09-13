@@ -98,6 +98,10 @@ export function stubCanvas2d(options: Canvas2dStubOptions = {}): void {
       fillStyle: "#000",
       clearRect: () => undefined,
       fillText: () => undefined,
+      // Supersampled glyph rasterization: the canvas drawing space is mapped
+      // from logical CSS coordinates (jsdom has no real layout/transform).
+      setTransform: () => undefined,
+      scale: () => undefined,
       // #52 fidelity gate input: font bounding metrics (the same values CSS
       // line layout would resolve for the stub font).
       measureText: (text: string) => ({

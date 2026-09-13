@@ -5,16 +5,18 @@
 //
 //   1. builds a demo-equivalent scene through the REAL UkiboriDom physical
 //      path: a rounded-rect panel + a mask glyph span ("PLAY") rasterized
-//      exactly like `UkiboriText.rasterizeText` (canvas 2d at the rounded CSS
-//      pixel box), registered with the demo's glyph options
+//      exactly like `UkiboriText.rasterizeText` (canvas 2d at the DEVICE
+//      scale — window.devicePixelRatio clamped to [1, 2] — over the logical
+//      CSS-pixel box, with the gcd-derived exactly-isotropic mask dims),
+//      registered with the demo's glyph options
 //      (elevation 3 / thickness 0.8 / bevelWidth 1.1, material metal)
 //   2. for each light direction (left/right/top/bottom) renders a frame and
 //      captures the PRESENTED canvas through a same-task staging copy
 //      (debugReadback seam), then reports the physical glyph-region mean RGB
 //      per direction and the |delta| between opposite directions  Ethe
 //      CANVAS-side light response
-//   3. repeats at DPR 1 / 1.5 / 2 (setDpr) to expose the mask-resolution
-//      contract (the mask stays a CSS-px raster; the render grid densifies)
+//   3. repeats at pipeline DPR 1 / 1.5 / 2 (setDpr) to expose the render
+//      grid resolution separately from the raster resolution
 //   4. exposes `window.__setInk(visible)` so the RUNNER can toggle the DOM
 //      glyph ink (visible vs suppressed) and capture page screenshots.
 //      With the #52 production policy live, a registered mask surface owns
@@ -215,17 +217,71 @@ function probeCanvasTypographySupport() {
   };
 }
 
+/**
+ * Mirror of UkiboriText's device-scale supersampling policy. The requested
+ * scale is `window.devicePixelRatio` clamped to `[1, 2]` (missing/non-finite/
+ * non-positive -> 1); the raster footprint is the nearest common-multiplier
+ * dimension pair so the mask aspect equals the logical box aspect exactly.
+ */
+const GLYPH_RASTER_SCALE_MAX = 2;
+
+function currentDeviceRasterScale() {
+  const dpr = window.devicePixelRatio;
+  if (typeof dpr !== "number" || !Number.isFinite(dpr) || dpr <= 0) {
+    return 1;
+  }
+  return Math.min(GLYPH_RASTER_SCALE_MAX, Math.max(1, dpr));
+}
+
+function greatestCommonDivisor(a, b) {
+  let x = Math.abs(a);
+  let y = Math.abs(b);
+  while (y !== 0) {
+    const remainder = x % y;
+    x = y;
+    y = remainder;
+  }
+  return x === 0 ? 1 : x;
+}
+
+function supersampledMaskSize(cssWidth, cssHeight, requestedScale) {
+  const divisor = greatestCommonDivisor(cssWidth, cssHeight);
+  const multiplier = Math.max(divisor, Math.round(requestedScale * divisor));
+  return {
+    width: (cssWidth / divisor) * multiplier,
+    height: (cssHeight / divisor) * multiplier,
+    scale: multiplier / divisor,
+  };
+}
+
+/**
+ * TEST-ONLY device-scale override for the harness: lets a condition emulate
+ * a display DPR the way a real device reports it on window.devicePixelRatio
+ * (the production component reads it live; headless Chrome would always
+ * report 1).
+ */
+function setEffectiveDevicePixelRatio(dpr) {
+  Object.defineProperty(window, "devicePixelRatio", {
+    configurable: true,
+    get: () => dpr,
+  });
+}
+
 function rasterizeGlyph(span) {
   const typography = readComputedTypography(span);
   const rect = span.getBoundingClientRect();
-  const width = Math.max(1, Math.round(rect.width));
-  const height = Math.max(1, Math.round(rect.height));
+  const cssWidth = Math.max(1, Math.round(rect.width));
+  const cssHeight = Math.max(1, Math.round(rect.height));
+  const raster = supersampledMaskSize(cssWidth, cssHeight, currentDeviceRasterScale());
   const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
+  canvas.width = raster.width;
+  canvas.height = raster.height;
   const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, width, height);
+  ctx.clearRect(0, 0, raster.width, raster.height);
   ctx.font = typography.font;
+  // Supersampled drawing space (mirror of UkiboriText): logical CSS
+  // coordinates are mapped onto the denser raster; every anchor stays CSS px.
+  ctx.setTransform(raster.scale, 0, 0, raster.scale, 0, 0);
   // #52 alignment policy + fidelity gate (mirror of UkiboriText.rasterizeText).
   let anchored = false;
   let canDelegateInk = false;
@@ -264,14 +320,21 @@ function rasterizeGlyph(span) {
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillStyle = "#fff";
-    ctx.fillText(span.textContent, width / 2, height / 2);
+    ctx.fillText(span.textContent, cssWidth / 2, cssHeight / 2);
   }
-  const data = ctx.getImageData(0, 0, width, height).data;
-  const alpha = new Float32Array(width * height);
+  const data = ctx.getImageData(0, 0, raster.width, raster.height).data;
+  const alpha = new Float32Array(raster.width * raster.height);
   for (let i = 0; i < alpha.length; i++) {
     alpha[i] = data[i * 4 + 3] / 255;
   }
-  return { mask: { width, height, alpha }, canDelegateInk, typography };
+  return {
+    mask: { width: raster.width, height: raster.height, alpha },
+    canDelegateInk,
+    typography,
+    cssWidth,
+    cssHeight,
+    rasterScale: raster.scale,
+  };
 }
 
 async function settle(device) {
@@ -357,14 +420,17 @@ async function readFrame() {
 window.__setInk = (visible) => {
   const span = document.getElementById("glyph");
   if (visible) {
-    span.style.color = "";
     // DEBUG OVERRIDE (#52): with the production policy live, a registered
     // mask surface owns the data-ukibori-physical-ink suppression, so the
     // pre-fix "ink visible" state is reproduced here by removing the
     // layer-owned attribute. Debug evidence tooling only.
     span.removeAttribute("data-ukibori-physical-ink");
   } else {
-    span.style.color = "transparent";
+    // Production suppression is ATTRIBUTE-driven (the injected stylesheet
+    // paints the ink transparent without touching CSS `color`, which #56
+    // reads as the physical pigment). Re-adding the attribute reproduces it;
+    // setting `color: transparent` would (correctly) exclude the glyph from
+    // the physical scene instead.
     span.setAttribute("data-ukibori-physical-ink", "");
   }
 };
@@ -418,7 +484,7 @@ window.__configureAlignment = async ({ text, fontWeight, fontPx, dpr, constrainW
   const span = document.getElementById("glyph");
   const stage = document.getElementById("stage");
   // Reset to the measurement state so the box is measured like a fresh
-  // UkiboriText mount (the mask size must come from the measured box).
+  // UkiboriText mount (the logical box must come from the measured rect).
   span.style.display = constrainWidth !== undefined ? "inline-block" : "";
   span.style.width = constrainWidth !== undefined ? `${constrainWidth}px` : "";
   span.style.height = "";
@@ -426,13 +492,16 @@ window.__configureAlignment = async ({ text, fontWeight, fontPx, dpr, constrainW
   span.style.textTransform = textTransform ?? "";
   span.style.letterSpacing = letterSpacing ?? "";
   span.textContent = text;
+  // The alignment matrix's dpr is the DEVICE scale for the raster mirror
+  // (real devices report it on window.devicePixelRatio).
+  setEffectiveDevicePixelRatio(dpr);
   const rect = span.getBoundingClientRect();
   const raster = rasterizeGlyph(span);
   const mask = raster.mask;
   span.style.display = "inline-block";
-  span.style.width = `${mask.width}px`;
-  span.style.height = `${mask.height}px`;
-  glyphRect = { x: rect.left, y: rect.top, w: mask.width, h: mask.height };
+  span.style.width = `${raster.cssWidth}px`;
+  span.style.height = `${raster.cssHeight}px`;
+  glyphRect = { x: rect.left, y: rect.top, w: raster.cssWidth, h: raster.cssHeight };
   layer.setDpr(() => dpr);
   // #52 fidelity policy: the delegation intent follows the rasterization
   // gate (multi-line/unmeasurable rasters keep the DOM ink visible).
@@ -455,7 +524,9 @@ window.__configureAlignment = async ({ text, fontWeight, fontPx, dpr, constrainW
   const lineRange = document.createRange();
   lineRange.selectNodeContents(span);
   const lineRectsAfter = lineRange.getClientRects();
-  // Mask ink bounds in box coordinates (the production SDF threshold).
+  // Mask ink bounds in box coordinates (the production SDF threshold),
+  // converted from raster px to LOGICAL CSS px (rasterScale mask px = 1 CSS
+  // px) so they are directly comparable with the screenshot-measured DOM ink.
   let inkTop = Infinity;
   let inkBottom = -Infinity;
   let inkLeft = Infinity;
@@ -475,9 +546,16 @@ window.__configureAlignment = async ({ text, fontWeight, fontPx, dpr, constrainW
   return {
     box: { left: box.left, top: box.top, width: box.width, height: box.height },
     maskInk: Number.isFinite(inkTop)
-      ? { left: inkLeft, top: inkTop, right: inkRight, bottom: inkBottom }
+      ? {
+          left: inkLeft / raster.rasterScale,
+          top: inkTop / raster.rasterScale,
+          right: inkRight / raster.rasterScale,
+          bottom: inkBottom / raster.rasterScale,
+        }
       : null,
     maskSize: [mask.width, mask.height],
+    maskSizeCss: [raster.cssWidth, raster.cssHeight],
+    rasterScale: raster.rasterScale,
     canDelegateInk: raster.canDelegateInk,
     lineRectCount: lineRectsAfter.length,
     inkAttrPresent: span.getAttribute("data-ukibori-physical-ink") !== null,
@@ -574,20 +652,19 @@ async function main() {
       resultEl.textContent = "GLYPH_ABLATION_SKIP navigator.gpu unavailable";
       return;
     }
-    // Measure + fix the span box exactly like UkiboriText (integer policy).
+    // Measure + fix the span box exactly like UkiboriText (logical integer
+    // CSS-pixel box; the raster itself follows the device scale).
     const rect = span.getBoundingClientRect();
     const raster = rasterizeGlyph(span);
     const mask = raster.mask;
     span.style.display = "inline-block";
-    span.style.width = `${mask.width}px`;
-    span.style.height = `${mask.height}px`;
-    glyphRect = { x: rect.left, y: rect.top, w: mask.width, h: mask.height };
+    span.style.width = `${raster.cssWidth}px`;
+    span.style.height = `${raster.cssHeight}px`;
+    glyphRect = { x: rect.left, y: rect.top, w: raster.cssWidth, h: raster.cssHeight };
 
     // Vertical alignment evidence: where does the DOM line box put the ink
-    // inside the fixed box, vs where the mask raster put it (textBaseline
-    // "middle" at box center)? Both are pre-existing production behaviors
-    // (UkiboriText rasterizes with middle baseline; the DOM paints the same
-    // text with normal CSS line layout inside the same box).
+    // inside the logical box, vs where the supersampled mask raster put it
+    // (baseline-anchored since #52; reported in CSS px).
     const range = document.createRange();
     range.selectNodeContents(span);
     const lineBox = range.getClientRects()[0];
@@ -607,7 +684,14 @@ async function main() {
       }
     }
     window.__alignment = {
-      maskInk: { top: inkTop, bottom: inkBottom, height: mask.height },
+      maskInk: {
+        top: inkTop / raster.rasterScale,
+        bottom: inkBottom / raster.rasterScale,
+        height: raster.cssHeight,
+      },
+      maskSize: [mask.width, mask.height],
+      maskSizeCss: [raster.cssWidth, raster.cssHeight],
+      rasterScale: raster.rasterScale,
       domLineBox: { top: lineBox.top - rect.top, bottom: lineBox.bottom - rect.top, height: lineBox.height },
     };
 

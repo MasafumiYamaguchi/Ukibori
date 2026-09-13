@@ -79,6 +79,10 @@ export function Playground() {
           enabled: shadowView === "reconstructed",
           radius: reconstructionRadius,
         },
+        // Thin glyph relief (thickness 0.8 CSS px) needs a smaller
+        // self-shadow bias than the 0.5 default, or the PLAY glyph's
+        // silhouette shadow is erased by the acne guard.
+        bias: 0.15,
       }}
       environment={{ intensity: environment, specularIntensity: environmentSpecular }}
       exposure={exposure}
