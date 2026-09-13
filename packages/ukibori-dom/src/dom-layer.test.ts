@@ -543,6 +543,147 @@ describe("UkiboriDom — DOM integration", () => {
       expect(blackish).toBeLessThan(red);
       layer.dispose();
     });
+
+    it("casts real CPU glyph shadows for the Feature Lab panel + absolute-z glyph and drops/restores them across the #56 alpha fallback", () => {
+      // Feature Lab fixture (#13 absolute-z): the panel top is elevation 0 +
+      // thickness 4 = scene z 4; the PLAY glyph sits at ABSOLUTE elevation 4
+      // (its base exactly on the panel top, NOT parent-relative) with
+      // thickness 2, so its relief top is scene z 6. This test reproduces
+      // Feature Lab's demo-local thin-glyph bias below (0.15) — the same
+      // option the demo provider passes — while the renderer DEFAULT bias
+      // (0.5) remains unchanged.
+      const panel = document.createElement("div");
+      host.appendChild(panel);
+      stubRectFor(panel, { left: 0, top: 0, width: 300, height: 300 });
+      const span = maskElement();
+      stubRectFor(span, { left: 100, top: 100, width: 100, height: 100 });
+      span.style.color = "rgb(255, 0, 0)";
+      const fake = makeFakeOverlay();
+      const layer = new UkiboriDom({
+        overlay: { factory: () => fake.overlay },
+        schedule: (cb) => cb(),
+        observe: false,
+        margin: 0,
+        onError: () => undefined,
+      });
+      // Light toward the upper-left: the glyph shadow falls to the
+      // lower-right (and the opposite way when the light is reversed).
+      const LIGHT = { x: -1, y: -0.6, z: 0.25 };
+      layer.setLight(LIGHT, 1);
+      // Feature Lab's demo-local thin-glyph bias, configured explicitly like
+      // the demo provider does. The renderer default (0.5) stays unchanged.
+      layer.setShadow({ bias: 0.15 });
+      layer.register(panel, {
+        id: "fl-panel",
+        shape: { kind: "roundedRect", radius: 18 },
+        elevation: 0,
+        thickness: 4,
+        bevelWidth: 10,
+        profile: { kind: "smooth" },
+        material: "matte",
+      });
+      // Registration order: panel = surface 0 (receiver), glyph = surface 1.
+      layer.register(span, { ...MASK_OPTIONS, id: "fl-glyph", elevation: 4, thickness: 2 });
+      layer.render();
+
+      const region = layer.debugState().region!;
+      const sceneX = (docX: number) => Math.round(docX - region.x);
+      const sceneY = (docY: number) => Math.round(docY - region.y);
+      const glyphCenterX = sceneX(150);
+      const glyphCenterY = sceneY(150);
+      const glyphTops = () => {
+        const height = layer.debugBuffers()!.height;
+        const objectId = layer.debugObjectId()!;
+        const out: number[] = [];
+        for (let y = 0; y < height.spec.height; y++) {
+          for (let x = 0; x < height.spec.width; x++) {
+            if (objectId.get(x, y, 0) === 1) {
+              out.push(height.get(x, y, 0));
+            }
+          }
+        }
+        return out;
+      };
+      const receiverShadowPixels = () => {
+        const buffers = layer.debugBuffers()!;
+        const visibility = buffers.visibility!;
+        const objectId = layer.debugObjectId()!;
+        const out: Array<{ x: number; y: number }> = [];
+        // The glyph footprint (scene 100..200) inflated by 24px keeps the
+        // cast shadow inside the window while excluding the panel's own
+        // lower-right bevel self-shadow (which lives near the 300px rim).
+        for (let y = sceneY(76); y <= sceneY(224); y++) {
+          for (let x = sceneX(76); x <= sceneX(224); x++) {
+            if (objectId.get(x, y, 0) === 0 && visibility.get(x, y, 0) < 0.5) {
+              out.push({ x, y });
+            }
+          }
+        }
+        return out;
+      };
+      const centroid = (pixels: Array<{ x: number; y: number }>) => ({
+        x: pixels.reduce((sum, p) => sum + p.x, 0) / pixels.length,
+        y: pixels.reduce((sum, p) => sum + p.y, 0) / pixels.length,
+      });
+
+      // 1. Opaque: the physical glyph exists and its relief top (absolute z)
+      // stands above the receiver's panel top (0 + 4).
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      const tops = glyphTops();
+      expect(tops.length).toBeGreaterThan(0);
+      const glyphTop = Math.max(...tops);
+      expect(glyphTop).toBeCloseTo(6, 3);
+      expect(glyphTop).toBeGreaterThan(4);
+
+      // 2. The glyph casts a silhouette shadow onto the panel's own pixels:
+      // with the light toward the upper-left, the receiver-shadow centroid
+      // sits at the glyph's lower-right.
+      const shadowRight = receiverShadowPixels();
+      expect(shadowRight.length).toBeGreaterThan(0);
+      const centerRight = centroid(shadowRight);
+      expect(centerRight.x).toBeGreaterThan(glyphCenterX);
+      expect(centerRight.y).toBeGreaterThan(glyphCenterY);
+
+      // 3. Reversing BOTH light axes moves the shadow to the opposite side
+      // (real scene-space displacement, no fixed bias direction).
+      layer.setLight({ x: 1, y: 0.6, z: 0.25 }, 1);
+      layer.render();
+      const shadowLeft = receiverShadowPixels();
+      expect(shadowLeft.length).toBeGreaterThan(0);
+      const centerLeft = centroid(shadowLeft);
+      expect(centerLeft.x).toBeLessThan(glyphCenterX);
+      expect(centerLeft.y).toBeLessThan(glyphCenterY);
+
+      // 4. Partial alpha (#56 fallback): the physical glyph and its cast
+      // shadow are both removed; the panel underneath is intact at z 4.
+      layer.setLight(LIGHT, 1);
+      span.style.color = "rgba(255, 0, 0, 0.35)";
+      layer.invalidate("fl-glyph");
+      layer.render();
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBeNull();
+      expect(glyphTops()).toHaveLength(0);
+      expect(receiverShadowPixels()).toHaveLength(0);
+      const fallbackObjectId = layer.debugObjectId()!;
+      const fallbackHeight = layer.debugBuffers()!.height;
+      expect(fallbackObjectId.get(glyphCenterX, glyphCenterY, 0)).toBe(0);
+      expect(fallbackHeight.get(glyphCenterX, glyphCenterY, 0)).toBeCloseTo(4, 3);
+
+      // 5. Alpha back to opaque: the glyph geometry and its cast shadow are
+      // both restored.
+      span.style.color = "rgb(17, 17, 17)";
+      layer.invalidate("fl-glyph");
+      layer.render();
+      expect(span.getAttribute("data-ukibori-physical-ink")).toBe("");
+      const restoredTops = glyphTops();
+      expect(restoredTops.length).toBeGreaterThan(0);
+      expect(Math.max(...restoredTops)).toBeGreaterThan(4);
+      const restoredShadow = receiverShadowPixels();
+      expect(restoredShadow.length).toBeGreaterThan(0);
+      const restoredCenter = centroid(restoredShadow);
+      expect(restoredCenter.x).toBeGreaterThan(glyphCenterX);
+      expect(restoredCenter.y).toBeGreaterThan(glyphCenterY);
+      layer.dispose();
+    });
   });
 
   it("leaves absolutely positioned descendants' layout untouched by register/unregister", () => {

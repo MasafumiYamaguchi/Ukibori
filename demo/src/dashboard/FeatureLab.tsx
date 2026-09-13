@@ -182,6 +182,11 @@ export function FeatureLab() {
       light={{ x: -0.5, y: -0.7, z: 1 }}
       intensity={1}
       materials={FEATURE_MATERIALS}
+      // Demo-local shadow bias: the 1px-scale glyph relief (thickness 2) is
+      // still thinner than the renderer's 0.5 default acne guard, so the thin
+      // PLAY silhouette needs the same reduced bias as the Playground (0.15).
+      // The renderer default itself is unchanged.
+      shadow={{ bias: 0.15 }}
       gpuProfiling
       className="fl-root"
       onReady={setLayer}
@@ -510,8 +515,11 @@ export function FeatureLab() {
             <UkiboriText
               id="fl-text"
               text="PLAY"
-              elevation={3}
-              thickness={1}
+              // Absolute scene z (#13): the panel top is elevation 0 +
+              // thickness 4 = z 4, so the glyph base must be 4 (not a
+              // parent-relative offset) and thickness 2 puts its top at z 6.
+              elevation={4}
+              thickness={2}
               bevelWidth={1.4}
               material="metal"
               style={{ color: selectedTextColor.value }}
