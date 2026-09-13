@@ -315,3 +315,514 @@ code {
     width: 100%;
   }
 }
+
+/* ---------- Dashboard shell ---------- */
+
+.dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+  /* The physical overlay canvases are absolutely positioned and extend by the
+     renderer margin. Containing them in the dashboard box (which is also the
+     positioned ancestor) prevents page-level horizontal scrolling without
+     affecting any standalone page or the Coverage table's own scroller. */
+  position: relative;
+  overflow-x: clip;
+}
+
+.dash-header {
+  margin-bottom: 1.5rem;
+}
+
+.dash-kicker {
+  margin: 0 0 0.3rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #5b6577;
+}
+
+.dash-header h1 {
+  margin: 0 0 0.4rem;
+  font-size: clamp(1.7rem, 3.6vw, 2.3rem);
+}
+
+.dash-lede {
+  max-width: 72ch;
+  color: #4a5468;
+  margin: 0.3rem 0 1.1rem;
+}
+
+.dash-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.3rem;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(31, 36, 48, 0.12);
+  border-radius: 999px;
+  width: fit-content;
+  max-width: 100%;
+}
+
+.dash-nav-link {
+  display: inline-block;
+  padding: 0.45rem 0.95rem;
+  border-radius: 999px;
+  color: #2a3347;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.dash-nav-link:hover {
+  background: rgba(47, 111, 235, 0.1);
+}
+
+.dash-nav-link[aria-current="page"] {
+  background: #2f6feb;
+  color: #fff;
+}
+
+.dash-main {
+  min-width: 0;
+}
+
+.dash-view-head {
+  margin: 0 0 1.2rem;
+}
+
+.dash-view-head h2 {
+  margin: 0 0 0.3rem;
+  font-size: 1.45rem;
+}
+
+.dash-view-head p {
+  max-width: 78ch;
+  color: #4a5468;
+  margin: 0;
+}
+
+/* The Playground keeps its own layout; the shell owns the page padding. */
+.dashboard .demo {
+  max-width: none;
+  padding: 0;
+}
+
+/* ---------- Diagnostics / Product iframe panels ---------- */
+
+.dash-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1rem;
+}
+
+.dash-subnav-link {
+  display: inline-block;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid rgba(31, 36, 48, 0.18);
+  border-radius: 999px;
+  color: #2a3347;
+  text-decoration: none;
+  font-size: 0.88rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.dash-subnav-link:hover {
+  border-color: rgba(47, 111, 235, 0.45);
+}
+
+.dash-subnav-link[aria-current="page"] {
+  background: #2a3347;
+  border-color: #2a3347;
+  color: #fff;
+}
+
+.dash-frame-panel {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(31, 36, 48, 0.12);
+  border-radius: 16px;
+  padding: 1rem 1.1rem 1.1rem;
+}
+
+.dash-frame-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.85rem;
+}
+
+.dash-frame-head h3 {
+  margin: 0 0 0.25rem;
+  font-size: 1.05rem;
+}
+
+.dash-frame-head p {
+  margin: 0;
+  max-width: 72ch;
+  color: #4a5468;
+  font-size: 0.9rem;
+}
+
+.dash-frame {
+  display: block;
+  width: 100%;
+  height: min(78vh, 820px);
+  border: 1px solid rgba(31, 36, 48, 0.15);
+  border-radius: 12px;
+  background: #fff;
+}
+
+/* ---------- Coverage index ---------- */
+
+.dash-coverage {
+  margin-top: 2.5rem;
+}
+
+.dash-coverage h2 {
+  font-size: 1.2rem;
+  margin: 0 0 0.3rem;
+}
+
+.dash-coverage > p {
+  max-width: 78ch;
+  color: #4a5468;
+  margin: 0 0 0.8rem;
+  font-size: 0.92rem;
+}
+
+.dash-coverage-scroll {
+  overflow-x: auto;
+}
+
+.dash-coverage-table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(31, 36, 48, 0.12);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.dash-coverage-table th,
+.dash-coverage-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid rgba(31, 36, 48, 0.08);
+  font-size: 0.88rem;
+  font-weight: 400;
+}
+
+.dash-coverage-table thead th {
+  background: rgba(47, 111, 235, 0.08);
+  font-weight: 650;
+}
+
+.dash-coverage-table tbody tr:last-child th,
+.dash-coverage-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.dash-coverage-table tbody th[scope="row"] {
+  min-width: 16rem;
+  font-weight: 550;
+}
+
+.dash-coverage-links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.dash-link-kind {
+  font-size: 0.72rem;
+  color: #5b6577;
+}
+
+.dash-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.dash-footer {
+  margin-top: 2.5rem;
+  color: #5b6577;
+  font-size: 0.82rem;
+}
+
+/* ---------- Feature Lab ---------- */
+
+.field.is-disabled {
+  opacity: 0.5;
+}
+
+.fl-section {
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid rgba(31, 36, 48, 0.1);
+  border-radius: 16px;
+  padding: 1rem 1.1rem 1.2rem;
+  margin-bottom: 1.4rem;
+}
+
+.fl-section h3 {
+  margin: 0 0 0.35rem;
+  font-size: 1.08rem;
+}
+
+.fl-section > p {
+  max-width: 80ch;
+  color: #4a5468;
+  margin: 0.2rem 0 0.8rem;
+}
+
+.fl-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.fl-section-head p {
+  max-width: 80ch;
+  color: #4a5468;
+  margin: 0.2rem 0 0.8rem;
+}
+
+.fl-refresh {
+  white-space: nowrap;
+}
+
+.fl-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(220px, 0.7fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.fl-controls {
+  min-width: 0;
+}
+
+.fl-fieldset {
+  border: 1px solid rgba(31, 36, 48, 0.18);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem 0.65rem;
+  margin: 0 0 1rem;
+}
+
+.fl-fieldset[disabled] {
+  opacity: 0.5;
+}
+
+.fl-fieldset legend {
+  padding: 0 0.3rem;
+  font-size: 0.85rem;
+  color: #3a4356;
+}
+
+.fl-actions {
+  margin-bottom: 0.4rem;
+}
+
+.fl-stage {
+  position: relative;
+  min-height: 240px;
+  border-radius: 16px;
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.5), rgba(228, 233, 242, 0.7));
+  border: 1px dashed rgba(31, 36, 48, 0.18);
+  overflow: hidden;
+}
+
+.fl-layer {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  font-size: 0.78rem;
+  color: #3a4356;
+  padding: 0.4rem;
+}
+
+.fl-composition-stage {
+  height: 260px;
+}
+
+.fl-chassis {
+  inset: 0;
+  font-weight: 600;
+}
+
+.fl-cutter {
+  width: 48%;
+  height: 60%;
+  left: 7%;
+  top: 20%;
+}
+
+.fl-knob {
+  width: 26%;
+  height: 36%;
+  right: 8%;
+  top: 32%;
+  font-weight: 600;
+}
+
+.fl-bench-stage {
+  height: 250px;
+}
+
+.fl-bench-base {
+  inset: 0;
+}
+
+.fl-bench-preview {
+  width: 52%;
+  height: 62%;
+  left: 24%;
+  top: 19%;
+  font-weight: 600;
+}
+
+.fl-shape-stage {
+  height: 250px;
+}
+
+.fl-shape-rounded {
+  width: 42%;
+  height: 64%;
+  left: 6%;
+  top: 18%;
+}
+
+.fl-shape-gear {
+  width: auto;
+  height: 76%;
+  aspect-ratio: 1;
+  right: 8%;
+  top: 12%;
+}
+
+.fl-bake-stage {
+  height: 280px;
+}
+
+.fl-bake-outer {
+  inset: 0 24% 0 0;
+}
+
+.fl-bake-inner {
+  width: 42%;
+  height: 40%;
+  left: 7%;
+  top: 30%;
+}
+
+.fl-bake-dynamic {
+  width: 19%;
+  right: 0;
+  top: 15%;
+  bottom: 15%;
+}
+
+.fl-radio-note {
+  color: #5b6577;
+  font-size: 0.78rem;
+}
+
+.fl-text-panel {
+  position: relative;
+  height: 180px;
+  width: min(100%, 420px);
+  border-radius: 16px;
+  display: grid;
+  place-items: center;
+}
+
+.fl-text {
+  display: block;
+  font-size: 3rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+
+/* ---------- Feature Lab debug snapshot ---------- */
+
+.fl-debug-subhead {
+  margin: 0.6rem 0 0.4rem;
+  font-size: 0.95rem;
+}
+
+.fl-debug-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 0.45rem 0.8rem;
+  margin: 0 0 0.9rem;
+}
+
+.fl-debug-item {
+  min-width: 0;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(31, 36, 48, 0.1);
+  border-radius: 10px;
+  padding: 0.4rem 0.55rem;
+}
+
+.fl-debug-item dt {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #5b6577;
+}
+
+.fl-debug-item dd {
+  margin: 0.15rem 0 0;
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 0.78rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 860px) {
+  .fl-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dash-frame {
+    height: min(70vh, 640px);
+  }
+}
+
+@media (max-width: 520px) {
+  .dashboard {
+    padding: 1rem 0.75rem 2rem;
+  }
+
+  .dash-nav {
+    width: 100%;
+    border-radius: 14px;
+  }
+
+  .dash-nav-link {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .fl-text {
+    font-size: 2.2rem;
+  }
+}
