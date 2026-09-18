@@ -1,3 +1,5 @@
+import { sanitizeBasePlane } from "../base-plane";
+import type { BasePlaneOptions } from "../base-plane";
 import type { EncodedScene } from "./encode";
 import {
   GPU_USAGE_COPY_DST,
@@ -164,8 +166,9 @@ export interface LightingFieldBinding {
   readonly provenance: HeightPassProvenance;
 }
 
-/** Lighting options consumed by the pass (ambient only, sanitized like the oracle). */
+/** Lighting options consumed by the pass, sanitized like the CPU oracle. */
 export interface LightingPassOptions {
+  readonly basePlane?: BasePlaneOptions;
   /** ambient fill strength (default 0.08); sanitized like the CPU oracle */
   readonly ambient?: number;
 }
@@ -497,7 +500,7 @@ export class LightingPass {
     let submissions = 0;
     if (chunks === null) {
       // Historical frame: one params write + one encoder + one submission.
-      this.packUniform(ambient, yOffset, regionEnd);
+      this.packUniform(ambient, yOffset, regionEnd, input.options?.basePlane);
       this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
       const encoder = this.device.createCommandEncoder({ label: "ukibori-lighting-pass" });
       const pass = encoder.beginComputePass(
@@ -523,7 +526,7 @@ export class LightingPass {
       for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
         const chunk = chunks[chunkIndex];
         const chunkYOffset = chunk.y0 * header.renderWidth;
-        this.packUniform(ambient, chunkYOffset, chunkYOffset + chunk.texels);
+        this.packUniform(ambient, chunkYOffset, chunkYOffset + chunk.texels, input.options?.basePlane);
         this.device.queue.writeBuffer(uniform, 0, this.uniformBytes);
         const encoder = this.device.createCommandEncoder({ label: "ukibori-lighting-pass" });
         const pass = encoder.beginComputePass(
@@ -835,12 +838,17 @@ export class LightingPass {
 
   // -- host packing (little-endian, offsets pinned by lighting-pass-wgsl.ts) --
 
-  private packUniform(ambient: number, yOffset: number, regionEnd: number): void {
+  private packUniform(ambient: number, yOffset: number, regionEnd: number, basePlane?: BasePlaneOptions): void {
     const view = new DataView(this.uniformBytes.buffer);
     view.setFloat32(0, ambient, true);
     view.setUint32(4, LIGHTING_WORKGROUP_SIZE, true);
     view.setUint32(8, yOffset, true);
     view.setUint32(12, regionEnd, true);
+    const plane = sanitizeBasePlane(basePlane);
+    view.setFloat32(16, plane?.baseColor.r ?? 0, true);
+    view.setFloat32(20, plane?.baseColor.g ?? 0, true);
+    view.setFloat32(24, plane?.baseColor.b ?? 0, true);
+    view.setFloat32(28, plane ? 1 : 0, true);
   }
 
   // -- pipeline and bind group ----------------------------------------------

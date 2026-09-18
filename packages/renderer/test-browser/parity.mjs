@@ -45,6 +45,7 @@ import {
   CATALOG_VERSION,
   ISSUE_48_ADVERSARIAL_FIXTURE_IDS,
 } from "./catalog.mjs";
+import { runBasePlaneParity } from "./base-plane-parity.mjs";
 import { createOracle } from "./oracle.mjs";
 
 const RESULT_EL = document.getElementById("result");
@@ -3885,6 +3886,7 @@ async function main() {
     // drain async device errors before destroying the device
     await device.queue.onSubmittedWorkDone().catch(() => undefined);
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
+    detail.push(`#75 base-plane parity: ${JSON.stringify(await runBasePlaneParity(api, device))}`);
     device.destroy();
 
     for (const problem of shaderProblems) {

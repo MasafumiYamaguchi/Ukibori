@@ -18,7 +18,7 @@ import { WGSL_SCENE_BASE } from "./wgsl";
  *
  * | binding | type   | meaning                                        |
  * |---------|--------|------------------------------------------------|
- * | 0       | uniform| LightingPassParams (16 bytes)                  |
+ * | 0       | uniform| LightingPassParams (32 bytes)                  |
  * | 1       | storage| sceneHeader: SceneHeader (exact uploaded #24    |
  * |         |        | header, read-only)                             |
  * | 2       | storage| materials: array<MaterialRecord> (exact #24     |
@@ -38,7 +38,7 @@ import { WGSL_SCENE_BASE } from "./wgsl";
  * the uniform binding (which does not count). `LightingPass` validates
  * `maxStorageBuffersPerShaderStage >= 8` before any device call.
  *
- * ## LightingPassParams — 16 bytes, align 16, little-endian host packing
+ * ## LightingPassParams — 32 bytes, align 16, little-endian host packing
  *
  * | offset | size | field            | meaning                          |
  * |--------|------|------------------|----------------------------------|
@@ -47,8 +47,9 @@ import { WGSL_SCENE_BASE } from "./wgsl";
  * |        |      |                  | sanitized and clamped)           |
  * | 4      | 4    | workgroupSize    | documented dispatch workgroup    |
  * |        |      | (u32)            | size                             |
- * | 8      | 4    | _pad0 (u32)      | 0                                |
- * | 12     | 4    | _pad1 (u32)      | 0                                |
+ * | 8      | 4    | yOffset (u32)    | first texel in the dirty band    |
+ * | 12     | 4    | regionEnd (u32)  | exclusive end; 0 = full frame    |
+ * | 16     | 16   | basePlane (vec4) | linear albedo RGB; w = enabled   |
  *
  * All other scene values (light direction/intensity, exposure, environment)
  * are read from the exact uploaded scene header. Offsets are pinned by
@@ -62,7 +63,8 @@ import { WGSL_SCENE_BASE } from "./wgsl";
  * fixed view direction is `V = (0, 0, 1)`.
  *
  * - `materialId == NO_OWNER` uses the fixed base material (baseColor 0.6,
- *   roughness 0.5, metallic 0, ior 1.5). A valid id indexes the uploaded
+ *   roughness 0.5, metallic 0, ior 1.5), or the explicit #75 floor albedo
+ *   with roughness 0.9 and a flat normal. A valid id indexes the uploaded
  *   `MaterialRecord`; an invalid non-sentinel id falls back to the base
  *   material (defensive; valid #25 output never emits one). For an empty
  *   logical material table the host binds the uploader's one-record ABI
@@ -109,15 +111,15 @@ import { WGSL_SCENE_BASE } from "./wgsl";
 /** Dispatch workgroup size for the lighting pass (documented, injected into WGSL). */
 export const LIGHTING_WORKGROUP_SIZE = 64;
 
-/** LightingPassParams uniform byte length (16 bytes, 16-byte aligned). */
-export const LIGHTING_PARAMS_BYTE_LENGTH = 16;
+/** LightingPassParams uniform byte length (32 bytes, 16-byte aligned). */
+export const LIGHTING_PARAMS_BYTE_LENGTH = 32;
 
 /** Logical output bytes per render texel (diffuse/specular/color all 4). */
 export const LIGHTING_OUTPUT_BYTES_PER_TEXEL = 4;
 
 export const LIGHTING_PASS_WGSL = /* wgsl */ `
 ${WGSL_SCENE_BASE}
-// #28 lighting pass params (16 bytes, align 16; offsets pinned by
+// #28 lighting pass params (32 bytes, align 16; offsets pinned by
 // lighting-pass.ts)
 struct LightingPassParams {
   ambient: f32,          //  0 effective ambient fill in [0, 1] (default 0.08)
@@ -128,7 +130,8 @@ struct LightingPassParams {
                          //    y0 = 0, so the region is signaled by regionEnd
                          //    alone; the shader guards regionEnd != 0 &&
                          //    g >= regionEnd)
-}                        // size 16, align 16
+  basePlane: vec4<f32>,  // 16 linear albedo RGB, w = physical receiver enabled
+}                        // size 32, align 16
 
 const LIGHTING_WORKGROUP_SIZE: u32 = ${LIGHTING_WORKGROUP_SIZE}u;
 const NO_OWNER: u32 = 0xffffffffu;
@@ -245,6 +248,10 @@ fn baseMaterial() -> MaterialRecord {
   var m: MaterialRecord;
   m.baseColor = vec3<f32>(0.6, 0.6, 0.6);
   m.roughness = 0.5;
+  if (params.basePlane.w != 0.0) {
+    m.baseColor = params.basePlane.rgb;
+    m.roughness = 0.9;
+  }
   m.metallic = 0.0;
   m.ior = 1.5;
   m.flags = 0u;
@@ -319,9 +326,10 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   }
   // #26 tightly packed f32 xyz normal triple at indices [g*3, g*3+1, g*3+2].
   let o = g * 3u;
-  let nx = inNormal[o];
-  let ny = inNormal[o + 1u];
-  let nz = inNormal[o + 2u];
+  let flatFloor = params.basePlane.w != 0.0 && materialId[g] == NO_OWNER;
+  let nx = select(inNormal[o], 0.0, flatFloor);
+  let ny = select(inNormal[o + 1u], 0.0, flatFloor);
+  let nz = select(inNormal[o + 2u], 1.0, flatFloor);
   // Encoded normalized light direction: FROM the receiver TOWARD the light.
   // +x right, +y down, +z toward the viewer; V = (0, 0, 1) is fixed.
   let lx = sceneHeader.lightDirection.x;

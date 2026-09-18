@@ -1,0 +1,167 @@
+{
+  "result": "UKIBORI_WEBGPU_FAIL benchmark blocker: speedup 0.54x is below the required 2x (CPU median 359.40ms, GPU median 664.650ms at 640x360, 10 samples)",
+  "summary": {
+    "adapter": {
+      "vendor": "google",
+      "architecture": "swiftshader",
+      "device": "",
+      "description": "",
+      "backend": null,
+      "isFallbackAdapter": null
+    },
+    "fixtures": 121,
+    "texels": 85533,
+    "normalTexels": 82154,
+    "normalMismatches": 0,
+    "shadowTexels": 85024,
+    "shadowMismatches": 0,
+    "casterTexels": 81344,
+    "casterMismatches": 0,
+    "lightingTexels": 81344,
+    "diffuseMismatches": 0,
+    "specularMismatches": 0,
+    "colorHard": 0,
+    "colorSoft": 0,
+    "colorAlphaBad": 0,
+    "mutationMismatches": 0,
+    "presentFixtures": 22,
+    "presentTexels": 16912,
+    "presentHard": 0,
+    "presentAlphaBad": 0,
+    "retainedProblems": 0,
+    "partialProblems": 0,
+    "tileBenchmarkCases": 9,
+    "benchmarkSpeedup": 0.541,
+    "issue48Adversarial": {
+      "expected": [
+        "shadow-thin-caster-aabb-edge",
+        "shadow-bilinear-support-boundary",
+        "shadow-scene-edge-last-valid-step",
+        "shadow-negative-threshold-cull-guard",
+        "shadow-dense-full-frame-hard",
+        "shadow-dense-full-frame-soft",
+        "shadow-prefix-dz-positive-before-boundary",
+        "shadow-prefix-dz-positive-after-boundary",
+        "shadow-prefix-dz-zero",
+        "shadow-prefix-dz-negative",
+        "shadow-prefix-receiver-above-height",
+        "shadow-prefix-small-positive-dz",
+        "shadow-prefix-large-valid-stepcount",
+        "shadow-prefix-nondyadic-0.1",
+        "shadow-prefix-nondyadic-0.3",
+        "shadow-prefix-height-equality",
+        "shadow-prefix-xy-height-same-step"
+      ],
+      "executed": [
+        "shadow-thin-caster-aabb-edge",
+        "shadow-bilinear-support-boundary",
+        "shadow-scene-edge-last-valid-step",
+        "shadow-negative-threshold-cull-guard",
+        "shadow-dense-full-frame-hard",
+        "shadow-dense-full-frame-soft",
+        "shadow-prefix-dz-positive-before-boundary",
+        "shadow-prefix-dz-positive-after-boundary",
+        "shadow-prefix-dz-zero",
+        "shadow-prefix-dz-negative",
+        "shadow-prefix-receiver-above-height",
+        "shadow-prefix-small-positive-dz",
+        "shadow-prefix-large-valid-stepcount",
+        "shadow-prefix-nondyadic-0.1",
+        "shadow-prefix-nondyadic-0.3",
+        "shadow-prefix-height-equality",
+        "shadow-prefix-xy-height-same-step"
+      ],
+      "missing": [],
+      "executionErrors": [],
+      "mismatches": [],
+      "hardFixture": "shadow-dense-full-frame-hard",
+      "softFixture": "shadow-dense-full-frame-soft"
+    },
+    "reconPartialProblems": 0,
+    "globalChangeProblems": 0,
+    "materialChangeProblems": 0,
+    "lightColorProblems": 0,
+    "shadowSampleBenchmark": [
+      {
+        "requested": 1,
+        "effective": 1,
+        "softActive": false,
+        "medianMs": 117.55
+      },
+      {
+        "requested": 4,
+        "effective": 4,
+        "softActive": true,
+        "medianMs": 249.75
+      },
+      {
+        "requested": 8,
+        "effective": 8,
+        "softActive": true,
+        "medianMs": 428.45
+      },
+      {
+        "requested": 16,
+        "effective": 16,
+        "softActive": true,
+        "medianMs": 659.8
+      }
+    ],
+    "reconstructionBenchmark": [
+      {
+        "stage": "shadow",
+        "effectiveSamples": 8,
+        "softActive": true,
+        "reconstructionActive": false,
+        "radiusTexels": 0,
+        "hostMedianMs": 353.55
+      },
+      {
+        "stage": "reconstruction",
+        "effectiveSamples": 8,
+        "softActive": true,
+        "reconstructionActive": true,
+        "radiusTexels": 1,
+        "hostMedianMs": 19.1
+      },
+      {
+        "stage": "reconstruction",
+        "effectiveSamples": 8,
+        "softActive": true,
+        "reconstructionActive": true,
+        "radiusTexels": 2,
+        "hostMedianMs": 31.45
+      },
+      {
+        "stage": "reconstruction",
+        "effectiveSamples": 8,
+        "softActive": true,
+        "reconstructionActive": true,
+        "radiusTexels": 4,
+        "hostMedianMs": 80.6
+      },
+      {
+        "stage": "shadow+reconstruction",
+        "effectiveSamples": 8,
+        "softActive": true,
+        "reconstructionActive": true,
+        "radiusTexels": 2,
+        "hostMedianMs": 382.7
+      },
+      {
+        "stage": "shadow+reconstruction-hard",
+        "effectiveSamples": 1,
+        "softActive": false,
+        "reconstructionActive": true,
+        "radiusTexels": 1,
+        "hostMedianMs": 402.95
+      }
+    ],
+    "reconstructionTexels": 5200,
+    "reconstructionMismatches": 0,
+    "reconstructionMaxAbsError": 9.5367431640625e-7,
+    "reconstructionMaxUlpError": 16,
+    "classificationTotals": {},
+    "catalogVersion": 11
+  }
+}

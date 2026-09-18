@@ -33,7 +33,8 @@
     "bench:cpu": "node scripts/bench-cpu.mjs",
     "bench:report": "node scripts/bench-report.mjs",
     "clean": "rimraf dist",
-    "test:profiles:webgpu": "npm run build && node scripts/test-profiles-webgpu.mjs"
+    "test:profiles:webgpu": "npm run build && node scripts/test-profiles-webgpu.mjs",
+    "test:base-plane:webgpu": "node scripts/test-base-plane-webgpu.mjs"
   },
   "devDependencies": {
     "@webgpu/types": "^0.1.71",

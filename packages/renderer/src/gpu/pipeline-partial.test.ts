@@ -340,10 +340,10 @@ function uniformWrites(device: MockFullDevice) {
         view(w).getFloat32(24, true) === Math.fround(0.25) &&
         (view(w).getUint32(28, true) === 0 || view(w).getUint32(28, true) === 1),
     ),
-    // 16 bytes with the ambient f32 at 0 and workgroupSize 64 at 4
+    // 32 bytes with the ambient f32 at 0 and workgroupSize 64 at 4
     lighting: all.filter(
       (w) =>
-        w.bytes.byteLength === 16 &&
+        w.bytes.byteLength === 32 &&
         view(w).getUint32(0, true) !== 0 &&
         view(w).getUint32(4, true) === WORKGROUP,
     ),

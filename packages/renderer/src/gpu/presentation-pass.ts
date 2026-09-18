@@ -886,7 +886,7 @@ export class PresentationPass {
     view.setUint32(16, composite.shadowColor[2] | 0, true);
     view.setUint32(20, compositeShadowAlphaByte(composite.shadowAlpha), true);
     view.setUint32(24, precomposited ? 1 : 0, true);
-    view.setUint32(28, 0, true);
+    view.setUint32(28, composite.basePlane ? 1 : 0, true);
   }
 
   // -- pipeline and bind group ----------------------------------------------

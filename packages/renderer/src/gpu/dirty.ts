@@ -1,3 +1,4 @@
+import { sanitizeBasePlane } from "../base-plane";
 import { parseHeader } from "./encode";
 import type { EncodedScene } from "./encode";
 import { sanitizeNormalOptions } from "./normal-pass";
@@ -331,7 +332,7 @@ export function computeFrameKey(
     reconstruction: JSON.stringify(
       sanitizeReconstructionOptions(input.shadowOptions?.reconstruction, header.dpr),
     ),
-    lighting: String(sanitizeAmbient(input.lightingOptions?.ambient)),
+    lighting: JSON.stringify({ ambient: sanitizeAmbient(input.lightingOptions?.ambient), basePlane: sanitizeBasePlane(input.compositeOptions?.basePlane) }),
     composite: JSON.stringify(sanitizeCompositeOptions(input.compositeOptions)),
     debugTarget: input.debugReadback === true ? "debug" : "prod",
   };

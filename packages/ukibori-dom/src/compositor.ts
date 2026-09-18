@@ -3,12 +3,15 @@ import {
   compositePixelBytes,
   sanitizeCompositeOptions as sharedSanitize,
 } from "ukibori-renderer";
-import type { HostBuffer } from "ukibori-renderer";
-import type { CompositeOptions, SurfaceImage } from "./types";
+import type { HostBuffer, CompositeOptions, EffectiveCompositeOptions } from "ukibori-renderer";
+import type { SurfaceImage } from "./types";
 
 /**
  * Compositor (#20): maps the renderer's intermediate buffers onto the DOM
  * overlay.
+ *
+ * #75: an explicit physical basePlane keeps the renderer color opaque on
+ * the whole stage. Without one, preserve the legacy transparent path below.
  *
  * The renderer's `color` buffer is opaque everywhere (including the base
  * plane), which is correct for a self-contained scene but wrong on a DOM
@@ -38,9 +41,10 @@ export const DEFAULT_SHADOW_ALPHA = 0.3;
 
 export function sanitizeCompositeOptions(
   options: CompositeOptions,
-): Pick<Required<CompositeOptions>, "shadowColor" | "shadowAlpha"> {
+): Pick<EffectiveCompositeOptions, "shadowColor" | "shadowAlpha" | "basePlane"> {
   const effective = sharedSanitize(options);
   return {
+    ...(effective.basePlane ? { basePlane: effective.basePlane } : {}),
     shadowColor: effective.shadowColor,
     shadowAlpha: effective.shadowAlpha,
   };

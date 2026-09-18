@@ -1,3 +1,5 @@
+import { sanitizeBasePlane, basePlaneMaterial } from "./base-plane";
+import type { BasePlaneOptions } from "./base-plane";
 import type { Scene } from './scene';
 import type { HostBuffer } from './buffer';
 import { BASE_MATERIAL, resolveMaterial } from './material';
@@ -55,7 +57,7 @@ export interface EmissiveEffectFields {
 const decode = (v: number) => v / 255 <= 0.04045 ? v / 255 / 12.92 : ((v / 255 + 0.055) / 1.055) ** 2.4;
 const encode = (v: number) => { const x = Math.min(1, Math.max(0, v)); return x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055; };
 /** Premultiplied overlay bytes. Visible-source screen-space approximation shared with WGSL. */
-function renderIllumination(scene: Scene, fields: EmissiveEffectFields, e: EffectiveEmissiveEffects, shadowColor: readonly number[] = [12, 16, 28], shadowAlpha = 0.3, dpr = 1): Uint8Array {
+function renderIllumination(scene: Scene, fields: EmissiveEffectFields, e: EffectiveEmissiveEffects, shadowColor: readonly number[] = [12, 16, 28], shadowAlpha = 0.3, dpr = 1, basePlane?: BasePlaneOptions): Uint8Array {
   if (!Number.isFinite(dpr) || dpr <= 0)
     throw new RangeError('invalid emissive dpr');
   const expected = [[fields.color, 'u8', 4], [fields.objectId, 'u32', 1], [fields.height, 'f32', 1], [fields.normal, 'f32', 3], [fields.visibility, 'f32', 1]] as const;
@@ -69,13 +71,17 @@ function renderIllumination(scene: Scene, fields: EmissiveEffectFields, e: Effec
       throw new Error('emissive field extent mismatch');
   }
   const materials = scene.surfaces.map(s => resolveMaterial(scene.materials, s.material));
-  const materialAt = (i: number) => materials[fields.objectId.data[i]] ?? BASE_MATERIAL;
+  const plane = sanitizeBasePlane(basePlane);
+  const floorMaterial = plane ? basePlaneMaterial(plane) : BASE_MATERIAL;
+  const materialAt = (i: number) => materials[fields.objectId.data[i]] ?? floorMaterial;
   const emissionAt = (i: number) => materialAt(i).emissive ?? { r: 0, g: 0, b: 0 };
   const result = new Uint8Array(w * h * 4), q = e.quality;
   const exposure = Math.min(65504, scene.exposure);
   for (let y = 0; y < h; y++)
     for (let x = 0; x < w; x++) {
       const g = y * w + x, owned = fields.objectId.data[g] !== NO_OWNER, base = materialAt(g).baseColor;
+      const physical = owned || plane !== undefined;
+      const flatFloor = !owned && plane !== undefined;
       const light = [0, 0, 0];
       if (e.lightIntensity > 0 && e.lightRadius > 0)
         for (let ky = -q; ky <= q; ky++)
@@ -98,7 +104,7 @@ function renderIllumination(scene: Scene, fields: EmissiveEffectFields, e: Effec
               // Lift the sampled virtual light above the emitter to approximate lateral spill.
               const z = fields.height.data[n] + e.lightRadius * 0.15, dz = z - fields.height.data[g];
               const distance = Math.sqrt(dx * dx + dy * dy + dz * dz);
-              const cosine = Math.max(0, (fields.normal.data[g * 3] * dx + fields.normal.data[g * 3 + 1] * dy + fields.normal.data[g * 3 + 2] * dz) / Math.max(distance, 0.001));
+              const cosine = Math.max(0, (flatFloor ? dz : fields.normal.data[g * 3] * dx + fields.normal.data[g * 3 + 1] * dy + fields.normal.data[g * 3 + 2] * dz) / Math.max(distance, 0.001));
               let blocked = false;
               for (let s = 1; s <= 4; s++) {
                 const t = s / 5, px = Math.round(x + (xx - x) * t), py = Math.round(y + (yy - y) * t), p = py * w + px;
@@ -115,13 +121,13 @@ function renderIllumination(scene: Scene, fields: EmissiveEffectFields, e: Effec
                 light[c] += Math.min(65504, [em.r, em.g, em.b][c]) * factor;
             }
           }
-      const a0 = owned ? 1 : Math.round(shadowAlpha * 255) / 255 * (1 - Math.min(1, Math.max(0, fields.visibility?.data[g] ?? 1)));
+      const a0 = physical ? 1 : Math.round(shadowAlpha * 255) / 255 * (1 - Math.min(1, Math.max(0, fields.visibility?.data[g] ?? 1)));
       const rgb = [0, 0, 0];
       for (let c = 0; c < 3; c++) {
         const glow = light[c] * [base.r, base.g, base.b][c] * exposure * e.lightIntensity;
-        rgb[c] = owned ? encode(decode(fields.color.data[g * 4 + c]) + glow) : Math.min(1, shadowColor[c] / 255 * a0 + encode(glow));
+        rgb[c] = physical ? encode(decode(fields.color.data[g * 4 + c]) + glow) : Math.min(1, shadowColor[c] / 255 * a0 + encode(glow));
       }
-      const alpha = owned ? 1 : Math.max(a0, ...rgb);
+      const alpha = physical ? 1 : Math.max(a0, ...rgb);
       for (let c = 0; c < 3; c++)
         result[g * 4 + c] = Math.round(rgb[c] * 255);
       result[g * 4 + 3] = Math.round(alpha * 255);
@@ -129,8 +135,8 @@ function renderIllumination(scene: Scene, fields: EmissiveEffectFields, e: Effec
   return result;
 }
 /** HDR emission is blurred before adding it to the displayed illumination. */
-export function renderEmissiveEffects(scene: Scene, fields: EmissiveEffectFields, e: EffectiveEmissiveEffects, shadowColor: readonly number[] = [12, 16, 28], shadowAlpha = 0.3, dpr = 1): Uint8Array {
-  const output = renderIllumination(scene, fields, { ...e, bloomIntensity: 0 }, shadowColor, shadowAlpha, dpr);
+export function renderEmissiveEffects(scene: Scene, fields: EmissiveEffectFields, e: EffectiveEmissiveEffects, shadowColor: readonly number[] = [12, 16, 28], shadowAlpha = 0.3, dpr = 1, basePlane?: BasePlaneOptions): Uint8Array {
+  const output = renderIllumination(scene, fields, { ...e, bloomIntensity: 0 }, shadowColor, shadowAlpha, dpr, basePlane);
   if (!(e.bloomIntensity > 0 && e.bloomRadius > 0))
     return output;
   const { width, height } = fields.color.spec;
@@ -160,7 +166,7 @@ export function renderEmissiveEffects(scene: Scene, fields: EmissiveEffectFields
     }
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
-      const g = y * width + x, owned = fields.objectId.data[g] !== NO_OWNER;
+      const g = y * width + x, owned = fields.objectId.data[g] !== NO_OWNER || basePlane !== undefined;
       const a0 = Math.round(shadowAlpha * 255) / 255 * (1 - Math.min(1, Math.max(0, fields.visibility?.data[g] ?? 1)));
       let alpha = owned ? 1 : a0;
       for (let c = 0; c < 3; c++) {

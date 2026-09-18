@@ -184,7 +184,7 @@ export interface GpuScenePipelineInput {
   /** CPU-compatible shadow options; sanitized like the oracle */
   readonly shadowOptions?: ShadowOptions;
   /** CPU-compatible lighting options (ambient); sanitized like the oracle */
-  readonly lightingOptions?: LightingPassOptions;
+  readonly lightingOptions?: Omit<LightingPassOptions, "basePlane">;
   /** CPU-compatible composite options; sanitized like the CPU compositor */
   readonly compositeOptions?: CompositeOptions;
   /** test-only: request COPY_SRC on the canvas texture usage (never production) */
@@ -750,7 +750,7 @@ export class GpuScenePipeline {
           reconstructionSnapshot !== null
             ? lightingVisibilityBindingFromReconstructionPass(reconstructionSnapshot)
             : lightingVisibilityBindingFromShadowPass(shadowSnapshot),
-        options: input.lightingOptions,
+        options: { ...input.lightingOptions, basePlane: input.compositeOptions?.basePlane },
         // #43: lighting recomputes the FULL region the reconstruction wrote
         // (band + filter halo), so the presented color is never stale where
         // the reconstructed visibility changed.
@@ -798,7 +798,7 @@ export class GpuScenePipeline {
           lightingNormalBindingFromNormalPass(normalSnapshot).buffer, bindings.materials.buffer, visibility.buffer,
         ], heightSnapshot.width, heightSnapshot.height, parsedFrameHeader.materialCount,
         heightSnapshot.dpr, parsedFrameHeader.exposure, effects, composite.shadowColor, composite.shadowAlpha,
-        timestamps ? { querySet: timestamps.querySet, beginningOfPassWriteIndex: timestamps.beginningOfPassWriteIndex } : undefined);
+        timestamps ? { querySet: timestamps.querySet, beginningOfPassWriteIndex: timestamps.beginningOfPassWriteIndex } : undefined, composite.basePlane);
         this.effectsColor = { ...rawColor, buffer: result.buffer, byteLength: result.byteLength };
         effectsAllocations = result.newAllocations;
       }
@@ -821,7 +821,7 @@ export class GpuScenePipeline {
         stage: "presentation",
         hostMs,
         newAllocations: presentation.newAllocations + effectsAllocations,
-        bytesUploaded: active ? (effects.bloomIntensity > 0 && effects.bloomRadius > 0 ? 128 : 64) : 0,
+        bytesUploaded: active ? (effects.bloomIntensity > 0 && effects.bloomRadius > 0 ? 160 : 80) : 0,
         dispatches: active ? (effects.bloomIntensity > 0 && effects.bloomRadius > 0 ? 3 : 1) : 0,
         submissions: active ? (effects.bloomIntensity > 0 && effects.bloomRadius > 0 ? 3 : 2) : 1,
       });

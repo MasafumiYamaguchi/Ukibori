@@ -1139,7 +1139,7 @@ describe("PresentationPass shader — fixed composition semantics in WGSL", () =
     expect(PRESENTATION_PASS_WGSL).toContain("let b = f32((packed >> 16u) & 0xffu) * UNORM_SCALE;");
     expect(PRESENTATION_PASS_WGSL).toContain("return vec4<f32>(r, g, b, 1.0);");
     expect(PRESENTATION_PASS_WGSL).toContain("let owner = objectId[index];");
-    expect(PRESENTATION_PASS_WGSL).toContain("if (owner != NO_OWNER) {");
+    expect(PRESENTATION_PASS_WGSL).toContain("if (owner != NO_OWNER || params.physicalBase != 0u) {");
     expect(PRESENTATION_PASS_WGSL).toContain("const NO_OWNER: u32 = 0xffffffffu;");
   });
 

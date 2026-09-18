@@ -1,0 +1,86 @@
+{
+  "adapter": "SwiftShader driver 5.0.0",
+  "fixtures": 74,
+  "comparedBytes": 4915200,
+  "maxByteError": 1,
+  "tolerance": 1,
+  "exactAlpha": true,
+  "shadowedLitPixels": 42074,
+  "staticDispatches": 0,
+  "updates": [
+    {
+      "kind": "base-color",
+      "executed": [
+        "lighting",
+        "presentation"
+      ],
+      "mode": "full",
+      "dispatches": 2
+    },
+    {
+      "kind": "emission",
+      "executed": [
+        "upload",
+        "lighting",
+        "presentation"
+      ],
+      "mode": "full",
+      "dispatches": 2
+    },
+    {
+      "kind": "light",
+      "executed": [
+        "upload",
+        "lighting",
+        "presentation"
+      ],
+      "mode": "full",
+      "dispatches": 2
+    },
+    {
+      "kind": "geometry",
+      "executed": [
+        "upload",
+        "height",
+        "normal",
+        "shadow",
+        "reconstruction",
+        "lighting",
+        "presentation"
+      ],
+      "mode": "partial",
+      "dispatches": 9
+    },
+    {
+      "kind": "geometry+base-color",
+      "executed": [
+        "upload",
+        "height",
+        "normal",
+        "shadow",
+        "reconstruction",
+        "lighting",
+        "presentation"
+      ],
+      "mode": "full",
+      "dispatches": 9
+    },
+    {
+      "kind": "disable-effects",
+      "executed": [
+        "presentation"
+      ],
+      "mode": "full",
+      "dispatches": 0
+    },
+    {
+      "kind": "disable-floor",
+      "executed": [
+        "lighting",
+        "presentation"
+      ],
+      "mode": "full",
+      "dispatches": 1
+    }
+  ]
+}

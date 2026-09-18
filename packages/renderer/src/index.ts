@@ -1,3 +1,6 @@
+export { sanitizeBasePlane, basePlaneMaterial } from "./base-plane";
+export type { BasePlaneOptions } from "./base-plane";
+
 export type {
   BackendCapabilities,
   BufferData,
