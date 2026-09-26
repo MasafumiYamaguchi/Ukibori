@@ -22,6 +22,7 @@ export default defineConfig({
         "scheduler-debug": resolve("./scheduler-debug.html"),
         "wasm-debug": resolve("./wasm-debug.html"),
         neumorphism: resolve("./neumorphism.html"),
+        instrument: resolve("./instrument.html"),
         "profile-debug": resolve("./profile-debug.html"),
         "emissive-debug": resolve("./emissive-debug.html"),
         "base-plane-debug": resolve("./base-plane-debug.html"),
