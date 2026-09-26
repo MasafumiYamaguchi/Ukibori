@@ -1110,10 +1110,11 @@ describe("UkiboriText supersampling policy (fixed 2x)", () => {
     expect(mask.width / mask.height).toBeCloseTo(120 / 40, 12);
   });
 
-  it("ignores a missing, non-finite or non-positive devicePixelRatio (still fixed 2x)", async () => {
-    for (const value of [undefined, Number.NaN, Number.POSITIVE_INFINITY, 0, -2]) {
-      vi.restoreAllMocks();
-      vi.unstubAllGlobals();
+  // Each DPR gets its own test budget and cleanup: five physical renders
+  // in one test can exceed the default timeout on hosted macOS runners.
+  it.each([undefined, Number.NaN, Number.POSITIVE_INFINITY, 0, -2])(
+    "ignores invalid devicePixelRatio %s (still fixed 2x)",
+    async (value) => {
       stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
       stubCanvas2d();
       stubTextLineBox();
@@ -1132,8 +1133,8 @@ describe("UkiboriText supersampling policy (fixed 2x)", () => {
       expect(mask.width).toBe(240);
       expect(mask.height).toBe(80);
       view.unmount();
-    }
-  });
+    },
+  );
 
   it("does not re-rasterize when the devicePixelRatio changes after mount (fixed 2x, no DPR lifecycle)", async () => {
     stubElementRects({ left: 10, top: 20, width: 120, height: 40 });
