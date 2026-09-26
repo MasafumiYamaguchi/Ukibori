@@ -42,7 +42,9 @@ const MATERIALS: Record<string, Material> = {
   body: { ...material("#bcc2c6", 0.38), metallic: 0.85 },
   speaker: { ...material("#454a4e", 0.7), metallic: 0.65 },
   ivory: material("#f4f3ef"), charcoal: { ...material("#282927", 0.95), ior: 1 }, display: { ...material("#10110f", 1), ior: 1 },
-  orange: material("#ff6527"),
+  "knob-charcoal": { ...material("#282927", 0.28), metallic: 1 },
+  "knob-ivory": { ...material("#f4f3ef", 0.24), metallic: 1 },
+  "knob-orange": { ...material("#ff6527", 0.28), metallic: 1 },
   led: { ...material("#ff6527"), emissive: { r: 4, g: 0.55, b: 0.05 } },
 };
 const LIGHT = { x: -0.55, y: -0.7, z: 0.85 };
@@ -56,7 +58,7 @@ function Dial({ label, value, min, max, step = 1, surface, display, onChange }: 
   const drag = useRef<{ y: number; value: number } | null>(null);
   return <label className={`form-dial form-dial-${surface}`}>
     <span className="form-dial-track">
-      <Surface className="form-dial-cap" shape={{ kind: "roundedRect", radius: 25 }} material={surface} elevation={BODY_HEIGHT + 5} thickness={4} bevelWidth={2.5} radius={25} profile={{ kind: "convex" }}
+      <Surface className="form-dial-cap" shape={{ kind: "roundedRect", radius: 25 }} material={`knob-${surface}`} elevation={BODY_HEIGHT + 5} thickness={4} bevelWidth={2.5} radius={25} profile={{ kind: "convex" }}
         onPointerDown={event => { event.preventDefault(); drag.current = { y: event.clientY, value }; event.currentTarget.setPointerCapture(event.pointerId); }}
         onPointerMove={event => { if (drag.current) onChange(Math.min(max, Math.max(min, Math.round((drag.current.value + (drag.current.y - event.clientY) / 140 * (max - min)) / step) * step))); }}
         onPointerUp={event => { drag.current = null; event.currentTarget.releasePointerCapture(event.pointerId); }}
