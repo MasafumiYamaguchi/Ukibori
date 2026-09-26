@@ -116,7 +116,7 @@ DOM所有のアクセシブルなテキスト(`<span>`)を描画し、その**�
 | `#playground` | #21 React APIプレイグラウンド(全物理コントロール + 実DOM button/input + PLAY glyph。Live cardはsliderのelevation/thicknessに追従) |
 | `#features` | Feature Lab(順序付き合成、height profile、SVG shape + fillRule、nested Bake、オンデマンドdebugStateスナップショット、UkiboriText色) |
 | `#diagnostics/<id>` | standalone診断ページを1つだけsame-origin iframeで表示(`renderer` / `scheduler` / `wasm` / `dom` / `profiles` / `emissive`) |
-| `#product` | `/neumorphism.html`をsame-origin iframeで表示 |
+| `#product` | `/instrument.html`の演奏可能なシンセサイザーデモをsame-origin iframeで表示 |
 
 ダッシュボード下部のCoverage indexが、実装グループを対応するタブ / standaloneページ / リポジトリ内レポートへ対応付けます。
 
@@ -130,6 +130,7 @@ standaloneページは従来どおり直接アクセスできます:
 - `/profile-debug.html` — #61 height profile比較(step / linear / smooth / convex / concave / power)
 - `/emissive-debug.html` — emissive materials / nearby illumination / bloom デバッグ
 - `/neumorphism.html` — ニューモーフィズム・ウェルネスダッシュボード
+- `/instrument.html` — ripple R-1: #75の物理ベース面を使った横長の楽器デモ。スピーカーグリル、黒い波形画面、白鍵14・黒鍵10の2オクターブ、波形・カットオフ・ディケイ・テンポの4ノブ。Web Audioで演奏でき、鍵盤に表示されたPCキーにも対応。16ステップ編集と再生(スペース)、STEPで1ステップ演奏、CLEAR、オクターブ±2。ノブは上下ドラッグまたはフォーカスして矢印キーで操作。Playing rippleを展開すると音量・パターン復元を操作できます。音声は最初の操作後に開始し、ページを離れると停止します。
 
 ## #33 WASM-assisted CPU fallback (WASM CPUフォールバック)
 

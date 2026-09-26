@@ -1,0 +1,86 @@
+* { box-sizing: border-box; }
+body { margin: 0; color: #232421; background: #eae9e5; font-family: Arial, Helvetica, sans-serif; }
+button, input { font: inherit; }
+button { cursor: pointer; color: inherit; }
+button:disabled { cursor: default; }
+button:focus-visible { outline: none; }
+button:focus-visible span, button:focus-visible small { text-decoration: underline; text-underline-offset: 3px; }
+input:focus-visible, a:focus-visible, summary:focus-visible { outline: 2px solid #ff6527; outline-offset: 3px; }
+.form-page { max-width: 1120px; margin: 0 auto; padding: 14px 0 8px; }
+.form-device-scroll { overflow-x: auto; }
+/* The physical floor includes the space receiving the body's cast shadow. */
+.form-stage { position: relative; min-width: 840px; padding: 30px; }
+.form-device { position: relative; min-width: 780px; background: transparent; border: 0; border-radius: 20px; padding: 18px 20px 17px; }
+.form-body { position: absolute; inset: 0; border-radius: 20px; background: #bcc2c6; pointer-events: none; }
+.form-upper { display: grid; grid-template-columns: 96px minmax(0, 1fr) 266px; gap: 16px; height: 142px; }
+.form-speaker { width: 96px; height: 114px; }
+.form-brand { display: flex; justify-content: space-between; align-items: center; padding-top: 11px; }
+.form-brand strong { font-size: 14px; letter-spacing: -.7px; }
+.form-power-led { width: 5px; height: 5px; border-radius: 50%; background: #8d9088; }
+.form-screen { height: 142px; border: 2px solid #121310; border-radius: 6px; padding: 9px 12px 8px; background: #10110f; color: #f3f2ed; }
+.form-screen-top { display: flex; justify-content: space-between; gap: 8px; font: 11px monospace; letter-spacing: .3px; white-space: nowrap; }
+.form-screen-top b { font-weight: 400; color: #ff6527; margin-right: 12px; }
+.form-screen-top i { font-style: normal; color: #8c8f89; font-size: 10px; margin-left: 8px; }
+.form-screen-top i:first-of-type { margin-left: 0; }
+.form-screen svg { width: 100%; height: 88px; display: block; margin-top: 8px; }
+.form-grid-line { stroke: #272924; stroke-width: .4; fill: none; }
+.form-wave-line { stroke: #efeee8; stroke-width: 1.6; vector-effect: non-scaling-stroke; fill: none; }
+.form-screen-sequence { display: grid; grid-template-columns: repeat(16, 1fr); gap: 4px; margin-top: 5px; }
+.form-screen-sequence span { height: 3px; background: #30322d; }
+.form-screen-sequence span[data-enabled="true"] { background: #ff6527; }
+.form-screen-sequence span[data-current="true"] { background: #fbf9ed; }
+.form-dials { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; align-items: center; }
+.form-dial { display: block; position: relative; text-align: center; min-width: 0; }
+.form-dial-track { display: block; position: relative; }
+.form-dial-cap { width: 50px; height: 50px; border-radius: 50%; margin: 0 auto; position: relative; cursor: ns-resize; touch-action: none; background: #282927; }
+.form-dial-ivory .form-dial-cap { background: #f4f3ef; }
+.form-dial-orange .form-dial-cap { background: #ff6527; }
+.form-dial-pointer { position: absolute; inset: 0; pointer-events: none; }
+.form-dial-pointer::before { content: ''; width: 3px; height: 14px; background: #f4f3ef; border-radius: 2px; position: absolute; top: 4px; left: calc(50% - 1.5px); }
+.form-dial-ivory .form-dial-pointer::before, .form-dial-orange .form-dial-pointer::before { background: #343530; }
+.form-dial-label { display: block; font: 8px monospace; letter-spacing: 1.5px; margin-top: 10px; color: #444640; }
+/* The real ranges keep the dials keyboard-accessible without adding a slider row. */
+.form-dial input { position: absolute; width: 1px; height: 1px; padding: 0; margin: 0; opacity: 0; }
+.form-dial:focus-within .form-dial-label { color: #d95420; text-decoration: underline; text-underline-offset: 3px; }
+.form-lower { display: grid; grid-template-columns: 210px minmax(0, 1fr); gap: 18px; margin-top: 16px; }
+.form-model { margin: 4px 0 7px; font: 8px monospace; letter-spacing: 1.5px; color: #696c64; }
+.form-control-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 66px); gap: 7px; }
+.form-control { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 7px; border: 0; border-radius: 8px; background: #f4f3ef; padding: 0; }
+.form-control[aria-pressed="true"] { color: #d95420; }
+.form-control > span { font-size: 13px; line-height: 1; }
+.form-control small { font: 8px monospace; letter-spacing: .8px; }
+.form-control-dark { color: #f2f1ed; background: #282927; }
+.form-control-dot { width: 6px; height: 6px; border-radius: 50%; background: #bfc1b9; }
+.form-control:disabled { opacity: .65; }
+.form-steps { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 4px; margin-bottom: 7px; }
+.form-step { width: 100%; height: 23px; border: 0; border-radius: 5px; background: #f4f3ef; padding: 0; display: flex; align-items: center; justify-content: center; }
+.form-step-dot { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
+.form-step-dot[data-enabled="true"] { background: #ff6527; }
+.form-step[data-current="true"] .form-step-dot { background: #f28f21; width: 7px; height: 7px; }
+.form-step:focus-visible .form-step-dot { width: 7px; height: 7px; background: #df7930; }
+.form-keyboard { display: grid; grid-template-rows: 63px 63px; gap: 4px; }
+.form-black-keys, .form-white-keys { display: grid; grid-template-columns: repeat(14, minmax(0, 1fr)); gap: 4px; }
+.form-black-keys { padding-left: 0; }
+.form-key { position: relative; width: 100%; height: 63px; border: 0; border-radius: 6px; background: #f4f3ef; text-align: left; padding: 0; }
+.form-key-black { background: #282927; color: #8d9089; transform: translateX(-50%); }
+.form-key-note { position: absolute; top: 9px; left: 8px; font: 8px monospace; color: #73766c; }
+.form-key-shortcut { position: absolute; bottom: 8px; left: 0; right: 0; text-align: center; font: 8px monospace; color: #64685e; }
+.form-key-black .form-key-shortcut { color: #93968d; }
+.form-key[aria-pressed="true"] .form-key-note, .form-key[aria-pressed="true"] .form-key-shortcut { color: #e15b20; }
+.form-status { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+.form-help { font: 10px/1.8 monospace; color: #797d71; margin: 0 30px; }
+.form-help summary { cursor: pointer; width: max-content; }
+.form-help p { max-width: 80ch; }
+.form-help label, .form-help button, .form-help a, .form-help > span { margin-right: 20px; }
+.form-help button { border: 1px solid #b5b9af; padding: 4px 8px; border-radius: 3px; background: transparent; }
+.form-help a { color: inherit; }
+@media (max-width: 900px) {
+  .form-page { padding: 0 0 16px; }
+  .form-upper { grid-template-columns: 96px minmax(0, 1fr) 230px; gap: 13px; }
+  .form-dials { gap: 10px; }
+  .form-lower { grid-template-columns: 180px minmax(0, 1fr); gap: 14px; }
+  .form-screen-top { font-size: 9px; }
+  .form-screen-top b { margin-right: 6px; }
+  .form-screen-top i { font-size: 8px; margin-left: 4px; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto; } }
