@@ -1,0 +1,334 @@
+{
+  "adapter": "SwiftShader driver 5.0.0",
+  "timestampQuery": true,
+  "note": "Warm median of 8 samples; software adapters do not establish hardware GPU performance. Completion includes host submission and queued GPU work.",
+  "results": [
+    {
+      "label": "master",
+      "update": "full",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 9.754621000000043,
+      "completionMedianMs": 174.95500100000004,
+      "gpuMedianMs": 166.395904,
+      "executed": [
+        "upload",
+        "height",
+        "normal",
+        "shadow",
+        "reconstruction",
+        "lighting",
+        "presentation"
+      ],
+      "planning": "full",
+      "dispatches": 12,
+      "submissions": 8,
+      "newAllocations": 0
+    },
+    {
+      "label": "master",
+      "update": "static",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 0.09019600000010541,
+      "completionMedianMs": 0.1043680000002496,
+      "gpuMedianMs": null,
+      "executed": [],
+      "planning": "full",
+      "dispatches": 0,
+      "submissions": 0,
+      "newAllocations": 0
+    },
+    {
+      "label": "master",
+      "update": "light-only",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 1.9950770000000375,
+      "completionMedianMs": 96.60462599999983,
+      "gpuMedianMs": 90.505216,
+      "executed": [
+        "upload",
+        "lighting",
+        "presentation"
+      ],
+      "planning": "full",
+      "dispatches": 4,
+      "submissions": 4,
+      "newAllocations": 0
+    },
+    {
+      "label": "master",
+      "update": "emissive-only",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 1.4028340000004391,
+      "completionMedianMs": 97.33465700000033,
+      "gpuMedianMs": 86.04876800000001,
+      "executed": [
+        "upload",
+        "lighting",
+        "presentation"
+      ],
+      "planning": "full",
+      "dispatches": 4,
+      "submissions": 4,
+      "newAllocations": 0
+    },
+    {
+      "label": "master",
+      "update": "partial-geometry",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 2.184180999999626,
+      "completionMedianMs": 117.83758699999998,
+      "gpuMedianMs": 116.260864,
+      "executed": [
+        "upload",
+        "height",
+        "normal",
+        "shadow",
+        "reconstruction",
+        "lighting",
+        "presentation"
+      ],
+      "planning": "partial",
+      "dispatches": 12,
+      "submissions": 8,
+      "newAllocations": 0
+    },
+    {
+      "label": "branch-legacy",
+      "update": "full",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 2.838637999999264,
+      "completionMedianMs": 181.56570400000055,
+      "gpuMedianMs": 179.89632,
+      "executed": [
+        "upload",
+        "height",
+        "normal",
+        "shadow",
+        "reconstruction",
+        "lighting",
+        "presentation"
+      ],
+      "planning": "full",
+      "dispatches": 12,
+      "submissions": 8,
+      "newAllocations": 0
+    },
+    {
+      "label": "branch-legacy",
+      "update": "static",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 0.06181300000025658,
+      "completionMedianMs": 0.07218900000043504,
+      "gpuMedianMs": null,
+      "executed": [],
+      "planning": "full",
+      "dispatches": 0,
+      "submissions": 0,
+      "newAllocations": 0
+    },
+    {
+      "label": "branch-legacy",
+      "update": "light-only",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 1.4233449999992445,
+      "completionMedianMs": 113.25140500000089,
+      "gpuMedianMs": 98.828288,
+      "executed": [
+        "upload",
+        "lighting",
+        "presentation"
+      ],
+      "planning": "full",
+      "dispatches": 4,
+      "submissions": 4,
+      "newAllocations": 0
+    },
+    {
+      "label": "branch-legacy",
+      "update": "emissive-only",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 1.3743410000006406,
+      "completionMedianMs": 97.44482799999969,
+      "gpuMedianMs": 88.14591999999999,
+      "executed": [
+        "upload",
+        "lighting",
+        "presentation"
+      ],
+      "planning": "full",
+      "dispatches": 4,
+      "submissions": 4,
+      "newAllocations": 0
+    },
+    {
+      "label": "branch-legacy",
+      "update": "partial-geometry",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 2.1787229999990814,
+      "completionMedianMs": 136.81670100000156,
+      "gpuMedianMs": 128.253952,
+      "executed": [
+        "upload",
+        "height",
+        "normal",
+        "shadow",
+        "reconstruction",
+        "lighting",
+        "presentation"
+      ],
+      "planning": "partial",
+      "dispatches": 12,
+      "submissions": 8,
+      "newAllocations": 0
+    },
+    {
+      "label": "physical-floor",
+      "update": "full",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 1.8284860000003391,
+      "completionMedianMs": 170.9833149999995,
+      "gpuMedianMs": 164.82304,
+      "executed": [
+        "upload",
+        "height",
+        "normal",
+        "shadow",
+        "reconstruction",
+        "lighting",
+        "presentation"
+      ],
+      "planning": "full",
+      "dispatches": 12,
+      "submissions": 8,
+      "newAllocations": 0
+    },
+    {
+      "label": "physical-floor",
+      "update": "static",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 0.037766999999803375,
+      "completionMedianMs": 0.045317999998587766,
+      "gpuMedianMs": null,
+      "executed": [],
+      "planning": "full",
+      "dispatches": 0,
+      "submissions": 0,
+      "newAllocations": 0
+    },
+    {
+      "label": "physical-floor",
+      "update": "light-only",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 1.3438959999984945,
+      "completionMedianMs": 97.04765399999997,
+      "gpuMedianMs": 92.536832,
+      "executed": [
+        "upload",
+        "lighting",
+        "presentation"
+      ],
+      "planning": "full",
+      "dispatches": 4,
+      "submissions": 4,
+      "newAllocations": 0
+    },
+    {
+      "label": "physical-floor",
+      "update": "emissive-only",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 1.3114559999994526,
+      "completionMedianMs": 104.28838600000017,
+      "gpuMedianMs": 97.32096,
+      "executed": [
+        "upload",
+        "lighting",
+        "presentation"
+      ],
+      "planning": "full",
+      "dispatches": 4,
+      "submissions": 4,
+      "newAllocations": 0
+    },
+    {
+      "label": "physical-floor",
+      "update": "partial-geometry",
+      "extent": [
+        320,
+        192
+      ],
+      "samples": 8,
+      "hostMedianMs": 2.8376270000007935,
+      "completionMedianMs": 141.85619700000098,
+      "gpuMedianMs": 126.025728,
+      "executed": [
+        "upload",
+        "height",
+        "normal",
+        "shadow",
+        "reconstruction",
+        "lighting",
+        "presentation"
+      ],
+      "planning": "partial",
+      "dispatches": 12,
+      "submissions": 8,
+      "newAllocations": 0
+    }
+  ]
+}

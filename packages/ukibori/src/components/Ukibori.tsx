@@ -84,6 +84,7 @@ export function Ukibori({
   margin,
   shadow,
   compositing,
+  basePlaneColor,
   highContrast = "auto",
   className,
   style,
@@ -264,6 +265,7 @@ export function Ukibori({
           margin,
           shadow,
           compositing,
+          basePlaneColor,
           dpr: dpr ?? (() => (window.devicePixelRatio ?? 1) * QUALITY_DPR[quality]),
           schedule: scheduleRef.current,
           overlay: { stage: stage ?? stageRef.current ?? undefined },
@@ -314,6 +316,7 @@ export function Ukibori({
     safeExposure,
     JSON.stringify(shadow),
     JSON.stringify(compositing),
+    basePlaneColor ?? "",
     margin ?? "",
     quality,
   ].join("|");
@@ -343,6 +346,7 @@ export function Ukibori({
     current.setShadow(shadow ?? {});
     current.setMargin(margin);
     current.setCompositing(compositing ?? {});
+    current.setBasePlaneColor(basePlaneColor);
     current.setDpr(dpr ?? (() => (window.devicePixelRatio ?? 1) * QUALITY_DPR[quality]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layer, updateDataKey, dpr]);

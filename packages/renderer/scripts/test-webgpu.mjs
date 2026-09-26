@@ -207,7 +207,7 @@ async function main() {
   try {
     const profileDir = join(tmp, "chrome-profile");
     await mkdir(profileDir, { recursive: true });
-    for (const file of ["parity.html", "parity.mjs", "catalog.mjs", "oracle.mjs"]) {
+    for (const file of ["parity.html", "parity.mjs", "catalog.mjs", "oracle.mjs", "base-plane-parity.mjs"]) {
       await copyFile(join(pkgRoot, "test-browser", file), join(tmp, file));
     }
     await copyFile(bundle, join(tmp, "index.js"));

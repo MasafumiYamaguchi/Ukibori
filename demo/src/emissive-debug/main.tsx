@@ -20,6 +20,7 @@ function App() {
     <header><p className="eyebrow">UKIBORI / MATERIAL STUDY</p><h1>Color that emits light.</h1>
       <p>Visible emitters illuminate nearby surfaces. Bloom spreads their HDR color into a soft halo.</p></header>
     <div className="scene-wrap"><Ukibori backend="auto" materials={materials} intensity={light} light={{ x: 0, y: 0, z: 1 }}
+      basePlaneColor="#151c22"
       environment={{ intensity: 0 }} exposure={exposure} dpr={1} margin={0}
       compositing={{ emissive: { illumination: { intensity: spill, radius: 72 }, bloom: { intensity: bloom, radius: 32, threshold: 1 }, quality: 4 } }}
       onReady={layer => setBackend(layer?.debugState().backend ?? "starting")}>

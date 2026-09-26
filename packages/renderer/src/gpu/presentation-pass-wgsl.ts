@@ -50,7 +50,7 @@
  * | 16     | 4    | shadowB (u32)  | sanitized shadow color byte    |
  * | 20     | 4    | shadowAlphaByte (u32) | floor(alpha * 255 + 0.5) |
  * | 24     | 4    | precomposited | 1 for emissive effects, else 0  |
- * | 28     | 4    | _pad1         | 0                              |
+ * | 28     | 4    | physicalBase  | 1 for an opaque physical floor |
  *
  * Offsets are pinned by `presentation-pass.ts` (host) and the Node contract
  * tests. The selected canvas format is `rgba8unorm` or `bgra8unorm`; the
@@ -72,7 +72,7 @@ struct PresentationParams {
   shadowB: u32,          // 16 sanitized shadow color byte
   shadowAlphaByte: u32,  // 20 floor(alpha * 255 + 0.5)
   precomposited: u32,    // 24
-  _pad1: u32,            // 28
+  physicalBase: u32,     // 28 explicit opaque base receiver
 }                        // size 32, align 16
 
 const NO_OWNER: u32 = 0xffffffffu;
@@ -114,7 +114,7 @@ fn fs_main(@builtin(position) pos: vec4<f32>) -> @location(0) vec4<f32> {
   let index = y * params.width + x;
   if (params.precomposited != 0u) { return unpack4x8unorm(colorField[index]); }
   let owner = objectId[index];
-  if (owner != NO_OWNER) {
+  if (owner != NO_OWNER || params.physicalBase != 0u) {
     // Opaque surface: the packed #28 R,G,B bytes with alpha 255.
     let packed = colorField[index];
     let r = f32(packed & 0xffu) * UNORM_SCALE;

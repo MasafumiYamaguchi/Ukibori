@@ -1,3 +1,5 @@
+import { sanitizeBasePlane } from "../base-plane";
+import type { BasePlaneOptions } from "../base-plane";
 import { sanitizeEmissiveEffects } from "../emissive-effects";
 import type { EmissiveEffectsOptions, EffectiveEmissiveEffects } from "../emissive-effects";
 import { NO_OWNER } from "../compose";
@@ -13,8 +15,9 @@ import { NO_OWNER } from "../compose";
  *   WGSL; the CPU value is the parity oracle)
  * - the real-adapter harness (the CPU reference for canvas readback)
  *
- * The semantics are fixed and must mirror `compositeSurfaceImage` exactly —
- * do not redesign them:
+ * The legacy transparent semantics below mirror `compositeSurfaceImage`.
+ * #75: with an explicit basePlane, unowned pixels instead present their
+ * physically shaded color at alpha 255; tint/alpha options are ignored:
  *
  * 1. `objectId != NO_OWNER`: output the packed renderer R,G,B bytes with
  *    alpha 255.
@@ -41,6 +44,8 @@ export const DEFAULT_SHADOW_ALPHA = 0.3;
 
 /** CPU-compatible composite options (mirrors the DOM `CompositeOptions`). */
 export interface CompositeOptions {
+  /** Physical opaque base receiver; the pipeline uses this for lighting and presentation. */
+  readonly basePlane?: BasePlaneOptions;
   readonly emissive?: EmissiveEffectsOptions;
   /** RGB 0..255 tint for cast shadows on the base plane (default near-black) */
   readonly shadowColor?: readonly [number, number, number];
@@ -50,6 +55,7 @@ export interface CompositeOptions {
 
 /** The sanitized effective composite options (pinned by tests). */
 export interface EffectiveCompositeOptions {
+  readonly basePlane?: BasePlaneOptions;
   readonly emissive?: EffectiveEmissiveEffects;
   readonly shadowColor: readonly [number, number, number];
   readonly shadowAlpha: number;
@@ -74,7 +80,7 @@ export function sanitizeCompositeOptions(
     typeof options.shadowAlpha === "number" && Number.isFinite(options.shadowAlpha)
       ? clamp01(options.shadowAlpha)
       : DEFAULT_SHADOW_ALPHA;
-  return { shadowColor, shadowAlpha: alpha, ...(options.emissive ? { emissive: sanitizeEmissiveEffects(options.emissive) } : {}) };
+  return { ...(options.basePlane ? { basePlane: sanitizeBasePlane(options.basePlane) } : {}), shadowColor, shadowAlpha: alpha, ...(options.emissive ? { emissive: sanitizeEmissiveEffects(options.emissive) } : {}) };
 }
 
 /**
@@ -90,7 +96,7 @@ export function compositePixelBytes(
   visibility: number | null,
   options: CompositeOptions = {},
 ): readonly [number, number, number, number] {
-  if (owner !== NO_OWNER) {
+  if (owner !== NO_OWNER || options.basePlane !== undefined) {
     return [colorR, colorG, colorB, 255];
   }
   // #41: visibility is CONTINUOUS ([0, 1]); the base-plane shadow tint

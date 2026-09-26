@@ -1,3 +1,5 @@
+import { sanitizeBasePlane, basePlaneMaterial } from "./base-plane";
+import type { BasePlaneOptions } from "./base-plane";
 import { HostBuffer } from "./buffer";
 import { F32_MAX, clamp, saturatingAdd, saturatingMulF32 } from "./math";
 import { composeCasterHeightField, composeSdfHeightField } from "./geometry";
@@ -47,6 +49,8 @@ export interface NormalOptions {
 }
 
 export interface LightingOptions {
+  /** Explicit physical receiver for unowned pixels; omitted preserves legacy output. */
+  basePlane?: BasePlaneOptions;
   normal?: NormalOptions;
   /** ambient fill strength (default 0.08); scales baseColor, unaffected by light intensity */
   ambient?: number;
@@ -274,7 +278,8 @@ export function shadePreparedFields(
     material,
     environment: evaluateEnvironment(material, environment),
   });
-  const baseMaterial = prepare(BASE_MATERIAL);
+  const plane = sanitizeBasePlane(options.basePlane);
+  const baseMaterial = prepare(plane ? basePlaneMaterial(plane) : BASE_MATERIAL);
   const materials = new Map<number, PreparedMaterial>();
   const materialFor = (owner: number): PreparedMaterial => {
     if (owner === NO_OWNER) return baseMaterial;
@@ -291,9 +296,10 @@ export function shadePreparedFields(
 
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < width; x++) {
-      const nx = normal.get(x, y, 0);
-      const ny = normal.get(x, y, 1);
-      const nz = normal.get(x, y, 2);
+      const floor = plane !== undefined && objectId.get(x, y, 0) === NO_OWNER;
+      const nx = floor ? 0 : normal.get(x, y, 0);
+      const ny = floor ? 0 : normal.get(x, y, 1);
+      const nz = floor ? 1 : normal.get(x, y, 2);
       const nDotL = Math.max(nx * lx + ny * ly + nz * lz, 0);
       const nDotV = Math.max(nz, 0);
       const prepared = materialFor(objectId.get(x, y, 0));

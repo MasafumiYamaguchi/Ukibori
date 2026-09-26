@@ -1084,7 +1084,8 @@ describe("LightingPass shader — binding contract", () => {
   it("pins the uniform struct offsets and the documented constants", () => {
     expect(LIGHTING_PASS_WGSL).toContain("ambient: f32,          //  0");
     expect(LIGHTING_PASS_WGSL).toContain("workgroupSize: u32,    //  4");
-    expect(LIGHTING_PARAMS_BYTE_LENGTH).toBe(16);
+    expect(LIGHTING_PARAMS_BYTE_LENGTH).toBe(32);
+    expect(LIGHTING_PASS_WGSL).toContain("basePlane: vec4<f32>");
     expect(LIGHTING_WORKGROUP_SIZE).toBe(64);
     expect(LIGHTING_OUTPUT_BYTES_PER_TEXEL).toBe(4);
   });

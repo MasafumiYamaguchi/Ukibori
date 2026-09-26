@@ -224,3 +224,22 @@ illumination sampling; thin emitters can fall between samples.
 
 Try `demo/emissive-debug.html` to adjust emission, nearby illumination and bloom
 separately. See [implementation details](EMISSIVE_EFFECTS_IMPLEMENTATION_REPORT.md).
+
+
+### Physical base-plane receiver (#75)
+
+For a uniform opaque stage, opt into `basePlaneColor="#aeb9c4"` on `<Ukibori>`
+(or the `UkiboriDom` constructor / `setBasePlaneColor`). This sRGB color becomes
+a matte floor albedo. Direct shadows and emissive illumination share the same
+receiver semantics as surfaces, including when bloom is disabled. Set the stage's
+CSS background separately for SSR/fallback. The physical floor covers the stage's
+visible padding box; contain the intended scene within that stage.
+
+Omitting the option keeps transparent legacy compositing. Supported colors are
+opaque `#rgb`, `#rrggbb`, `rgb()` and `rgba()`; gradients/images and transparent
+colors are not physical-floor inputs. Renderer-only callers use linear
+`compositeOptions.basePlane.baseColor`.
+
+See the [implementation and validation report](docs/issue-75/README.md) and the
+`/base-plane-debug.html` demo for short/long shadows, independent illumination,
+bloom, and owned-receiver continuity.

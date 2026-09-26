@@ -1,3 +1,5 @@
+import { parseBasePlaneColor, measureBasePlaneRegion } from "./base-plane";
+import type { BasePlaneOptions } from "ukibori-renderer";
 import {
   DEFAULT_ENVIRONMENT_INTENSITY,
   DEFAULT_ENVIRONMENT_SHARE,
@@ -145,7 +147,9 @@ export interface UkiboriDomOptions {
   materials?: Record<string, Material>;
   /** cast-shadow pass options forwarded to the renderer (#17) */
   shadow?: DomShadowOptions;
-  /** compositor mapping (translucent shadows on the base plane) */
+  /** Opaque sRGB #rgb/#rrggbb/rgb()/rgba() stage albedo. Opts into a physical matte floor. */
+  basePlaneColor?: string;
+  /** compositor mapping (translucent shadows unless a physical floor is enabled) */
   compositing?: CompositeOptions;
   /** scene-region margin reserved for cast shadows (CSS px, default 64) */
   margin?: number;
@@ -227,6 +231,8 @@ export class UkiboriDom {
   private margin: number;
   private dprSource: number | (() => number) | undefined;
   private compositeOptions: CompositeOptions;
+  private basePlane: BasePlaneOptions | undefined;
+  private readonly stage: Element | null;
   private shadowOptions: DomShadowOptions;
   /** Per-layer SVG mask ownership prevents cache retention after dispose. */
   private readonly svgPathCache = new SvgPathRasterCache();
@@ -306,6 +312,8 @@ export class UkiboriDom {
         : DEFAULT_MARGIN;
     this.dprSource = options.dpr;
     this.compositeOptions = options.compositing ?? {};
+    this.basePlane = parseBasePlaneColor(options.basePlaneColor);
+    this.stage = options.overlay?.stage ?? (typeof document === "undefined" ? null : document.body);
     this.shadowOptions = options.shadow ?? {};
     this.light = {
       direction: normalizeVec3(
@@ -347,6 +355,11 @@ export class UkiboriDom {
         ? new ResizeObserver((entries) => {
             let changed = false;
             for (const entry of entries) {
+              if (this.basePlane && entry.target === this.stage) {
+                this.sceneDirty = true;
+                this.registry.markAllDirty(true);
+                changed = true;
+              }
               const id = this.registry.idFor(entry.target);
               if (id !== undefined) {
                 // #59: a baked surface's layout change can move SIBLINGS of
@@ -397,6 +410,7 @@ export class UkiboriDom {
         : null;
 
     if (observe) {
+      if (this.basePlane && this.stage) this.resizeObserver?.observe(this.stage);
       if (typeof window !== "undefined") {
         window.addEventListener("resize", this.onViewportChange);
       }
@@ -845,6 +859,17 @@ export class UkiboriDom {
     this.scheduleRender();
   }
 
+  /** Replace the physical floor albedo; undefined restores transparent legacy compositing. */
+  setBasePlaneColor(color: string | undefined): void {
+    this.throwIfDisposed();
+    const plane = parseBasePlaneColor(color);
+    if (linearRgbEqual(plane?.baseColor, this.basePlane?.baseColor)) return;
+    this.basePlane = plane;
+    if (plane && this.stage) this.resizeObserver?.observe(this.stage);
+    this.sceneDirty = true;
+    this.scheduleRender();
+  }
+
   /** Replace the compositor mapping options (absent fields resolve to their
    * defaults — full replacement, nothing merged). */
   setCompositing(options: CompositeOptions): void {
@@ -949,7 +974,11 @@ export class UkiboriDom {
     }
     const startedAt = performance.now();
 
-    let geometryChanged = false;
+    const floorRegion = this.basePlane && this.stage ? measureBasePlaneRegion(this.stage) : null;
+    let geometryChanged = this.basePlane !== undefined && !sameRegion(floorRegion, this.lastRegion);
+    // A changed floor origin/extent can move every child, including baked
+    // surfaces excluded from ordinary document mutation invalidation.
+    if (geometryChanged) this.registry.markAllDirty(true);
     this.renderSerial += 1;
     const measureStartedAt = performance.now();
     let measuredEntries = 0;
@@ -1002,7 +1031,7 @@ export class UkiboriDom {
 
     const effects = sanitizeEmissiveEffects(this.compositeOptions.emissive);
     const effectsMargin = Math.max(effects.lightIntensity > 0 ? effects.lightRadius : 0, effects.bloomIntensity > 0 ? effects.bloomRadius : 0);
-    const region = computeRegion(this.registry.measuredBoxes(), Math.max(this.margin, Math.ceil(effectsMargin)));
+    const region = this.basePlane ? floorRegion : computeRegion(this.registry.measuredBoxes(), Math.max(this.margin, Math.ceil(effectsMargin)));
     if (region === null) {
       // Nothing to render: show the cleared (transparent) CPU canvas and hide
       // any WebGPU canvas — the GPU pipeline itself stays alive for reuse.
@@ -1108,7 +1137,7 @@ export class UkiboriDom {
         dpr: SCENE_IS_DEVICE_SPACE_DPR,
         shadowOptions: scaleShadowOptions(this.shadowOptions, dpr),
         lightingOptions: undefined,
-        compositeOptions: { ...this.compositeOptions, emissive: scaleEmissiveEffects(this.compositeOptions.emissive, dpr) },
+        compositeOptions: { ...this.compositeOptions, basePlane: this.basePlane, emissive: scaleEmissiveEffects(this.compositeOptions.emissive, dpr) },
       });
       this.overlay.setBackend("webgpu");
       // CSS placement only — the backing store was sized by the pipeline
@@ -1179,6 +1208,7 @@ export class UkiboriDom {
       // shadow lengths must be mapped through the same transform (the
       // renderer defaults for step/bias are materialized at 0.5 CSS px).
       buffers = lightScene(scene, {
+        basePlane: this.basePlane,
         shadow: scaleShadowOptions(this.shadowOptions, dpr),
       });
       this.lastObjectId = composed.objectId;
@@ -1194,13 +1224,13 @@ export class UkiboriDom {
         objectId: this.lastObjectId!,
         visibility: buffers.visibility ?? null,
       },
-      this.compositeOptions,
+      { ...this.compositeOptions, basePlane: this.basePlane },
     );
 
     const effects = sanitizeEmissiveEffects(scaleEmissiveEffects(this.compositeOptions.emissive, dpr));
     if (emissiveEffectsActive(effects)) {
       const composite = sanitizeCompositeOptions(this.compositeOptions);
-      const premultiplied = renderEmissiveEffects(scene, { ...buffers, objectId: this.lastObjectId! }, effects, composite.shadowColor, composite.shadowAlpha);
+      const premultiplied = renderEmissiveEffects(scene, { ...buffers, objectId: this.lastObjectId! }, effects, composite.shadowColor, composite.shadowAlpha, 1, this.basePlane);
       const data = new Uint8ClampedArray(premultiplied.length);
       for (let i = 0; i < data.length; i += 4) {
         const alpha = premultiplied[i + 3];
@@ -1410,4 +1440,9 @@ function defaultGpuSource(): DomGpuSource {
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** Region identity includes position: stage-only movement must reposition retained canvases. */
+function sameRegion(a: { x: number; y: number; w: number; h: number } | null, b: { x: number; y: number; w: number; h: number } | null): boolean {
+  return a === b || (a !== null && b !== null && a.x === b.x && a.y === b.y && a.w === b.w && a.h === b.h);
 }

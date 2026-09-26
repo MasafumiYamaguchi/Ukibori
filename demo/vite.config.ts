@@ -24,6 +24,7 @@ export default defineConfig({
         neumorphism: resolve("./neumorphism.html"),
         "profile-debug": resolve("./profile-debug.html"),
         "emissive-debug": resolve("./emissive-debug.html"),
+        "base-plane-debug": resolve("./base-plane-debug.html"),
       },
     },
   },

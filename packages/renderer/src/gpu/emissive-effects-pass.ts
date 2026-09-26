@@ -1,3 +1,5 @@
+import { sanitizeBasePlane } from "../base-plane";
+import type { BasePlaneOptions } from "../base-plane";
 import { EmissiveBloomPass } from "./emissive-bloom-pass";
 import type { GpuComputeDeviceLike, GpuComputePipelineLike, GpuBindGroupLayoutLike } from './height-pass';
 import type { GpuBufferLike } from './uploader';
@@ -12,7 +14,7 @@ export class EmissiveEffectsPass {
   private pipeline: GpuComputePipelineLike | null = null;
   private readonly bloom: EmissiveBloomPass;
   constructor(private readonly device: GpuComputeDeviceLike) { this.bloom = new EmissiveBloomPass(device); }
-  dispatch(buffers: readonly GpuBufferLike[], width: number, height: number, materialCount: number, dpr: number, exposure: number, options: EffectiveEmissiveEffects, shadowColor: readonly number[], shadowAlpha: number, timestampWrites?: GpuTimestampWritesLike): {
+  dispatch(buffers: readonly GpuBufferLike[], width: number, height: number, materialCount: number, dpr: number, exposure: number, options: EffectiveEmissiveEffects, shadowColor: readonly number[], shadowAlpha: number, timestampWrites?: GpuTimestampWritesLike, basePlane?: BasePlaneOptions): {
     buffer: GpuBufferLike;
     newAllocations: number;
     byteLength: number;
@@ -33,7 +35,7 @@ export class EmissiveEffectsPass {
       newAllocations++;
     }
     if (!this.params) {
-      this.params = this.device.createBuffer({ size: 64, usage: 72 });
+      this.params = this.device.createBuffer({ size: 80, usage: 72 });
       newAllocations++;
     }
     if (!this.pipeline) {
@@ -41,9 +43,11 @@ export class EmissiveEffectsPass {
       const layout = this.device.createPipelineLayout({ bindGroupLayouts: [this.layout] });
       this.pipeline = this.device.createComputePipeline({ layout, compute: { module: this.device.createShaderModule({ code: EMISSIVE_EFFECTS_WGSL }), entryPoint: 'main' } });
     }
-    const data = new ArrayBuffer(64), v = new DataView(data);
+    const data = new ArrayBuffer(80), v = new DataView(data);
     [width, height, options.quality, materialCount].forEach((n, i) => v.setUint32(i * 4, n, true));
     [dpr, Math.min(65504, exposure), options.lightIntensity, options.lightRadius, options.bloomIntensity, options.bloomRadius, options.threshold, Math.round(shadowAlpha * 255) / 255, ...shadowColor.map(n => n / 255), 0].forEach((n, i) => v.setFloat32(16 + i * 4, n, true));
+    const plane = sanitizeBasePlane(basePlane);
+    [plane?.baseColor.r ?? 0, plane?.baseColor.g ?? 0, plane?.baseColor.b ?? 0, plane ? 1 : 0].forEach((n, i) => v.setFloat32(64 + i * 4, n, true));
     const bloomParams = new Uint8Array(data.slice(0));
     v.setFloat32(32, 0, true); // Gaussian bloom runs after illumination.
     this.device.queue.writeBuffer(this.params, 0, new Uint8Array(data));

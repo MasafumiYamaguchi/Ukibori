@@ -1,0 +1,26 @@
+{
+  "browser": "153.0.8010.0",
+  "adapter": {
+    "vendor": "google",
+    "architecture": "swiftshader",
+    "description": ""
+  },
+  "gpuCases": [
+    "A",
+    "B",
+    "C",
+    "D",
+    "E",
+    "F"
+  ],
+  "cpuCases": 6,
+  "focus": true,
+  "click": true,
+  "selection": true,
+  "overlayInert": true,
+  "stageResize": true,
+  "dprChange": true,
+  "scrollAlignment": true,
+  "errors": [],
+  "baseline": "Separate baseline checkout with identical fixture added for capture"
+}

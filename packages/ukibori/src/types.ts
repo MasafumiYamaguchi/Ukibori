@@ -152,6 +152,8 @@ export interface UkiboriProps {
   shadow?: DomShadowOptions;
   /** Compositor mapping for the overlay. */
   compositing?: CompositeOptions;
+  /** Explicit opaque sRGB stage albedo (#rgb/#rrggbb/rgb()/rgba()). Enables a matte physical floor over the stage padding box. */
+  basePlaneColor?: string;
   /**
    * High-contrast policy. `"auto"` (default): `prefers-contrast: more` /
    * `forced-colors: active` disables the physical layer so the app's own
