@@ -1,6 +1,6 @@
 import { StrictMode } from "react";
 import { act } from "react";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   GpuBindGroupEntryLike,
@@ -320,6 +320,43 @@ describe("React backend — WebGPU selection", () => {
 
     view.unmount();
     restore();
+  });
+
+  it("keeps DOM input alive when backend and effects change during async creation", async () => {
+    const device = new MockFullDevice();
+    const restore = stubWebGpu(device);
+    const create = UkiboriDom.create.bind(UkiboriDom);
+    let release!: () => void;
+    const pending = new Promise<void>(resolve => { release = resolve; });
+    vi.spyOn(UkiboriDom, "create").mockImplementation(async options => {
+      if (options?.backend === "webgpu") await pending;
+      return create(options);
+    });
+    const errors: unknown[] = [], clicks = vi.fn();
+    const published: { current: UkiboriDom | null } = { current: null };
+    const example = (backend: "cpu" | "webgpu", effects: boolean) => (
+      <Ukibori backend={backend} onReady={layer => { published.current = layer; }} onError={error => errors.push(error)}
+        schedule={callback => callback()} compositing={{ emissive: effects ? { bloom: { radius: 8, intensity: 0.5 } } : undefined }}>
+        <Surface as="button" sceneId="switching-button" elevation={effects ? 4 : 6} onClick={clicks}>Still usable</Surface>
+      </Ukibori>
+    );
+    const view = render(example("cpu", true));
+    try {
+      await flushAsync();
+      expect(published.current?.debugState().backend).toBe("cpu");
+      const original = screen.getByRole("button");
+      view.rerender(example("webgpu", false));
+      await flushAsync();
+      expect(published.current).toBeNull();
+      expect(screen.getByRole("button")).toBe(original);
+      fireEvent.click(original); expect(clicks).toHaveBeenCalledTimes(1);
+      release(); await flushAsync();
+      expect(published.current?.debugState().backend).toBe("webgpu");
+      expect(published.current?.debugState().nodeCount).toBe(1);
+      expect(screen.getByRole("button")).toBe(original);
+      fireEvent.click(original); expect(clicks).toHaveBeenCalledTimes(2);
+      expect(errors).toEqual([]);
+    } finally { release(); view.unmount(); restore(); }
   });
 
   it('"auto" with a real navigator.gpu uses WebGPU and presents directly', async () => {

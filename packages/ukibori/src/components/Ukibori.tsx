@@ -199,7 +199,12 @@ export function Ukibori({
 
   // ---- layer lifecycle ----
   const stageRef = useRef<HTMLDivElement | null>(null);
-  const [layer, setLayer] = useState<UkiboriDom | null>(null);
+  // A structural change makes the previous attachment unavailable DURING
+  // render, before its cleanup disposes it. Neither children nor retained
+  // value effects may send updates to that old layer while creation awaits.
+  const layerPolicy = useMemo(() => ({}), [backend, gpuProfiling, stage, highContrastEnabled, canvas2dAvailable]);
+  const [attachment, setAttachment] = useState<{ policy: object; layer: UkiboriDom } | null>(null);
+  const layer = attachment?.policy === layerPolicy ? attachment.layer : null;
   // Explicit backend="webgpu" whose GPU init failed: the provider reports the
   // error and enters the explicitly labeled CSS approximation so surfaces are
   // never suppressed-but-unpainted.
@@ -216,7 +221,7 @@ export function Ukibori({
   // the new stage.
   useEffect(() => {
     if (backend === "css" || highContrastEnabled) {
-      setLayer(null);
+      setAttachment(null);
       setWebgpuFailed(false);
       onReadyRef.current?.(null);
       return;
@@ -235,11 +240,12 @@ export function Ukibori({
           "Ukibori: Canvas2D presentation unavailable — using the explicitly labeled CSS approximation fallback",
         ),
       );
-      setLayer(null);
+      setAttachment(null);
       setWebgpuFailed(false);
       onReadyRef.current?.(null);
       return;
     }
+    onReadyRef.current?.(null);
     const domBackend: DomBackend =
       backend === "webgpu" ? "webgpu" : backend === "cpu" ? "cpu" : "auto";
     let cancelled = false;
@@ -290,7 +296,7 @@ export function Ukibori({
         return;
       }
       setWebgpuFailed(false);
-      setLayer(created);
+      setAttachment({ policy: layerPolicy, layer: created });
       onReadyRef.current?.(created);
     };
     void init();
@@ -299,7 +305,7 @@ export function Ukibori({
       created?.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backend, gpuProfiling, stage, highContrastEnabled, canvas2dAvailable, reportError]);
+  }, [backend, gpuProfiling, stage, highContrastEnabled, canvas2dAvailable, reportError, layerPolicy]);
 
   // Ordinary value props (light/intensity/environment/exposure/shadow/
   // margin/compositing/quality) are plain data and are serialized for a
