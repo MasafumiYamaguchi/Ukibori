@@ -69,7 +69,7 @@ benchmarkは`packages/ukibori/test-browser/dynamic-surfaces.tsx`、runnerは`tes
 
 操作テストは`npm run test:press:browser -w ukibori`、renderer全体の実GPU比較は`npm run test:webgpu -w ukibori-renderer`。操作テストはCDPでfocus/visibilityを固定し、headlessのbackground throttlingを無効にする。操作テストのstageは180×100、buttonは100×40、DPR 1であり、上表の固定benchmarkとは別の場面である。
 
-通常のブラウザで確認するには`npm run dev`から`/interaction.html`、またはDiagnostics → Interactionを開く。buttonの押下・戻り・選択、無効ボタン、backend切替、emission/bloom、grainを確認できる。使い方は[操作ガイド](interaction.md)、座標とbuffer契約は[材質ガイド](material.md)を参照する。
+通常のブラウザで確認するには`npm run dev`からトップナビのInteraction & grain（`/#interaction`）、または`/interaction.html`を開く。buttonの押下・戻り・選択、無効ボタン、backend切替、emission/bloom、grainを確認できる。使い方は[操作ガイド](interaction.md)、座標とbuffer契約は[材質ガイド](material.md)を参照する。
 
 ![grain有効時の操作デモ](interaction-grain.png)
 

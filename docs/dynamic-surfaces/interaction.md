@@ -35,3 +35,15 @@ Radixはデモworkspaceだけの依存で、renderer・DOM統合・React coreの
 DPR/qualityはrender targetへ適用する。DOM layout・buttonの大きさ・focus領域はそのまま。SVGはeffective footprintのmask、文字は既存のtypography fidelity gateを使う。transform祖先・任意のCSS transform・全clip仕様の再現は今回の保証に含めない。
 
 性能は[固定シーンの結果](README.md)を参照する。GPU各pass、DOM計測、host処理、timestamp readbackを含む待ち時間を分けて読む。低解像度化や影sample数の変更で改善した値を、同一条件の改善として扱わない。
+
+## デモで押下とgrainを比較する
+
+`npm run dev`でデモを起動し、トップナビの **Interaction & grain**（`/#interaction`）を開く。同じ画面は`/interaction.html`からも直接開ける。
+
+1. 「押して選択」をクリック、Space / Enter、タッチで操作する。押下・戻り・選択中の高さを確認できる。
+2. 「押下の目標値」を動かすか「押下と戻りを1回再生」を押し、進捗と高さ・厚みの変化を見比べる。
+3. 下段のGrain OFF / ONを比較し、粒の強さ・粒幅・seedを変える。両方の形状・光源・基本材質は共通である。
+4. 「最後のフレームを観測」で、高さ変更時のMask SDF再生成が0回、grainだけの変更時のHeight composeが0 passになることを確認する。静止後に観測値を更新すると描画回数は増えない。
+5. Auto / CPU / CSSを切り替え、アニメーション省略・disabled・Emission / bloomも試せる。CSS近似ではgrain・発光・GPU計測を省略する。
+
+観測値は操作後とボタンで取得し、常時ポーリングしない。GPU時間は対応するdeviceでtimestamp-queryが取得できた場合だけ表示する。起動直後はmask生成が必要なので、最初のSDF回数は0とは限らない。

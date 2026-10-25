@@ -3,6 +3,7 @@ import { CoverageIndex } from "./dashboard/CoverageIndex";
 import { Diagnostics } from "./dashboard/Diagnostics";
 import { FeatureLab } from "./dashboard/FeatureLab";
 import { Playground } from "./dashboard/Playground";
+import { InteractionLab } from "./interaction/InteractionLab";
 import { Product } from "./dashboard/Product";
 import type { DashboardRoute } from "./dashboard/routes";
 import { parseDashboardHash } from "./dashboard/routes";
@@ -11,7 +12,7 @@ import { parseDashboardHash } from "./dashboard/routes";
  * Demo dashboard shell.
  *
  * The URL hash selects exactly one view:
- *   #playground, #features, #diagnostics/<id>, #product
+ *   #playground, #interaction, #features, #diagnostics/<id>, #product
  *
  * An empty or invalid hash safely shows the Playground. Navigation uses real
  * links (so direct loads and back/forward work) and marks the active entry
@@ -22,6 +23,7 @@ import { parseDashboardHash } from "./dashboard/routes";
 
 const NAV_ITEMS = [
   { hash: "#playground", label: "Playground", view: "playground" },
+  { hash: "#interaction", label: "Interaction & grain", view: "interaction" },
   { hash: "#features", label: "Feature lab", view: "features" },
   { hash: "#diagnostics/renderer", label: "Diagnostics", view: "diagnostics" },
   { hash: "#product", label: "Product", view: "product" },
@@ -53,8 +55,8 @@ export function App() {
         <p className="dash-kicker">Ukibori 浮彫 · physically informed 2.5D UI layer</p>
         <h1>Ukibori demo dashboard</h1>
         <p className="dash-lede">
-          One entry point for the physical renderer: the React playground, a public-API feature
-          lab, the retained diagnostics pages and the product showcase. The URL hash selects one
+          One entry point for the physical renderer: the React playground, interaction and grain
+          comparisons, a public-API feature lab, diagnostics and the product showcase. The URL hash selects one
           view at a time, and only that view — plus its provider or iframe — stays mounted.
         </p>
         <nav className="dash-nav" aria-label="Dashboard sections">
@@ -73,6 +75,7 @@ export function App() {
 
       <main className="dash-main" id="dashboard-main">
         {route.view === "playground" ? <Playground /> : null}
+        {route.view === "interaction" ? <InteractionLab /> : null}
         {route.view === "features" ? <FeatureLab /> : null}
         {route.view === "diagnostics" ? <Diagnostics id={route.id} /> : null}
         {route.view === "product" ? <Product /> : null}
@@ -81,7 +84,7 @@ export function App() {
 
       <footer className="dash-footer">
         <p>
-          Hash routes: <code>#playground</code>, <code>#features</code>,{" "}
+          Hash routes: <code>#playground</code>, <code>#interaction</code>, <code>#features</code>,{" "}
           <code>#diagnostics/&lt;id&gt;</code>, <code>#product</code>. An empty or unknown hash
           shows the Playground. Legacy standalone pages stay available at their own URLs.
         </p>
