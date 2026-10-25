@@ -2,6 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "paths": {
+      "ukibori": ["./src/index.ts"],
       "ukibori-dom": ["../ukibori-dom/src/index.ts"],
       "ukibori-renderer": ["../renderer/src/index.ts"]
     }

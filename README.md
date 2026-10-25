@@ -90,7 +90,7 @@ DOM所有のアクセシブルなテキスト(`<span>`)を描画し、その**�
 
 - `:focus-visible`を除去しません(outlineは一切触りません)
 - renderer失敗時も**セマンティックDOMは読めて操作可能**なままです(登録失敗はatomic — 抑制属性を残しません)
-- reduced-motion: ライブラリは連続アニメーションを持ちません(`prefersReducedMotion()`をseamとして公開)
+- reduced-motion: 任意の`useSurfaceProgress`はOSの設定を監視し、中間アニメーションを省略します。`prefersReducedMotion()`による判定も利用できます
 - high-contrast: 上記`highContrast`ポリシー
 - `backend="css"`フォールバックはbox-shadow近似であることを明示ラベル
 
@@ -237,8 +237,10 @@ See the [implementation and validation report](docs/issue-75/README.md) and the
 `/base-plane-debug.html` demo for short/long shadows, independent illumination,
 bloom, and owned-receiver continuity.
 
-## Bakeの保持と動的更新
+## 操作に高さを追従させる
+
+`useSurfaceProgress(target, { durationMs, reducedMotion })` は0〜1の値を補間します。既定のdurationは120msです。押下・選択状態はnative DOMまたはheadless UIが所有し、その目標値だけを渡します。得られた進捗を`elevation`・`thickness`などの数値へ写像します。終了・unmountでRAFを止め、`reducedMotion: "auto"`ではOS設定を監視します。
+
+`/interaction.html`（ダッシュボードのDiagnostics → Interaction）に、Radix Toggleの`asChild`と合成するbutton例があります。Radixはデモだけの依存です。通常のbuttonのclick・Space・Enter・ARIA・refを保ち、pointercancel・capture喪失・blur・disabledで押下を解消します。合成とSSRの導入手順は[操作ガイド](docs/dynamic-surfaces/interaction.md)を参照してください。
 
 `Bake`はDOM計測とrasterの保持境界です。Bake内も共有sceneへ参加し、動的Surfaceと影・照明を共有します。固定画像への切り離しやbuild-time bakeではありません。明示的な`rebake()`、font・viewport変更などで必要な計測をやり直します。
-
-動的Surfaceの基準計測とSDF保持は[実装レポート](docs/dynamic-surfaces/README.md)を参照してください。

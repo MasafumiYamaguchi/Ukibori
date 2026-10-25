@@ -2,7 +2,7 @@
 import { createElement } from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Surface, Ukibori } from "../index";
+import { Surface, Ukibori, useSurfaceProgress } from "../index";
 
 /**
  * SSR contract (#21): the server never touches window / document / canvas /
@@ -84,4 +84,9 @@ describe("SSR rendering (node environment, no window/document)", () => {
     );
     expect(html).toContain("--ukibori-material:silicone");
   });
+});
+
+it("renders the progress adapter deterministically on the server", () => {
+  function Example() { const p = useSurfaceProgress(0.375); return createElement(Surface, { as: "button", elevation: 8 - 6 * p, "aria-pressed": true }, String(p)); }
+  expect(renderToString(createElement(Example))).toBe('<button aria-pressed="true">0.375</button>');
 });

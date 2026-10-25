@@ -22,6 +22,7 @@
     "test": "vitest run",
     "test:webgpu": "node scripts/test-webgpu-profiling.mjs",
     "test:dynamic:webgpu": "node scripts/test-dynamic-surfaces.mjs",
+    "test:press:browser": "node scripts/test-press-integration.mjs",
     "clean": "rimraf dist"
   },
   "peerDependencies": {

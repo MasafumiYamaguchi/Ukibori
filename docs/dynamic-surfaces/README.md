@@ -50,3 +50,11 @@ benchmarkは`packages/ukibori/test-browser/dynamic-surfaces.tsx`、runnerは`tes
 rendererの単体テストに、連続高さ更新・partial dispatch・マスク変更・encoded bytesの再利用・forceMaskSdf・dispose・失敗後のretry・分割dispatchのtimestampを追加した。実GPUテストはDPR 0.75/1/1.5/2、24中間状態、24マスク変更、CPU height誤差1e-4、強制フル再計算との完全一致、実device lossと新adapter/deviceからの復帰を確認する。light/material-onlyとidleの既存テストも維持する。
 
 実行コマンド: `npm test`、`npm run typecheck`、`npm run build`、`npm run test:webgpu -w ukibori-renderer`。実GPU結果は[webgpu-retained-mask.json](webgpu-retained-mask.json)に保存する。readbackは検証専用で、通常の描画には追加しない。SDF保持用の追加CPUメモリはmask定義とalpha payloadの比較コピーの合計で、disposeで解放する。
+
+## R2: 操作・選択状態と既存DOM UIを接続する
+
+`useSurfaceProgress`は0〜1を120msのease-out cubicで補間する任意のフック。途中で目標を変えると現在値から再開し、完了・cancel・unmountで余分なRAFを残さない。OSのreduced-motion設定を監視する。
+
+`/interaction.html`にnative buttonとRadix ToggleのasChild合成例を追加した。pointer/touch/keyboard、capture喪失、要素外release、blur、disabled、focus-visible、ARIA、props/ref/eventの合成とSSR/hydrationを確認する。Radixはdemoだけの依存。使い方とclient境界は[操作ガイド](interaction.md)を参照。
+
+実ブラウザの結果は[press-browser.json](press-browser.json)へ保存した。WebGPU/CPU/CSS、選択状態の中間値、reduced-motion、idle復帰、遷移中のunmount後にdispatchが増えないことを確認した。コマンドは`npm run test:press:browser -w ukibori`。操作場面は180×100、button 100×40、DPR 1で、R0の固定benchmarkとは別条件となる。

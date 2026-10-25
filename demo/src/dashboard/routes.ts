@@ -19,6 +19,7 @@ export const DIAGNOSTICS_IDS = [
   "dom",
   "profiles",
   "emissive",
+  "interaction",
 ] as const;
 
 export type DiagnosticsId = (typeof DIAGNOSTICS_IDS)[number];
@@ -38,6 +39,8 @@ export interface DiagnosticsPage {
 }
 
 export const DIAGNOSTICS_PAGES: readonly DiagnosticsPage[] = [
+  { id: "interaction", label: "Interaction", page: "/interaction.html", frameTitle: "Surface interaction",
+    title: "Surface interaction", description: "Native button and Radix Toggle with continuous elevation and reduced motion." },
   {
     id: "renderer",
     label: "Renderer",
