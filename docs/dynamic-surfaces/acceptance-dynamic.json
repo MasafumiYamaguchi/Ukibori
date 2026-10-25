@@ -1,0 +1,3909 @@
+{
+  "sourceCommit": "582afa380e3c066baa0abdc6e7948a0cdd53977f",
+  "host": {
+    "os": "26.6.2",
+    "build": "25G83",
+    "cpu": "Apple M4 Pro",
+    "memoryBytes": 25769803776
+  },
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "platform": "MacIntel",
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "description": "",
+      "device": ""
+    },
+    "grainEnabled": false,
+    "devicePixelRatio": 1,
+    "dpr": 1,
+    "cssStage": [
+      320,
+      180
+    ],
+    "margin": 8,
+    "font": "bold 16px Arial",
+    "shadow": {
+      "samples": 8,
+      "angularRadius": 0.12,
+      "maxDistance": 48,
+      "reconstructionRadius": 2
+    },
+    "warmup": 20,
+    "samples": 60,
+    "progress": [
+      0,
+      0.125,
+      0.375,
+      0.625,
+      0.875,
+      1,
+      0.875,
+      0.625,
+      0.375,
+      0.125
+    ],
+    "displayLatencyMs": null,
+    "note": "Wall time includes scheduler polling and benchmark timestamp readback; display latency is unmeasured. Production profiling is opt-in."
+  },
+  "cases": [
+    {
+      "effects": false,
+      "idle": true,
+      "metrics": {
+        "domMeasureHostMs": {
+          "n": 60,
+          "median": 0.10000002384185791,
+          "p95": 0.10000002384185791
+        },
+        "sceneBuildHostMs": {
+          "n": 60,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582
+        },
+        "renderHostMs": {
+          "n": 60,
+          "median": 1.399999976158142,
+          "p95": 1.899999976158142
+        },
+        "pipelineHostMs": {
+          "n": 60,
+          "median": 0.6999999284744263,
+          "p95": 1
+        },
+        "uploadHostMs": {
+          "n": 60,
+          "median": 0,
+          "p95": 0.10000002384185791
+        },
+        "updateThroughGpuTimingReadbackWallMs": {
+          "n": 60,
+          "median": 16.600000023841858,
+          "p95": 18.200000047683716
+        },
+        "gpu.height": {
+          "n": 60,
+          "median": 0.130912,
+          "p95": 0.210581
+        },
+        "gpu.normal": {
+          "n": 60,
+          "median": 0.034666,
+          "p95": 0.039958
+        },
+        "gpu.shadow": {
+          "n": 60,
+          "median": 0.561825,
+          "p95": 0.651906
+        },
+        "gpu.reconstruction": {
+          "n": 60,
+          "median": 0.129915,
+          "p95": 0.144832
+        },
+        "gpu.lighting": {
+          "n": 60,
+          "median": 0.037582,
+          "p95": 0.038165
+        },
+        "gpu.presentation": {
+          "n": 60,
+          "median": 0.525742,
+          "p95": 1.260855
+        }
+      },
+      "rows": [
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.1999999284744263,
+          "pipelineHostMs": 0.49999988079071045,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.19999992847442627,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.09999990463256836
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.078081,
+            "normal": 0.019249,
+            "shadow": 0.341657,
+            "reconstruction": 0.072581,
+            "lighting": 0.021624,
+            "presentation": 0.017957
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.200000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.600000023841858,
+          "pipelineHostMs": 0.7999999523162842,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.09999990463256836,
+            "lighting": 0,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.079539,
+            "normal": 0.020666,
+            "shadow": 0.308824,
+            "reconstruction": 0.071581,
+            "lighting": 0.021082,
+            "presentation": 0.096081
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.600000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.899999976158142,
+          "pipelineHostMs": 0.7999999523162842,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.09999990463256836
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129246,
+            "normal": 0.035374,
+            "shadow": 0.509317,
+            "reconstruction": 0.128829,
+            "lighting": 0.037666,
+            "presentation": 0.232702
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.899999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.7000000476837158,
+          "pipelineHostMs": 0.6999999284744263,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.09999990463256836
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131621,
+            "normal": 0.036666,
+            "shadow": 0.561025,
+            "reconstruction": 0.131162,
+            "lighting": 0.037582,
+            "presentation": 0.442527
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.800000071525574,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 1,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.899999976158142,
+          "pipelineHostMs": 1,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.30000007152557373,
+            "reconstruction": 0,
+            "lighting": 0.09999990463256836,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130705,
+            "normal": 0.036207,
+            "shadow": 0.564691,
+            "reconstruction": 0.130246,
+            "lighting": 0.036833,
+            "presentation": 0.390154
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.399999976158142,
+          "pipelineHostMs": 0.7000000476837158,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.19999992847442627,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.13133,
+            "normal": 0.039624,
+            "shadow": 0.553733,
+            "reconstruction": 0.128163,
+            "lighting": 0.037582,
+            "presentation": 0.173828
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.899999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.2999999523162842,
+          "pipelineHostMs": 0.6999999284744263,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.19999992847442627,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.19999992847442627
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132538,
+            "normal": 0.03854,
+            "shadow": 0.522526,
+            "reconstruction": 0.130162,
+            "lighting": 0.037624,
+            "presentation": 0.525484
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.5,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.7999999523162842,
+          "pipelineHostMs": 0.8999999761581421,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.30000007152557373,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.09999990463256836
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.133121,
+            "normal": 0.039624,
+            "shadow": 0.566858,
+            "reconstruction": 0.129954,
+            "lighting": 0.037748,
+            "presentation": 0.450529
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.7999999523162842,
+          "pipelineHostMs": 1,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.09999990463256836,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131038,
+            "normal": 0.039623,
+            "shadow": 0.625565,
+            "reconstruction": 0.133954,
+            "lighting": 0.282075,
+            "presentation": 1.789279
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18.200000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.3000000715255737,
+          "pipelineHostMs": 0.7000000476837158,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.09999990463256836,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.2957,
+            "normal": 0.065332,
+            "shadow": 0.714686,
+            "reconstruction": 0.17091,
+            "lighting": 0.067748,
+            "presentation": 2.367553
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.19999992847442627,
+          "renderHostMs": 1.7000000476837158,
+          "pipelineHostMs": 0.7999999523162842,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.19999992847442627
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.134079,
+            "normal": 0.032707,
+            "shadow": 0.636522,
+            "reconstruction": 0.130121,
+            "lighting": 0.037998,
+            "presentation": 0.259825
+          },
+          "updateThroughGpuTimingReadbackWallMs": 14.699999928474426,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.2000000476837158,
+          "pipelineHostMs": 0.30000007152557373,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130955,
+            "normal": 0.031291,
+            "shadow": 0.560858,
+            "reconstruction": 0.130705,
+            "lighting": 0.036999,
+            "presentation": 0.413279
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.100000023841858,
+          "pipelineHostMs": 0.6000000238418579,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0.10000002384185791,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0,
+            "lighting": 0.20000004768371582,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130912,
+            "normal": 0.033958,
+            "shadow": 0.512235,
+            "reconstruction": 0.130162,
+            "lighting": 0.036957,
+            "presentation": 0.362823
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.200000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.19999992847442627,
+          "renderHostMs": 1.100000023841858,
+          "pipelineHostMs": 0.5000001192092896,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.128996,
+            "normal": 0.034624,
+            "shadow": 0.554316,
+            "reconstruction": 0.128412,
+            "lighting": 0.037624,
+            "presentation": 0.63123
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 1,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.100000023841858,
+          "pipelineHostMs": 0.5,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.10000002384185791,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.20341,
+            "normal": 0.034624,
+            "shadow": 0.554941,
+            "reconstruction": 0.129704,
+            "lighting": 0.037624,
+            "presentation": 0.625481
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.100000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1,
+          "pipelineHostMs": 0.3999999761581421,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.19999992847442627,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129246,
+            "normal": 0.035582,
+            "shadow": 0.549483,
+            "reconstruction": 0.129287,
+            "lighting": 0.037124,
+            "presentation": 0.605566
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.799999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.09999990463256836,
+          "renderHostMs": 1,
+          "pipelineHostMs": 0.3999999761581421,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129121,
+            "normal": 0.035374,
+            "shadow": 0.508568,
+            "reconstruction": 0.130955,
+            "lighting": 0.037541,
+            "presentation": 0.531151
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.5,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.1999999284744263,
+          "pipelineHostMs": 0.5999999046325684,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0.10000002384185791,
+            "shadow": 0,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.09999990463256836,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129829,
+            "normal": 0.036124,
+            "shadow": 0.560942,
+            "reconstruction": 0.128205,
+            "lighting": 0.037249,
+            "presentation": 0.736018
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.100000023841858,
+          "pipelineHostMs": 0.40000009536743164,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.10000002384185791,
+            "normal": 0.10000002384185791,
+            "shadow": 0,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.203788,
+            "normal": 0.034625,
+            "shadow": 0.626573,
+            "reconstruction": 0.12804,
+            "lighting": 0.037791,
+            "presentation": 0.782071
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18.799999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1,
+          "pipelineHostMs": 0.3999999761581421,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.09999990463256836,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129415,
+            "normal": 0.033833,
+            "shadow": 0.651407,
+            "reconstruction": 0.130248,
+            "lighting": 0.038083,
+            "presentation": 0.551783
+          },
+          "updateThroughGpuTimingReadbackWallMs": 14.400000095367432,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.399999976158142,
+          "pipelineHostMs": 0.7000000476837158,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130124,
+            "normal": 0.034458,
+            "shadow": 0.62249,
+            "reconstruction": 0.12954,
+            "lighting": 0.037959,
+            "presentation": 0.449702
+          },
+          "updateThroughGpuTimingReadbackWallMs": 19.40000009536743,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1,
+          "pipelineHostMs": 0.6000000238418579,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.19999992847442627,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.251288,
+            "normal": 0.066791,
+            "shadow": 0.603741,
+            "reconstruction": 0.166705,
+            "lighting": 0.037541,
+            "presentation": 0.879862
+          },
+          "updateThroughGpuTimingReadbackWallMs": 14.599999904632568,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.19999992847442627,
+          "renderHostMs": 1.600000023841858,
+          "pipelineHostMs": 0.5,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.10000002384185791,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.19999992847442627,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.13629,
+            "normal": 0.034,
+            "shadow": 0.507159,
+            "reconstruction": 0.128914,
+            "lighting": 0.037541,
+            "presentation": 0.47491
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.40000009536743,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.19999992847442627,
+          "sceneBuildHostMs": 0.20000004768371582,
+          "renderHostMs": 1.899999976158142,
+          "pipelineHostMs": 0.8999999761581421,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.30000007152557373,
+            "reconstruction": 0.09999990463256836,
+            "lighting": 0,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.13279,
+            "normal": 0.038707,
+            "shadow": 0.55545,
+            "reconstruction": 0.12729,
+            "lighting": 0.037208,
+            "presentation": 0.377411
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.09999990463257,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 1,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1,
+          "pipelineHostMs": 0.40000009536743164,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0,
+            "reconstruction": 0,
+            "lighting": 0.20000004768371582,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130373,
+            "normal": 0.035208,
+            "shadow": 0.571824,
+            "reconstruction": 0.13079,
+            "lighting": 0.037499,
+            "presentation": 0.592866
+          },
+          "updateThroughGpuTimingReadbackWallMs": 14.900000095367432,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.2000000476837158,
+          "pipelineHostMs": 0.6000000238418579,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.09999990463256836,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129748,
+            "normal": 0.035708,
+            "shadow": 0.545533,
+            "reconstruction": 0.129915,
+            "lighting": 0.037915,
+            "presentation": 0.510242
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.699999928474426,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.3000000715255737,
+          "pipelineHostMs": 0.7000000476837158,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.10000002384185791,
+            "normal": 0.10000002384185791,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.173248,
+            "normal": 0.034707,
+            "shadow": 0.515451,
+            "reconstruction": 0.129248,
+            "lighting": 0.038083,
+            "presentation": 1.260855
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.19999992847442627,
+          "renderHostMs": 1.7000000476837158,
+          "pipelineHostMs": 0.6999999284744263,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.3999999761581421,
+            "normal": 0.10000002384185791,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131831,
+            "normal": 0.032042,
+            "shadow": 0.565324,
+            "reconstruction": 0.12879,
+            "lighting": 0.037834,
+            "presentation": 0.448409
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.899999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.20000004768371582,
+          "renderHostMs": 1.6999999284744263,
+          "pipelineHostMs": 0.8000000715255737,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.20000004768371582,
+            "normal": 0.09999990463256836,
+            "shadow": 0,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.136331,
+            "normal": 0.034875,
+            "shadow": 0.620323,
+            "reconstruction": 0.131123,
+            "lighting": 0.03754,
+            "presentation": 0.340578
+          },
+          "updateThroughGpuTimingReadbackWallMs": 14.899999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.09999990463256836,
+          "renderHostMs": 1.0999999046325684,
+          "pipelineHostMs": 0.5,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.19999992847442627,
+            "normal": 0.10000002384185791,
+            "shadow": 0,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.134331,
+            "normal": 0.039958,
+            "shadow": 0.659115,
+            "reconstruction": 0.130623,
+            "lighting": 0.037332,
+            "presentation": 0.661865
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1,
+          "pipelineHostMs": 0.6000000238418579,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.19999992847442627
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129415,
+            "normal": 0.034958,
+            "shadow": 0.621823,
+            "reconstruction": 0.130498,
+            "lighting": 0.03725,
+            "presentation": 0.742946
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.200000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.399999976158142,
+          "pipelineHostMs": 0.7000000476837158,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131248,
+            "normal": 0.039499,
+            "shadow": 0.560451,
+            "reconstruction": 0.128956,
+            "lighting": 0.037541,
+            "presentation": 0.269037
+          },
+          "updateThroughGpuTimingReadbackWallMs": 19.200000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.6999999284744263,
+          "pipelineHostMs": 0.8999999761581421,
+          "uploadHostMs": 0.09999990463256836,
+          "passHostMs": {
+            "upload": 0.09999990463256836,
+            "height": 0.30000007152557373,
+            "normal": 0.10000002384185791,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0,
+            "lighting": 0.20000004768371582,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132123,
+            "normal": 0.038999,
+            "shadow": 0.5202,
+            "reconstruction": 0.129456,
+            "lighting": 0.037584,
+            "presentation": 0.531701
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.2000000476837158,
+          "pipelineHostMs": 0.7000000476837158,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.20000004768371582,
+            "normal": 0.09999990463256836,
+            "shadow": 0,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131165,
+            "normal": 0.039166,
+            "shadow": 0.557284,
+            "reconstruction": 0.131123,
+            "lighting": 0.03779,
+            "presentation": 0.530659
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.800000071525574,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 1,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.19999992847442627,
+          "renderHostMs": 1.6999999284744263,
+          "pipelineHostMs": 0.9000000953674316,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.30000007152557373,
+            "normal": 0.10000002384185791,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.207497,
+            "normal": 0.034999,
+            "shadow": 0.582325,
+            "reconstruction": 0.130748,
+            "lighting": 0.037584,
+            "presentation": 0.549033
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.100000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.2000000476837158,
+          "pipelineHostMs": 0.6999999284744263,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.19999992847442627,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130207,
+            "normal": 0.035,
+            "shadow": 0.561825,
+            "reconstruction": 0.131915,
+            "lighting": 0.037583,
+            "presentation": 0.373035
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.5,
+          "pipelineHostMs": 0.8000000715255737,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.3999999761581421,
+            "normal": 0,
+            "shadow": 0,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129498,
+            "normal": 0.034374,
+            "shadow": 0.518284,
+            "reconstruction": 0.128873,
+            "lighting": 0.037625,
+            "presentation": 0.400785
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.799999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0.20000004768371582,
+          "renderHostMs": 2.100000023841858,
+          "pipelineHostMs": 1.100000023841858,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.3999999761581421,
+            "normal": 0.10000002384185791,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0.09999990463256836,
+            "lighting": 0.20000004768371582,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.128248,
+            "normal": 0.032667,
+            "shadow": 0.558949,
+            "reconstruction": 0.128915,
+            "lighting": 0.037209,
+            "presentation": 0.454993
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18.100000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.2999999523162842,
+          "pipelineHostMs": 0.6000001430511475,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.30000007152557373,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.150664,
+            "normal": 0.034416,
+            "shadow": 0.627908,
+            "reconstruction": 0.127581,
+            "lighting": 0.037915,
+            "presentation": 0.176622
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.5,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1,
+          "pipelineHostMs": 0.5,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129414,
+            "normal": 0.033999,
+            "shadow": 0.654324,
+            "reconstruction": 0.128707,
+            "lighting": 0.037875,
+            "presentation": 0.766113
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.799999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.2999999523162842,
+          "pipelineHostMs": 0.7000000476837158,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0,
+            "lighting": 0.30000007152557373,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131082,
+            "normal": 0.034208,
+            "shadow": 0.624075,
+            "reconstruction": 0.128248,
+            "lighting": 0.037499,
+            "presentation": 0.243787
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.600000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.09999990463256836,
+          "renderHostMs": 0.8999999761581421,
+          "pipelineHostMs": 0.5,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.295246,
+            "normal": 0.064749,
+            "shadow": 0.64699,
+            "reconstruction": 0.168997,
+            "lighting": 0.070041,
+            "presentation": 2.130176
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.600000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.399999976158142,
+          "pipelineHostMs": 0.6000000238418579,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.19999992847442627,
+            "normal": 0,
+            "shadow": 0,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130456,
+            "normal": 0.037082,
+            "shadow": 0.511451,
+            "reconstruction": 0.128748,
+            "lighting": 0.037499,
+            "presentation": 0.387452
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.700000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.20000004768371582,
+          "renderHostMs": 1.5,
+          "pipelineHostMs": 0.6000000238418579,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.3999999761581421,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129539,
+            "normal": 0.033624,
+            "shadow": 0.550742,
+            "reconstruction": 0.127915,
+            "lighting": 0.037791,
+            "presentation": 0.62799
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 1,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.2999999523162842,
+          "pipelineHostMs": 0.7000000476837158,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0.10000002384185791,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0,
+            "lighting": 0.20000004768371582,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.128956,
+            "normal": 0.034666,
+            "shadow": 0.576575,
+            "reconstruction": 0.133915,
+            "lighting": 0.037499,
+            "presentation": 0.609783
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.199999928474426,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.2000000476837158,
+          "pipelineHostMs": 0.6000000238418579,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131331,
+            "normal": 0.034207,
+            "shadow": 0.539033,
+            "reconstruction": 0.129915,
+            "lighting": 0.038165,
+            "presentation": 0.610575
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.800000071525574,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.399999976158142,
+          "pipelineHostMs": 0.7000000476837158,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.30000007152557373,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0,
+            "lighting": 0.20000004768371582,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.210581,
+            "normal": 0.034624,
+            "shadow": 0.512784,
+            "reconstruction": 0.128832,
+            "lighting": 0.037041,
+            "presentation": 0.439201
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.8000000715255737,
+          "pipelineHostMs": 1.100000023841858,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0.10000002384185791,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0.09999990463256836,
+            "lighting": 0.20000004768371582,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130789,
+            "normal": 0.033667,
+            "shadow": 0.558991,
+            "reconstruction": 0.128748,
+            "lighting": 0.037375,
+            "presentation": 0.541699
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.7000000476837158,
+          "pipelineHostMs": 0.7999999523162842,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.20000004768371582,
+            "lighting": 0.09999990463256836,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129207,
+            "normal": 0.034334,
+            "shadow": 0.623657,
+            "reconstruction": 0.130164,
+            "lighting": 0.037625,
+            "presentation": 0.500951
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.09999990463256836,
+          "renderHostMs": 1.2999999523162842,
+          "pipelineHostMs": 0.6000000238418579,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.19999992847442627,
+            "normal": 0,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.128915,
+            "normal": 0.034125,
+            "shadow": 0.651365,
+            "reconstruction": 0.13029,
+            "lighting": 0.037833,
+            "presentation": 0.525742
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.600000023841858,
+          "pipelineHostMs": 0.7000000476837158,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0.09999990463256836,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.210412,
+            "normal": 0.031084,
+            "shadow": 0.631781,
+            "reconstruction": 0.13079,
+            "lighting": 0.0375,
+            "presentation": 0.834778
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.5,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.09999990463256836,
+          "renderHostMs": 1.399999976158142,
+          "pipelineHostMs": 0.6999999284744263,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.09999990463256836,
+            "normal": 0,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0,
+            "presentation": 0.19999992847442627
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131373,
+            "normal": 0.034792,
+            "shadow": 0.559741,
+            "reconstruction": 0.129332,
+            "lighting": 0.037083,
+            "presentation": 0.583116
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.5,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.6999999284744263,
+          "pipelineHostMs": 1,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0.10000002384185791,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129123,
+            "normal": 0.034499,
+            "shadow": 0.508118,
+            "reconstruction": 0.129623,
+            "lighting": 0.037124,
+            "presentation": 0.267246
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.300000071525574,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1,
+          "pipelineHostMs": 0.6000001430511475,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.10000002384185791,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129706,
+            "normal": 0.035124,
+            "shadow": 0.565409,
+            "reconstruction": 0.129331,
+            "lighting": 0.037582,
+            "presentation": 0.35987
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.799999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 1,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 0.8999999761581421,
+          "pipelineHostMs": 0.5,
+          "uploadHostMs": 0.19999992847442627,
+          "passHostMs": {
+            "upload": 0.19999992847442627,
+            "height": 0,
+            "normal": 0,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129289,
+            "normal": 0.034792,
+            "shadow": 0.575241,
+            "reconstruction": 0.144832,
+            "lighting": 0.037625,
+            "presentation": 0.565409
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.19999992847442627,
+          "renderHostMs": 1.7999999523162842,
+          "pipelineHostMs": 1,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.3999999761581421,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130081,
+            "normal": 0.033875,
+            "shadow": 0.565074,
+            "reconstruction": 0.13154,
+            "lighting": 0.037457,
+            "presentation": 0.469076
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.600000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.20000004768371582,
+          "renderHostMs": 1.9000000953674316,
+          "pipelineHostMs": 0.8999999761581421,
+          "uploadHostMs": 0.20000004768371582,
+          "passHostMs": {
+            "upload": 0.20000004768371582,
+            "height": 0.2999999523162842,
+            "normal": 0.10000002384185791,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129873,
+            "normal": 0.032542,
+            "shadow": 0.507325,
+            "reconstruction": 0.129706,
+            "lighting": 0.037457,
+            "presentation": 0.343662
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.100000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.399999976158142,
+          "pipelineHostMs": 0.9000000953674316,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.40000009536743164,
+            "normal": 0.09999990463256836,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.20000004768371582,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129707,
+            "normal": 0.034208,
+            "shadow": 0.561991,
+            "reconstruction": 0.13204,
+            "lighting": 0.037707,
+            "presentation": 0.686364
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.299999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1,
+          "pipelineHostMs": 0.5,
+          "uploadHostMs": 0.09999990463256836,
+          "passHostMs": {
+            "upload": 0.09999990463256836,
+            "height": 0.10000002384185791,
+            "normal": 0,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.207288,
+            "normal": 0.034208,
+            "shadow": 0.62749,
+            "reconstruction": 0.133414,
+            "lighting": 0.036959,
+            "presentation": 1.058691
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.200000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        },
+        {
+          "p": 0,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.5,
+          "pipelineHostMs": 0.8999999761581421,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0.20000004768371582,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.09999990463256836,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129415,
+            "normal": 0.034291,
+            "shadow": 0.651906,
+            "reconstruction": 0.128206,
+            "lighting": 0.03775,
+            "presentation": 0.621032
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17,
+          "maskSdfPasses": 0,
+          "dispatchCount": 9,
+          "bytesUploaded": 6400,
+          "allocations": 0
+        }
+      ]
+    },
+    {
+      "effects": true,
+      "idle": true,
+      "metrics": {
+        "domMeasureHostMs": {
+          "n": 60,
+          "median": 0.09999990463256836,
+          "p95": 0.10000002384185791
+        },
+        "sceneBuildHostMs": {
+          "n": 60,
+          "median": 0.10000002384185791,
+          "p95": 0.20000004768371582
+        },
+        "renderHostMs": {
+          "n": 60,
+          "median": 1.7000000476837158,
+          "p95": 2.200000047683716
+        },
+        "pipelineHostMs": {
+          "n": 60,
+          "median": 0.8999999761581421,
+          "p95": 1.2999999523162842
+        },
+        "uploadHostMs": {
+          "n": 60,
+          "median": 0,
+          "p95": 0.10000002384185791
+        },
+        "updateThroughGpuTimingReadbackWallMs": {
+          "n": 60,
+          "median": 16.799999952316284,
+          "p95": 18.799999952316284
+        },
+        "gpu.height": {
+          "n": 60,
+          "median": 0.131248,
+          "p95": 0.294329
+        },
+        "gpu.normal": {
+          "n": 60,
+          "median": 0.034583,
+          "p95": 0.041291
+        },
+        "gpu.shadow": {
+          "n": 60,
+          "median": 0.550741,
+          "p95": 0.672822
+        },
+        "gpu.reconstruction": {
+          "n": 60,
+          "median": 0.129123,
+          "p95": 0.168247
+        },
+        "gpu.lighting": {
+          "n": 60,
+          "median": 0.037459,
+          "p95": 0.066208
+        },
+        "gpu.presentation": {
+          "n": 60,
+          "median": 0.667947,
+          "p95": 1.899638
+        }
+      },
+      "rows": [
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 0.7000000476837158,
+          "pipelineHostMs": 0.3999999761581421,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.10000002384185791,
+            "normal": 0,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0,
+            "lighting": 0.20000004768371582,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.062082,
+            "normal": 0.763405,
+            "shadow": 0.291454,
+            "reconstruction": 0.055082,
+            "lighting": 0.016875,
+            "presentation": 0.292328
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18.5,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 0.6000000238418579,
+          "pipelineHostMs": 0.20000004768371582,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.10000002384185791,
+            "normal": 0,
+            "shadow": 0,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.061457,
+            "normal": 0.014959,
+            "shadow": 0.241038,
+            "reconstruction": 0.055957,
+            "lighting": 0.016417,
+            "presentation": 0.279538
+          },
+          "updateThroughGpuTimingReadbackWallMs": 14.899999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 0.5,
+          "pipelineHostMs": 0.20000004768371582,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0,
+            "normal": 0,
+            "shadow": 0,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.075457,
+            "normal": 0.018166,
+            "shadow": 0.278787,
+            "reconstruction": 0.069708,
+            "lighting": 0.02125,
+            "presentation": 0.361369
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18.799999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 0.6000000238418579,
+          "pipelineHostMs": 0.3999999761581421,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0,
+            "reconstruction": 0,
+            "lighting": 0.09999990463256836,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.074958,
+            "normal": 0.018917,
+            "shadow": 0.301704,
+            "reconstruction": 0.073749,
+            "lighting": 0.021375,
+            "presentation": 0.369494
+          },
+          "updateThroughGpuTimingReadbackWallMs": 14.300000071525574,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 1,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 0.7000000476837158,
+          "pipelineHostMs": 0.19999992847442627,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.10000002384185791,
+            "normal": 0,
+            "shadow": 0,
+            "reconstruction": 0.09999990463256836,
+            "lighting": 0,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129498,
+            "normal": 0.031166,
+            "shadow": 2.295006,
+            "reconstruction": 0.131165,
+            "lighting": 0.03875,
+            "presentation": 0.379244
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18.600000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 0.8999999761581421,
+          "pipelineHostMs": 0.5,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130873,
+            "normal": 0.034832,
+            "shadow": 0.560534,
+            "reconstruction": 0.130998,
+            "lighting": 0.038792,
+            "presentation": 0.682656
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.599999904632568,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.19999992847442627,
+          "renderHostMs": 1.8000000715255737,
+          "pipelineHostMs": 1,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.19999992847442627,
+            "normal": 0.10000002384185791,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.09999990463256836,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132956,
+            "normal": 0.037542,
+            "shadow": 0.499117,
+            "reconstruction": 0.12954,
+            "lighting": 0.038,
+            "presentation": 0.667947
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18.5,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.19999992847442627,
+          "renderHostMs": 1.899999976158142,
+          "pipelineHostMs": 1,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.30000007152557373,
+            "normal": 0.10000002384185791,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131373,
+            "normal": 0.035208,
+            "shadow": 0.560783,
+            "reconstruction": 0.130623,
+            "lighting": 0.037459,
+            "presentation": 0.656364
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.200000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.09999990463256836,
+          "renderHostMs": 1.5,
+          "pipelineHostMs": 1,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.19999992847442627,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.292038,
+            "normal": 0.118082,
+            "shadow": 0.672822,
+            "reconstruction": 0.163289,
+            "lighting": 0.068583,
+            "presentation": 1.076566
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.100000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.20000004768371582,
+          "renderHostMs": 2.0999999046325684,
+          "pipelineHostMs": 1.2000000476837158,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.3999999761581421,
+            "normal": 0.10000002384185791,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.09999990463256836,
+            "presentation": 0.30000007152557373
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130707,
+            "normal": 0.034791,
+            "shadow": 0.64949,
+            "reconstruction": 0.131831,
+            "lighting": 0.037957,
+            "presentation": 1.885388
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18.299999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 2.399999976158142,
+          "pipelineHostMs": 1.4000000953674316,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.3999999761581421,
+            "normal": 0,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.5
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130373,
+            "normal": 0.034582,
+            "shadow": 0.62199,
+            "reconstruction": 0.130581,
+            "lighting": 0.286496,
+            "presentation": 1.624225
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.799999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 2.100000023841858,
+          "pipelineHostMs": 1.100000023841858,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.30000007152557373,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.3999999761581421
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132081,
+            "normal": 0.039084,
+            "shadow": 0.561282,
+            "reconstruction": 0.128623,
+            "lighting": 0.037667,
+            "presentation": 0.661865
+          },
+          "updateThroughGpuTimingReadbackWallMs": 14.5,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.20000004768371582,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.7000000476837158,
+          "pipelineHostMs": 0.7999999523162842,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.13279,
+            "normal": 0.041291,
+            "shadow": 0.509575,
+            "reconstruction": 0.130831,
+            "lighting": 0.037791,
+            "presentation": 0.671322
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.19999992847442627,
+          "renderHostMs": 2.200000047683716,
+          "pipelineHostMs": 1.2000000476837158,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.30000007152557373,
+            "normal": 0.19999992847442627,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.20000004768371582,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132373,
+            "normal": 0.037499,
+            "shadow": 0.563575,
+            "reconstruction": 0.12954,
+            "lighting": 0.03779,
+            "presentation": 1.962011
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 1,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.899999976158142,
+          "pipelineHostMs": 1,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132957,
+            "normal": 0.03825,
+            "shadow": 0.563033,
+            "reconstruction": 0.128706,
+            "lighting": 0.03779,
+            "presentation": 0.66274
+          },
+          "updateThroughGpuTimingReadbackWallMs": 14.600000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.7999999523162842,
+          "pipelineHostMs": 0.8999999761581421,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.3999999761581421,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.19999992847442627
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132873,
+            "normal": 0.038167,
+            "shadow": 0.553658,
+            "reconstruction": 0.130832,
+            "lighting": 0.037459,
+            "presentation": 0.664407
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.5,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.7000000476837158,
+          "pipelineHostMs": 0.8999999761581421,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132665,
+            "normal": 0.037417,
+            "shadow": 0.520283,
+            "reconstruction": 0.131664,
+            "lighting": 0.037665,
+            "presentation": 1.136983
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.600000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0.20000004768371582,
+          "renderHostMs": 2.1999999284744263,
+          "pipelineHostMs": 1.2000000476837158,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0.10000002384185791,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0,
+            "lighting": 0.19999992847442627,
+            "presentation": 0.30000007152557373
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.133873,
+            "normal": 0.039957,
+            "shadow": 0.561157,
+            "reconstruction": 0.129623,
+            "lighting": 0.03775,
+            "presentation": 0.664407
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 2,
+          "pipelineHostMs": 1.2000000476837158,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.3999999761581421,
+            "normal": 0,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0.09999990463256836,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.30000007152557373
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132207,
+            "normal": 0.039915,
+            "shadow": 0.630324,
+            "reconstruction": 0.130832,
+            "lighting": 0.038457,
+            "presentation": 0.66974
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.899999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0,
+          "domMeasureHostMs": 0.20000004768371582,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.8000000715255737,
+          "pipelineHostMs": 0.8999999761581421,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0.10000002384185791,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132123,
+            "normal": 0.038,
+            "shadow": 0.653115,
+            "reconstruction": 0.130623,
+            "lighting": 0.037874,
+            "presentation": 0.671531
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.200000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.09999990463256836,
+          "renderHostMs": 1.600000023841858,
+          "pipelineHostMs": 0.8999999761581421,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0.09999990463256836,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131206,
+            "normal": 0.03675,
+            "shadow": 2.351923,
+            "reconstruction": 0.258287,
+            "lighting": 0.062332,
+            "presentation": 1.605725
+          },
+          "updateThroughGpuTimingReadbackWallMs": 19.100000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.19999992847442627,
+          "renderHostMs": 1.899999976158142,
+          "pipelineHostMs": 1.0999999046325684,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.2999999523162842,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.3999999761581421
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.133332,
+            "normal": 0.040499,
+            "shadow": 0.563076,
+            "reconstruction": 0.129123,
+            "lighting": 0.036833,
+            "presentation": 1.899638
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.199999928474426,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.899999976158142,
+          "pipelineHostMs": 1,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.30000007152557373,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.19999992847442627
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.13254,
+            "normal": 0.041082,
+            "shadow": 0.51316,
+            "reconstruction": 0.128248,
+            "lighting": 0.037749,
+            "presentation": 0.667365
+          },
+          "updateThroughGpuTimingReadbackWallMs": 14.300000071525574,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.1999999284744263,
+          "pipelineHostMs": 0.6999999284744263,
+          "uploadHostMs": 0.09999990463256836,
+          "passHostMs": {
+            "upload": 0.09999990463256836,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132373,
+            "normal": 0.032832,
+            "shadow": 0.569909,
+            "reconstruction": 0.129956,
+            "lighting": 0.037624,
+            "presentation": 0.677031
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.5,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 1,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.4000000953674316,
+          "pipelineHostMs": 0.8000000715255737,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.10000002384185791,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.19999992847442627,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.294329,
+            "normal": 0.067248,
+            "shadow": 0.631449,
+            "reconstruction": 0.168247,
+            "lighting": 0.066208,
+            "presentation": 1.505394
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.7000000476837158,
+          "pipelineHostMs": 1,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.2999999523162842,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.30000007152557373
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131748,
+            "normal": 0.036041,
+            "shadow": 0.550741,
+            "reconstruction": 0.131582,
+            "lighting": 0.037708,
+            "presentation": 0.670032
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.200000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 2.100000023841858,
+          "pipelineHostMs": 1.1999999284744263,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.20000004768371582,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132331,
+            "normal": 0.039249,
+            "shadow": 0.512575,
+            "reconstruction": 0.130414,
+            "lighting": 0.037542,
+            "presentation": 1.141607
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.90000009536743,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.5,
+          "pipelineHostMs": 0.8000000715255737,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.20000004768371582,
+            "normal": 0.10000002384185791,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132332,
+            "normal": 0.035874,
+            "shadow": 0.566741,
+            "reconstruction": 0.13079,
+            "lighting": 0.037416,
+            "presentation": 0.66624
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.299999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.7000000476837158,
+          "pipelineHostMs": 0.8999999761581421,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.19999992847442627,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.20000004768371582,
+            "presentation": 0.19999992847442627
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131748,
+            "normal": 0.033875,
+            "shadow": 2.411297,
+            "reconstruction": 0.171872,
+            "lighting": 0.05879,
+            "presentation": 1.676933
+          },
+          "updateThroughGpuTimingReadbackWallMs": 19.299999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.6999999284744263,
+          "pipelineHostMs": 1,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.30000007152557373,
+            "normal": 0.09999990463256836,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.19999992847442627
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.12979,
+            "normal": 0.034582,
+            "shadow": 0.650573,
+            "reconstruction": 0.129414,
+            "lighting": 0.037417,
+            "presentation": 0.666989
+          },
+          "updateThroughGpuTimingReadbackWallMs": 13.700000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.7000000476837158,
+          "pipelineHostMs": 0.8999999761581421,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130081,
+            "normal": 0.035084,
+            "shadow": 0.627948,
+            "reconstruction": 0.129331,
+            "lighting": 0.037666,
+            "presentation": 0.661949
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.299999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 2.399999976158142,
+          "pipelineHostMs": 1.3000000715255737,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.3999999761581421,
+            "normal": 0.10000002384185791,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.19999992847442627,
+            "presentation": 0.30000007152557373
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.132581,
+            "normal": 0.041083,
+            "shadow": 0.558283,
+            "reconstruction": 0.129248,
+            "lighting": 0.037541,
+            "presentation": 0.663615
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.899999976158142,
+          "pipelineHostMs": 0.9999998807907104,
+          "uploadHostMs": 0.09999990463256836,
+          "passHostMs": {
+            "upload": 0.09999990463256836,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0,
+            "lighting": 0.20000004768371582,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.204663,
+            "normal": 0.034624,
+            "shadow": 0.520326,
+            "reconstruction": 0.12904,
+            "lighting": 0.039625,
+            "presentation": 1.859638
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.600000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.20000004768371582,
+          "renderHostMs": 2.100000023841858,
+          "pipelineHostMs": 0.9000000953674316,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.30000007152557373
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.133582,
+            "normal": 0.040166,
+            "shadow": 0.557324,
+            "reconstruction": 0.128748,
+            "lighting": 0.037292,
+            "presentation": 0.677656
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.200000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 1,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 0.8000000715255737,
+          "pipelineHostMs": 0.2999999523162842,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0,
+            "normal": 0.09999990463256836,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131248,
+            "normal": 0.032833,
+            "shadow": 0.562909,
+            "reconstruction": 0.12829,
+            "lighting": 0.037249,
+            "presentation": 2.999079
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.899999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.5,
+          "pipelineHostMs": 0.9000000953674316,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.30000007152557373
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130206,
+            "normal": 0.033375,
+            "shadow": 0.556908,
+            "reconstruction": 0.127956,
+            "lighting": 0.037917,
+            "presentation": 0.672114
+          },
+          "updateThroughGpuTimingReadbackWallMs": 14.799999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.2000000476837158,
+          "pipelineHostMs": 0.6000000238418579,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.131873,
+            "normal": 0.034583,
+            "shadow": 0.519201,
+            "reconstruction": 0.28562,
+            "lighting": 0.072082,
+            "presentation": 3.359865
+          },
+          "updateThroughGpuTimingReadbackWallMs": 19.600000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.09999990463256836,
+          "renderHostMs": 1.100000023841858,
+          "pipelineHostMs": 0.6000000238418579,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.491034,
+            "normal": 0.012041,
+            "shadow": 0.18283,
+            "reconstruction": 0.042583,
+            "lighting": 0.012582,
+            "presentation": 0.214206
+          },
+          "updateThroughGpuTimingReadbackWallMs": 13.100000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.100000023841858,
+          "pipelineHostMs": 0.6000000238418579,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.10000002384185791,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.052708,
+            "normal": 0.012875,
+            "shadow": 0.229163,
+            "reconstruction": 0.047834,
+            "lighting": 0.014333,
+            "presentation": 0.24258
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.100000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.09999990463256836,
+          "renderHostMs": 1,
+          "pipelineHostMs": 0.5,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.05275,
+            "normal": 0.012832,
+            "shadow": 0.239289,
+            "reconstruction": 0.047291,
+            "lighting": 0.01425,
+            "presentation": 0.241454
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.600000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 2.0999999046325684,
+          "pipelineHostMs": 1.2000000476837158,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.3999999761581421,
+            "normal": 0.10000002384185791,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0,
+            "lighting": 0.19999992847442627,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.061666,
+            "normal": 0.015167,
+            "shadow": 0.265829,
+            "reconstruction": 0.055458,
+            "lighting": 0.016999,
+            "presentation": 0.390994
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18.59999990463257,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.7000000476837158,
+          "pipelineHostMs": 1.100000023841858,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.3999999761581421,
+            "normal": 0.10000002384185791,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.064374,
+            "normal": 0.0195,
+            "shadow": 0.242788,
+            "reconstruction": 0.056915,
+            "lighting": 0.018084,
+            "presentation": 0.490867
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.700000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.19999992847442627,
+          "renderHostMs": 1.6999999284744263,
+          "pipelineHostMs": 0.7000000476837158,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.30000007152557373,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.19999992847442627,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.075333,
+            "normal": 0.018459,
+            "shadow": 0.28387,
+            "reconstruction": 0.070707,
+            "lighting": 0.021208,
+            "presentation": 0.367952
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.299999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.5,
+          "pipelineHostMs": 0.8999999761581421,
+          "uploadHostMs": 0.09999990463256836,
+          "passHostMs": {
+            "upload": 0.09999990463256836,
+            "height": 0.30000007152557373,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.30000007152557373
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.074707,
+            "normal": 0.020666,
+            "shadow": 0.307203,
+            "reconstruction": 0.073041,
+            "lighting": 0.021082,
+            "presentation": 0.461118
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.100000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 1,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.5,
+          "pipelineHostMs": 0.7999999523162842,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.30000007152557373,
+            "normal": 0,
+            "shadow": 0.09999990463256836,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.19999992847442627
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.083791,
+            "normal": 0.020708,
+            "shadow": 0.307662,
+            "reconstruction": 0.071666,
+            "lighting": 0.021208,
+            "presentation": 1.048775
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18.5,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.600000023841858,
+          "pipelineHostMs": 1.100000023841858,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.30000007152557373,
+            "normal": 0.09999990463256836,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.079331,
+            "normal": 0.018792,
+            "shadow": 0.306245,
+            "reconstruction": 0.069791,
+            "lighting": 0.021541,
+            "presentation": 0.356286
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.100000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.9000000953674316,
+          "pipelineHostMs": 0.7999999523162842,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.19999992847442627,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.129957,
+            "normal": 0.034165,
+            "shadow": 0.518742,
+            "reconstruction": 0.129289,
+            "lighting": 0.037458,
+            "presentation": 1.452311
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.5,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 2.3000000715255737,
+          "pipelineHostMs": 1.2999999523162842,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.3999999761581421,
+            "normal": 0.10000002384185791,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.20000004768371582,
+            "presentation": 0.19999992847442627
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.130914,
+            "normal": 0.039457,
+            "shadow": 0.5667,
+            "reconstruction": 0.132914,
+            "lighting": 0.037583,
+            "presentation": 0.654698
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.100000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 2.100000023841858,
+          "pipelineHostMs": 1.2999999523162842,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.30000007152557373,
+            "reconstruction": 0.09999990463256836,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.3999999761581421
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.152663,
+            "normal": 0.034958,
+            "shadow": 0.627782,
+            "reconstruction": 0.128456,
+            "lighting": 0.037916,
+            "presentation": 0.674697
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0,
+          "domMeasureHostMs": 0.09999990463256836,
+          "sceneBuildHostMs": 0.20000004768371582,
+          "renderHostMs": 2,
+          "pipelineHostMs": 1.100000023841858,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.2999999523162842,
+            "normal": 0.10000002384185791,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0,
+            "lighting": 0.19999992847442627,
+            "presentation": 0.20000004768371582
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.047166,
+            "normal": 0.011583,
+            "shadow": 0.209788,
+            "reconstruction": 0.042292,
+            "lighting": 0.012625,
+            "presentation": 0.495367
+          },
+          "updateThroughGpuTimingReadbackWallMs": 14.799999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.4000000953674316,
+          "pipelineHostMs": 0.7000000476837158,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.10000002384185791,
+            "normal": 0.10000002384185791,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.09999990463256836,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.054458,
+            "normal": 0.013541,
+            "shadow": 0.231372,
+            "reconstruction": 0.048125,
+            "lighting": 0.014916,
+            "presentation": 0.242871
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.300000071525574,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1,
+          "pipelineHostMs": 0.6000000238418579,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.19999992847442627,
+            "normal": 0,
+            "shadow": 0,
+            "reconstruction": 0.20000004768371582,
+            "lighting": 0,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.052166,
+            "normal": 0.013375,
+            "shadow": 0.209162,
+            "reconstruction": 0.047666,
+            "lighting": 0.014333,
+            "presentation": 0.244663
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.199999928474426,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 0.5999999046325684,
+          "pipelineHostMs": 0.30000007152557373,
+          "uploadHostMs": 0.10000002384185791,
+          "passHostMs": {
+            "upload": 0.10000002384185791,
+            "height": 0.10000002384185791,
+            "normal": 0,
+            "shadow": 0,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.62799,
+            "normal": 0.015916,
+            "shadow": 0.226371,
+            "reconstruction": 0.056165,
+            "lighting": 0.017917,
+            "presentation": 0.922153
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.200000047683716,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.09999990463256836,
+          "renderHostMs": 1.1999999284744263,
+          "pipelineHostMs": 0.5,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.10000002384185791,
+            "normal": 0.09999990463256836,
+            "shadow": 0,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.061791,
+            "normal": 0.015208,
+            "shadow": 0.238871,
+            "reconstruction": 0.055083,
+            "lighting": 0.016208,
+            "presentation": 0.329329
+          },
+          "updateThroughGpuTimingReadbackWallMs": 16.600000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 1,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 2,
+          "pipelineHostMs": 1.2000000476837158,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.40000009536743164,
+            "reconstruction": 0,
+            "lighting": 0.19999992847442627,
+            "presentation": 0.30000007152557373
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.061416,
+            "normal": 0.015041,
+            "shadow": 0.238455,
+            "reconstruction": 0.054958,
+            "lighting": 0.016749,
+            "presentation": 0.701698
+          },
+          "updateThroughGpuTimingReadbackWallMs": 18.100000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.875,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1.5999999046325684,
+          "pipelineHostMs": 0.8999999761581421,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.2999999523162842,
+            "normal": 0,
+            "shadow": 0.20000004768371582,
+            "reconstruction": 0,
+            "lighting": 0.09999990463256836,
+            "presentation": 0.30000007152557373
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.075332,
+            "normal": 0.019415,
+            "shadow": 0.30808,
+            "reconstruction": 0.071082,
+            "lighting": 0.021042,
+            "presentation": 0.36112
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.625,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.10000002384185791,
+          "renderHostMs": 1.2000000476837158,
+          "pipelineHostMs": 0.49999988079071045,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.19999992847442627,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0,
+            "presentation": 0.09999990463256836
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.127581,
+            "normal": 0.018416,
+            "shadow": 0.281828,
+            "reconstruction": 0.070999,
+            "lighting": 0.021334,
+            "presentation": 0.612032
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.399999976158142,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.375,
+          "domMeasureHostMs": 0,
+          "sceneBuildHostMs": 0.20000004768371582,
+          "renderHostMs": 1.2000000476837158,
+          "pipelineHostMs": 0.6000000238418579,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.20000004768371582,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0,
+            "lighting": 0,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.11979,
+            "normal": 0.023166,
+            "shadow": 0.308078,
+            "reconstruction": 0.07129,
+            "lighting": 0.021375,
+            "presentation": 1.321229
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.600000023841858,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0.125,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0.19999992847442627,
+          "renderHostMs": 2.100000023841858,
+          "pipelineHostMs": 1.100000023841858,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.40000009536743164,
+            "normal": 0,
+            "shadow": 0.19999992847442627,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0.10000002384185791,
+            "presentation": 0.2999999523162842
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 0.133873,
+            "normal": 0.040542,
+            "shadow": 0.631449,
+            "reconstruction": 0.130207,
+            "lighting": 0.036583,
+            "presentation": 1.063359
+          },
+          "updateThroughGpuTimingReadbackWallMs": 17.299999952316284,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        },
+        {
+          "p": 0,
+          "domMeasureHostMs": 0.10000002384185791,
+          "sceneBuildHostMs": 0,
+          "renderHostMs": 1,
+          "pipelineHostMs": 0.40000009536743164,
+          "uploadHostMs": 0,
+          "passHostMs": {
+            "upload": 0,
+            "height": 0.10000002384185791,
+            "normal": 0,
+            "shadow": 0.10000002384185791,
+            "reconstruction": 0.10000002384185791,
+            "lighting": 0,
+            "presentation": 0.10000002384185791
+          },
+          "gpuStatus": "ok",
+          "passGpuMs": {
+            "height": 1.219982,
+            "normal": 0.032249,
+            "shadow": 0.651073,
+            "reconstruction": 0.130748,
+            "lighting": 0.044625,
+            "presentation": 0.933485
+          },
+          "updateThroughGpuTimingReadbackWallMs": 15.800000071525574,
+          "maskSdfPasses": 0,
+          "dispatchCount": 12,
+          "bytesUploaded": 6560,
+          "allocations": 0
+        }
+      ]
+    }
+  ],
+  "errors": []
+}
