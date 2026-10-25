@@ -109,6 +109,16 @@ async function main() {
     const rows = [];
     const check = (ok, message) => { if (!ok) throw new Error(message); };
     const state = () => evaluate("window.pressProbe.state()");
+    const waitForState = async (predicate, description) => {
+      const deadline = Date.now() + 3000;
+      let current;
+      do {
+        current = await state();
+        if (predicate(current)) return current;
+        await pause(15);
+      } while (Date.now() < deadline);
+      throw new Error(`${description}: ${JSON.stringify(current)}`);
+    };
     const key = (type, value, code, vk) => send("Input.dispatchKeyEvent", { type, key: value, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk });
     for (const { backend, effects } of [
       { backend: "webgpu", effects: false }, { backend: "cpu", effects: false }, { backend: "css", effects: false },
@@ -123,27 +133,28 @@ async function main() {
       await evaluate("document.querySelector('button').blur()");
       await key("keyDown", "Tab", "Tab", 9); await key("keyUp", "Tab", "Tab", 9);
       let focused = await state();
-      if (!focused.focused) { await evaluate("document.querySelector('button').focus()"); focused = await state(); }
+      await send("Page.bringToFront");
+      await evaluate("document.querySelector('button').focus()"); focused = await state();
       check(focused.focused && focused.focusVisible, `${backend} keyboard focus-visible`);
       const before = await state();
       await key("keyDown", " ", "Space", 32); await pause(45); const mid = await state();
       check(mid.progress > 0 && mid.progress < 1, `${backend} no intermediate press ${JSON.stringify(mid)}`);
-      await pause(250); check((await state()).progress === 1, `${backend} press incomplete: ${JSON.stringify(await state())}`);
+      await waitForState(value => value.progress === 1, `${backend}/${effects} press incomplete`);
       await key("keyUp", " ", "Space", 32); await pause(35); const releaseMid = await state();
       check(releaseMid.progress > (releaseMid.pressed === "true" ? 0.375 : 0) && releaseMid.progress < 1, `${backend} no intermediate return/selection ${JSON.stringify(releaseMid)}`);
-      await pause(250); const selected = await state();
+      const selected = await waitForState(value => value.progress === (value.pressed === "true" ? 0.375 : 0), `${backend}/${effects} selection incomplete`);
       check(selected.pressed !== before.pressed && selected.clicks === before.clicks + 1, `${backend} native Space activation failed`);
       check(selected.progress === (selected.pressed === "true" ? 0.375 : 0), `${backend} selected transition incomplete`);
       // Trusted touch input; a browser-generated pointercancel follows touchCancel.
       await send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: selected.x, y: selected.y, id: 1 }] });
-      await pause(250); check((await state()).progress === 1, `${backend}/${effects} touch press ${JSON.stringify(await state())}`);
+      await waitForState(value => value.progress === 1, `${backend}/${effects} touch press`);
       await send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
-      await pause(200); check((await state()).progress < 1, `${backend}/${effects} touch cancel stuck ${JSON.stringify(await state())}`);
-      await send("Input.dispatchMouseEvent", { type: "mousePressed", x: selected.x, y: selected.y, button: "left", clickCount: 1 });
-      await pause(250); const mouseDown = await state();
+      await waitForState(value => value.progress === (value.pressed === "true" ? 0.375 : 0), `${backend}/${effects} touch cancel stuck`);
+      await send("Input.dispatchMouseEvent", { type: "mousePressed", x: selected.x, y: selected.y, button: "left", buttons: 1, clickCount: 1 });
+      const mouseDown = await waitForState(value => value.progress === 1, `${backend}/${effects} mouse press incomplete`);
       check(mouseDown.progress === 1, `${backend}/${effects} mouse press ${JSON.stringify(mouseDown)}`);
-      await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: selected.x, y: selected.y, button: "left", clickCount: 1 });
-      await pause(250); const mouseReleased = await state();
+      await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: selected.x, y: selected.y, button: "left", buttons: 0, clickCount: 1 });
+      const mouseReleased = await waitForState(value => value.clicks === selected.clicks + 1 && value.progress === (value.pressed === "true" ? 0.375 : 0), `${backend}/${effects} mouse release incomplete`);
       check(mouseReleased.clicks === selected.clicks + 1 && mouseReleased.pressed !== selected.pressed, `${backend}/${effects} native mouse activation`);
       const idle = await evaluate("window.pressProbe.idle()");
       const reduced = await prepare(true);
