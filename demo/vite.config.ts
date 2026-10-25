@@ -17,6 +17,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve("./index.html"),
+        interaction: resolve("./interaction.html"),
         "renderer-debug": resolve("./renderer-debug.html"),
         "dom-debug": resolve("./dom-debug.html"),
         "scheduler-debug": resolve("./scheduler-debug.html"),

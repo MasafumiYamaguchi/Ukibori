@@ -10,11 +10,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "ukibori": "*",
-    "ukibori-renderer": "*",
-    "ukibori-dom": "*",
+    "@radix-ui/react-toggle": "^1.2.1",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "ukibori": "*",
+    "ukibori-dom": "*",
+    "ukibori-renderer": "*"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
