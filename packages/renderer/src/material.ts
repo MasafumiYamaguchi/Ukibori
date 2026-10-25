@@ -1,3 +1,5 @@
+import { sanitizeGrain } from "./grain";
+import type { GrainMaterial } from "./grain";
 import { clamp } from "./math";
 import type { LinearRgb } from "./types";
 
@@ -21,6 +23,8 @@ export interface Material {
   /** Self-emitted LINEAR RGB radiance, added before exposure; defaults to black.
    * Finite non-negative f32 values, including HDR > 1. Nearby light/bloom are opt-in composite effects. */
   emissive?: LinearRgb;
+  /** Optional surface-local resin grain; roughness only, no geometry/shadow change. */
+  grain?: GrainMaterial;
 }
 
 /** Material used for the base plane (pixels no surface owns). */
@@ -46,7 +50,9 @@ export const MATERIAL_PRESETS: Record<string, Material> = {
 };
 
 export function sanitizeMaterial(m: Material): Material {
+  const grain = sanitizeGrain(m.grain);
   return {
+    ...(grain ? { grain } : {}),
     baseColor: {
       r: sanitizeChannel(m.baseColor?.r, 0.6),
       g: sanitizeChannel(m.baseColor?.g, 0.6),

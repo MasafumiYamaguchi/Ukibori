@@ -1,3 +1,5 @@
+import { hasGrain, packGrainInputs, SHADING_RECORD_STRIDE } from "./grain-inputs";
+import { sceneSectionLayout } from "./layout";
 import { sanitizeBasePlane } from "../base-plane";
 import type { BasePlaneOptions } from "../base-plane";
 import type { EncodedScene } from "./encode";
@@ -34,6 +36,7 @@ import {
   LIGHTING_OUTPUT_BYTES_PER_TEXEL,
   LIGHTING_PARAMS_BYTE_LENGTH,
   LIGHTING_PASS_WGSL,
+  LIGHTING_GRAIN_PASS_WGSL,
   LIGHTING_WORKGROUP_SIZE,
 } from "./lighting-pass-wgsl";
 
@@ -180,6 +183,8 @@ export interface LightingPassInput {
   readonly bindings: SceneBindings;
   /** #25 material-id binding, consumed DIRECTLY */
   readonly materialId: LightingFieldBinding;
+  /** Required only for grain: local coordinates follow the owning surface. */
+  readonly objectId?: LightingFieldBinding;
   /** #26 normal binding, consumed DIRECTLY */
   readonly normal: LightingFieldBinding;
   /** #27 visibility binding, consumed DIRECTLY */
@@ -241,6 +246,8 @@ export interface LightingPassSnapshot {
 }
 
 export interface LightingPassDispatchStats {
+  /** Additional shading-table upload for the optional grain shader. */
+  readonly grainInputBytesUploaded?: number;
   readonly newAllocations: number;
   readonly allocationCount: number;
   readonly totalAllocationBytes: number;
@@ -345,7 +352,7 @@ export function lightingVisibilityBindingFromShadowPass(
   };
 }
 
-type LightingAllocationName = "uniform" | "outDiffuse" | "outSpecular" | "outColor";
+type LightingAllocationName = "grainInputs" | "uniform" | "outDiffuse" | "outSpecular" | "outColor";
 
 interface CachedLightingPipeline {
   layout: GpuBindGroupLayoutLike;
@@ -364,6 +371,7 @@ export class LightingPass {
   private lastAmbient = DEFAULT_AMBIENT;
   private lastProvenance: HeightPassProvenance | null = null;
   private cached: CachedLightingPipeline | null = null;
+  private grainCached: CachedLightingPipeline | null = null;
 
   constructor(private readonly device: GpuComputeDeviceLike) {}
 
@@ -382,6 +390,8 @@ export class LightingPass {
       throw new Error(`invalid encoded scene: ${validation.errors.join("; ")}`);
     }
     const header = validation.header;
+    const layout = sceneSectionLayout(header);
+    const grain = hasGrain(scene.bytes, header, layout);
     if (input.bindings.provenance !== scene.bytes) {
       throw new Error(
         "bindings provenance does not match the dispatched scene: " +
@@ -396,6 +406,10 @@ export class LightingPass {
     this.assertHeaderSection(input.bindings);
     this.assertMaterialsSection(header.materialCount, input.bindings);
     this.assertExtent(header, scene.bytes, input);
+    if (grain) {
+      if (!input.objectId) throw new Error("grain lighting requires an objectId binding");
+      this.assertExtent(header, scene.bytes, { ...input, materialId: input.objectId });
+    }
     const texelCount = header.renderWidth * header.renderHeight;
     // #32 region dispatch: only the band rows are dispatched; the in-shader
     // guard is the exclusive region end, so the band stays in bounds and its
@@ -420,10 +434,9 @@ export class LightingPass {
     );
     const fieldBytes = texelCount * 4;
     const normalBytes = texelCount * 12; // tightly packed f32 xyz triples
-    const materialsBindingBytes = Math.max(
-      header.materialCount * MATERIAL_STRIDE,
-      MATERIAL_STRIDE,
-    );
+    const materialsBindingBytes = grain
+      ? Math.max(header.surfaceCount * SHADING_RECORD_STRIDE, SHADING_RECORD_STRIDE)
+      : Math.max(header.materialCount * MATERIAL_STRIDE, MATERIAL_STRIDE);
     this.assertStorageBindingsWithinLimit([
       ["scene header input", HEADER_SIZE],
       ["materials input", materialsBindingBytes],
@@ -436,6 +449,7 @@ export class LightingPass {
     ]);
     this.assertAllocationWithinLimits(LIGHTING_PARAMS_BYTE_LENGTH, "params uniform");
     this.assertAllocationWithinLimits(fieldBytes, "diffuse/specular/color output");
+    if (grain) this.assertAllocationWithinLimits(materialsBindingBytes, "grain inputs");
 
     const ambient = sanitizeAmbient(input.options?.ambient);
     this.ensureAllocation(
@@ -448,7 +462,12 @@ export class LightingPass {
     this.ensureAllocation("outColor", fieldBytes, LIGHTING_PASS_OUTPUT_USAGE);
     const uniform = this.allocation("uniform");
 
-    const cached = this.ensurePipeline();
+    let materialBuffer = input.bindings.materials.buffer;
+    if (grain) {
+      materialBuffer = this.ensureAllocation("grainInputs", materialsBindingBytes, GPU_USAGE_STORAGE | GPU_USAGE_COPY_DST);
+      this.device.queue.writeBuffer(materialBuffer, 0, packGrainInputs(scene.bytes, header, layout));
+    }
+    const cached = this.ensurePipeline(grain);
     const group = this.device.createBindGroup({
       label: "ukibori-lighting-pass",
       layout: cached.layout,
@@ -466,13 +485,13 @@ export class LightingPass {
         {
           binding: 2,
           resource: {
-            buffer: input.bindings.materials.buffer,
+            buffer: materialBuffer,
             size: materialsBindingBytes,
           },
         },
         {
           binding: 3,
-          resource: { buffer: input.materialId.buffer, size: fieldBytes },
+          resource: { buffer: grain ? input.objectId!.buffer : input.materialId.buffer, size: fieldBytes },
         },
         {
           binding: 4,
@@ -551,6 +570,7 @@ export class LightingPass {
     this.lastProvenance = input.normal.provenance;
 
     const stats: LightingPassDispatchStats = {
+      grainInputBytesUploaded: grain ? materialsBindingBytes : 0,
       newAllocations: this.newAllocations,
       allocationCount: this.allocations.size,
       totalAllocationBytes: sumOf(this.allocationSizes),
@@ -853,10 +873,9 @@ export class LightingPass {
 
   // -- pipeline and bind group ----------------------------------------------
 
-  private ensurePipeline(): CachedLightingPipeline {
-    if (this.cached !== null) {
-      return this.cached;
-    }
+  private ensurePipeline(grain = false): CachedLightingPipeline {
+    const retained = grain ? this.grainCached : this.cached;
+    if (retained !== null) return retained;
     // Explicit layouts only (never layout: "auto"). Storage count per
     // stage: 5 read-only + 3 outputs = 8, exactly the spec-minimum
     // maxStorageBuffersPerShaderStage (the uniform does not count).
@@ -887,7 +906,7 @@ export class LightingPass {
           buffer: {
             type: "read-only-storage",
             hasDynamicOffset: false,
-            minBindingSize: MATERIAL_STRIDE, // one MaterialRecord floor
+            minBindingSize: grain ? SHADING_RECORD_STRIDE : MATERIAL_STRIDE, // input record floor
           },
         },
         {
@@ -947,7 +966,7 @@ export class LightingPass {
       ],
     });
     const module = this.device.createShaderModule({
-      code: LIGHTING_PASS_WGSL,
+      code: grain ? LIGHTING_GRAIN_PASS_WGSL : LIGHTING_PASS_WGSL,
       label: "ukibori-lighting-pass",
     });
     const pipelineLayout = this.device.createPipelineLayout({
@@ -959,8 +978,9 @@ export class LightingPass {
       layout: pipelineLayout,
       compute: { module, entryPoint: "main" },
     });
-    this.cached = { layout, pipelineLayout, pipeline, module };
-    return this.cached;
+    const cached = { layout, pipelineLayout, pipeline, module };
+    if (grain) this.grainCached = cached; else this.cached = cached;
+    return cached;
   }
 }
 

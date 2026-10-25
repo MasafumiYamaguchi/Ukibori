@@ -2338,3 +2338,26 @@ describe("UkiboriDom — DOM integration", () => {
     });
   });
 });
+
+it("R3 CPU grain edits retain geometry/shadow and match a fresh reference render", () => {
+  const fake = makeFakeOverlay();
+  const layer = new UkiboriDom({ overlay: { factory: () => fake.overlay }, observe: false, schedule() {}, dpr: 1, margin: 2 });
+  const material = { baseColor: { r: 0.3, g: 0.35, b: 0.4 }, roughness: 0.4, metallic: 0 };
+  try {
+    stubRectFor(button, { left: 0, top: 0, width: 16, height: 12 });
+    layer.register(button, BUTTON_OPTIONS); layer.render();
+    const initial = layer.debugBuffers()!, owner = layer.debugObjectId();
+    for (const grain of [{ scale: 4, strength: 0.7, seed: 42 }, { scale: 3, seed: 19 }, undefined]) {
+      layer.setMaterials({ silicone: { ...material, grain } }); layer.render();
+      const shaded = layer.debugBuffers()!;
+      expect(shaded.height).toBe(initial.height); expect(shaded.normal).toBe(initial.normal);
+      expect(shaded.visibility).toBe(initial.visibility); expect(layer.debugObjectId()).toBe(owner);
+      const reference = new UkiboriDom({ overlay: { factory: () => makeFakeOverlay().overlay }, observe: false, schedule() {}, dpr: 1, margin: 2,
+        materials: { silicone: { ...material, grain } } });
+      try { reference.register(button, BUTTON_OPTIONS); reference.render(); expect(shaded.color.data).toEqual(reference.debugBuffers()!.color.data); }
+      finally { reference.dispose(); }
+    }
+    layer.updateSurface("primary", { elevation: 8 }); layer.render();
+    expect(layer.debugBuffers()!.height).not.toBe(initial.height);
+  } finally { layer.dispose(); }
+});

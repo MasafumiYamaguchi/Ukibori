@@ -1,5 +1,6 @@
 import { sanitizeBasePlane, basePlaneMaterial } from "./base-plane";
 import type { BasePlaneOptions } from "./base-plane";
+import { grainRoughness, sanitizeGrain } from "./grain";
 import { HostBuffer } from "./buffer";
 import { F32_MAX, clamp, saturatingAdd, saturatingMulF32 } from "./math";
 import { composeCasterHeightField, composeSdfHeightField } from "./geometry";
@@ -49,6 +50,8 @@ export interface NormalOptions {
 }
 
 export interface LightingOptions {
+  /** Raster pixels per scene unit for prepared-field grain sampling; default 1. */
+  dpr?: number;
   /** Explicit physical receiver for unowned pixels; omitted preserves legacy output. */
   basePlane?: BasePlaneOptions;
   normal?: NormalOptions;
@@ -257,6 +260,7 @@ export function shadePreparedFields(
   const intensity = sanitizeNonNegative(scene.light.intensity, 1);
   const environment = sanitizeEnvironment(scene.environment);
   const exposure = sanitizeExposure(scene.exposure);
+  const sampleDpr = typeof options.dpr === "number" && Number.isFinite(options.dpr) && Math.fround(options.dpr) > 0 && Number.isFinite(Math.fround(options.dpr)) ? Math.fround(options.dpr) : 1;
   const { width, height: h } = normal.spec;
   const diffuse = new HostBuffer({ width, height: h, channels: 1, format: "f32" });
   const specular = new HostBuffer({ width, height: h, channels: 1, format: "f32" });
@@ -273,9 +277,10 @@ export function shadePreparedFields(
   // Uniform environment response depends only on material and this call's
   // environment settings, not on pixel normals, ownership or visibility.
   // Keep preparation local so material/environment edits affect the next call.
-  type PreparedMaterial = { material: Material; environment: EnvironmentResult };
+  type PreparedMaterial = { material: Material; environment: EnvironmentResult; grain: ReturnType<typeof sanitizeGrain> };
   const prepare = (material: Material): PreparedMaterial => ({
     material,
+    grain: sanitizeGrain(material.grain),
     environment: evaluateEnvironment(material, environment),
   });
   const plane = sanitizeBasePlane(options.basePlane);
@@ -303,7 +308,17 @@ export function shadePreparedFields(
       const nDotL = Math.max(nx * lx + ny * ly + nz * lz, 0);
       const nDotV = Math.max(nz, 0);
       const prepared = materialFor(objectId.get(x, y, 0));
-      const material = prepared.material;
+      let material = prepared.material;
+      const grain = prepared.grain;
+      if (grain) {
+        const owner = objectId.get(x, y, 0), surface = scene.surfaces[owner];
+        if (surface) {
+          const dpr = sampleDpr;
+          const px = Math.fround(Math.fround(Math.fround(x + 0.5) / dpr) - Math.fround(surface.position.x));
+          const py = Math.fround(Math.fround(Math.fround(y + 0.5) / dpr) - Math.fround(surface.position.y));
+          material = { ...material, roughness: grainRoughness(material.roughness, px, py, grain, dpr) };
+        }
+      }
       const vis = visibility === null ? 1 : clamp(visibility.get(x, y, 0), 0, 1);
       let brdf = { diffuse: ZERO_RGB, specular: ZERO_RGB };
       if (nDotL > 0 && nDotV > 0 && hLen > 0) {
@@ -323,7 +338,7 @@ export function shadePreparedFields(
       // light color. White light reproduces the historical scalar formula
       // byte-for-byte (1 * intensity * cosine * vis).
       const direct = directLightContribution(lightColor, intensity, cosine, vis, brdf);
-      const env = prepared.environment;
+      const env = grain ? evaluateEnvironment(material, environment) : prepared.environment;
       // #22 linear accumulation: saturated arithmetic keeps every finite
       // input (including Number.MAX_VALUE-scale intensity/environment)
       // producing a finite pre-encode LinearRgb.

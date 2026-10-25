@@ -64,7 +64,7 @@ async function main() {
       "--headless=new", "--enable-unsafe-webgpu", "--force-device-scale-factor=1", "--window-size=800,600",
       ...(process.platform === "darwin" ? ["--use-angle=metal"] : []),
       `--remote-debugging-port=${cdpPort}`, `--user-data-dir=${profile}`,
-      `http://127.0.0.1:${port}/dynamic-surfaces.html`,
+      `http://127.0.0.1:${port}/dynamic-surfaces.html${process.env.DYNAMIC_GRAIN === "1" ? "?grain=1" : ""}`,
     ], { stdio: "ignore" });
 
     let target;

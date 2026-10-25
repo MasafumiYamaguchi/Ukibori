@@ -1,0 +1,321 @@
+{
+  "marker": "UKIBORI_WEBGPU_PASS real adapter parity: 121 fixtures, 85533 scene texels, 0 mismatches (height tolerance 1e-4; normal tolerance 1e-4, length tolerance 1e-4; measured max component error 4.321e-7, max length error 8.366e-8; shadow 0/85024 visibility texels exact, caster tolerance 1e-4 max err 0.000e+0; reconstructed visibility 0/5200 texels within 0.000002 (max abs 9.537e-7, max ulp 16.00); lighting 0/81344 texels (tolerance 1e-3, max diffuse err 2.384e-7, max specular err 1.471e-7, RGBA8 per-channel max deltas R0 G0 B0 A0, soft single-byte deltas 0); presentation 22 fixtures, 16912 canvas texels, 0 hard / 0 bad-alpha (per-channel max deltas R0 G0 B0 A0); benchmark 640x360 5 warmups, 10 samples: CPU median 208.45ms, GPU median 1.500ms, speedup 139.0x (effective options {\"stepSize\":0.5,\"bias\":0.5,\"maxDistance\":1038.46044921875,\"samples\":8}); presentation benchmark 640x360 5 warmups, 10 samples: present-only median 0.300ms)",
+  "adapter": {
+    "vendor": "apple",
+    "architecture": "metal-3",
+    "device": "",
+    "description": "",
+    "backend": null,
+    "isFallbackAdapter": null
+  },
+  "fixtures": 121,
+  "texels": 85533,
+  "normalTexels": 82154,
+  "normalMismatches": 0,
+  "shadowTexels": 85024,
+  "shadowMismatches": 0,
+  "casterTexels": 81344,
+  "casterMismatches": 0,
+  "lightingTexels": 81344,
+  "diffuseMismatches": 0,
+  "specularMismatches": 0,
+  "colorHard": 0,
+  "colorSoft": 0,
+  "colorAlphaBad": 0,
+  "mutationMismatches": 0,
+  "presentFixtures": 22,
+  "presentTexels": 16912,
+  "presentHard": 0,
+  "presentAlphaBad": 0,
+  "retainedProblems": 0,
+  "partialProblems": 0,
+  "tileBenchmarkCases": 9,
+  "benchmarkSpeedup": 138.967,
+  "issue48Adversarial": {
+    "expected": [
+      "shadow-thin-caster-aabb-edge",
+      "shadow-bilinear-support-boundary",
+      "shadow-scene-edge-last-valid-step",
+      "shadow-negative-threshold-cull-guard",
+      "shadow-dense-full-frame-hard",
+      "shadow-dense-full-frame-soft",
+      "shadow-prefix-dz-positive-before-boundary",
+      "shadow-prefix-dz-positive-after-boundary",
+      "shadow-prefix-dz-zero",
+      "shadow-prefix-dz-negative",
+      "shadow-prefix-receiver-above-height",
+      "shadow-prefix-small-positive-dz",
+      "shadow-prefix-large-valid-stepcount",
+      "shadow-prefix-nondyadic-0.1",
+      "shadow-prefix-nondyadic-0.3",
+      "shadow-prefix-height-equality",
+      "shadow-prefix-xy-height-same-step"
+    ],
+    "executed": [
+      "shadow-thin-caster-aabb-edge",
+      "shadow-bilinear-support-boundary",
+      "shadow-scene-edge-last-valid-step",
+      "shadow-negative-threshold-cull-guard",
+      "shadow-dense-full-frame-hard",
+      "shadow-dense-full-frame-soft",
+      "shadow-prefix-dz-positive-before-boundary",
+      "shadow-prefix-dz-positive-after-boundary",
+      "shadow-prefix-dz-zero",
+      "shadow-prefix-dz-negative",
+      "shadow-prefix-receiver-above-height",
+      "shadow-prefix-small-positive-dz",
+      "shadow-prefix-large-valid-stepcount",
+      "shadow-prefix-nondyadic-0.1",
+      "shadow-prefix-nondyadic-0.3",
+      "shadow-prefix-height-equality",
+      "shadow-prefix-xy-height-same-step"
+    ],
+    "missing": [],
+    "executionErrors": [],
+    "mismatches": [],
+    "hardFixture": "shadow-dense-full-frame-hard",
+    "softFixture": "shadow-dense-full-frame-soft"
+  },
+  "reconPartialProblems": 0,
+  "globalChangeProblems": 0,
+  "materialChangeProblems": 0,
+  "lightColorProblems": 0,
+  "retainedMasks": {
+    "deviceLossRecovery": true,
+    "intermediateFixtures": 24,
+    "maskMutationFixtures": 24,
+    "parity": "forced full exact; CPU height 1e-4"
+  },
+  "dynamicMaterial": {
+    "rows": [
+      {
+        "dpr": 0.75,
+        "grain": {
+          "scale": 4,
+          "strength": 0.5,
+          "seed": 42
+        },
+        "allocations": 6996,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 0.75,
+        "grain": {
+          "scale": 3,
+          "strength": 0.7,
+          "seed": 43
+        },
+        "allocations": 6996,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 0.75,
+        "grain": {
+          "scale": 0.25,
+          "strength": 1,
+          "seed": 42
+        },
+        "allocations": 6996,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 0.75,
+        "grain": null,
+        "allocations": 6996,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 1,
+        "grain": {
+          "scale": 4,
+          "strength": 0.5,
+          "seed": 42
+        },
+        "allocations": 12288,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 1,
+        "grain": {
+          "scale": 3,
+          "strength": 0.7,
+          "seed": 43
+        },
+        "allocations": 12288,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 1,
+        "grain": {
+          "scale": 0.25,
+          "strength": 1,
+          "seed": 42
+        },
+        "allocations": 12288,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 1,
+        "grain": null,
+        "allocations": 12288,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 1.5,
+        "grain": {
+          "scale": 4,
+          "strength": 0.5,
+          "seed": 42
+        },
+        "allocations": 27408,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 1.5,
+        "grain": {
+          "scale": 3,
+          "strength": 0.7,
+          "seed": 43
+        },
+        "allocations": 27408,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 1.5,
+        "grain": {
+          "scale": 0.25,
+          "strength": 1,
+          "seed": 42
+        },
+        "allocations": 27408,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 1.5,
+        "grain": null,
+        "allocations": 27408,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 2,
+        "grain": {
+          "scale": 4,
+          "strength": 0.5,
+          "seed": 42
+        },
+        "allocations": 48576,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 2,
+        "grain": {
+          "scale": 3,
+          "strength": 0.7,
+          "seed": 43
+        },
+        "allocations": 48576,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 2,
+        "grain": {
+          "scale": 0.25,
+          "strength": 1,
+          "seed": 42
+        },
+        "allocations": 48576,
+        "dispatchCount": 1
+      },
+      {
+        "dpr": 2,
+        "grain": null,
+        "allocations": 48576,
+        "dispatchCount": 1
+      }
+    ],
+    "failures": [],
+    "parity": "grain color <=1 RGBA8 byte; geometry and shadow retained exactly"
+  },
+  "shadowSampleBenchmark": [
+    {
+      "requested": 1,
+      "effective": 1,
+      "softActive": false,
+      "medianMs": 0.7
+    },
+    {
+      "requested": 4,
+      "effective": 4,
+      "softActive": true,
+      "medianMs": 0.9
+    },
+    {
+      "requested": 8,
+      "effective": 8,
+      "softActive": true,
+      "medianMs": 1
+    },
+    {
+      "requested": 16,
+      "effective": 16,
+      "softActive": true,
+      "medianMs": 1.7
+    }
+  ],
+  "reconstructionBenchmark": [
+    {
+      "stage": "shadow",
+      "effectiveSamples": 8,
+      "softActive": true,
+      "reconstructionActive": false,
+      "radiusTexels": 0,
+      "hostMedianMs": 0.95
+    },
+    {
+      "stage": "reconstruction",
+      "effectiveSamples": 8,
+      "softActive": true,
+      "reconstructionActive": true,
+      "radiusTexels": 1,
+      "hostMedianMs": 0.2
+    },
+    {
+      "stage": "reconstruction",
+      "effectiveSamples": 8,
+      "softActive": true,
+      "reconstructionActive": true,
+      "radiusTexels": 2,
+      "hostMedianMs": 0.3
+    },
+    {
+      "stage": "reconstruction",
+      "effectiveSamples": 8,
+      "softActive": true,
+      "reconstructionActive": true,
+      "radiusTexels": 4,
+      "hostMedianMs": 0.45
+    },
+    {
+      "stage": "shadow+reconstruction",
+      "effectiveSamples": 8,
+      "softActive": true,
+      "reconstructionActive": true,
+      "radiusTexels": 2,
+      "hostMedianMs": 1
+    },
+    {
+      "stage": "shadow+reconstruction-hard",
+      "effectiveSamples": 1,
+      "softActive": false,
+      "reconstructionActive": true,
+      "radiusTexels": 1,
+      "hostMedianMs": 1
+    }
+  ],
+  "reconstructionTexels": 5200,
+  "reconstructionMismatches": 0,
+  "reconstructionMaxAbsError": 9.5367431640625e-07,
+  "reconstructionMaxUlpError": 16,
+  "classificationTotals": {},
+  "catalogVersion": 11
+}

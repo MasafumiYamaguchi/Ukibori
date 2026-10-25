@@ -39,8 +39,8 @@ export interface DiagnosticsPage {
 }
 
 export const DIAGNOSTICS_PAGES: readonly DiagnosticsPage[] = [
-  { id: "interaction", label: "Interaction", page: "/interaction.html", frameTitle: "Surface interaction",
-    title: "Surface interaction", description: "Native button and Radix Toggle with continuous elevation and reduced motion." },
+  { id: "interaction", label: "Interaction", page: "/interaction.html", frameTitle: "Surface interaction and resin grain",
+    title: "Surface interaction", description: "Native button and Radix Toggle with continuous elevation, reduced motion and optional resin grain." },
   {
     id: "renderer",
     label: "Renderer",

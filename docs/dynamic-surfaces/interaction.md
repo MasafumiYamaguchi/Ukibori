@@ -29,7 +29,7 @@ Radixはデモworkspaceだけの依存で、renderer・DOM統合・React coreの
 | --- | --- |
 | WebGPU | 同じDOM入力から高さ・影・照明を更新。マスクが不変ならSDFを保持 |
 | CPU | 同じ物理計算。重い場面では解像度・影sample数を調整する |
-| CSS | 同じbuttonと操作進捗を保ち、box-shadow近似で高さを示す。発光・bloomは省略 |
+| CSS | 同じbuttonと操作進捗を保ち、box-shadow近似で高さを示す。grainは省略 |
 | SSR / enhancement前 | 通常のbuttonを表示し、hydration後に描画を追加 |
 
 DPR/qualityはrender targetへ適用する。DOM layout・buttonの大きさ・focus領域はそのまま。SVGはeffective footprintのmask、文字は既存のtypography fidelity gateを使う。transform祖先・任意のCSS transform・全clip仕様の再現は今回の保証に含めない。

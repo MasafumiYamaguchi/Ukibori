@@ -7,6 +7,7 @@ import type { UkiboriDom } from "ukibori-dom";
 // R0 fixture: keep these conditions unchanged for before/after comparisons.
 const progress = [0, 0.125, 0.375, 0.625, 0.875, 1, 0.875, 0.625, 0.375, 0.125];
 const warmup = 20, samples = 60;
+const grainEnabled = new URLSearchParams(location.search).has("grain");
 let layer: UkiboriDom | null = null;
 const errors: string[] = [];
 const ready = (value: UkiboriDom | null) => { layer = value; };
@@ -18,6 +19,7 @@ function Fixture({ p, effects }: { p: number; effects: boolean }) {
     light={{ x: -0.6, y: -0.8, z: 1 }} angularRadius={0.12}
     shadow={{ samples: 8, maxDistance: 48, reconstruction: { radius: 2 } }}
     materials={{ button: { baseColor: { r: 0.35, g: 0.4, b: 0.45 }, roughness: 0.5, metallic: 0,
+      grain: grainEnabled ? { scale: 3, strength: 0.6, seed: 42 } : undefined,
       emissive: effects ? { r: 0.3, g: 0.1, b: 0.02 } : undefined } }}
     basePlaneColor="#bcbcbc" compositing={{ emissive: effects ? {
       illumination: { radius: 24, intensity: 0.5 }, bloom: { radius: 8, intensity: 0.4 } } : undefined }}
@@ -79,7 +81,7 @@ async function run() {
     cases.push({ effects, idle, metrics, rows });
   }
   const adapter = await navigator.gpu?.requestAdapter();
-  const environment = { userAgent: navigator.userAgent, platform: navigator.platform, adapter: adapter ? { vendor: adapter.info.vendor, architecture: adapter.info.architecture, description: adapter.info.description, device: adapter.info.device } : null,
+  const environment = { userAgent: navigator.userAgent, platform: navigator.platform, adapter: adapter ? { vendor: adapter.info.vendor, architecture: adapter.info.architecture, description: adapter.info.description, device: adapter.info.device } : null, grainEnabled,
     devicePixelRatio: window.devicePixelRatio, dpr: 1, cssStage: [320, 180], margin: 8, font: "bold 16px Arial",
     shadow: { samples: 8, angularRadius: 0.12, maxDistance: 48, reconstructionRadius: 2 }, warmup, samples, progress,
     displayLatencyMs: null, note: "Wall time includes scheduler polling and benchmark timestamp readback; display latency is unmeasured. Production profiling is opt-in." };
