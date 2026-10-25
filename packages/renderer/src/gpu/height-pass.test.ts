@@ -1428,6 +1428,18 @@ describe("retained mask SDF", () => {
       expect(uploadAndDispatch(mock, uploader, pass, next).stats.maskSdfPasses).toBe(0);
     }
   });
+  it("invalidates metadata placement when only non-mask surfaces are added", () => {
+    const { mock, uploader, pass } = setup();
+    const scene = maskScene();
+    expect(uploadAndDispatch(mock, uploader, pass, scene).stats.maskSdfPasses).toBe(1);
+    const expanded = createScene({ ...scene, surfaces: [...scene.surfaces,
+      ...Array.from({ length: 32 }, (_, i) => ({ ...scene.surfaces[0], id: `plain-${i}`, shape: { kind: "roundedRect" as const, radius: 1 } })),
+    ] });
+    expect(uploadAndDispatch(mock, uploader, pass, expanded).stats.maskSdfPasses).toBe(1);
+    expect(uploadAndDispatch(mock, uploader, pass, expanded).stats.maskSdfPasses).toBe(0);
+    expect(uploadAndDispatch(mock, uploader, pass, scene).stats.maskSdfPasses).toBe(1);
+  });
+
   it("owns comparison bytes and supports forced-full, disposal and split timestamps", () => {
     const mock = new MockDevice({ maxComputeWorkgroupsPerDimension: 4 });
     const uploader = new SceneUploader(mock), pass = new HeightPass(mock);

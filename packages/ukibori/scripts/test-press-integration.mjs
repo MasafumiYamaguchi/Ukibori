@@ -64,7 +64,7 @@ async function main() {
       "--headless=new", "--enable-unsafe-webgpu", "--disable-background-timer-throttling", "--disable-backgrounding-occluded-windows", "--disable-renderer-backgrounding", "--force-device-scale-factor=1", "--window-size=800,600",
       ...(process.platform === "darwin" ? ["--use-angle=metal"] : []),
       `--remote-debugging-port=${cdpPort}`, `--user-data-dir=${profile}`,
-      `http://127.0.0.1:${port}/press-integration.html${process.env.DYNAMIC_GRAIN === "1" ? "?grain=1" : ""}`,
+      `http://127.0.0.1:${port}/press-integration.html`,
     ], { stdio: "ignore" });
 
     let target;
@@ -93,13 +93,13 @@ async function main() {
     });
     const evaluate = async expression => {
       const response = await send("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
-      if (response.result?.exceptionDetails) throw new Error(JSON.stringify(response.result.exceptionDetails));
+      if (response.result?.exceptionDetails) throw new Error(`${expression}: ${JSON.stringify(response.result.exceptionDetails)}`);
       return response.result?.result?.value;
     };
     const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const waitForProbe = async (search) => {
+    const waitForProbe = async (search, previousToken) => {
       const readyUntil = Date.now() + 20000;
-      const ready = `Boolean(window.pressProbe)${search ? ` && location.search === ${JSON.stringify(search)}` : ""}`;
+      const ready = `Boolean(window.pressProbe)${search ? ` && location.search === ${JSON.stringify(search)}` : ""}${previousToken ? ` && window.pressProbe.token !== ${JSON.stringify(previousToken)}` : ""}`;
       while (!await evaluate(ready) && Date.now() < readyUntil) await pause(25);
       if (!await evaluate(ready)) throw new Error("press fixture not ready");
     };
@@ -109,40 +109,70 @@ async function main() {
     const rows = [];
     const check = (ok, message) => { if (!ok) throw new Error(message); };
     const state = () => evaluate("window.pressProbe.state()");
+    const waitForState = async (predicate, description) => {
+      const deadline = Date.now() + 3000;
+      let current;
+      do {
+        current = await state();
+        if (predicate(current)) return current;
+        await pause(15);
+      } while (Date.now() < deadline);
+      throw new Error(`${description}: ${JSON.stringify(current)}`);
+    };
     const key = (type, value, code, vk) => send("Input.dispatchKeyEvent", { type, key: value, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk });
-    for (const backend of ["webgpu", "cpu", "css"]) {
-      const prepared = await evaluate(`window.pressProbe.prepare(${JSON.stringify(backend)})`);
+    for (const { backend, effects } of [
+      { backend: "webgpu", effects: false }, { backend: "cpu", effects: false }, { backend: "css", effects: false },
+      { backend: "webgpu", effects: true }, { backend: "cpu", effects: true },
+    ]) {
+      const prepare = (reduced = false, disabled = false) => evaluate(`window.pressProbe.prepare(${JSON.stringify(backend)}, ${reduced}, ${disabled}, ${effects})`);
+      const prepared = await prepare();
       check(prepared.backend === backend, `requested ${backend}, got ${prepared.backend}`);
       check(prepared.sameNode, "hydration replaced the button");
+      // Start Tab navigation from the document, not from a button retained
+      // by the previous case (which would move focus into browser chrome).
+      await evaluate("document.querySelector('button').blur()");
       await key("keyDown", "Tab", "Tab", 9); await key("keyUp", "Tab", "Tab", 9);
       let focused = await state();
-      if (!focused.focused) { await evaluate("document.querySelector('button').focus()"); focused = await state(); }
+      await send("Page.bringToFront");
+      await evaluate("document.querySelector('button').focus()"); focused = await state();
       check(focused.focused && focused.focusVisible, `${backend} keyboard focus-visible`);
       const before = await state();
       await key("keyDown", " ", "Space", 32); await pause(45); const mid = await state();
       check(mid.progress > 0 && mid.progress < 1, `${backend} no intermediate press ${JSON.stringify(mid)}`);
-      await pause(250); check((await state()).progress === 1, `${backend} press incomplete: ${JSON.stringify(await state())}`);
-      await key("keyUp", " ", "Space", 32); await pause(250); const selected = await state();
+      await waitForState(value => value.progress === 1, `${backend}/${effects} press incomplete`);
+      await key("keyUp", " ", "Space", 32); await pause(35); const releaseMid = await state();
+      check(releaseMid.progress > (releaseMid.pressed === "true" ? 0.375 : 0) && releaseMid.progress < 1, `${backend} no intermediate return/selection ${JSON.stringify(releaseMid)}`);
+      const selected = await waitForState(value => value.progress === (value.pressed === "true" ? 0.375 : 0), `${backend}/${effects} selection incomplete`);
       check(selected.pressed !== before.pressed && selected.clicks === before.clicks + 1, `${backend} native Space activation failed`);
       check(selected.progress === (selected.pressed === "true" ? 0.375 : 0), `${backend} selected transition incomplete`);
       // Trusted touch input; a browser-generated pointercancel follows touchCancel.
       await send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: selected.x, y: selected.y, id: 1 }] });
-      await pause(250); check((await state()).progress === 1, `${backend} touch press`);
+      await waitForState(value => value.progress === 1, `${backend}/${effects} touch press`);
       await send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
-      await pause(200); check((await state()).progress < 1, `${backend} touch cancel stuck`);
+      await waitForState(value => value.progress === (value.pressed === "true" ? 0.375 : 0), `${backend}/${effects} touch cancel stuck`);
+      await send("Input.dispatchMouseEvent", { type: "mousePressed", x: selected.x, y: selected.y, button: "left", buttons: 1, clickCount: 1 });
+      const mouseDown = await waitForState(value => value.progress === 1, `${backend}/${effects} mouse press incomplete`);
+      check(mouseDown.progress === 1, `${backend}/${effects} mouse press ${JSON.stringify(mouseDown)}`);
+      await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: selected.x, y: selected.y, button: "left", buttons: 0, clickCount: 1 });
+      const mouseReleased = await waitForState(value => value.clicks === selected.clicks + 1 && value.progress === (value.pressed === "true" ? 0.375 : 0), `${backend}/${effects} mouse release incomplete`);
+      check(mouseReleased.clicks === selected.clicks + 1 && mouseReleased.pressed !== selected.pressed, `${backend}/${effects} native mouse activation`);
       const idle = await evaluate("window.pressProbe.idle()");
-      const reduced = await evaluate(`window.pressProbe.prepare(${JSON.stringify(backend)}, true)`);
+      const reduced = await prepare(true);
       await key("keyDown", "Enter", "Enter", 13); await pause(10); check((await state()).progress === 1, `${backend} reduced-motion not immediate`);
       await key("keyUp", "Enter", "Enter", 13);
-      const disabled = await evaluate(`window.pressProbe.prepare(${JSON.stringify(backend)}, true, true)`);
+      const disabled = await prepare(true, true);
       check(disabled.disabled && disabled.progress === 0, `${backend} disabled stayed pressed`);
-      rows.push({ backend, mid, selected, idle, reduced, disabled });
+      check(disabled.errors.length === 0, `${backend} rendering errors: ${JSON.stringify(disabled.errors)}`);
+      rows.push({ backend, effects, mid, releaseMid, selected, mouseDown, mouseReleased, idle, reduced, disabled });
     }
+    const operationSamples = await evaluate("window.pressProbe.samples()");
+    const environment = await evaluate("window.pressProbe.environment()");
     const disposed = [];
     for (const backend of ["webgpu", "cpu"]) {
       if (disposed.length) {
+        const previousToken = await evaluate("window.pressProbe.token");
         await send("Page.navigate", { url: `http://127.0.0.1:${port}/press-integration.html?unmount=${backend}` });
-        await waitForProbe(`?unmount=${backend}`);
+        await waitForProbe(`?unmount=${backend}`, previousToken);
       }
       const beforeUnmount = await evaluate(`window.pressProbe.prepare(${JSON.stringify(backend)}, false, false)`);
       await evaluate("document.querySelector('button').focus()");
@@ -151,7 +181,30 @@ async function main() {
       check(transition.progress > beforeUnmount.progress && transition.progress < 1, `${backend} unmount probe did not start a transition`);
       disposed.push({ backend, ...await evaluate("window.pressProbe.finish()") });
     }
-    await evaluate(`document.getElementById('result').textContent = 'UKIBORI_PRESS_INTEGRATION_PASS\\n' + JSON.stringify(${JSON.stringify({ rows, disposed })}, null, 2)`);
+    const fallbacks = [];
+    for (const scenario of ["loss", "no-gpu"]) {
+      const previousToken = await evaluate("window.pressProbe.token");
+      await send("Page.navigate", { url: `http://127.0.0.1:${port}/press-integration.html?${scenario}=1&grain=1` });
+      await waitForProbe(`?${scenario}=1&grain=1`, previousToken);
+      const prepared = await evaluate(`window.pressProbe.prepare("${scenario === "loss" ? "webgpu" : "auto"}", false, false, false, "${scenario === "loss" ? "webgpu" : "cpu"}")`);
+      await evaluate("document.querySelector('button').focus()");
+      if (scenario === "loss") {
+        await key("keyDown", " ", "Space", 32); await pause(35);
+        const fallback = await evaluate("window.pressProbe.loseDevice()");
+        check(fallback.backend === "cpu" && fallback.fallbackReason.includes("lost"), "device loss did not report CPU fallback");
+        await key("keyUp", " ", "Space", 32); await pause(250);
+      } else {
+        check(prepared.backend === "cpu" && prepared.fallbackReason, "unavailable GPU did not report CPU fallback");
+        await key("keyDown", " ", "Space", 32); await pause(150);
+        await key("keyUp", " ", "Space", 32); await pause(250);
+      }
+      const after = await evaluate("window.pressProbe.idle()");
+      check(after.sameNode && after.clicks === prepared.clicks + 1 && after.pressed !== prepared.pressed, `${scenario} lost native input/DOM identity`);
+      check(after.errors.length === 0, `${scenario} unexpected errors: ${JSON.stringify(after.errors)}`);
+      fallbacks.push({ scenario, prepared, after });
+      await evaluate("window.pressProbe.finish()");
+    }
+    await evaluate(`document.getElementById('result').textContent = 'UKIBORI_PRESS_INTEGRATION_PASS\\n' + JSON.stringify(${JSON.stringify({ environment, rows, operationSamples, disposed, fallbacks })}, null, 2)`);
     const deadline = Date.now() + 180_000;
     let output = "";
     while (!marker.test(output) && Date.now() < deadline) {

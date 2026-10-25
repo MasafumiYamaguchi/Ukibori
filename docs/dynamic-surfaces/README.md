@@ -38,7 +38,7 @@ R3は照明更新時に3 Surface分の240 byteを追加uploadする。通常照�
 - R2: Radixのprops/ref/event合成、Space / Enter、タッチ、pointercancel / capture喪失、blur、disabled、focus-visible、SSR/hydration、reduced-motionとunmountを確認した。WebGPU / CPU / CSSのnative操作結果を[press-browser.json](press-browser.json)へ保存する。
 - R3: DPR 0.75 / 1 / 1.5 / 2、seed/scale変更、縮小、共有materialのSurface原点、平行移動・resize、材質だけの変更とidleを検証した。CPU/GPUの新規grain比較はRGBA8各channelで1 byte以内。既存goldenの誤差条件は変えない。
 
-最終チェックは`npm test`（dev-loop 12件、renderer 1124件、DOM 218件、React 236件）、`npm run typecheck`、`npm run build`。実GPUのgolden gate結果は[webgpu-parity.json](webgpu-parity.json)に保存する。テストに使うreadbackは検証専用で、通常の描画へ追加しない。
+最終チェックは`npm test`（dev-loop 12件、renderer 1125件、DOM 218件、React 237件）、`npm run typecheck`、`npm run build`。実GPUのgolden gate結果は[webgpu-parity.json](webgpu-parity.json)に保存する。テストに使うreadbackは検証専用で、通常の描画へ追加しない。
 
 
 操作中に観測したrender host時間は次のとおり。180×100の別sceneで、GPU profilingを有効にした操作テストから取得した。固定benchmarkの20 warmup/60 sampleとは異なり、入力・戻り・選択・unmount直前のフレームを含む。CPUはTypeScript参照描画のため、この条件でもGPUよりhost負荷が大きい。CSS経路は物理rendererを実行せず、GPU時間は未測定。
@@ -76,3 +76,5 @@ benchmarkは`packages/ukibori/test-browser/dynamic-surfaces.tsx`、runnerは`tes
 レビュー後の再検証では、CPUのidle判定にscene構築回数を使い、WebGPUとCPUの遷移途中でunmountした。両経路で後続描画が増えないことを確認した。結果は[press-review-browser.json](press-review-browser.json)に保存した。
 
 WASM選択の契約テストは実演算とparity比較を維持し、計測時間だけを固定した。速度の利点がある場合・ない場合の両方で、force指定が後続autoの再プローブを省略しないことを確認する。実機の速度はこのunit testの合否条件に含めない。
+
+全完了条件の照合と追加検証は[acceptance.md](acceptance.md)を参照。backend/effects同時変更時のDOM維持、mask配置・Surface resize・GPU喪失/非対応後の入力を追加確認した。

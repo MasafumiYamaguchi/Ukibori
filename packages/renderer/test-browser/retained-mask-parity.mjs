@@ -63,6 +63,25 @@ export async function runRetainedMaskParity(api, device) {
         const rebuilt = await fields();
         for (const key of Object.keys(retained)) compare(retained[key], rebuilt[key], 0, `R1 changed-mask full ${key}`);
       }
+      // Scene-space placement/size/profile affect composition, not the local
+      // mask SDF. Reuse the SDF but compare every output against a full rebuild.
+      for (const changed of [
+        { ...glyph, position: { x: 12, y: 12 } },
+        { ...glyph, size: { x: 12, y: 12 } },
+        { ...glyph, thickness: 1, profile: { kind: "convex" } },
+        glyph,
+      ]) {
+        const scene = api.createScene({ ...original, surfaces: [original.surfaces[0], changed] });
+        const frame = pipeline.render({ scene, dpr });
+        check(frame.height.maskSdfPasses === 0, 'R1 scene-space mask edit re-ran local SDF');
+        check(frame.height.composePasses > 0, 'R1 mask geometry edit did not invalidate composition');
+        const retained = await fields(), cpu = oracle.cpuOracle(scene, dpr);
+        compare(retained.height, cpu.height, 1e-4, 'R1 moved/resized-mask CPU height');
+        compare(retained.owners, cpu.objectId, 0, 'R1 moved/resized-mask CPU ownership');
+        pipeline.render({ scene, dpr, debugForceFull: true });
+        const rebuilt = await fields();
+        for (const key of Object.keys(retained)) compare(retained[key], rebuilt[key], 0, `R1 moved/resized-mask full ${key}`);
+      }
     }
   } finally { pipeline.dispose(); }
   const error = await device.popErrorScope(); check(!error, error?.message);
@@ -87,5 +106,5 @@ export async function runRetainedMaskParity(api, device) {
     await freshDevice.queue.onSubmittedWorkDone();
     const error = await freshDevice.popErrorScope(); check(!error, error?.message);
   } finally { freshPipeline.dispose(); freshDevice.destroy(); }
-  return { deviceLossRecovery: true, intermediateFixtures: 24, maskMutationFixtures: 24, parity: 'forced full exact; CPU height 1e-4' };
+  return { deviceLossRecovery: true, intermediateFixtures: 24, maskMutationFixtures: 24, maskPlacementFixtures: 16, parity: 'forced full exact; CPU height 1e-4' };
 }
