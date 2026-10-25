@@ -24,25 +24,18 @@ import { Ukibori, Surface, UkiboriText } from "ukibori";
 
 ## Architecture Decision
 
-### 指示書との関係: 暫定構成としての位置づけ
+### 現在の描画経路
 
-指示書のMVPは**軽量なDOM/CSS主体のモデル**(CSSカスタムプロパティによるbox-shadow近似。Canvas等の重い経路を導入しない)を想定しています。一方、このリポジトリにはCP1以前から構築された既存実装があり、その基本経路(`backend="auto"`/`"cpu"`)は**Canvas 2Dを使うCPUレンダラー**(SDF → height field → 材質BRDF → キャストシャドウ)です。これは指示書の想定から**逸脱**しており、CP1の作業で新たに選択したものではなく、また逸脱を既成事実として正当化するものではありません。
+`backend="auto"` はWebGPUを優先します。GPUの初期化・描画・device lossで失敗した場合は、CPU reference rendererへ一度だけ切り替えます。`backend="webgpu"` はGPU専用で、初期化できない場合はCSS近似へ移り、DOMを操作できる状態を保ちます。
 
-当面はこの既存Canvas構成を**暫定構成**として維持します。
-
-- 維持の理由: 既存の検証済み実装(テスト済み)を破壊せず、ユーザーに方向性を確認するまで動作可能な状態を保つため
-- 後続CPでの扱い: CP2以降で「指示書準拠の軽量DOM/CSS中心モデルへ移行する」か「既存Canvas構成を恒久的な基本経路として採用する」かをユーザーに諮り、その決定に従う
-- **恒久変更にはユーザー承認が必要**です。この節は判断までの暫定状態の記録であり、逸脱の正当化ではありません
-
-### 現在の構成(暫定)
-
-| 決定 | 内容 |
+| backend | 描画経路 |
 | --- | --- |
-| npm workspacesを採用 | `packages/*`(`ukibori-renderer` / `ukibori-dom` / `ukibori`)+ `demo`のworkspace構成。公開物とデモを分離し、ライブラリ側にデモ用依存を混ぜない |
-| 3パッケージに分離 | renderer(React/DOM非依存の純計算)→ dom(DOM統合)→ ukibori(React API)の順に依存。計算・DOM・Reactの責務を分け、各層を独立にテストする。runtime dependencyを最小化する(React層はpeer dependency) |
-| 基本経路(暫定): Canvas製CPUレンダラー | `backend="auto"` / `"cpu"`はcanvas 2dへ描画するCPU reference rendererが担う(物理レンダリングの軽量近似であり、正確な物理シミュレーションではない)。React層は薄く、rendererのセマンティクスをReactへ移さない。SSRでは`window`/`document`/canvasに一切触れない。**指示書の「Canvas非導入」と整合しておらず、暫定扱い** |
-| box-shadow近似はCSS backendのみ | `backend="css"`は指示書の軽量DOM/CSSモデルに整合する経路で、CSSカスタムプロパティ(`--ukibori-*`)とbox-shadowによる近似フォールバックを出力し、「物理レンダリングではない」と明示的にラベル付けする。物理経路と混同しない |
-| 統一光源 | `<Ukibori>`で共有光ベクトルを定義し、子の`<Surface>`は常にそれを使う(物理経路・CSS経路の両方で一貫) |
+| `auto` | WebGPUのcomputeからcanvasへ直接提示。失敗時はCPU |
+| `webgpu` | WebGPU。利用できない場合はCSS近似 |
+| `cpu` | TypeScriptの参照計算とCanvas 2Dへの合成 |
+| `css` | box-shadowによる近似 |
+
+renderer → DOM統合 → React APIの順に依存します。DOMがlayout・入力・focus・selection・ARIAを所有し、rendererは共有の2.5D height fieldから照明と要素間の影を求めます。静止時は描画を止めます。
 
 ## アーキテクチャ
 
@@ -103,7 +96,7 @@ DOM所有のアクセシブルなテキスト(`<span>`)を描画し、その**�
 
 ## ブラウザ制約
 
-- 物理層は単一height fieldモデル(#18): オーバーハング・同一画素への複数surfaceの積み重ね・彫り込み(inset)は表現できません(insetはCSS近似でのみ利用可能)
+- 物理層は単一height fieldモデルです。raisedをmax、insetを順序付きminで合成します。複数の高さを同時に保持するオーバーハングやfull 3Dは対象外です
 - overlayはstage-root契約(#20): surfaceはstage要素内に置く必要があります。transform祖先・iframeは非対象
 - `backend="auto"`のWebGPU経路は#29/#31 `GpuScenePipeline`の直接canvas提示です(readbackなし・2D copyなし)。GPUの初期化/描画/device-loss失敗時は**一度だけ**CPU reference rendererへ切替わり(`debugState().backend` / `gpuFallbackReason` / `gpuFrame`で検証可能)。ホスト側の計測はすべてhost wall-clockであり、GPU完了時間を偽装しません
 
@@ -243,3 +236,9 @@ colors are not physical-floor inputs. Renderer-only callers use linear
 See the [implementation and validation report](docs/issue-75/README.md) and the
 `/base-plane-debug.html` demo for short/long shadows, independent illumination,
 bloom, and owned-receiver continuity.
+
+## Bakeの保持と動的更新
+
+`Bake`はDOM計測とrasterの保持境界です。Bake内も共有sceneへ参加し、動的Surfaceと影・照明を共有します。固定画像への切り離しやbuild-time bakeではありません。明示的な`rebake()`、font・viewport変更などで必要な計測をやり直します。
+
+動的Surfaceの基準計測とSDF保持は[実装レポート](docs/dynamic-surfaces/README.md)を参照してください。

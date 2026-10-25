@@ -33,8 +33,7 @@ export interface LightVector {
  * renderer equivalent). */
 export type MaterialName = "silicone" | "matte" | "glass" | "metal";
 
-/** CSS-approximation variant (fallback path only — the height-field renderer
- * has no "inset" carving, see renderer #18 height-field constraints). */
+/** CSS fallback variant. Physical carving uses profile.mode="inset". */
 export type Variant = "raised" | "inset";
 
 /**

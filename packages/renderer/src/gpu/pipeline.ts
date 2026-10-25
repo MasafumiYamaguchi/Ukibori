@@ -585,6 +585,7 @@ export class GpuScenePipeline {
       const t0 = performance.now();
       height = this.heightPass.dispatch(scene, bindings, {
         ...heightOptions,
+        forceMaskSdf: forceFull,
         timestampWrites: timestampFrame.getTimestampWrites("height"),
       });
       const hostMs = performance.now() - t0;

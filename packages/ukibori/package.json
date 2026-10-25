@@ -18,9 +18,10 @@
   },
   "scripts": {
     "build": "tsup",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p test-browser/tsconfig.json",
     "test": "vitest run",
     "test:webgpu": "node scripts/test-webgpu-profiling.mjs",
+    "test:dynamic:webgpu": "node scripts/test-dynamic-surfaces.mjs",
     "clean": "rimraf dist"
   },
   "peerDependencies": {
