@@ -45,6 +45,7 @@ import {
   CATALOG_VERSION,
   ISSUE_48_ADVERSARIAL_FIXTURE_IDS,
 } from "./catalog.mjs";
+import { runRetainedMaskParity } from "./retained-mask-parity.mjs";
 import { runBasePlaneParity } from "./base-plane-parity.mjs";
 import { createOracle } from "./oracle.mjs";
 
@@ -3886,6 +3887,7 @@ async function main() {
     // drain async device errors before destroying the device
     await device.queue.onSubmittedWorkDone().catch(() => undefined);
     await new Promise((resolveDelay) => setTimeout(resolveDelay, 100));
+    summaryData.retainedMasks = await runRetainedMaskParity(api, device);
     detail.push(`#75 base-plane parity: ${JSON.stringify(await runBasePlaneParity(api, device))}`);
     device.destroy();
 

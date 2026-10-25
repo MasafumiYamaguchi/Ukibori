@@ -1391,3 +1391,74 @@ describe("HeightPass substage timestamps", () => {
     }
   });
 });
+// R1: these tests observe real dispatch/timestamp descriptors, not hashes.
+describe("retained mask SDF", () => {
+  it("retains across continuous geometry and partial candidate changes", () => {
+    const { mock, uploader, pass } = setup();
+    const scene = maskScene();
+    expect(uploadAndDispatch(mock, uploader, pass, scene).stats.maskSdfPasses).toBe(1);
+    for (const p of [0.125, 0.375, 0.625, 0.875, 1]) {
+      const next = createScene({ ...scene, surfaces: scene.surfaces.map(s => ({ ...s,
+        elevation: 8 - p * 6, thickness: p, bevelWidth: 2, profile: { kind: "smooth" },
+        position: { x: p, y: p } })) });
+      const encoded = encodeScene(next, 1); uploader.upload(encoded);
+      const stats = pass.dispatch(encoded, uploader.getBindings(), {
+        region: { y0: 0, y1: 9 }, candidates: [0],
+        timestampWrites: { querySet: {} as never, beginningOfPassWriteIndex: 0, endOfPassWriteIndex: 1 },
+      });
+      expect(stats.maskSdfPasses).toBe(0);
+      expect(stats.composePasses).toBe(5);
+      const descriptors = mock.encoders.at(-1)!.passDescriptors;
+      expect(descriptors[0].timestampWrites).toHaveProperty("beginningOfPassWriteIndex", 0);
+      expect(descriptors[4].timestampWrites).toHaveProperty("endOfPassWriteIndex", 1);
+    }
+  });
+  it("invalidates alpha, dimensions, format, mask order, add/remove and section placement", () => {
+    const { mock, uploader, pass } = setup();
+    const scene = maskScene(), first = scene.surfaces[0];
+    const maskSurface = (id: string, alpha: Uint8Array | Float32Array, width = 2) => ({
+      ...first, id, shape: { kind: "mask" as const, mask: { width, height: width, alpha } },
+    });
+    const a = maskSurface("a", new Uint8Array([0, 128, 255, 64]));
+    const b = maskSurface("b", new Uint8Array([255, 128, 255, 64]));
+    for (const surfaces of [[a], [b], [maskSurface("b", new Float32Array([1, 0.5, 1, 0.25]))],
+      [maskSurface("b", new Uint8Array(9).fill(255), 3)], [a, b], [b, a], [b], [], [b]]) {
+      const next = createScene({ ...scene, surfaces });
+      expect(uploadAndDispatch(mock, uploader, pass, next).stats.maskSdfPasses).toBe(surfaces.length ? 1 : 0);
+      expect(uploadAndDispatch(mock, uploader, pass, next).stats.maskSdfPasses).toBe(0);
+    }
+  });
+  it("owns comparison bytes and supports forced-full, disposal and split timestamps", () => {
+    const mock = new MockDevice({ maxComputeWorkgroupsPerDimension: 4 });
+    const uploader = new SceneUploader(mock), pass = new HeightPass(mock);
+    const scene = maskScene();
+    const encoded = encodeScene(scene, 1); uploader.upload(encoded);
+    expect(pass.dispatch(encoded, uploader.getBindings()).maskSdfPasses).toBe(1);
+    expect(pass.dispatch(encoded, uploader.getBindings()).maskSdfPasses).toBe(0);
+    expect(pass.dispatch(encoded, uploader.getBindings(), { forceMaskSdf: true }).maskSdfPasses).toBe(1);
+    // Even reusing and mutating the same EncodedScene must compare owned data.
+    encoded.bytes[encoded.bytes.length - 16] = 255;
+    uploader.upload(encoded);
+    expect(pass.dispatch(encoded, uploader.getBindings()).maskSdfPasses).toBe(1);
+    pass.dispose();
+    expect(pass.dispatch(encoded, uploader.getBindings()).maskSdfPasses).toBe(1);
+    const start = mock.encoders.length;
+    const stats = pass.dispatch(encoded, uploader.getBindings(), {
+      timestampWrites: { querySet: {} as never, beginningOfPassWriteIndex: 2, endOfPassWriteIndex: 3 },
+    });
+    expect(stats.maskSdfPasses).toBe(0);
+    expect(mock.encoders[start].passDescriptors[0].timestampWrites).toHaveProperty("beginningOfPassWriteIndex", 2);
+    expect(mock.encoders.at(-1)!.passDescriptors[4].timestampWrites).toHaveProperty("endOfPassWriteIndex", 3);
+  });
+});
+
+it("R1 invalidates a failed SDF submission before retrying", () => {
+  const { mock, uploader, pass } = setup();
+  const scene = maskScene(); const encoded = encodeScene(scene, 1); uploader.upload(encoded);
+  pass.dispatch(encoded, uploader.getBindings());
+  const submit = mock.queue.submit;
+  mock.queue.submit = () => { throw new Error("submit failed"); };
+  expect(() => pass.dispatch(encoded, uploader.getBindings(), { forceMaskSdf: true })).toThrow("submit failed");
+  mock.queue.submit = submit;
+  expect(pass.dispatch(encoded, uploader.getBindings()).maskSdfPasses).toBe(1);
+});

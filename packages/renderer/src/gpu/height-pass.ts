@@ -15,6 +15,7 @@ import {
 import type { GpuBufferLike, SceneBindings } from "./uploader";
 import type { HeightInputRange } from "./height-inputs";
 import { heightInputRanges, registerHeightInputProvenance } from "./height-inputs";
+import { equalByteRanges } from "./byte-equality";
 import type { BandRegion } from "./tiles";
 import { assertBandRegion, planDispatchChunks } from "./tiles";
 import type { GpuTimestampQuerySetLike, GpuTimestampWritesLike } from "./timestamp-profiler";
@@ -292,7 +293,7 @@ export interface HeightPassLastDispatch {
   readonly workgroupCountX: number;
   readonly maskCount: number;
   readonly totalMaskCells: number;
-  /** 1 when the mask-SDF pass ran, 0 for mask-free scenes */
+  /** 1 when regenerated, 0 when retained or mask-free. */
   readonly maskSdfPasses: number;
   /** 5: height, coverage, objectId, materialId, casterHeight — one compute pass per output */
   readonly composePasses: number;
@@ -373,7 +374,8 @@ export interface MaskWorkspaceLayout {
  * sdf pair and the first/last compose pass write the compose pair, so the
  * benchmark can separate mask-SDF GPU time from total compose GPU time
  * without touching the pipeline's stage-level profiling. Production frames
- * never set this.
+ * never set this. A retained SDF writes no SDF queries: consult maskSdfPasses
+ * before resolving that pair (absence is skipped, not a zero measurement).
  */
 export interface HeightPassSubstageTimestamps {
   readonly querySet: GpuTimestampQuerySetLike;
@@ -471,6 +473,15 @@ export class HeightPass {
   private lastDpr = 0;
   private lastProvenance: HeightPassProvenance | null = null;
   private pipelines: CachedPipelines | null = null;
+  // Owned copies: callers can recycle/mutate encoded bytes after dispatch.
+  // Cache all masks together, including their absolute alpha-buffer offsets.
+  private retainedMasks: {
+    definitions: Uint8Array;
+    pixels: Uint8Array;
+    surfaceCount: number;
+    workspace: GpuBufferLike;
+    meta: GpuBufferLike;
+  } | null = null;
 
   constructor(private readonly device: GpuComputeDeviceLike) {}
 
@@ -482,8 +493,8 @@ export class HeightPass {
    * map, no readback).
    *
    * `options.region` (#32) restricts the five compose passes to the
-   * inclusive texel rows `[y0, y1]` (a full-width dispatch band): the SDF
-   * pass always runs in full, every compose pass dispatches
+   * inclusive texel rows `[y0, y1]` (a full-width dispatch band). Mask SDF
+   * is retained independently; when invalidated it runs in full. Each compose pass dispatches
    * `ceil(bandTexels / WORKGROUP_SIZE)` workgroups and the in-shader index
    * adds `y0 * renderWidth`, so texels outside the band are never written
    * (they are retained by the scheduler). The band is bounds-safe by
@@ -504,6 +515,8 @@ export class HeightPass {
     options?: {
       readonly region?: BandRegion;
       readonly candidates?: readonly number[];
+      /** Test/benchmark comparator: regenerate even identical mask inputs. */
+      readonly forceMaskSdf?: boolean;
       readonly timestampWrites?: GpuTimestampWritesLike;
       /**
        * #46 benchmark-only substage timing seam: separates the mask-SDF
@@ -579,6 +592,22 @@ export class HeightPass {
     );
     this.ensureAllocations(maskOffsets.length, header.surfaceCount, texelCount, totalMaskCells);
 
+    const definitions = scene.bytes.subarray(layout.masksOffset, layout.masksOffset + layout.masksByteLength);
+    const pixels = scene.bytes.subarray(layout.maskPixelsOffset, layout.maskPixelsOffset + layout.maskPixelsByteLength);
+    const retained = this.retainedMasks;
+    const runMaskSdf = totalMaskCells > 0 && (
+      options?.forceMaskSdf === true || retained === null ||
+      retained.workspace !== this.allocation("maskWorkspace") ||
+      retained.meta !== this.allocation("maskMeta") ||
+      retained.surfaceCount !== header.surfaceCount ||
+      retained.definitions.byteLength !== definitions.byteLength ||
+      retained.pixels.byteLength !== pixels.byteLength ||
+      !equalByteRanges(retained.definitions, 0, definitions, 0, definitions.byteLength) ||
+      !equalByteRanges(retained.pixels, 0, pixels, 0, pixels.byteLength)
+    );
+    // If a submit/encoder throws, no partially overwritten SDF is reusable.
+    if (runMaskSdf || totalMaskCells === 0) this.retainedMasks = null;
+
     this.packUniform(totalMaskCells, yOffset, regionEnd);
     this.packMaskMeta(maskOffsets, header.surfaceCount, candidates);
     const uniform = this.allocation("uniform");
@@ -605,7 +634,7 @@ export class HeightPass {
       // Historical frame: the SDF pass and all five compose passes share
       // exactly one encoder and one queue submission.
       const encoder = this.device.createCommandEncoder({ label: "ukibori-height-pass" });
-      if (totalMaskCells > 0) {
+      if (runMaskSdf) {
         const pass = encoder.beginComputePass(
           substage !== undefined
             ? substageTimestampDescriptor(substage, substage.sdfBeginIndex, true, true)
@@ -629,7 +658,7 @@ export class HeightPass {
               )
             : timestampDescriptor(
                 options?.timestampWrites,
-                totalMaskCells === 0 && i === 0,
+                !runMaskSdf && i === 0,
                 i === COMPOSE_PASSES.length - 1,
               ),
         );
@@ -656,7 +685,7 @@ export class HeightPass {
       // executed pass (the SDF pass when masks exist, else the first chunk's
       // first compose pass) and the end query on the last compose pass of
       // the LAST chunk.
-      if (totalMaskCells > 0) {
+      if (runMaskSdf) {
         const encoder = this.device.createCommandEncoder({ label: "ukibori-height-pass" });
         const pass = encoder.beginComputePass(
           substage !== undefined
@@ -690,7 +719,7 @@ export class HeightPass {
                 )
               : timestampDescriptor(
                   options?.timestampWrites,
-                  totalMaskCells === 0 && chunkIndex === 0 && i === 0,
+                  !runMaskSdf && chunkIndex === 0 && i === 0,
                   isLastChunk && i === COMPOSE_PASSES.length - 1,
                 ),
           );
@@ -705,6 +734,13 @@ export class HeightPass {
       }
     }
 
+    if (runMaskSdf) {
+      this.retainedMasks = {
+        definitions: definitions.slice(), pixels: pixels.slice(),
+        surfaceCount: header.surfaceCount,
+        workspace: this.allocation("maskWorkspace"), meta: this.allocation("maskMeta"),
+      };
+    }
     this.lastDispatch = {
       renderWidth: header.renderWidth,
       renderHeight: header.renderHeight,
@@ -781,6 +817,7 @@ export class HeightPass {
     this.lastDispatch = null;
     this.lastDpr = 0;
     this.lastProvenance = null;
+    this.retainedMasks = null;
   }
 
   // -- validation (all BEFORE any device call) ------------------------------
