@@ -244,3 +244,9 @@ bloom, and owned-receiver continuity.
 `/interaction.html`（ダッシュボードのDiagnostics → Interaction）に、Radix Toggleの`asChild`と合成するbutton例があります。Radixはデモだけの依存です。通常のbuttonのclick・Space・Enter・ARIA・refを保ち、pointercancel・capture喪失・blur・disabledで押下を解消します。合成とSSRの導入手順は[操作ガイド](docs/dynamic-surfaces/interaction.md)を参照してください。
 
 `Bake`はDOM計測とrasterの保持境界です。Bake内も共有sceneへ参加し、動的Surfaceと影・照明を共有します。固定画像への切り離しやbuild-time bakeではありません。明示的な`rebake()`、font・viewport変更などで必要な計測をやり直します。
+
+## 樹脂の粒状感を追加する
+
+物理Materialに`grain: { scale: 3, strength: 0.3, seed: 42 }`を指定できます。`scale`はCSS px相当の粒の幅、`strength`はroughnessの変動幅、`seed`はu32です。既定は無効です。Surfaceの左上を基準に模様を固定し、移動しても追従します。縮小時は解像できない変動を弱めます。
+
+初版はroughnessだけを変更します。height・normal・silhouette・caster・cast shadowは変えません。床面は対象外です。CPUとWebGPUで同じ座標・seedを使い、CSS fallbackは粒を省略します。[材質の契約](docs/dynamic-surfaces/material.md)と[計測・検証結果](docs/dynamic-surfaces/README.md)に条件を記録しています。

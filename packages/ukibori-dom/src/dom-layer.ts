@@ -7,6 +7,7 @@ import {
   DEFAULT_LIGHT_DIRECTION,
   GpuScenePipeline,
   composeSdfHeightField,
+  encodeScene, classifySceneChange, shadePreparedFields,
   lightScene,
   normalizeVec3,
   sanitizeEmissiveEffects, emissiveEffectsActive, scaleEmissiveEffects, renderEmissiveEffects,
@@ -241,6 +242,8 @@ export class UkiboriDom {
   private environment: DomEnvironmentState;
   private exposure: number;
   private materials: Record<string, Material> | undefined;
+  private cpuPreviousScene: ReturnType<typeof buildScene> | null = null;
+  private cpuPreviousShadowKey = "";
 
   private readonly resizeObserver: ResizeObserver | null;
   private readonly mutationObserver: MutationObserver | null;
@@ -1203,15 +1206,26 @@ export class UkiboriDom {
       // `lightScene` re-runs the same composition internally for its shading
       // passes, so the two are guaranteed consistent. This CPU double-compose
       // is the reference implementation cost; the GPU backend merges them.
-      const composed = composeSdfHeightField(scene);
-      // The scene is the dpr-scaled similarity image of the CSS-space scene;
-      // shadow lengths must be mapped through the same transform (the
-      // renderer defaults for step/bias are materialized at 0.5 CSS px).
-      buffers = lightScene(scene, {
-        basePlane: this.basePlane,
-        shadow: scaleShadowOptions(this.shadowOptions, dpr),
-      });
-      this.lastObjectId = composed.objectId;
+      const shadow = scaleShadowOptions(this.shadowOptions, dpr);
+      const shadowKey = JSON.stringify(shadow);
+      const previous = this.cpuPreviousScene;
+      const hasGrain = (value: typeof scene) => Object.values(value.materials ?? {}).some(m => m.grain !== undefined);
+      // Narrow opt-in retention for grain/material edits. Preserve the default
+      // reference path and use the GPU classifier's exact semantic comparison.
+      const materialOnly = previous && this.lastBuffers && this.lastObjectId &&
+        shadowKey === this.cpuPreviousShadowKey && (hasGrain(scene) || hasGrain(previous)) &&
+        classifySceneChange(encodeScene(previous, 1).bytes, encodeScene(scene, 1).bytes)
+          .every(reason => reason === "material-values");
+      if (materialOnly) {
+        const retained = this.lastBuffers!;
+        buffers = { ...retained, ...shadePreparedFields(scene, {
+          normal: retained.normal, objectId: this.lastObjectId!, visibility: retained.visibility,
+        }, { basePlane: this.basePlane }) };
+      } else {
+        const composed = composeSdfHeightField(scene);
+        buffers = lightScene(scene, { basePlane: this.basePlane, shadow });
+        this.lastObjectId = composed.objectId;
+      }
     } catch (error) {
       this.onError(error);
       this.lastRenderMs = performance.now() - startedAt;
@@ -1250,6 +1264,8 @@ export class UkiboriDom {
 
     this.lastRenderSize = { width: image.width, height: image.height };
     this.lastBuffers = buffers;
+    this.cpuPreviousScene = scene;
+    this.cpuPreviousShadowKey = JSON.stringify(scaleShadowOptions(this.shadowOptions, dpr));
     this.lastGpuFrame = null;
     return true;
   }
@@ -1336,6 +1352,9 @@ export class UkiboriDom {
     }
     this.registry.clear();
     this.svgPathCache.clear();
+    this.cpuPreviousScene = null;
+    this.lastBuffers = null;
+    this.lastObjectId = null;
     this.overlay.dispose();
   }
 

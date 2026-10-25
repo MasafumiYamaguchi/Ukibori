@@ -1191,3 +1191,23 @@ it("retains emissive effects across repaint, updates only presentation on contro
   pipeline.dispose();
   expect(device.created.every(buffer => buffer.destroyed)).toBe(true);
 });
+
+it("R3 grain enable/edit/disable executes only lighting and keeps height/shadow resident", () => {
+  const { pipeline } = setup();
+  const base = sceneA();
+  pipeline.render({ scene: base, dpr: 1 });
+  const first = pipeline.getSnapshot();
+  for (const grain of [{ scale: 3, strength: 0.5, seed: 42 }, { scale: 4, strength: 0.6, seed: 43 }, undefined]) {
+    const scene = createScene({ ...base, materials: { silicone: {
+      baseColor: { r: 0.78, g: 0.8, b: 0.83 }, roughness: 0.4, metallic: 0, ior: 1.45, grain,
+    } } });
+    const frame = pipeline.render({ scene, dpr: 1 });
+    expect(frame.invalidation.executed).toEqual(["upload", "lighting", "presentation"]);
+    expect(frame.height.maskSdfPasses).toBe(0); expect(frame.height.composePasses).toBe(0);
+    expect(frame.frame.dispatchCount).toBe(1);
+    expect(pipeline.getSnapshot().heightPass.outputs.height.buffer).toBe(first.heightPass.outputs.height.buffer);
+    expect(pipeline.getSnapshot().shadowPass.output.buffer).toBe(first.shadowPass.output.buffer);
+    expect(pipeline.render({ scene, dpr: 1 }).frame.dispatchCount).toBe(0);
+  }
+  pipeline.dispose();
+});

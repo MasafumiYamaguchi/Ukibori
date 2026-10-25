@@ -298,3 +298,14 @@ describe("buildScene", () => {
     expect(scene.surfaces).toHaveLength(0);
   });
 });
+
+it("R3 scales grain cell width once for DPR and preserves dimensionless strength/seed", () => {
+  const registry = new SurfaceRegistry(); addSurface(registry, "resin", 40, 60, 16, 16);
+  const material = { baseColor: { r: 0.4, g: 0.4, b: 0.4 }, roughness: 0.5, metallic: 0,
+    grain: { scale: 3, strength: 0.5, seed: 42 } };
+  for (const dpr of [0.75, 1, 1.5, 2]) {
+    const scene = buildScene({ registry, region: REGION, dpr, light: LIGHT, materials: { silicone: material } });
+    expect(scene.materials!.silicone.grain).toEqual({ scale: 3 * dpr, strength: 0.5, seed: 42 });
+  }
+  expect(material.grain.scale).toBe(3);
+});

@@ -1,3 +1,4 @@
+import { GRAIN_WGSL } from "./grain-wgsl";
 import { WGSL_SCENE_BASE } from "./wgsl";
 
 /**
@@ -257,7 +258,10 @@ fn baseMaterial() -> MaterialRecord {
   m.flags = 0u;
   m.emissive = vec3<f32>(0.0);
   m._emissivePad = 0.0;
-  m._reserved1 = vec4<f32>(0.0);
+  m.grainScale = 0.0;
+  m.grainStrength = 0.0;
+  m.grainSeed = 0u;
+  m._grainPad = 0u;
   return m;
 }
 
@@ -424,3 +428,15 @@ fn main(@builtin(global_invocation_id) gid: vec3<u32>) {
   );
 }
 `;
+
+/** Optional R3 shader: same bindings and dispatch count as the default pass. */
+export const LIGHTING_GRAIN_PASS_WGSL = LIGHTING_PASS_WGSL
+  .replace("materials: array<MaterialRecord>", "materials: array<ShadingRecord>")
+  .replace("owner < sceneHeader.materialCount", "owner < sceneHeader.surfaceCount")
+  .replace("return materials[owner];", "return materials[owner].material;")
+  .replace("  let m = materialFor(owner);", `  var m = materialFor(owner);
+  if (owner < sceneHeader.surfaceCount && m.grainStrength > 0.0) {
+    let pos = vec2<f32>(texelCenterToLogical(g % width, sceneHeader.dpr), texelCenterToLogical(g / width, sceneHeader.dpr));
+    m.roughness = grainRoughness(m, pos - materials[owner].origin.xy, sceneHeader.dpr);
+  }`)
+  + GRAIN_WGSL;

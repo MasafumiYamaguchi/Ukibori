@@ -52,17 +52,19 @@ export const ABI_MAGIC = 0x554b4942; // "UKIB" tag, little-endian u32
  *
  * - 1: legacy (#24..#44). Header 112..128 = reserved zero (NO light color).
  * - 2: #45. Header 112..128 = `lightColor` vec4 (linear RGB r, g, b + zero w).
+ * - 5: R3. Material offsets 48/52/56 carry grain scale/strength/seed.
  * - 3: #61. Surface offset 44 = power exponent; flags 2/3 = inset/power-out;
  *   curve enum extends through 5. Header and record sizes are unchanged.
  *
- * The encoder always writes the current version; v1/v2/v3 buffers are rejected as
+ * The encoder always writes the current version; v1/v2/v3/v4 buffers are rejected as
  * unsupported rather than re-interpreted (their reserved zero bytes are NOT
  * a black light).
  */
 // ABI v3 (#61): surface offset 44 is power exponent; flags bits 2/3 are
 // inset/outward-power, and profile enums 2..5 are defined. Re-encode v1/v2.
 // ABI v4: material offset 32 contains emissive RGB; record stride is unchanged.
-export const ABI_VERSION = 4;
+// ABI v5 (R3): material 48/52/56 = grain scale/strength/seed. v4 is rejected.
+export const ABI_VERSION = 5;
 export const HEADER_SIZE = 128;
 
 /**
@@ -228,7 +230,11 @@ export const ALPHA_FORMAT_U8 = 1;
  * | 24     | 4    | flags (u32, reserved, 0)               |
  * | 28     | 4    | reserved (0)                            |
  * | 32     | 12   | emissive (linear RGB radiance, f32 >= 0) |
- * | 44..64 | 20   | reserved (0)                            |
+ * | 44     | 4    | reserved (0)                            |
+ * | 48     | 4    | grainScale (f32; 0 when disabled)       |
+ * | 52     | 4    | grainStrength (f32 in [0,1])            |
+ * | 56     | 4    | grainSeed (u32)                         |
+ * | 60     | 4    | reserved (0)                            |
  *
  * The table is packed in FIRST-APPEARANCE order across `scene.surfaces`,
  * matching `composeHeightField`'s material-id semantics, with each ref
@@ -350,3 +356,7 @@ export const SCENE_HEADER_FIELDS = [
 ] as const;
 
 export type Vec2Like = Pick<Vec2, "x" | "y">;
+
+export const MATERIAL_OFFSET_GRAIN_SCALE = 48;
+export const MATERIAL_OFFSET_GRAIN_STRENGTH = 52;
+export const MATERIAL_OFFSET_GRAIN_SEED = 56;
