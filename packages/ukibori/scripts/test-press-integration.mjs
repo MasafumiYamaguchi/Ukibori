@@ -97,9 +97,13 @@ async function main() {
       return response.result?.result?.value;
     };
     const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
-    const readyUntil = Date.now() + 20000;
-    while (!await evaluate("Boolean(window.pressProbe)") && Date.now() < readyUntil) await pause(25);
-    if (!await evaluate("Boolean(window.pressProbe)")) throw new Error("press fixture not ready");
+    const waitForProbe = async (search) => {
+      const readyUntil = Date.now() + 20000;
+      const ready = `Boolean(window.pressProbe)${search ? ` && location.search === ${JSON.stringify(search)}` : ""}`;
+      while (!await evaluate(ready) && Date.now() < readyUntil) await pause(25);
+      if (!await evaluate(ready)) throw new Error("press fixture not ready");
+    };
+    await waitForProbe();
     await send("Page.bringToFront");
     await send("Emulation.setFocusEmulationEnabled", { enabled: true });
     const rows = [];
@@ -134,12 +138,19 @@ async function main() {
       check(disabled.disabled && disabled.progress === 0, `${backend} disabled stayed pressed`);
       rows.push({ backend, mid, selected, idle, reduced, disabled });
     }
-    const beforeUnmount = await evaluate('window.pressProbe.prepare("webgpu", false, false)');
-    await evaluate("document.querySelector('button').focus()");
-    await key("keyDown", " ", "Space", 32); await pause(35);
-    const transition = await state();
-    check(transition.progress > beforeUnmount.progress && transition.progress < 1, "unmount probe did not start a transition");
-    const disposed = await evaluate("window.pressProbe.finish()");
+    const disposed = [];
+    for (const backend of ["webgpu", "cpu"]) {
+      if (disposed.length) {
+        await send("Page.navigate", { url: `http://127.0.0.1:${port}/press-integration.html?unmount=${backend}` });
+        await waitForProbe(`?unmount=${backend}`);
+      }
+      const beforeUnmount = await evaluate(`window.pressProbe.prepare(${JSON.stringify(backend)}, false, false)`);
+      await evaluate("document.querySelector('button').focus()");
+      await key("keyDown", " ", "Space", 32); await pause(35);
+      const transition = await state();
+      check(transition.progress > beforeUnmount.progress && transition.progress < 1, `${backend} unmount probe did not start a transition`);
+      disposed.push({ backend, ...await evaluate("window.pressProbe.finish()") });
+    }
     await evaluate(`document.getElementById('result').textContent = 'UKIBORI_PRESS_INTEGRATION_PASS\\n' + JSON.stringify(${JSON.stringify({ rows, disposed })}, null, 2)`);
     const deadline = Date.now() + 180_000;
     let output = "";

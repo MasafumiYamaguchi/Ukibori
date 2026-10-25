@@ -72,3 +72,5 @@ benchmarkは`packages/ukibori/test-browser/dynamic-surfaces.tsx`、runnerは`tes
 通常のブラウザで確認するには`npm run dev`から`/interaction.html`、またはDiagnostics → Interactionを開く。buttonの押下・戻り・選択、無効ボタン、backend切替、emission/bloom、grainを確認できる。使い方は[操作ガイド](interaction.md)、座標とbuffer契約は[材質ガイド](material.md)を参照する。
 
 ![grain有効時の操作デモ](interaction-grain.png)
+
+レビュー後の再検証では、CPUのidle判定にscene構築回数を使い、WebGPUとCPUの遷移途中でunmountした。両経路で後続描画が増えないことを確認した。結果は[press-review-browser.json](press-review-browser.json)に保存した。

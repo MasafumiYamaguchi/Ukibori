@@ -6,6 +6,7 @@ import * as Toggle from "@radix-ui/react-toggle";
 import { Ukibori } from "../src/index";
 import type { UkiboriBackend } from "../src/index";
 import type { UkiboriDom } from "ukibori-dom";
+import { assertRenderIdle, renderSerial } from "./render-activity";
 import { PressSurface } from "../../../demo/src/interaction/PressSurface";
 let layer: UkiboriDom | null = null, clicks = 0, config = { backend: "css" as UkiboriBackend, reducedMotion: false, disabled: false };
 const errors: string[] = [];
@@ -31,10 +32,12 @@ const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 const state = () => {
   const button = host.querySelector("button")!;
   const rect = button.getBoundingClientRect();
+  const debug = layer?.debugState();
+  const backend = debug?.backend ?? "css";
   return { progress: Number(button.dataset.progress), pressed: button.getAttribute("aria-pressed"), disabled: button.disabled,
     focused: document.activeElement === button, focusVisible: button.matches(":focus-visible"), clicks,
     sameNode: button === original, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2,
-    backend: layer?.debugState().backend ?? "css", serial: layer?.debugState().gpuRenderSerial ?? 0,
+    backend, serial: renderSerial(debug, backend),
     errors: [...errors], events: [...events], hidden: document.hidden, documentFocused: document.hasFocus(), dirty: layer?.debugState().dirtyCount ?? 0 };
 };
 const frameSamples: unknown[] = [];
@@ -44,7 +47,7 @@ function monitor() {
   if (!observing) return;
   if (layer) {
     const debug = layer.debugState();
-    const serial = debug.backend === "webgpu" ? debug.gpuRenderSerial : debug.sceneBuildSerial;
+    const serial = renderSerial(debug, debug.backend);
     if (serial !== lastSerial) {
       lastSerial = serial;
       const gpu = debug.gpuFrame;
@@ -68,18 +71,18 @@ const probe = {
       await delay(20);
     }
     await delay(200);
-    lastSerial = layer ? (backend === "webgpu" ? layer.debugState().gpuRenderSerial : layer.debugState().sceneBuildSerial) : -1;
+    lastSerial = layer ? renderSerial(layer.debugState(), backend) : -1;
     observing = true; monitorFrame = requestAnimationFrame(monitor);
     return state();
   }, state,
-  async idle() { await delay(250); const a = state(); await delay(120); const b = state(); if (a.serial !== b.serial) throw new Error("GPU did not settle"); return b; },
+  async idle() { await delay(250); const a = state(); await delay(120); const b = state(); assertRenderIdle(a, b); return b; },
   cancel() { const button = host.querySelector("button")!; button.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true, pointerId: 1, isPrimary: true })); },
   async finish() {
     observing = false; cancelAnimationFrame(monitorFrame);
     const active = layer, before = state(); root.unmount(); await delay(200);
     await Promise.all(timingTasks);
-    const afterSerial = active?.debugState().gpuRenderSerial ?? 0;
-    if (before.serial !== afterSerial) throw new Error("dispatch after unmount");
+    const afterSerial = renderSerial(active?.debugState(), before.backend);
+    assertRenderIdle(before, { serial: afterSerial }, "render after unmount");
     return { before, afterSerial, errors, frameSamples };
   },
 };

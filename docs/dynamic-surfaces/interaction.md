@@ -21,7 +21,7 @@ Radixはデモworkspaceだけの依存で、renderer・DOM統合・React coreの
 
 アプリ側のclient境界（例: Next.jsの`"use client"`を付けた小さなwrapper）でUkiboriと操作stateを配置し、server/clientで同じ初期状態を使う。初期進捗は目標値そのもので、SSRではwindow・canvas・RAFを参照しない。物理描画はhydration後に有効化され、buttonを置き換えない。
 
-`press-recipe.test.tsx`はserver HTMLをhydrateし、同じbuttonへclick handlerが付くことを確認する。node環境の`ssr.test.tsx`でもフックを描画する。実ブラウザの`press-integration.tsx`ではnativeキー・タッチ入力と、WebGPU/CPU/CSSの各経路を検証する。
+`press-recipe.test.tsx`はserver HTMLをhydrateし、同じbuttonへclick handlerが付くことを確認する。node環境の`ssr.test.tsx`でもフックを描画する。実ブラウザの`press-integration.tsx`ではnativeキー・タッチ入力と、WebGPU/CPU/CSSの各経路を検証する。idle判定はWebGPUで`gpuRenderSerial`、CPUで`sceneBuildSerial`を比較し、途中unmount後の描画停止も両経路で確認する。
 
 ## backendと品質の範囲
 
