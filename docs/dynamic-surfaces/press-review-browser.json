@@ -1,0 +1,39 @@
+{
+  "marker": "UKIBORI_PRESS_INTEGRATION_PASS",
+  "idle": [
+    {
+      "backend": "webgpu",
+      "serial": 33,
+      "progress": 0.375,
+      "errors": []
+    },
+    {
+      "backend": "cpu",
+      "serial": 26,
+      "progress": 0,
+      "errors": []
+    },
+    {
+      "backend": "css",
+      "serial": 0,
+      "progress": 0.375,
+      "errors": []
+    }
+  ],
+  "unmount": [
+    {
+      "backend": "webgpu",
+      "progress": 0.7484423987268487,
+      "beforeSerial": 10,
+      "afterSerial": 10,
+      "errors": []
+    },
+    {
+      "backend": "cpu",
+      "progress": 0.7419307044285162,
+      "beforeSerial": 2,
+      "afterSerial": 2,
+      "errors": []
+    }
+  ]
+}

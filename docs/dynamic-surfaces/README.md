@@ -57,4 +57,6 @@ rendererの単体テストに、連続高さ更新・partial dispatch・マス�
 
 `/interaction.html`にnative buttonとRadix ToggleのasChild合成例を追加した。pointer/touch/keyboard、capture喪失、要素外release、blur、disabled、focus-visible、ARIA、props/ref/eventの合成とSSR/hydrationを確認する。Radixはdemoだけの依存。使い方とclient境界は[操作ガイド](interaction.md)を参照。
 
-実ブラウザの結果は[press-browser.json](press-browser.json)へ保存した。WebGPU/CPU/CSS、選択状態の中間値、reduced-motion、idle復帰、遷移中のunmount後にdispatchが増えないことを確認した。コマンドは`npm run test:press:browser -w ukibori`。操作場面は180×100、button 100×40、DPR 1で、R0の固定benchmarkとは別条件となる。
+実ブラウザの結果は[press-browser.json](press-browser.json)へ保存した。WebGPU/CPU/CSS、選択状態の中間値、reduced-motion、idle復帰、WebGPUとCPUそれぞれで遷移中のunmount後に描画回数が増えないことを確認した。コマンドは`npm run test:press:browser -w ukibori`。操作場面は180×100、button 100×40、DPR 1で、R0の固定benchmarkとは別条件となる。
+
+レビュー後の再検証では、CPUのidle判定にscene構築回数を使い、WebGPUとCPUの遷移途中でunmountした。両経路で後続描画が増えないことを確認した。結果は[press-review-browser.json](press-review-browser.json)に保存した。
