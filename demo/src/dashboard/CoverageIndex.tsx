@@ -39,6 +39,8 @@ function doc(fileName: string): CoverageLink {
 }
 
 const COVERAGE_GROUPS: readonly CoverageGroup[] = [
+  { id: "dynamic-surfaces", group: "#79–82 dynamic surfaces, retained mask SDF and resin grain",
+    links: [tab("Interaction & grain", "#interaction"), demo("/interaction.html"), doc("docs/dynamic-surfaces/README.md")] },
   {
     id: "core-renderer",
     group: "#13–19 core renderer (SDF → height → normals → lighting → shadows → glyphs)",

@@ -1,8 +1,9 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { selectWasmBackend, resetWasmSelectionCache } from "./selection";
 import { resetKernelLoadCache } from "./kernel";
 import { WasmNormalKernel } from "./kernel";
 import { WASM_BENEFIT_MARGIN } from "./selection";
+import * as lighting from "../lighting";
 
 /**
  * #33 WASM selection rules:
@@ -20,7 +21,29 @@ import { WASM_BENEFIT_MARGIN } from "./selection";
 
 const UNIQUE_KEY = () => `selection-${Math.random().toString(36).slice(2)}`;
 
+// Keep real module loading, computation and parity; control only measured
+// elapsed time. Cache/gate contracts must not depend on the host's speed.
+let wasmIterationMs = 1;
+beforeEach(() => {
+  let clockMs = 0;
+  wasmIterationMs = 1;
+  const oracle = lighting.computeNormals;
+  const kernel = WasmNormalKernel.prototype.computeNormals;
+  vi.spyOn(performance, "now").mockImplementation(() => clockMs);
+  vi.spyOn(lighting, "computeNormals").mockImplementation((...args) => {
+    const result = oracle(...args);
+    clockMs += 10;
+    return result;
+  });
+  vi.spyOn(WasmNormalKernel.prototype, "computeNormals").mockImplementation(async function (this: WasmNormalKernel, ...args) {
+    const result = await kernel.apply(this, args);
+    clockMs += wasmIterationMs;
+    return result;
+  });
+});
+
 afterEach(() => {
+  vi.restoreAllMocks();
   resetWasmSelectionCache();
   resetKernelLoadCache();
 });
@@ -46,15 +69,29 @@ describe("#33 WASM selection — deterministic overrides and gates", () => {
     expect(report.probeRatio).toBeGreaterThan(0);
   });
 
-  it("auto selects WASM when the probe shows the documented benefit", async () => {
+  it.each([
+    { wasmMs: 8, selected: "wasm" },
+    { wasmMs: 9, selected: "cpu" },
+    { wasmMs: 12, selected: "cpu" },
+  ] as const)("auto applies the benefit gate at $wasmMs ms vs a 10 ms oracle", async ({ wasmMs, selected }) => {
+    wasmIterationMs = wasmMs;
     const report = await selectWasmBackend({}, UNIQUE_KEY());
-    // on the test engine the WASM kernel is ~2x faster than the oracle for
-    // the representative workload (measured 0.27 ms vs 0.62 ms per
-    // iteration); the gate is the ratio below 1 - WASM_BENEFIT_MARGIN
-    expect(report.probeRatio).toBeLessThan(1 - WASM_BENEFIT_MARGIN);
-    expect(report.selected).toBe("wasm");
-    expect(report.stage).toBe("normal");
-    expect(report.fallbackReason).toBeNull();
+    const evidence = JSON.stringify({ fallbackReason: report.fallbackReason, probeRatio: report.probeRatio, parityOk: report.parityOk });
+    expect(report.parityOk, evidence).toBe(true);
+    expect(report.tsMs).toBe(10);
+    expect(report.wasmMs).toBe(wasmMs);
+    expect(report.probeRatio).toBe(wasmMs / 10);
+    expect(report.selected, evidence).toBe(selected);
+    if (selected === "wasm") {
+      expect(report.probeRatio).toBeLessThan(1 - WASM_BENEFIT_MARGIN);
+      expect(report.stage).toBe("normal");
+      expect(report.fallbackReason).toBeNull();
+    } else {
+      expect(report.stage).toBeNull();
+      expect(report.kernel).toBeNull();
+      expect(report.fallbackReason).toMatch(/no-measured-benefit/);
+    }
+    report.kernel?.dispose();
   });
 
   it("a module that fails probe parity is rejected even under force: wasm", async () => {
@@ -104,8 +141,12 @@ describe("#33 WASM selection — deterministic overrides and gates", () => {
     second.kernel!.dispose();
   });
 
-  it("non-default options BYPASS the decision cache: a forced decision never satisfies a later auto call", async () => {
+  it.each([
+    { wasmMs: 1, selected: "wasm", loads: 2 },
+    { wasmMs: 20, selected: "cpu", loads: 1 },
+  ] as const)("forced decisions never satisfy a later canonical auto call ($selected)", async ({ wasmMs, selected, loads }) => {
     const key = UNIQUE_KEY();
+    wasmIterationMs = wasmMs;
     // force: wasm (non-canonical) -> decision computed, NOT cached
     const forced = await selectWasmBackend({ force: "wasm" }, key);
     expect(forced.selected).toBe("wasm");
@@ -114,14 +155,24 @@ describe("#33 WASM selection — deterministic overrides and gates", () => {
     // decision (including the benefit gate) — it can never reuse the forced
     // decision. Observable: the auto call performs its own probe load.
     const spy = vi.spyOn(WasmNormalKernel, "load");
+    const probesBefore = vi.mocked(WasmNormalKernel.prototype.computeNormals).mock.calls.length;
     try {
       const auto = await selectWasmBackend({}, key);
-      expect(auto.selected).toBe("wasm");
-      // the auto run computed its OWN decision: a probe load PLUS a caller
-      // instance load (2). A cached decision would only need the caller
-      // instance load (1) — the forced decision was never cached.
-      expect(spy.mock.calls.length).toBe(2);
-      auto.kernel!.dispose();
+      const evidence = JSON.stringify({ fallbackReason: auto.fallbackReason, probeRatio: auto.probeRatio, parityOk: auto.parityOk });
+      expect(auto.selected, evidence).toBe(selected);
+      expect(auto.parityOk, evidence).toBe(true);
+      expect(auto.probeRatio).toBe(wasmMs / 10);
+      // A fresh parity pass + three timed iterations proves auto re-probed,
+      // whether the benefit gate accepts or rejects WASM.
+      expect(vi.mocked(WasmNormalKernel.prototype.computeNormals).mock.calls.length - probesBefore).toBe(4);
+      expect(spy.mock.calls.length).toBe(loads);
+      if (selected === "cpu") expect(auto.fallbackReason).toMatch(/no-measured-benefit/);
+      auto.kernel?.dispose();
+      const cached = await selectWasmBackend({}, key);
+      expect(cached.selected).toBe(selected);
+      expect(cached.probeRatio).toBe(auto.probeRatio);
+      expect(vi.mocked(WasmNormalKernel.prototype.computeNormals).mock.calls.length - probesBefore).toBe(4);
+      cached.kernel?.dispose();
     } finally {
       spy.mockRestore();
     }

@@ -47,3 +47,5 @@ export type {
 } from "./types";
 
 export type { Material, LinearRgb } from "ukibori-renderer";
+export { useSurfaceProgress } from "./hooks/useSurfaceProgress";
+export type { SurfaceProgressOptions } from "./hooks/useSurfaceProgress";

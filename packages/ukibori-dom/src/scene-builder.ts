@@ -1,4 +1,4 @@
-import { createScene, DEFAULT_LIGHT_DIRECTION, normalizeVec3, resolveMaterial } from "ukibori-renderer";
+import { createScene, DEFAULT_LIGHT_DIRECTION, normalizeVec3, resolveMaterial, sanitizeGrain } from "ukibori-renderer";
 import type { Material, Scene, SurfaceNode } from "ukibori-renderer";
 import { renderTargetSize } from "./coords";
 import type { SurfaceRegistry } from "./registry";
@@ -182,6 +182,13 @@ export function buildScene(input: BuildSceneInput): Scene {
           g: rawColor.g,
           b: rawColor.b,
         };
+  // This layer already expresses scene lengths in device pixels.
+  if (effectiveMaterials && dpr !== 1 && Object.values(effectiveMaterials).some(m => m.grain !== undefined)) {
+    effectiveMaterials = Object.fromEntries(Object.entries(effectiveMaterials).map(([ref, material]) => {
+      const grain = sanitizeGrain(material.grain);
+      return [ref, grain ? { ...material, grain: { ...grain, scale: grain.scale * dpr } } : material];
+    }));
+  }
   return createScene({
     width,
     height,

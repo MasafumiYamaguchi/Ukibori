@@ -1,0 +1,1367 @@
+{
+  "rows": [
+    {
+      "backend": "webgpu",
+      "mid": {
+        "progress": 0.766444781349449,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 0,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "serial": 4,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "selected": {
+        "progress": 0.375,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 1,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "serial": 19,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "idle": {
+        "progress": 0.375,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 1,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "serial": 35,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "reduced": {
+        "progress": 0.375,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 1,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "serial": 35,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "disabled": {
+        "progress": 0,
+        "pressed": "true",
+        "disabled": true,
+        "focused": false,
+        "focusVisible": false,
+        "clicks": 1,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "serial": 37,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      }
+    },
+    {
+      "backend": "cpu",
+      "mid": {
+        "progress": 0.8189503099326706,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 1,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "serial": 0,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "selected": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 2,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "serial": 0,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "idle": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 2,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "serial": 0,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "reduced": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 2,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "serial": 0,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "disabled": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": true,
+        "focused": false,
+        "focusVisible": false,
+        "clicks": 2,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "serial": 0,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      }
+    },
+    {
+      "backend": "css",
+      "mid": {
+        "progress": 0.6382949227827577,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 2,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "css",
+        "serial": 0,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "selected": {
+        "progress": 0.375,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 3,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "css",
+        "serial": 0,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "idle": {
+        "progress": 0.375,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 3,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "css",
+        "serial": 0,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "reduced": {
+        "progress": 0.375,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 3,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "css",
+        "serial": 0,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "disabled": {
+        "progress": 0,
+        "pressed": "true",
+        "disabled": true,
+        "focused": false,
+        "focusVisible": false,
+        "clicks": 3,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "css",
+        "serial": 0,
+        "errors": [],
+        "events": [
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false",
+          "down:Tab:false",
+          "up:Tab:false",
+          "down: :false",
+          "up: :false",
+          "down:Enter:false",
+          "up:Enter:false"
+        ],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      }
+    }
+  ],
+  "disposed": {
+    "before": {
+      "progress": 0.7675290630543651,
+      "pressed": "true",
+      "disabled": false,
+      "focused": true,
+      "focusVisible": true,
+      "clicks": 3,
+      "sameNode": true,
+      "x": 70,
+      "y": 40,
+      "backend": "webgpu",
+      "serial": 11,
+      "errors": [],
+      "events": [
+        "down:Tab:false",
+        "up:Tab:false",
+        "down: :false",
+        "up: :false",
+        "down:Enter:false",
+        "up:Enter:false",
+        "down:Tab:false",
+        "up:Tab:false",
+        "down: :false",
+        "up: :false",
+        "down:Enter:false",
+        "up:Enter:false",
+        "down:Tab:false",
+        "up:Tab:false",
+        "down: :false",
+        "up: :false",
+        "down:Enter:false",
+        "up:Enter:false",
+        "down: :false"
+      ],
+      "hidden": false,
+      "documentFocused": true,
+      "dirty": 1
+    },
+    "afterSerial": 11,
+    "errors": [],
+    "frameSamples": [
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.5,
+        "domMeasureHostMs": 0.09999990463256836,
+        "sceneBuildHostMs": 0.10000002384185791,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.38406697988242855,
+        "passGpuMs": {
+          "height": 0.051619,
+          "normal": 0.015914,
+          "shadow": 0.048953,
+          "reconstruction": 0.017164,
+          "lighting": 0.01679,
+          "presentation": 0.02579
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 0.8000000715255737,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.6395625796093418,
+        "passGpuMs": {
+          "height": 0.051369,
+          "normal": 0.015331,
+          "shadow": 0.04437,
+          "reconstruction": 0.017082,
+          "lighting": 0.017623,
+          "presentation": 0.040954
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.6999999284744263,
+        "domMeasureHostMs": 0.19999992847442627,
+        "sceneBuildHostMs": 0.10000002384185791,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.766444781349449,
+        "passGpuMs": {
+          "height": 0.051369,
+          "normal": 0.015831,
+          "shadow": 0.039621,
+          "reconstruction": 0.016915,
+          "lighting": 0.017832,
+          "presentation": 0.02654
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 2.5999999046325684,
+        "domMeasureHostMs": 0.09999990463256836,
+        "sceneBuildHostMs": 0.20000004768371582,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.8911270160327068,
+        "passGpuMs": {
+          "height": 0.052869,
+          "normal": 0.016039,
+          "shadow": 0.035913,
+          "reconstruction": 0.016998,
+          "lighting": 0.016789,
+          "presentation": 0.033663
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 2.100000023841858,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0.09999990463256836,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.9612711715009836,
+        "passGpuMs": {
+          "height": 0.052204,
+          "normal": 0.016541,
+          "shadow": 0.033704,
+          "reconstruction": 0.016582,
+          "lighting": 0.01654,
+          "presentation": 0.026038
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 2.0999999046325684,
+        "domMeasureHostMs": 0.09999990463256836,
+        "sceneBuildHostMs": 0.10000002384185791,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.9920000000715257,
+        "passGpuMs": {
+          "height": 0.051869,
+          "normal": 0.016873,
+          "shadow": 0.030997,
+          "reconstruction": 0.016581,
+          "lighting": 0.017248,
+          "presentation": 0.025998
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.7000000476837158,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0.10000002384185791,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.9997748744279137,
+        "passGpuMs": {
+          "height": 0.051536,
+          "normal": 0.015416,
+          "shadow": 0.031412,
+          "reconstruction": 0.017081,
+          "lighting": 0.01729,
+          "presentation": 0.025289
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 2.100000023841858,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 1,
+        "passGpuMs": {
+          "height": 0.052747,
+          "normal": 0.016333,
+          "shadow": 0.031082,
+          "reconstruction": 0.016916,
+          "lighting": 0.017082,
+          "presentation": 0.026415
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.6999999284744263,
+        "domMeasureHostMs": 0.09999990463256836,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 1,
+        "passGpuMs": {
+          "height": 0.051913,
+          "normal": 0.01654,
+          "shadow": 0.030165,
+          "reconstruction": 0.017124,
+          "lighting": 0.017374,
+          "presentation": 0.02579
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.399999976158142,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0.09999990463256836,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.7577003248905189,
+        "passGpuMs": {
+          "height": 0.05104,
+          "normal": 0.015875,
+          "shadow": 0.030498,
+          "reconstruction": 0.016833,
+          "lighting": 0.017499,
+          "presentation": 0.026333
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.2000000476837158,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0.10000002384185791,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.5986943748122078,
+        "passGpuMs": {
+          "height": 0.05129,
+          "normal": 0.014999,
+          "shadow": 0.03579,
+          "reconstruction": 0.016749,
+          "lighting": 0.017499,
+          "presentation": 0.034331
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.2000000476837158,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0.10000002384185791,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.491254023677801,
+        "passGpuMs": {
+          "height": 0.050998,
+          "normal": 0.014958,
+          "shadow": 0.039748,
+          "reconstruction": 0.017292,
+          "lighting": 0.016791,
+          "presentation": 0.092829
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 0.8999999761581421,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.42527192990743623,
+        "passGpuMs": {
+          "height": 0.051082,
+          "normal": 0.015499,
+          "shadow": 0.041123,
+          "reconstruction": 0.017209,
+          "lighting": 0.017,
+          "presentation": 0.181534
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.600000023841858,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.39077481478276066,
+        "passGpuMs": {
+          "height": 0.052788,
+          "normal": 0.016125,
+          "shadow": 0.04329,
+          "reconstruction": 0.01779,
+          "lighting": 0.017916,
+          "presentation": 0.188908
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.600000023841858,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.37732742186605006,
+        "passGpuMs": {
+          "height": 0.05379,
+          "normal": 0.016791,
+          "shadow": 0.044831,
+          "reconstruction": 0.018416,
+          "lighting": 0.017957,
+          "presentation": 0.026707
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0.20000004768371582,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.3750024808303465,
+        "passGpuMs": {
+          "height": 0.054915,
+          "normal": 0.016041,
+          "shadow": 0.04479,
+          "reconstruction": 0.017707,
+          "lighting": 0.018458,
+          "presentation": 0.202869
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.600000023841858,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.375,
+        "passGpuMs": {
+          "height": 0.054664,
+          "normal": 0.01625,
+          "shadow": 0.044539,
+          "reconstruction": 0.018375,
+          "lighting": 0.017416,
+          "presentation": 0.025791
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.2000000476837158,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0.10000002384185791,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.375,
+        "passGpuMs": {
+          "height": 0.052541,
+          "normal": 0.015957,
+          "shadow": 0.045082,
+          "reconstruction": 0.018249,
+          "lighting": 0.018249,
+          "presentation": 0.140413
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.899999976158142,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0.09999990463256836,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.642633125000001,
+        "passGpuMs": {
+          "height": 0.05729,
+          "normal": 0.018541,
+          "shadow": 0.044165,
+          "reconstruction": 0.02125,
+          "lighting": 0.017333,
+          "presentation": 0.028166
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 2.700000047683716,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.7931904658564816,
+        "passGpuMs": {
+          "height": 0.055081,
+          "normal": 0.016249,
+          "shadow": 0.03854,
+          "reconstruction": 0.018625,
+          "lighting": 0.016375,
+          "presentation": 0.026457
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.5,
+        "domMeasureHostMs": 0.09999990463256836,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.8945912011718753,
+        "passGpuMs": {
+          "height": 0.056789,
+          "normal": 0.018165,
+          "shadow": 0.036374,
+          "reconstruction": 0.018833,
+          "lighting": 0.020749,
+          "presentation": 0.027499
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.2000000476837158,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.9558651851851855,
+        "passGpuMs": {
+          "height": 0.049248,
+          "normal": 0.014333,
+          "shadow": 0.032915,
+          "reconstruction": 0.016165,
+          "lighting": 0.0165,
+          "presentation": 0.0255
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.399999976158142,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.9871197594762731,
+        "passGpuMs": {
+          "height": 0.050249,
+          "normal": 0.015915,
+          "shadow": 0.030499,
+          "reconstruction": 0.016416,
+          "lighting": 0.017666,
+          "presentation": 0.0265
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.7000000476837158,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.9984336129195602,
+        "passGpuMs": {
+          "height": 0.057374,
+          "normal": 0.018915,
+          "shadow": 0.033499,
+          "reconstruction": 0.019332,
+          "lighting": 0.019792,
+          "presentation": 0.028541
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 0.8999999761581421,
+        "domMeasureHostMs": 0.19999992847442627,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 1,
+        "passGpuMs": {
+          "height": 0.049499,
+          "normal": 0.014791,
+          "shadow": 0.030041,
+          "reconstruction": 0.016791,
+          "lighting": 0.016707,
+          "presentation": 0.026625
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.899999976158142,
+        "domMeasureHostMs": 0.09999990463256836,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 1,
+        "passGpuMs": {
+          "height": 0.052081,
+          "normal": 0.015374,
+          "shadow": 0.0305,
+          "reconstruction": 0.017584,
+          "lighting": 0.01779,
+          "presentation": 0.025624
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.6325672583402923,
+        "passGpuMs": {
+          "height": 0.051291,
+          "normal": 0.015875,
+          "shadow": 0.035082,
+          "reconstruction": 0.016625,
+          "lighting": 0.018084,
+          "presentation": 0.175706
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 13.5,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 12.100000023841858,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.5139759050361453,
+        "passGpuMs": {
+          "height": 0.051083,
+          "normal": 0.015542,
+          "shadow": 0.039208,
+          "reconstruction": 0.017042,
+          "lighting": 0.016916,
+          "presentation": 0.026542
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.399999976158142,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.4381788478562614,
+        "passGpuMs": {
+          "height": 0.049416,
+          "normal": 0.015542,
+          "shadow": 0.040832,
+          "reconstruction": 0.016208,
+          "lighting": 0.016624,
+          "presentation": 0.026041
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.3000000715255737,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.3969540135919628,
+        "passGpuMs": {
+          "height": 0.05075,
+          "normal": 0.014915,
+          "shadow": 0.042875,
+          "reconstruction": 0.016833,
+          "lighting": 0.016708,
+          "presentation": 0.026125
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.100000023841858,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.37923071575748235,
+        "passGpuMs": {
+          "height": 0.050416,
+          "normal": 0.015333,
+          "shadow": 0.043249,
+          "reconstruction": 0.016625,
+          "lighting": 0.016834,
+          "presentation": 0.139123
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.37507428349067573,
+        "passGpuMs": {
+          "height": 0.050999,
+          "normal": 0.0155,
+          "shadow": 0.043583,
+          "reconstruction": 0.016375,
+          "lighting": 0.017084,
+          "presentation": 0.143122
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.2000000476837158,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.375,
+        "passGpuMs": {
+          "height": 0.050249,
+          "normal": 0.015334,
+          "shadow": 0.043875,
+          "reconstruction": 0.017999,
+          "lighting": 0.016959,
+          "presentation": 0.183497
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.3000000715255737,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.375,
+        "passGpuMs": {
+          "height": 0.051332,
+          "normal": 0.015208,
+          "shadow": 0.044666,
+          "reconstruction": 0.016708,
+          "lighting": 0.017,
+          "presentation": 0.092623
+        }
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 1.100000023841858,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 1,
+        "passGpuMs": {
+          "height": 0.050916,
+          "normal": 0.015792,
+          "shadow": 0.030165,
+          "reconstruction": 0.017,
+          "lighting": 0.017583,
+          "presentation": 0.169538
+        }
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 8.600000023841858,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.6800000004768391,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 7.599999904632568,
+        "domMeasureHostMs": 0.09999990463256836,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.8189503099326706,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 12,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.9108463966877801,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 13.5,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0.10000002384185791,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.9647945602946677,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 11.899999976158142,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0.20000004768371582,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.9909021423331915,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 11,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.9992764843832143,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 14,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 1,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 16.399999976158142,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 1,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 13.300000071525574,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.6342087902080021,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 16.5,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.3732479993820179,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 8.700000047683716,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.08615567106375455,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 15.299999952316284,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.02768064051591601,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 11.199999928474426,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 1.724016124149408e-05,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 8.800000071525574,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 15.599999904632568,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 12.200000047683716,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0.10000002384185791,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.5753062460439049,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 14.799999952316284,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.7702167973222229,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 15.899999976158142,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.9624046251337823,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 15.200000047683716,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.9998098906289413,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 11.5,
+        "domMeasureHostMs": 0.09999990463256836,
+        "sceneBuildHostMs": 0.10000002384185791,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 1,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 16.200000047683716,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0.10000002384185791,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.6776073287037054,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 16.5,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.2169012505787029,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 10,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0.006246447337962868,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 14.600000023841858,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 9.11249999999697e-05,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 8,
+        "domMeasureHostMs": 0,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 0,
+        "passGpuMs": null
+      },
+      {
+        "backend": "cpu",
+        "renderHostMs": 5.399999976158142,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0.10000002384185791,
+        "dispatchCount": null,
+        "maskSdfPasses": null,
+        "progress": 1,
+        "passGpuMs": null
+      },
+      {
+        "backend": "webgpu",
+        "renderHostMs": 0.7000000476837158,
+        "domMeasureHostMs": 0.10000002384185791,
+        "sceneBuildHostMs": 0,
+        "dispatchCount": 9,
+        "maskSdfPasses": 0,
+        "progress": 0.6047717740013032,
+        "passGpuMs": {
+          "height": 0.051747,
+          "normal": 0.015708,
+          "shadow": 0.044872,
+          "reconstruction": 0.016207,
+          "lighting": 0.016499,
+          "presentation": 0.182656
+        }
+      }
+    ]
+  }
+}

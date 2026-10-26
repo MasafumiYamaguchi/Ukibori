@@ -746,6 +746,7 @@ export class GpuScenePipeline {
         scene,
         bindings,
         materialId: lightingMaterialIdBindingFromHeightPass(heightSnapshot),
+        objectId: { ...lightingMaterialIdBindingFromHeightPass(heightSnapshot), buffer: heightSnapshot.outputs.objectId.buffer },
         normal: lightingNormalBindingFromNormalPass(normalSnapshot),
         visibility:
           reconstructionSnapshot !== null
@@ -763,7 +764,7 @@ export class GpuScenePipeline {
         stage: "lighting",
         hostMs,
         newAllocations: lighting.newAllocations,
-        bytesUploaded: 0,
+        bytesUploaded: lighting.grainInputBytesUploaded ?? 0,
         dispatches: 1,
         submissions: lighting.submissions,
       });

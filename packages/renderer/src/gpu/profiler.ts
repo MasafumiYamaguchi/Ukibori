@@ -26,7 +26,7 @@ export interface ProfilerStageRecord {
   readonly hostMs: number;
   /** GPU buffers created by the stage this frame */
   readonly newAllocations: number;
-  /** host bytes uploaded by the stage this frame (upload stage only; 0 elsewhere) */
+  /** host bytes uploaded by the stage this frame (including optional grain inputs) */
   readonly bytesUploaded: number;
   /** compute `dispatchWorkgroups` calls issued by the stage (0 for upload/presentation) */
   readonly dispatches: number;

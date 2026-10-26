@@ -57,11 +57,11 @@ import {
  *
  * v1 kept header offsets 112..128 as RESERVED ZERO; v2 reuses them for the
  * `lightColor` vec4. v1 buffers are therefore NEVER re-interpreted: the
- * version check below rejects any `version != ABI_VERSION` (3) as
+ * version check below rejects any `version != ABI_VERSION` (5) as
  * `unsupported ABI version N` — a legacy v1 scene with zeroed 112..128 must
  * never be silently accepted as an explicit BLACK light (the v1 reserved
  * bytes carry no color semantics at all). There is no migration path for v1
- * input: re-encode with the current encoder (which always emits v3).
+ * input: re-encode with the current encoder (which always emits v5).
  *
  * Rejected (each with a specific error message):
  *
@@ -373,7 +373,11 @@ export function validateEncodedScene(bytes: Uint8Array): ValidationResult {
         const value = readF32(record + MATERIAL_OFFSET_EMISSIVE + c * 4);
         check(isFiniteNumber(value) && value >= 0, `${label} emissive channel ${c} must be finite and >= 0`);
       }
-      for (const offset of [28, 44, 48, 52, 56, 60]) {
+      const grainScale = readF32(record + 48), grainStrength = readF32(record + 52);
+      check(Number.isFinite(grainScale) && grainScale >= 0 && grainScale <= 10000, `${label} invalid grain scale`);
+      check(Number.isFinite(grainStrength) && grainStrength >= 0 && grainStrength <= 1, `${label} invalid grain strength`);
+      check(grainStrength > 0 ? grainScale >= Math.fround(0.0001) : grainScale === 0 && readU32(record + 56) === 0, `${label} inconsistent grain parameters`);
+      for (const offset of [28, 44, 60]) {
         check(readU32(record + offset) === 0, `${label} reserved byte at ${offset} must be 0`);
       }
     }

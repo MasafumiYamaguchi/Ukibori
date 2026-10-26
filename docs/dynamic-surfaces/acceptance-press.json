@@ -1,0 +1,4889 @@
+{
+  "marker": "UKIBORI_PRESS_INTEGRATION_PASS",
+  "sourceCommit": "582afa380e3c066baa0abdc6e7948a0cdd53977f",
+  "host": {
+    "os": "26.6.2",
+    "build": "25G83",
+    "cpu": "Apple M4 Pro",
+    "memoryBytes": 25769803776
+  },
+  "measurement": {
+    "caseWarmupMs": 200,
+    "warmupIterations": 0,
+    "pressSampleDelayMs": 45,
+    "releaseSampleDelayMs": 35,
+    "endpointTimeoutMs": 3000,
+    "displayLatencyMs": null,
+    "note": "Operation frames include press, release, selection, pointer/touch cancellation, reduced motion and disabled; unmount/fallback cases excluded from operationSamples. Timings are host render work and opt-in GPU pass timestamps, not input-to-display latency."
+  },
+  "performance": [
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "frames": 49,
+      "renderHostMs": {
+        "n": 49,
+        "median": 1.5,
+        "p95": 3.399999976158142
+      },
+      "domMeasureHostMs": {
+        "n": 49,
+        "median": 0.10000002384185791,
+        "p95": 0.10000002384185791
+      },
+      "sceneBuildHostMs": {
+        "n": 49,
+        "median": 0.09999990463256836,
+        "p95": 0.10000002384185791
+      },
+      "gpuPassMs": {
+        "height": {
+          "n": 49,
+          "median": 0.052286,
+          "p95": 0.129996
+        },
+        "lighting": {
+          "n": 49,
+          "median": 0.017166,
+          "p95": 0.032707
+        },
+        "normal": {
+          "n": 49,
+          "median": 0.01579,
+          "p95": 0.159067
+        },
+        "presentation": {
+          "n": 49,
+          "median": 0.032458,
+          "p95": 1.252337
+        },
+        "reconstruction": {
+          "n": 49,
+          "median": 0.017165,
+          "p95": 0.036079
+        },
+        "shadow": {
+          "n": 49,
+          "median": 0.040208,
+          "p95": 0.06679
+        }
+      }
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "frames": 50,
+      "renderHostMs": {
+        "n": 50,
+        "median": 9.700000047683716,
+        "p95": 15.899999976158142
+      },
+      "domMeasureHostMs": {
+        "n": 50,
+        "median": 0,
+        "p95": 0.10000002384185791
+      },
+      "sceneBuildHostMs": {
+        "n": 50,
+        "median": 0,
+        "p95": 0.10000002384185791
+      },
+      "gpuPassMs": {}
+    },
+    {
+      "backend": "css",
+      "effects": false,
+      "frames": 0,
+      "renderHostMs": {
+        "n": 0,
+        "median": null,
+        "p95": null
+      },
+      "domMeasureHostMs": {
+        "n": 0,
+        "median": null,
+        "p95": null
+      },
+      "sceneBuildHostMs": {
+        "n": 0,
+        "median": null,
+        "p95": null
+      },
+      "gpuPassMs": {}
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "frames": 49,
+      "renderHostMs": {
+        "n": 49,
+        "median": 1.5,
+        "p95": 2.6999999284744263
+      },
+      "domMeasureHostMs": {
+        "n": 49,
+        "median": 0.09999990463256836,
+        "p95": 0.19999992847442627
+      },
+      "sceneBuildHostMs": {
+        "n": 49,
+        "median": 0,
+        "p95": 0.10000002384185791
+      },
+      "gpuPassMs": {
+        "height": {
+          "n": 49,
+          "median": 0.050249,
+          "p95": 0.149663
+        },
+        "lighting": {
+          "n": 49,
+          "median": 0.016582,
+          "p95": 0.035957
+        },
+        "normal": {
+          "n": 49,
+          "median": 0.014875,
+          "p95": 0.035582
+        },
+        "presentation": {
+          "n": 49,
+          "median": 0.280779,
+          "p95": 1.393249
+        },
+        "reconstruction": {
+          "n": 49,
+          "median": 0.016666,
+          "p95": 0.03583
+        },
+        "shadow": {
+          "n": 49,
+          "median": 0.034246,
+          "p95": 0.057498
+        }
+      }
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "frames": 39,
+      "renderHostMs": {
+        "n": 39,
+        "median": 14.5,
+        "p95": 29
+      },
+      "domMeasureHostMs": {
+        "n": 39,
+        "median": 0,
+        "p95": 0.20000004768371582
+      },
+      "sceneBuildHostMs": {
+        "n": 39,
+        "median": 0,
+        "p95": 0.19999992847442627
+      },
+      "gpuPassMs": {}
+    }
+  ],
+  "environment": {
+    "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/156.0.0.0 Safari/537.36",
+    "platform": "MacIntel",
+    "viewport": [
+      800,
+      457
+    ],
+    "dpr": 1,
+    "cssStage": [
+      180,
+      100
+    ],
+    "button": [
+      100,
+      40
+    ],
+    "margin": 4,
+    "angularRadius": 0,
+    "shadow": {
+      "samples": 1,
+      "maxDistance": 48
+    },
+    "bloom": {
+      "intensity": 0.5,
+      "radius": 8
+    },
+    "adapter": {
+      "vendor": "apple",
+      "architecture": "metal-3",
+      "description": ""
+    }
+  },
+  "rows": [
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "mid": {
+        "progress": 0.5696311249999997,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 0,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 2,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "releaseMid": {
+        "progress": 0.6612605344372071,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 1,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 10,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "selected": {
+        "progress": 0.375,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 1,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 16,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "mouseDown": {
+        "progress": 1,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 1,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 40,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "mouseReleased": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 2,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 48,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "idle": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 2,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 49,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "reduced": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 2,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 49,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "disabled": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": true,
+        "focused": false,
+        "focusVisible": false,
+        "clicks": 2,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 51,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "eventTrace": [
+        "down:Tab:false",
+        "button:up:Tab:false",
+        "up:Tab:false",
+        "button:down: :false",
+        "down: :false",
+        "button:up: :false",
+        "up: :false",
+        "pointer:down:touch:true:0",
+        "pointer:cancel",
+        "pointer:down:mouse:true:0",
+        "button:down:Enter:false",
+        "down:Enter:false",
+        "button:up:Enter:false",
+        "up:Enter:false",
+        "button:blur"
+      ]
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "mid": {
+        "progress": 0.7189886255114357,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 2,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 3,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "releaseMid": {
+        "progress": 0.5955585181464531,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 3,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 11,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "selected": {
+        "progress": 0.375,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 3,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 17,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "mouseDown": {
+        "progress": 1,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 3,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 41,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "mouseReleased": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 4,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 49,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "idle": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 4,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 50,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "reduced": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 4,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 50,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "disabled": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": true,
+        "focused": false,
+        "focusVisible": false,
+        "clicks": 4,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 52,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "eventTrace": [
+        "down:Tab:false",
+        "window:blur",
+        "up:Tab:false",
+        "button:down: :false",
+        "down: :false",
+        "button:up: :false",
+        "up: :false",
+        "pointer:down:touch:true:0",
+        "pointer:cancel",
+        "pointer:down:mouse:true:0",
+        "button:down:Enter:false",
+        "down:Enter:false",
+        "button:up:Enter:false",
+        "up:Enter:false",
+        "button:blur"
+      ]
+    },
+    {
+      "backend": "css",
+      "effects": false,
+      "mid": {
+        "progress": 0.5988691415975778,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 4,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "css",
+        "grainEnabled": false,
+        "serial": 0,
+        "renderSize": null,
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "releaseMid": {
+        "progress": 0.6181356248014778,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 5,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "css",
+        "grainEnabled": false,
+        "serial": 0,
+        "renderSize": null,
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "selected": {
+        "progress": 0.375,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 5,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "css",
+        "grainEnabled": false,
+        "serial": 0,
+        "renderSize": null,
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "mouseDown": {
+        "progress": 1,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 5,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "css",
+        "grainEnabled": false,
+        "serial": 0,
+        "renderSize": null,
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "mouseReleased": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 6,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "css",
+        "grainEnabled": false,
+        "serial": 0,
+        "renderSize": null,
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "idle": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 6,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "css",
+        "grainEnabled": false,
+        "serial": 0,
+        "renderSize": null,
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "reduced": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 6,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "css",
+        "grainEnabled": false,
+        "serial": 0,
+        "renderSize": null,
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "disabled": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": true,
+        "focused": false,
+        "focusVisible": false,
+        "clicks": 6,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "css",
+        "grainEnabled": false,
+        "serial": 0,
+        "renderSize": null,
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "eventTrace": [
+        "down:Tab:false",
+        "window:blur",
+        "up:Tab:false",
+        "button:down: :false",
+        "down: :false",
+        "button:up: :false",
+        "up: :false",
+        "pointer:down:touch:true:0",
+        "pointer:cancel",
+        "pointer:down:mouse:true:0",
+        "button:down:Enter:false",
+        "down:Enter:false",
+        "button:up:Enter:false",
+        "up:Enter:false",
+        "button:blur"
+      ]
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "mid": {
+        "progress": 0.76549537059703,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 6,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 3,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "releaseMid": {
+        "progress": 0.6422031481481449,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 7,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 10,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "selected": {
+        "progress": 0.375,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 7,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 16,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "mouseDown": {
+        "progress": 1,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 7,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 40,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "mouseReleased": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 8,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 48,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "idle": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 8,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 49,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "reduced": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 8,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 49,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "disabled": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": true,
+        "focused": false,
+        "focusVisible": false,
+        "clicks": 8,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 51,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "eventTrace": [
+        "down:Tab:false",
+        "window:blur",
+        "up:Tab:false",
+        "button:down: :false",
+        "down: :false",
+        "button:up: :false",
+        "up: :false",
+        "pointer:down:touch:true:0",
+        "pointer:cancel",
+        "pointer:down:mouse:true:0",
+        "button:down:Enter:false",
+        "down:Enter:false",
+        "button:up:Enter:false",
+        "up:Enter:false",
+        "button:blur"
+      ]
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "mid": {
+        "progress": 0.5239253751481217,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 8,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 2,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "releaseMid": {
+        "progress": 0.5971227575231481,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 9,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 8,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "selected": {
+        "progress": 0.375,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 9,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 13,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "mouseDown": {
+        "progress": 1,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 9,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 32,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "mouseReleased": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 10,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 38,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "idle": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 10,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 39,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "reduced": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 10,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 39,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "disabled": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": true,
+        "focused": false,
+        "focusVisible": false,
+        "clicks": 10,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 41,
+        "renderSize": {
+          "width": 116,
+          "height": 56
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "eventTrace": [
+        "down:Tab:false",
+        "window:blur",
+        "up:Tab:false",
+        "button:down: :false",
+        "down: :false",
+        "button:up: :false",
+        "up: :false",
+        "pointer:down:touch:true:0",
+        "pointer:cancel",
+        "pointer:down:mouse:true:0",
+        "button:down:Enter:false",
+        "down:Enter:false",
+        "button:up:Enter:false",
+        "up:Enter:false",
+        "button:blur"
+      ]
+    }
+  ],
+  "operationSamples": [
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.399999976158142,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.5696311249999997,
+      "passGpuMs": {
+        "height": 0.03083,
+        "normal": 0.215852,
+        "shadow": 0.064743,
+        "reconstruction": 0.036079,
+        "lighting": 0.034829,
+        "presentation": 0.812955
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 2.9000000953674316,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.8164267546296293,
+      "passGpuMs": {
+        "height": 0.052369,
+        "normal": 0.014957,
+        "shadow": 0.039578,
+        "reconstruction": 0.016707,
+        "lighting": 0.016623,
+        "presentation": 0.026539
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 2.799999952316284,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.19999992847442627,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.9204929999999999,
+      "passGpuMs": {
+        "height": 0.052286,
+        "normal": 0.159067,
+        "shadow": 0.034747,
+        "reconstruction": 0.017039,
+        "lighting": 0.016998,
+        "presentation": 0.071701
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 2.899999976158142,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.9754001452546297,
+      "passGpuMs": {
+        "height": 0.052036,
+        "normal": 0.015457,
+        "shadow": 0.032205,
+        "reconstruction": 0.016623,
+        "lighting": 0.016873,
+        "presentation": 0.025872
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 3.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 1.4000000953674316,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.9965112453703704,
+      "passGpuMs": {
+        "height": 0.051745,
+        "normal": 0.015039,
+        "shadow": 0.031496,
+        "reconstruction": 0.017123,
+        "lighting": 0.017332,
+        "presentation": 1.253824
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.7000000476837158,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.999998046875,
+      "passGpuMs": {
+        "height": 0.051744,
+        "normal": 0.01579,
+        "shadow": 0.029163,
+        "reconstruction": 0.016624,
+        "lighting": 0.017041,
+        "presentation": 0.025497
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.6999999284744263,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.09999990463256836,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 1,
+      "passGpuMs": {
+        "height": 0.051997,
+        "normal": 0.014707,
+        "shadow": 0.029748,
+        "reconstruction": 0.016666,
+        "lighting": 0.016832,
+        "presentation": 0.026581
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.5,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.09999990463256836,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 1,
+      "passGpuMs": {
+        "height": 0.051456,
+        "normal": 0.014541,
+        "shadow": 0.030456,
+        "reconstruction": 0.017332,
+        "lighting": 0.017082,
+        "presentation": 0.026124
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 2.4000000953674316,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.6612605344372071,
+      "passGpuMs": {
+        "height": 0.051872,
+        "normal": 0.208862,
+        "shadow": 0.049372,
+        "reconstruction": 0.030248,
+        "lighting": 0.029123,
+        "presentation": 1.000147
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.5325229717921589,
+      "passGpuMs": {
+        "height": 0.051372,
+        "normal": 0.017457,
+        "shadow": 0.038582,
+        "reconstruction": 0.016791,
+        "lighting": 0.017041,
+        "presentation": 0.060704
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.600000023841858,
+      "domMeasureHostMs": 0.19999992847442627,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.45004148157214685,
+      "passGpuMs": {
+        "height": 0.051496,
+        "normal": 0.015124,
+        "shadow": 0.041122,
+        "reconstruction": 0.017165,
+        "lighting": 0.016332,
+        "presentation": 0.025291
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 0.6999999284744263,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.40276534473712133,
+      "passGpuMs": {
+        "height": 0.05183,
+        "normal": 0.014957,
+        "shadow": 0.043206,
+        "reconstruction": 0.016999,
+        "lighting": 0.017206,
+        "presentation": 0.049913
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.3812114843922202,
+      "passGpuMs": {
+        "height": 0.051081,
+        "normal": 0.014666,
+        "shadow": 0.044789,
+        "reconstruction": 0.016582,
+        "lighting": 0.016957,
+        "presentation": 0.100245
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 0.3999999761581421,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.37527255895758216,
+      "passGpuMs": {
+        "height": 0.051373,
+        "normal": 0.014708,
+        "shadow": 0.04304,
+        "reconstruction": 0.017165,
+        "lighting": 0.017082,
+        "presentation": 1.269192
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.7999999523162842,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.09999990463256836,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.375,
+      "passGpuMs": {
+        "height": 0.050998,
+        "normal": 0.015208,
+        "shadow": 0.044748,
+        "reconstruction": 0.016874,
+        "lighting": 0.016582,
+        "presentation": 0.064955
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.100000023841858,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.375,
+      "passGpuMs": {
+        "height": 0.050873,
+        "normal": 0.015207,
+        "shadow": 0.051081,
+        "reconstruction": 0.016874,
+        "lighting": 0.017667,
+        "presentation": 0.030458
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.899999976158142,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.6789989586883903,
+      "passGpuMs": {
+        "height": 0.051832,
+        "normal": 0.015082,
+        "shadow": 0.041623,
+        "reconstruction": 0.016915,
+        "lighting": 0.016666,
+        "presentation": 0.025874
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.399999976158142,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.8182653813498912,
+      "passGpuMs": {
+        "height": 0.052165,
+        "normal": 0.014999,
+        "shadow": 0.038082,
+        "reconstruction": 0.017207,
+        "lighting": 0.0165,
+        "presentation": 0.174369
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.5,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.9104191438246007,
+      "passGpuMs": {
+        "height": 0.051582,
+        "normal": 0.015167,
+        "shadow": 0.034957,
+        "reconstruction": 0.017209,
+        "lighting": 0.016625,
+        "presentation": 0.02629
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.399999976158142,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.9645644601620446,
+      "passGpuMs": {
+        "height": 0.05179,
+        "normal": 0.015375,
+        "shadow": 0.033207,
+        "reconstruction": 0.016834,
+        "lighting": 0.016874,
+        "presentation": 0.026249
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 3.399999976158142,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.9907145635079339,
+      "passGpuMs": {
+        "height": 0.112204,
+        "normal": 0.029832,
+        "shadow": 0.048165,
+        "reconstruction": 0.031082,
+        "lighting": 0.027458,
+        "presentation": 0.717853
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 2,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.9992591207445779,
+      "passGpuMs": {
+        "height": 0.053249,
+        "normal": 0.015124,
+        "shadow": 0.031332,
+        "reconstruction": 0.017166,
+        "lighting": 0.016916,
+        "presentation": 0.02679
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.3000000715255737,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 1,
+      "passGpuMs": {
+        "height": 0.053041,
+        "normal": 0.015374,
+        "shadow": 0.031624,
+        "reconstruction": 0.017792,
+        "lighting": 0.017374,
+        "presentation": 0.027749
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.600000023841858,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 1,
+      "passGpuMs": {
+        "height": 0.054373,
+        "normal": 0.016416,
+        "shadow": 0.032332,
+        "reconstruction": 0.017875,
+        "lighting": 0.018874,
+        "presentation": 0.029874
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 2.5,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.643090865735609,
+      "passGpuMs": {
+        "height": 0.061873,
+        "normal": 0.017625,
+        "shadow": 0.040708,
+        "reconstruction": 0.019083,
+        "lighting": 0.017875,
+        "presentation": 0.029999
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.5209720122217214,
+      "passGpuMs": {
+        "height": 0.053873,
+        "normal": 0.016208,
+        "shadow": 0.038749,
+        "reconstruction": 0.017499,
+        "lighting": 0.017333,
+        "presentation": 0.026791
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.2000000476837158,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.44268997693649426,
+      "passGpuMs": {
+        "height": 0.056373,
+        "normal": 0.016457,
+        "shadow": 0.043582,
+        "reconstruction": 0.017915,
+        "lighting": 0.020042,
+        "presentation": 0.060623
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.2999999523162842,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.3990270996518086,
+      "passGpuMs": {
+        "height": 0.05704,
+        "normal": 0.017208,
+        "shadow": 0.044873,
+        "reconstruction": 0.01975,
+        "lighting": 0.01954,
+        "presentation": 1.252337
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 2,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.3798760387878021,
+      "passGpuMs": {
+        "height": 0.058749,
+        "normal": 0.017999,
+        "shadow": 0.047415,
+        "reconstruction": 0.019874,
+        "lighting": 0.018749,
+        "presentation": 0.027124
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.899999976158142,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.3751294527646143,
+      "passGpuMs": {
+        "height": 0.06554,
+        "normal": 0.017208,
+        "shadow": 0.048706,
+        "reconstruction": 0.017333,
+        "lighting": 0.017332,
+        "presentation": 0.029207
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.2999999523162842,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.09999990463256836,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.375,
+      "passGpuMs": {
+        "height": 0.057499,
+        "normal": 0.017833,
+        "shadow": 0.048624,
+        "reconstruction": 0.019416,
+        "lighting": 0.021165,
+        "presentation": 0.032458
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 2.299999952316284,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.46131536202720363,
+      "passGpuMs": {
+        "height": 0.058123,
+        "normal": 0.017916,
+        "shadow": 0.049249,
+        "reconstruction": 0.021957,
+        "lighting": 0.021875,
+        "presentation": 0.951596
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 3,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.6647644045428032,
+      "passGpuMs": {
+        "height": 0.05779,
+        "normal": 0.017624,
+        "shadow": 0.042082,
+        "reconstruction": 0.016584,
+        "lighting": 0.016666,
+        "presentation": 0.029541
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 0.8999999761581421,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.8092035186874142,
+      "passGpuMs": {
+        "height": 0.129996,
+        "normal": 0.015083,
+        "shadow": 0.049207,
+        "reconstruction": 0.036749,
+        "lighting": 0.032999,
+        "presentation": 0.30795
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.2999999523162842,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.9047400460409014,
+      "passGpuMs": {
+        "height": 0.027541,
+        "normal": 0.009125,
+        "shadow": 0.019499,
+        "reconstruction": 0.008,
+        "lighting": 0.011667,
+        "presentation": 0.164748
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.9614813281831238,
+      "passGpuMs": {
+        "height": 0.115706,
+        "normal": 0.015958,
+        "shadow": 0.025332,
+        "reconstruction": 0.014708,
+        "lighting": 0.022708,
+        "presentation": 0.013375
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 3.600000023841858,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.9894321065060228,
+      "passGpuMs": {
+        "height": 0.029334,
+        "normal": 0.008,
+        "shadow": 0.013125,
+        "reconstruction": 0.006791,
+        "lighting": 0.008166,
+        "presentation": 0.014708
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 0.7999999523162842,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.9989643778987349,
+      "passGpuMs": {
+        "height": 0.026542,
+        "normal": 0.007833,
+        "shadow": 0.014666,
+        "reconstruction": 0.007833,
+        "lighting": 0.008875,
+        "presentation": 0.013834
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 1,
+      "passGpuMs": {
+        "height": 0.134498,
+        "normal": 0.019666,
+        "shadow": 0.024874,
+        "reconstruction": 0.016416,
+        "lighting": 0.017916,
+        "presentation": 0.219997
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.4000000953674316,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 1,
+      "passGpuMs": {
+        "height": 0.107039,
+        "normal": 0.023125,
+        "shadow": 0.11579,
+        "reconstruction": 0.018125,
+        "lighting": 0.017166,
+        "presentation": 0.111956
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.5,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.45505235253006737,
+      "passGpuMs": {
+        "height": 0.060249,
+        "normal": 0.017084,
+        "shadow": 0.039207,
+        "reconstruction": 0.016709,
+        "lighting": 0.016708,
+        "presentation": 0.472743
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 2.700000047683716,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.2500469992902883,
+      "passGpuMs": {
+        "height": 0.057458,
+        "normal": 0.016708,
+        "shadow": 0.045125,
+        "reconstruction": 0.167372,
+        "lighting": 0.032707,
+        "presentation": 0.765238
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 2,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.11885358753070485,
+      "passGpuMs": {
+        "height": 0.209372,
+        "normal": 0.028166,
+        "shadow": 0.069123,
+        "reconstruction": 0.02975,
+        "lighting": 0.029667,
+        "presentation": 0.824112
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.399999976158142,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.09999990463256836,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.0438003279028123,
+      "passGpuMs": {
+        "height": 0.058082,
+        "normal": 0.017292,
+        "shadow": 0.053208,
+        "reconstruction": 0.019625,
+        "lighting": 0.018708,
+        "presentation": 0.026707
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.899999976158142,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.009709036955656947,
+      "passGpuMs": {
+        "height": 0.109999,
+        "normal": 0.027207,
+        "shadow": 0.06679,
+        "reconstruction": 0.030708,
+        "lighting": 0.028499,
+        "presentation": 0.900486
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 0.7999999523162842,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0.0004079681614602704,
+      "passGpuMs": {
+        "height": 0.020209,
+        "normal": 0.006125,
+        "shadow": 0.017917,
+        "reconstruction": 0.006125,
+        "lighting": 0.00675,
+        "presentation": 0.082331
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.2999999523162842,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0,
+      "passGpuMs": {
+        "height": 0.022041,
+        "normal": 0.006708,
+        "shadow": 0.020832,
+        "reconstruction": 0.00725,
+        "lighting": 0.007667,
+        "presentation": 0.091874
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 1.3000000715255737,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 0,
+      "passGpuMs": {
+        "height": 0.022209,
+        "normal": 0.006833,
+        "shadow": 0.019582,
+        "reconstruction": 0.006917,
+        "lighting": 0.007625,
+        "presentation": 0.013624
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 2.100000023841858,
+      "domMeasureHostMs": 0.3999999761581421,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 9,
+      "maskSdfPasses": 0,
+      "progress": 1,
+      "passGpuMs": {
+        "height": 0.062582,
+        "normal": 0.019624,
+        "shadow": 0.040208,
+        "reconstruction": 0.024249,
+        "lighting": 0.017875,
+        "presentation": 0.028625
+      }
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 4.700000047683716,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.4991185325805576,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 4.700000047683716,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.7189886255114357,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 3.9000000953674316,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.8620787040219274,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 6,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9462038907948807,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 9.700000047683716,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9864620046973436,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 9.600000023841858,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.999000000011921,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 10.899999976158142,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 1,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 13.100000023841858,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.970780070531245,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 14.100000023841858,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.7532112172765646,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 3.5,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.5955585181464531,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 5.900000095367432,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.48922932593192536,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 5.799999952316284,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.4241162990531192,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 6.700000047683716,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.3902431249373406,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 8.799999952316284,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.3771447269072393,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 9.300000071525574,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.37500122070300856,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 9.700000047683716,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.375,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 8.199999928474426,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.375,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 7.600000023841858,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.670915361328124,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 10.399999976158142,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.8127236592158551,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 7.400000095367432,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9065122782841443,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 8.5,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9624482783564815,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 10.200000047683716,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9898385185185185,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 10,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9990901851851852,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 9.799999952316284,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 1,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 11.5,
+      "domMeasureHostMs": 0.30000007152557373,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 1,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 8.099999904632568,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.09999990463256836,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.7713804947049656,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 10.099999904632568,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.6090909380552569,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 11.5,
+      "domMeasureHostMs": 0.20000004768371582,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.4979992738528909,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 15.899999976158142,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.4291526660885685,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 4.600000023841858,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.09999990463256836,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.3777652535546001,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 6.600000023841858,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.3750107751015217,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 7.700000047683716,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.375,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 9.799999952316284,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.4711605273153261,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 8,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.6709153615710349,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 10.699999928474426,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0.30000007152557373,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.8134224509765812,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 11.800000071525574,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9073900916118383,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 10.100000023841858,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9626874606327143,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 9.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9900377575467425,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 9.399999976158142,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.09999990463256836,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9991101074265899,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 13.899999976158142,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 1,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 1,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 8.399999976158142,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.3997726293061685,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 9.800000071525574,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.2133112341622092,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 11.100000023841858,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.0962818285784921,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 13.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.03276799993896484,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 8.5,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.005913375559212675,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 15,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 7.676562392333608e-05,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 16.899999976158142,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 17.600000023841858,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": false,
+      "renderSize": {
+        "width": 108,
+        "height": 48
+      },
+      "renderHostMs": 11,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 1,
+      "passGpuMs": null
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 2.4000000953674316,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.5696311253397639,
+      "passGpuMs": {
+        "height": 0.025248,
+        "normal": 0.007332,
+        "shadow": 0.020123,
+        "reconstruction": 0.007749,
+        "lighting": 0.008832,
+        "presentation": 0.288969
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.100000023841858,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.76549537059703,
+      "passGpuMs": {
+        "height": 0.03758,
+        "normal": 0.008832,
+        "shadow": 0.022372,
+        "reconstruction": 0.009915,
+        "lighting": 0.009791,
+        "presentation": 0.35242
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 0.7999999523162842,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.8911270157609044,
+      "passGpuMs": {
+        "height": 0.050953,
+        "normal": 0.014874,
+        "shadow": 0.034246,
+        "reconstruction": 0.016456,
+        "lighting": 0.016873,
+        "presentation": 0.164024
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.2999999523162842,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.9612711713645259,
+      "passGpuMs": {
+        "height": 0.143526,
+        "normal": 0.031247,
+        "shadow": 0.050994,
+        "reconstruction": 0.03583,
+        "lighting": 0.036329,
+        "presentation": 0.398874
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.100000023841858,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.9920995839356807,
+      "passGpuMs": {
+        "height": 0.05037,
+        "normal": 0.015623,
+        "shadow": 0.030205,
+        "reconstruction": 0.016457,
+        "lighting": 0.016915,
+        "presentation": 0.194271
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 0.7999999523162842,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.9997748744235021,
+      "passGpuMs": {
+        "height": 0.050203,
+        "normal": 0.015331,
+        "shadow": 0.031662,
+        "reconstruction": 0.016791,
+        "lighting": 0.016873,
+        "presentation": 0.262514
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.2000000476837158,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 1,
+      "passGpuMs": {
+        "height": 0.050703,
+        "normal": 0.014748,
+        "shadow": 0.031788,
+        "reconstruction": 0.016748,
+        "lighting": 0.017082,
+        "presentation": 0.239224
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 0.8999999761581421,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.20000004768371582,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.8193290332031296,
+      "passGpuMs": {
+        "height": 0.056996,
+        "normal": 0.011875,
+        "shadow": 0.019124,
+        "reconstruction": 0.013249,
+        "lighting": 0.013665,
+        "presentation": 0.538592
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 0.8999999761581421,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.6422031481481449,
+      "passGpuMs": {
+        "height": 0.019706,
+        "normal": 0.006583,
+        "shadow": 0.011665,
+        "reconstruction": 0.006791,
+        "lighting": 0.006542,
+        "presentation": 0.301399
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 0.8999999761581421,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.520380234375001,
+      "passGpuMs": {
+        "height": 0.021916,
+        "normal": 0.0065,
+        "shadow": 0.014332,
+        "reconstruction": 0.007082,
+        "lighting": 0.007041,
+        "presentation": 0.236778
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.44198242187500003,
+      "passGpuMs": {
+        "height": 0.021833,
+        "normal": 0.006916,
+        "shadow": 0.015457,
+        "reconstruction": 0.007042,
+        "lighting": 0.007,
+        "presentation": 0.049289
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.1999999284744263,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.3988495601851846,
+      "passGpuMs": {
+        "height": 0.022124,
+        "normal": 0.008208,
+        "shadow": 0.022707,
+        "reconstruction": 0.009957,
+        "lighting": 0.009874,
+        "presentation": 0.962691
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.0999999046325684,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.37987603877314824,
+      "passGpuMs": {
+        "height": 0.028457,
+        "normal": 0.008708,
+        "shadow": 0.022999,
+        "reconstruction": 0.009665,
+        "lighting": 0.010415,
+        "presentation": 0.192406
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.3751294527633102,
+      "passGpuMs": {
+        "height": 0.043914,
+        "normal": 0.013166,
+        "shadow": 0.039206,
+        "reconstruction": 0.017333,
+        "lighting": 0.016916,
+        "presentation": 0.229947
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.1999999284744263,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.375,
+      "passGpuMs": {
+        "height": 0.031415,
+        "normal": 0.0125,
+        "shadow": 0.040415,
+        "reconstruction": 0.015625,
+        "lighting": 0.014625,
+        "presentation": 0.292277
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.375,
+      "passGpuMs": {
+        "height": 0.045248,
+        "normal": 0.013292,
+        "shadow": 0.040831,
+        "reconstruction": 0.014916,
+        "lighting": 0.014207,
+        "presentation": 0.280779
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 0.8999999761581421,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.7432970605968661,
+      "passGpuMs": {
+        "height": 0.049956,
+        "normal": 0.015624,
+        "shadow": 0.039789,
+        "reconstruction": 0.016749,
+        "lighting": 0.016541,
+        "presentation": 0.261196
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.7000000476837158,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.8615967971477089,
+      "passGpuMs": {
+        "height": 0.050622,
+        "normal": 0.014959,
+        "shadow": 0.035249,
+        "reconstruction": 0.016666,
+        "lighting": 0.016458,
+        "presentation": 0.601597
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.2999999523162842,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.9368211521437371,
+      "passGpuMs": {
+        "height": 0.055331,
+        "normal": 0.015124,
+        "shadow": 0.03429,
+        "reconstruction": 0.016999,
+        "lighting": 0.016417,
+        "presentation": 0.2982
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.3000000715255737,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.9782131482276547,
+      "passGpuMs": {
+        "height": 0.022167,
+        "normal": 0.006916,
+        "shadow": 0.013417,
+        "reconstruction": 0.007166,
+        "lighting": 0.008207,
+        "presentation": 0.137663
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.399999976158142,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.9958801269793186,
+      "passGpuMs": {
+        "height": 0.022416,
+        "normal": 0.006249,
+        "shadow": 0.012583,
+        "reconstruction": 0.006625,
+        "lighting": 0.007041,
+        "presentation": 0.473319
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 2,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.9999257165093243,
+      "passGpuMs": {
+        "height": 0.029582,
+        "normal": 0.010292,
+        "shadow": 0.019833,
+        "reconstruction": 0.0095,
+        "lighting": 0.014249,
+        "presentation": 0.600274
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.8000000715255737,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 1,
+      "passGpuMs": {
+        "height": 0.028916,
+        "normal": 0.008083,
+        "shadow": 0.016208,
+        "reconstruction": 0.009,
+        "lighting": 0.010458,
+        "presentation": 0.718603
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.6999999284744263,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.19999992847442627,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 1,
+      "passGpuMs": {
+        "height": 0.031083,
+        "normal": 0.011209,
+        "shadow": 0.019082,
+        "reconstruction": 0.010542,
+        "lighting": 0.014541,
+        "presentation": 0.866099
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.5,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.6754137733767327,
+      "passGpuMs": {
+        "height": 0.057581,
+        "normal": 0.017207,
+        "shadow": 0.037916,
+        "reconstruction": 0.018958,
+        "lighting": 0.025416,
+        "presentation": 1.494704
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.600000023841858,
+      "domMeasureHostMs": 0.19999992847442627,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.5427100782799825,
+      "passGpuMs": {
+        "height": 0.149663,
+        "normal": 0.034124,
+        "shadow": 0.057498,
+        "reconstruction": 0.039499,
+        "lighting": 0.035082,
+        "presentation": 1.958233
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 2.4000000953674316,
+      "domMeasureHostMs": 0.30000007152557373,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.45549226572000423,
+      "passGpuMs": {
+        "height": 0.125621,
+        "normal": 0.015374,
+        "shadow": 0.041416,
+        "reconstruction": 0.01875,
+        "lighting": 0.018749,
+        "presentation": 0.632981
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 2.600000023841858,
+      "domMeasureHostMs": 0.20000004768371582,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.4058101852352689,
+      "passGpuMs": {
+        "height": 0.056456,
+        "normal": 0.016958,
+        "shadow": 0.045373,
+        "reconstruction": 0.018042,
+        "lighting": 0.022166,
+        "presentation": 0.44082
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 3.1999999284744263,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.3824402575425705,
+      "passGpuMs": {
+        "height": 0.05779,
+        "normal": 0.016665,
+        "shadow": 0.044707,
+        "reconstruction": 0.021833,
+        "lighting": 0.017374,
+        "presentation": 0.515817
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.5,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.3754307783593883,
+      "passGpuMs": {
+        "height": 0.229577,
+        "normal": 0.154121,
+        "shadow": 0.065123,
+        "reconstruction": 0.035124,
+        "lighting": 0.035957,
+        "presentation": 0.280408
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 2.700000047683716,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.375,
+      "passGpuMs": {
+        "height": 0.060331,
+        "normal": 0.018208,
+        "shadow": 0.043165,
+        "reconstruction": 0.018625,
+        "lighting": 0.019541,
+        "presentation": 0.43932
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.600000023841858,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.375,
+      "passGpuMs": {
+        "height": 0.057957,
+        "normal": 0.016707,
+        "shadow": 0.045082,
+        "reconstruction": 0.018416,
+        "lighting": 0.022958,
+        "presentation": 0.411363
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.7626465172887762,
+      "passGpuMs": {
+        "height": 0.15187,
+        "normal": 0.035582,
+        "shadow": 0.059831,
+        "reconstruction": 0.038832,
+        "lighting": 0.034624,
+        "presentation": 1.393249
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.899999976158142,
+      "domMeasureHostMs": 0.19999992847442627,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.8748739843750011,
+      "passGpuMs": {
+        "height": 0.056831,
+        "normal": 0.018333,
+        "shadow": 0.038999,
+        "reconstruction": 0.018791,
+        "lighting": 0.020624,
+        "presentation": 0.086456
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.399999976158142,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.9443031481481471,
+      "passGpuMs": {
+        "height": 0.050249,
+        "normal": 0.014958,
+        "shadow": 0.033874,
+        "reconstruction": 0.017292,
+        "lighting": 0.016582,
+        "presentation": 0.077498
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.100000023841858,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.9816793258101852,
+      "passGpuMs": {
+        "height": 0.05679,
+        "normal": 0.015291,
+        "shadow": 0.03229,
+        "reconstruction": 0.016875,
+        "lighting": 0.01804,
+        "presentation": 0.077498
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.399999976158142,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.9970188049768519,
+      "passGpuMs": {
+        "height": 0.146831,
+        "normal": 0.036166,
+        "shadow": 0.052915,
+        "reconstruction": 0.03425,
+        "lighting": 0.034332,
+        "presentation": 0.422952
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.6999999284744263,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.999983125,
+      "passGpuMs": {
+        "height": 0.021416,
+        "normal": 0.007,
+        "shadow": 0.012916,
+        "reconstruction": 0.00725,
+        "lighting": 0.00775,
+        "presentation": 0.053374
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.09999990463256836,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 1,
+      "passGpuMs": {
+        "height": 0.021291,
+        "normal": 0.006875,
+        "shadow": 0.013042,
+        "reconstruction": 0.007291,
+        "lighting": 0.007875,
+        "presentation": 0.240371
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.7914531234700272,
+      "passGpuMs": {
+        "height": 0.0245,
+        "normal": 0.007415,
+        "shadow": 0.015166,
+        "reconstruction": 0.008041,
+        "lighting": 0.008541,
+        "presentation": 0.202955
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.600000023841858,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.4852788223911392,
+      "passGpuMs": {
+        "height": 0.026749,
+        "normal": 0.00825,
+        "shadow": 0.017209,
+        "reconstruction": 0.008208,
+        "lighting": 0.009125,
+        "presentation": 0.203955
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.27146842112531133,
+      "passGpuMs": {
+        "height": 0.034041,
+        "normal": 0.011083,
+        "shadow": 0.0265,
+        "reconstruction": 0.011291,
+        "lighting": 0.012291,
+        "presentation": 0.047
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.600000023841858,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.13135474490831145,
+      "passGpuMs": {
+        "height": 0.034542,
+        "normal": 0.011208,
+        "shadow": 0.02779,
+        "reconstruction": 0.011166,
+        "lighting": 0.013,
+        "presentation": 0.292995
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 1.6999999284744263,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.05031152001093597,
+      "passGpuMs": {
+        "height": 0.057041,
+        "normal": 0.016708,
+        "shadow": 0.048207,
+        "reconstruction": 0.018208,
+        "lighting": 0.018832,
+        "presentation": 0.253496
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 2,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.012166999905406928,
+      "passGpuMs": {
+        "height": 0.060166,
+        "normal": 0.017417,
+        "shadow": 0.051957,
+        "reconstruction": 0.018667,
+        "lighting": 0.02225,
+        "presentation": 0.087123
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 2.600000023841858,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0.0007702546146043376,
+      "passGpuMs": {
+        "height": 0.055207,
+        "normal": 0.015875,
+        "shadow": 0.048582,
+        "reconstruction": 0.019416,
+        "lighting": 0.017875,
+        "presentation": 0.269788
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 0.8999999761581421,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0,
+      "passGpuMs": {
+        "height": 0.049957,
+        "normal": 0.014875,
+        "shadow": 0.047749,
+        "reconstruction": 0.016541,
+        "lighting": 0.016583,
+        "presentation": 0.451368
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 2.6999999284744263,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 0,
+      "passGpuMs": {
+        "height": 0.050375,
+        "normal": 0.015499,
+        "shadow": 0.047416,
+        "reconstruction": 0.016791,
+        "lighting": 1.066609,
+        "presentation": 0.233329
+      }
+    },
+    {
+      "backend": "webgpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 2,
+      "domMeasureHostMs": 0.19999992847442627,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": 12,
+      "maskSdfPasses": 0,
+      "progress": 1,
+      "passGpuMs": {
+        "height": 0.055624,
+        "normal": 0.018708,
+        "shadow": 0.034249,
+        "reconstruction": 0.018541,
+        "lighting": 0.022333,
+        "presentation": 0.098498
+      }
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 25.600000023841858,
+      "domMeasureHostMs": 0.20000004768371582,
+      "sceneBuildHostMs": 0.09999990463256836,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.5239253751481217,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 14.600000023841858,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.8718488862983766,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 18.199999928474426,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9517051778201304,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 7.5,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9993490370459909,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 12.899999976158142,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 1,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 19.399999976158142,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9738120251012621,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 8,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.5971227575231481,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 12.199999928474426,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.4902387105758066,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 16.799999952316284,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.09999990463256836,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.4249813415075252,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 8.100000023841858,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.3772166113281248,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 14,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.3750014814814815,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 19.5,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.375,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 42.700000047683716,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.375,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 16.299999952316284,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.442708740579483,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 8,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.8983610479263808,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 12.800000071525574,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9577075488899858,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 16.100000023841858,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9879245341703424,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 17.800000071525574,
+      "domMeasureHostMs": 0.20000004768371582,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 1,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 25.399999976158142,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 1,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 21.299999952316284,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.7206566928190291,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 6.699999928474426,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.47524877303817004,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 14.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.19999992847442627,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.4162630659837083,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 7.299999952316284,
+      "domMeasureHostMs": 0.20000004768371582,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.37627018517920796,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 12.700000047683716,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.375,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 6.600000023841858,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.375,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 12,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.7650962471064785,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 14.800000071525574,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.876471318359377,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 18.90000009536743,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9452331318721087,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 9.699999928474426,
+      "domMeasureHostMs": 0.09999990463256836,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.9971064814814815,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 12.599999904632568,
+      "domMeasureHostMs": 0.7999999523162842,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.999987001953125,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 14.800000071525574,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 1,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 6.299999952316284,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 1,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 13.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.41349362400754797,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 18.199999928474426,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.22236144783906242,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 14,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.03539524517760595,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 19,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0.006769145190642756,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 8.5,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.10000002384185791,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 29,
+      "domMeasureHostMs": 0,
+      "sceneBuildHostMs": 0.20000004768371582,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 0,
+      "passGpuMs": null
+    },
+    {
+      "backend": "cpu",
+      "effects": true,
+      "renderSize": {
+        "width": 116,
+        "height": 56
+      },
+      "renderHostMs": 15.5,
+      "domMeasureHostMs": 0.10000002384185791,
+      "sceneBuildHostMs": 0,
+      "dispatchCount": null,
+      "maskSdfPasses": null,
+      "progress": 1,
+      "passGpuMs": null
+    }
+  ],
+  "disposed": [
+    {
+      "backend": "webgpu",
+      "before": {
+        "progress": 0.7059203752635907,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 10,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": false,
+        "serial": 3,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "afterSerial": 3,
+      "errors": [],
+      "observedFrames": 188
+    },
+    {
+      "backend": "cpu",
+      "before": {
+        "progress": 0.6618767034144158,
+        "pressed": "false",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 0,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": false,
+        "serial": 3,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 1
+      },
+      "afterSerial": 3,
+      "errors": [],
+      "observedFrames": 1
+    }
+  ],
+  "fallbacks": [
+    {
+      "scenario": "loss",
+      "prepared": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": false,
+        "focusVisible": false,
+        "clicks": 0,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "webgpu",
+        "grainEnabled": true,
+        "serial": 1,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": null,
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "after": {
+        "progress": 0.375,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 1,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": true,
+        "serial": 13,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": "WebGPU device lost",
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "eventTrace": [
+        "button:down: :false",
+        "down: :false",
+        "button:up: :false",
+        "up: :false"
+      ]
+    },
+    {
+      "scenario": "no-gpu",
+      "prepared": {
+        "progress": 0,
+        "pressed": "false",
+        "disabled": false,
+        "focused": false,
+        "focusVisible": false,
+        "clicks": 0,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": true,
+        "serial": 1,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": "no WebGPU adapter available",
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "after": {
+        "progress": 0.375,
+        "pressed": "true",
+        "disabled": false,
+        "focused": true,
+        "focusVisible": true,
+        "clicks": 1,
+        "sameNode": true,
+        "x": 70,
+        "y": 40,
+        "backend": "cpu",
+        "grainEnabled": true,
+        "serial": 15,
+        "renderSize": {
+          "width": 108,
+          "height": 48
+        },
+        "fallbackReason": "no WebGPU adapter available",
+        "errors": [],
+        "hidden": false,
+        "documentFocused": true,
+        "dirty": 0
+      },
+      "eventTrace": [
+        "button:down: :false",
+        "down: :false",
+        "button:up: :false",
+        "up: :false"
+      ]
+    }
+  ],
+  "reportNote": "Repeated event histories and unmount copies of operationSamples are deduplicated; per-case eventTrace and all operation measurements are retained."
+}

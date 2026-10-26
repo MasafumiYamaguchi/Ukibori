@@ -8,7 +8,7 @@
  * Playground.
  */
 
-export const DASHBOARD_VIEWS = ["playground", "features", "diagnostics", "product"] as const;
+export const DASHBOARD_VIEWS = ["playground", "interaction", "features", "diagnostics", "product"] as const;
 
 export type DashboardView = (typeof DASHBOARD_VIEWS)[number];
 
@@ -19,6 +19,7 @@ export const DIAGNOSTICS_IDS = [
   "dom",
   "profiles",
   "emissive",
+  "interaction",
 ] as const;
 
 export type DiagnosticsId = (typeof DIAGNOSTICS_IDS)[number];
@@ -38,6 +39,8 @@ export interface DiagnosticsPage {
 }
 
 export const DIAGNOSTICS_PAGES: readonly DiagnosticsPage[] = [
+  { id: "interaction", label: "Interaction", page: "/interaction.html", frameTitle: "Surface interaction and resin grain",
+    title: "Surface interaction", description: "Native button and Radix Toggle with continuous elevation, reduced motion and optional resin grain." },
   {
     id: "renderer",
     label: "Renderer",
@@ -100,6 +103,7 @@ export function isDiagnosticsId(value: string): value is DiagnosticsId {
 
 export type DashboardRoute =
   | { view: "playground"; hash: "#playground" }
+  | { view: "interaction"; hash: "#interaction" }
   | { view: "features"; hash: "#features" }
   | { view: "diagnostics"; id: DiagnosticsId; hash: string }
   | { view: "product"; hash: "#product" };
@@ -109,7 +113,7 @@ export const PLAYGROUND_ROUTE: DashboardRoute = { view: "playground", hash: "#pl
 /**
  * Resolve a `location.hash` value to a route.
  *
- * Parsing is strict: only the exact fragments `#playground`, `#features`,
+ * Parsing is strict: only the exact fragments `#playground`, `#interaction`, `#features`,
  * `#product` and `#diagnostics/<known-id>` are valid. A missing or extra
  * segment or an unknown value (including an empty hash) safely resolves to
  * the Playground.
@@ -119,6 +123,8 @@ export function parseDashboardHash(hash: string): DashboardRoute {
   switch (raw) {
     case "playground":
       return PLAYGROUND_ROUTE;
+    case "interaction":
+      return { view: "interaction", hash: "#interaction" };
     case "features":
       return { view: "features", hash: "#features" };
     case "product":
